@@ -45,26 +45,20 @@ function toGuestDoc(userId, mapped) {
   };
 }
 
-async function upsertExcelGuest(userId, doc) {
-  const existing = await Guest.findOne({ userId, phone: doc.phone });
-  if (!existing) {
-    const created = await Guest.create(doc);
-    return { action: "inserted", guest: created };
+function guestSnapshot(guest) {
+  return {
+    fullName: guest.fullName,
+    attendeesCount: guest.attendeesCount,
+    status: guest.status,
+    source: guest.source
+  };
+}
+
+function resolveSourceAfterExcelOverwrite(existingSource) {
+  if (isSelfConfirmedSource(existingSource)) {
+    return "excel_and_form";
   }
-  if (isSelfConfirmedSource(existing.source)) {
-    return { action: "conflict", existing };
-  }
-  const updated = await Guest.findByIdAndUpdate(
-    existing._id,
-    {
-      fullName: doc.fullName,
-      attendeesCount: doc.attendeesCount,
-      status: doc.status,
-      source: "excel"
-    },
-    { new: true, runValidators: true }
-  );
-  return { action: "updated", guest: updated };
+  return "excel";
 }
 
 router.post("/login", async (req, res) => {
@@ -180,12 +174,12 @@ router.post("/:userId/guests/manual", async (req, res) => {
   }
 });
 
-router.post("/:userId/guests/import", async (req, res) => {
+router.post("/:userId/guests/import/precheck", async (req, res) => {
   try {
     const { userId } = req.params;
-    const { guests, resolutions } = req.body;
+    const { guests } = req.body;
 
-    if (!Array.isArray(guests)) {
+    if (!Array.isArray(guests) || guests.length === 0) {
       return res.status(400).json({ message: "Guests array is required" });
     }
 
@@ -198,35 +192,82 @@ router.post("/:userId/guests/import", async (req, res) => {
       .map((row) => toGuestDoc(userId, mapRowToGuest(row)))
       .filter((guest) => guest.fullName && guest.phone);
 
-    let insertedCount = 0;
-    let updatedCount = 0;
+    if (docs.length === 0) {
+      return res.status(400).json({ message: "No valid guests to import" });
+    }
+
+    const phones = [...new Set(docs.map((doc) => doc.phone))];
+    const existingGuests = await Guest.find({ userId, phone: { $in: phones } });
+    const existingByPhone = new Map(existingGuests.map((guest) => [guest.phone, guest]));
+
+    const newGuests = [];
     const conflicts = [];
 
     for (const doc of docs) {
-      const result = await upsertExcelGuest(userId, doc);
-      if (result.action === "inserted") insertedCount += 1;
-      if (result.action === "updated") updatedCount += 1;
-      if (result.action === "conflict") {
+      const existing = existingByPhone.get(doc.phone);
+      if (existing) {
         conflicts.push({
-          guestId: result.existing._id,
+          guestId: existing._id,
           phone: doc.phone,
-          existing: {
-            fullName: result.existing.fullName,
-            attendeesCount: result.existing.attendeesCount,
-            status: result.existing.status,
-            source: result.existing.source
-          },
+          existing: guestSnapshot(existing),
           excel: {
             fullName: doc.fullName,
             attendeesCount: doc.attendeesCount,
             status: doc.status
           }
         });
+      } else {
+        newGuests.push(doc);
       }
     }
 
+    return res.json({
+      message: "Precheck completed",
+      totalRows: docs.length,
+      conflictCount: conflicts.length,
+      newCount: newGuests.length,
+      conflicts,
+      newGuests
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "Failed to precheck import" });
+  }
+});
+
+router.post("/:userId/guests/import", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { newGuests, resolutions } = req.body;
+
+    const user = await User.findById(userId).select("_id");
+    if (!user) {
+      return res.status(404).json({ message: "Client not found" });
+    }
+
+    let insertedCount = 0;
+    const guestsToInsert = Array.isArray(newGuests) ? newGuests : [];
+
+    for (const row of guestsToInsert) {
+      const doc =
+        row?.phone && row?.fullName
+          ? {
+              userId,
+              fullName: String(row.fullName).trim(),
+              phone: normalizePhone(row.phone),
+              attendeesCount: Math.max(1, Number(row.attendeesCount || 1)),
+              status: row.status || "לא ידוע",
+              source: "excel"
+            }
+          : toGuestDoc(userId, mapRowToGuest(row));
+      if (!doc.fullName || !doc.phone) continue;
+      const exists = await Guest.findOne({ userId, phone: doc.phone }).select("_id");
+      if (exists) continue;
+      await Guest.create(doc);
+      insertedCount += 1;
+    }
+
+    let updatedCount = 0;
     const resolutionList = Array.isArray(resolutions) ? resolutions : [];
-    let resolvedCount = 0;
 
     for (const resolution of resolutionList) {
       if (resolution?.choice !== "use_excel") continue;
@@ -237,7 +278,7 @@ router.post("/:userId/guests/import", async (req, res) => {
       const mapped = mapRowToGuest(excelRow);
       const doc = toGuestDoc(userId, mapped);
       const existing = await Guest.findOne({ userId, phone });
-      if (!existing || !isSelfConfirmedSource(existing.source)) continue;
+      if (!existing) continue;
 
       await Guest.findByIdAndUpdate(
         existing._id,
@@ -245,19 +286,17 @@ router.post("/:userId/guests/import", async (req, res) => {
           fullName: doc.fullName,
           attendeesCount: doc.attendeesCount,
           status: doc.status,
-          source: "excel"
+          source: resolveSourceAfterExcelOverwrite(existing.source)
         },
         { runValidators: true }
       );
-      resolvedCount += 1;
+      updatedCount += 1;
     }
 
     return res.status(201).json({
-      message: "Guests import processed",
+      message: "Guests import saved",
       insertedCount,
-      updatedCount,
-      resolvedCount,
-      conflicts
+      updatedCount
     });
   } catch (error) {
     return res.status(500).json({ message: error.message || "Failed to import guests" });

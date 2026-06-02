@@ -17,33 +17,18 @@ const initialRsvp = {
   status: "מגיע"
 };
 
-function getEventCopy(event) {
-  if (!event) {
-    return { title: "", subtitle: "", closing: "נשמח לראותכם בין אורחינו…" };
-  }
-
+function getEventClosing(event) {
+  if (!event) return "נשמח לראותכם בין אורחינו…";
   if (event.eventType === "חתונה") {
-    const fullNames = `${event.groomName || ""} & ${event.brideName || ""}`.trim();
-    return {
-      title: `הנכם מוזמנים לאירוע חתונה של ${fullNames}`,
-      subtitle: "שמחים ונרגשים להזמינכם לחגוג עמנו את נישואינו",
-      closing: `נשמח לראותכם בין אורחינו, ${event.groomName || ""} ו${event.brideName || ""}`.trim()
-    };
+    return `נשמח לראותכם בין אורחינו, ${event.groomName || ""} ו${event.brideName || ""}`.trim();
   }
-
   if (event.eventType === "ברית") {
-    return {
-      title: `הנכם מוזמנים לאירוע ברית של ${event.parentName1 || ""} ו${event.parentName2 || ""}`.trim(),
-      subtitle: "שמחים להזמינכם לחגוג עמנו את ברית המילה של בנינו",
-      closing: `נשמח לראותכם בין אורחינו, ${event.parentName1 || ""} ו${event.parentName2 || ""}`.trim()
-    };
+    return `נשמח לראותכם בין אורחינו, ${event.parentName1 || ""} ו${event.parentName2 || ""}`.trim();
   }
-
-  return {
-    title: `הנכם מוזמנים לאירוע ${event.eventType} של ${event.eventNames || ""}`.trim(),
-    subtitle: "שמחים ונרגשים להזמינכם ליום המאושר בחיינו",
-    closing: "נשמח לראותכם בין אורחינו…"
-  };
+  if (event.eventNames) {
+    return `נשמח לראותכם בין אורחינו, ${event.eventNames}`.trim();
+  }
+  return "נשמח לראותכם בין אורחינו…";
 }
 
 export default function EventPage() {
@@ -82,7 +67,7 @@ export default function EventPage() {
   };
 
   const decreaseAttendees = () => {
-    setForm((prev) => ({ ...prev, attendeesCount: Math.max(0, Number(prev.attendeesCount || 0) - 1) }));
+    setForm((prev) => ({ ...prev, attendeesCount: Math.max(1, Number(prev.attendeesCount || 1) - 1) }));
   };
 
   const onSubmit = async (event) => {
@@ -94,8 +79,9 @@ export default function EventPage() {
       await api.post(`/public/event/${eventId}/rsvp`, form);
       setMessage("תודה! האישור נשמר בהצלחה");
       setForm(initialRsvp);
-    } catch {
-      setError("שליחת הטופס נכשלה. נסו שוב.");
+    } catch (err) {
+      const serverMessage = err?.response?.data?.message;
+      setError(serverMessage || "שליחת הטופס נכשלה. נסו שוב.");
     } finally {
       setSubmitting(false);
     }
@@ -129,7 +115,7 @@ export default function EventPage() {
   const eventDateText = event?.eventDate ? formatIsraeliDate(event.eventDate) : "";
   const eventTimeText = event?.eventTime ? String(event.eventTime) : "";
   const hasEventImage = Boolean(event?.imageDataUrl);
-  const eventCopy = getEventCopy(event);
+  const closingText = getEventClosing(event);
   const coverStyle = hasEventImage ? { backgroundImage: `url(${event.imageDataUrl})` } : { backgroundImage: `url(${gigBackground})` };
 
   return (
@@ -147,9 +133,34 @@ export default function EventPage() {
               </div>
 
               <div className="invite-details centered">
-                <p className="invite-event-type">{event.eventType}</p>
-                <h1 className="invite-title">{eventCopy.title}</h1>
-                <p className="invite-subtitle">{eventCopy.subtitle}</p>
+                {event.eventType === "חתונה" ? (
+                  <div className="invite-headline">
+                    <p className="invite-headline-intro">הנכם מוזמנים לחתונה</p>
+                    <h1 className="invite-headline-names">
+                      {event.groomName} & {event.brideName}
+                    </h1>
+                  </div>
+                ) : event.eventType === "ברית" ? (
+                  <div className="invite-headline">
+                    <h1 className="invite-headline-brit">הנכם מוזמנים לחגוג עמנו את ברית בננו</h1>
+                    {event.parentName1 || event.parentName2 ? (
+                      <p className="invite-headline-names">
+                        {event.parentName1}
+                        {event.parentName1 && event.parentName2 ? " ו" : ""}
+                        {event.parentName2}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div className="invite-headline">
+                    <p className="invite-headline-intro">
+                      הנכם מוזמנים לאירוע{event.eventType && event.eventType !== "אחר" ? ` ${event.eventType}` : ""}
+                    </p>
+                    {event.eventNames ? (
+                      <h1 className="invite-headline-names">{event.eventNames}</h1>
+                    ) : null}
+                  </div>
+                )}
                 <p className="invite-detail-value">{eventDateText}</p>
                 <p className="invite-detail-value">{event.venueName}</p>
                 <p className="invite-detail-label">
@@ -214,7 +225,6 @@ export default function EventPage() {
               <div className="field attendees-field">
                 <div className="attendees-header">
                   <span className="field-label">כמה מגיעים?</span>
-                  <span className="attendees-hint">כולל ילדים</span>
                 </div>
                 <div className="attendees-stepper">
                   <button className="btn stepper-btn" type="button" onClick={increaseAttendees} aria-label="הגדלת כמות">
@@ -225,7 +235,7 @@ export default function EventPage() {
                     className="field-input attendees-input"
                     name="attendeesCount"
                     type="number"
-                    min="0"
+                    min="1"
                     value={form.attendeesCount}
                     onChange={onChange}
                     required
@@ -257,7 +267,7 @@ export default function EventPage() {
                 {submitting ? "שולח…" : "אישור הגעה"}
               </button>
 
-              <p className="invite-closing">{eventCopy.closing}</p>
+              <p className="invite-closing">{closingText}</p>
             </>
           )}
 
