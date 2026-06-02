@@ -1,4 +1,8 @@
-export function normalizePhone(phone) {
+/**
+ * Normalizes Israeli mobile numbers to local format: 05XXXXXXXX (10 digits).
+ * Used before Excel precheck, DB comparison, and WhatsApp links.
+ */
+export function normalizeIsraeliPhone(phone) {
   if (phone == null || phone === "") return "";
 
   let value = String(phone).trim();
@@ -21,19 +25,4 @@ export function normalizePhone(phone) {
   }
 
   return value;
-}
-
-export function isSelfConfirmedSource(source) {
-  return source === "form" || source === "excel_and_form";
-}
-
-export function resolveSourceAfterSelfRsvp(existing) {
-  if (!existing) return "form";
-  if (existing.source === "excel" || existing.status === "לא ידוע") {
-    return "excel_and_form";
-  }
-  if (existing.source === "excel_and_form") {
-    return "excel_and_form";
-  }
-  return "form";
 }

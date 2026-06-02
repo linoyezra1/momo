@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { MessageSquare, RotateCw } from "lucide-react";
 import api from "../api";
 import { buildWhatsAppSendUrl } from "../utils/whatsapp";
+import { normalizeIsraeliPhone } from "../utils/phoneNormalize";
 
 const initialGuest = {
   fullName: "",
@@ -26,30 +27,8 @@ function parseAttendeesCount(raw) {
   return match ? Number(match[0]) : 1;
 }
 
-function normalizePhoneFromExcel(phone) {
-  let value = String(phone ?? "").trim();
-  if (typeof phone === "number" && Number.isFinite(phone)) {
-    value = String(Math.trunc(phone));
-  }
-  value = value.replace(/[^\d]/g, "");
-  if (value.startsWith("5") && value.length === 9) {
-    value = `0${value}`;
-  }
-  return value;
-}
-
 function isUnknownStatus(status) {
   return status === "לא ידוע" || status === "אולי";
-}
-
-function conflictGuestDescription(existing) {
-  if (existing.status === "מגיע") {
-    return `שמגיע עם ${existing.attendeesCount} מלווים`;
-  }
-  if (existing.status === "לא מגיע") {
-    return "שלא מגיע";
-  }
-  return `שסטטוס "${existing.status}" עם ${existing.attendeesCount} מלווים`;
 }
 
 function getOwnerGreeting(event) {
@@ -71,6 +50,8 @@ export default function ClientDashboardPage() {
   const [importConflicts, setImportConflicts] = useState([]);
   const [conflictChoices, setConflictChoices] = useState({});
   const [importSubmitting, setImportSubmitting] = useState(false);
+  const [importChecking, setImportChecking] = useState(false);
+  const [pendingNewGuests, setPendingNewGuests] = useState([]);
   const [guests, setGuests] = useState([]);
   const [eventInfo, setEventInfo] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -119,7 +100,7 @@ export default function ClientDashboardPage() {
     try {
       await api.post(`/client/${userId}/guests/manual`, {
         ...manualGuest,
-        phone: normalizePhoneFromExcel(manualGuest.phone)
+        phone: normalizeIsraeliPhone(manualGuest.phone)
       });
       setManualGuest(initialGuest);
       setShowModal(false);
@@ -149,7 +130,7 @@ export default function ClientDashboardPage() {
 
   const mapRowToGuest = (row) => {
     const fullName = String(row["שם מלא"] ?? row["fullName"] ?? row["name"] ?? "").trim();
-    const phone = normalizePhoneFromExcel(row["טלפון"] ?? row["phone"] ?? "");
+    const phone = normalizeIsraeliPhone(row["טלפון"] ?? row["phone"] ?? "");
     const amountRaw =
       row["כמות"] ??
       row["כמות מגיעים"] ??
@@ -162,11 +143,17 @@ export default function ClientDashboardPage() {
     return { fullName, phone, attendeesCount, status: "לא ידוע" };
   };
 
+  const finalizeImport = async (newGuests, resolutions) => {
+    await api.post(`/client/${userId}/guests/import`, { newGuests, resolutions });
+    await loadGuests();
+  };
+
   const onImportFile = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     setImportError("");
+    setImportChecking(true);
     try {
       const XLSX = await import("xlsx");
       const buffer = await file.arrayBuffer();
@@ -182,23 +169,29 @@ export default function ClientDashboardPage() {
         setImportError("לא נמצאו שורות תקינות. ודאו שיש עמודות: שם מלא, טלפון, וכמות (אופציונלי).");
         return;
       }
-      const response = await api.post(`/client/${userId}/guests/import`, { guests: guestsToImport });
-      await loadGuests();
 
-      const conflicts = response.data?.conflicts || [];
+      const precheck = await api.post(`/client/${userId}/guests/import/precheck`, { guests: guestsToImport });
+      const conflicts = precheck.data?.conflicts || [];
+      const newGuests = precheck.data?.newGuests || [];
+      setPendingNewGuests(newGuests);
+
       if (conflicts.length > 0) {
         const defaults = {};
         conflicts.forEach((item) => {
-          defaults[item.phone] = "keep_guest";
+          defaults[item.phone] = "keep_existing";
         });
         setImportConflicts(conflicts);
         setConflictChoices(defaults);
         setShowConflictModal(true);
+        return;
       }
+
+      await finalizeImport(newGuests, []);
     } catch (importErr) {
       const serverMessage = importErr.response?.data?.message || importErr.response?.data?.error;
       setImportError(serverMessage || "העלאת קובץ האקסל נכשלה. בדקו את הפורמט ונסו שוב.");
     } finally {
+      setImportChecking(false);
       event.target.value = "";
     }
   };
@@ -248,6 +241,7 @@ export default function ClientDashboardPage() {
     setShowConflictModal(false);
     setImportConflicts([]);
     setConflictChoices({});
+    setPendingNewGuests([]);
   };
 
   const applyConflictResolutions = async () => {
@@ -256,14 +250,13 @@ export default function ClientDashboardPage() {
     try {
       const resolutions = importConflicts.map((item) => ({
         phone: item.phone,
-        choice: conflictChoices[item.phone] || "keep_guest",
+        choice: conflictChoices[item.phone] || "keep_existing",
         excel: item.excel
       }));
-      await api.post(`/client/${userId}/guests/import`, { guests: [], resolutions });
+      await finalizeImport(pendingNewGuests, resolutions);
       closeConflictModal();
-      await loadGuests();
     } catch (resolveErr) {
-      setImportError(resolveErr.response?.data?.message || "עדכון הקונפליקטים נכשל");
+      setImportError(resolveErr.response?.data?.message || "שמירת הייבוא נכשלה");
     } finally {
       setImportSubmitting(false);
     }
@@ -325,8 +318,8 @@ export default function ClientDashboardPage() {
           <button className="btn btn-primary btn-compact" type="button" onClick={() => setShowModal(true)}>
             הוספת מוזמן ידנית
           </button>
-          <button className="btn btn-neutral btn-compact" type="button" onClick={onImportClick}>
-            העלאת מוזמנים מאקסל
+          <button className="btn btn-neutral btn-compact" type="button" onClick={onImportClick} disabled={importChecking}>
+            {importChecking ? "בודק קובץ…" : "העלאת מוזמנים מאקסל"}
           </button>
           <button className="btn btn-neutral btn-compact" type="button" onClick={exportGuests}>
             ייצוא לאקסל
@@ -430,31 +423,48 @@ export default function ClientDashboardPage() {
         {showConflictModal ? (
           <div className="modal-backdrop" role="presentation">
             <div className="card modal-card modal-card-scroll conflict-modal">
-              <h2 className="card-title">נמצאו מוזמנים שכבר עדכנו את פרטיהם עצמית</h2>
+              <h2 className="card-title">נמצאו מוזמנים עם מספר טלפון קיים</h2>
               <p className="conflict-modal-intro">
-                עבור כל מוזמן בחרו האם לשמור את מה שעודכן באתר או לאמץ את הנתונים מקובץ האקסל.
+                זוהו {importConflicts.length} רשומות חופפות. לא בוצעה שמירה אוטומטית — בחרו לכל רשומה האם
+                להשאיר את הקיים או לעדכן לפי האקסל. לאחר מכן לחצו &quot;אשר והמשך שמירה&quot;.
+                {pendingNewGuests.length > 0 ? (
+                  <>
+                    {" "}
+                    בנוסף, {pendingNewGuests.length} מוזמנים חדשים יתווספו אוטומטית עם האישור.
+                  </>
+                ) : null}
               </p>
               <div className="conflict-list">
                 {importConflicts.map((item) => (
                   <div key={item.phone} className="conflict-item">
-                    <p className="conflict-item-title">
-                      המוזמן <strong>{item.existing.fullName}</strong> כבר עדכן בעצמו{" "}
-                      {conflictGuestDescription(item.existing)}.
+                    <p className="conflict-item-phone" dir="ltr">
+                      {item.phone}
                     </p>
-                    <p className="conflict-item-excel">
-                      בקובץ האקסל: {item.excel.fullName}, כמות {item.excel.attendeesCount}, סטטוס{" "}
-                      {item.excel.status}
-                    </p>
+                    <div className="conflict-compare">
+                      <div className="conflict-compare-col">
+                        <span className="conflict-compare-label">מה קיים כרגע במערכת</span>
+                        <p>
+                          {item.existing.fullName} | כמות {item.existing.attendeesCount} | מקור:{" "}
+                          {sourceLabel(item.existing.source)}
+                        </p>
+                      </div>
+                      <div className="conflict-compare-col conflict-compare-col--excel">
+                        <span className="conflict-compare-label">מה מנסים להעלות מהאקסל</span>
+                        <p>
+                          {item.excel.fullName} | כמות {item.excel.attendeesCount}
+                        </p>
+                      </div>
+                    </div>
                     <div className="conflict-options" role="radiogroup" aria-label={`בחירה עבור ${item.existing.fullName}`}>
                       <label className="conflict-option">
                         <input
                           type="radio"
                           name={`conflict-${item.phone}`}
-                          value="keep_guest"
-                          checked={(conflictChoices[item.phone] || "keep_guest") === "keep_guest"}
-                          onChange={() => setConflictChoice(item.phone, "keep_guest")}
+                          value="keep_existing"
+                          checked={(conflictChoices[item.phone] || "keep_existing") === "keep_existing"}
+                          onChange={() => setConflictChoice(item.phone, "keep_existing")}
                         />
-                        להשאיר את מה שהמוזמן עדכן (מומלץ)
+                        🔹 השאר את הקיים
                       </label>
                       <label className="conflict-option">
                         <input
@@ -464,7 +474,7 @@ export default function ClientDashboardPage() {
                           checked={conflictChoices[item.phone] === "use_excel"}
                           onChange={() => setConflictChoice(item.phone, "use_excel")}
                         />
-                        לאשר את שינוי הפרטים לפי קובץ האקסל
+                        🔸 עדכן לפי האקסל החדש
                       </label>
                     </div>
                   </div>
@@ -472,7 +482,7 @@ export default function ClientDashboardPage() {
               </div>
               <div className="toolbar">
                 <button className="btn btn-primary" type="button" disabled={importSubmitting} onClick={applyConflictResolutions}>
-                  {importSubmitting ? "שומר…" : "אישור ושמירה"}
+                  {importSubmitting ? "שומר…" : "אשר והמשך שמירה"}
                 </button>
                 <button className="btn btn-secondary" type="button" onClick={closeConflictModal}>
                   ביטול

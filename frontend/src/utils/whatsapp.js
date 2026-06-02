@@ -1,53 +1,71 @@
-import { formatIsraeliDate } from "./dateFormat.js";
+import { formatIsraeliDate, formatIsraeliWeekday } from "./dateFormat.js";
+import { normalizeIsraeliPhone } from "./phoneNormalize.js";
 
 export function toInternationalWhatsAppPhone(phone) {
-  let digits = String(phone ?? "").replace(/[^\d]/g, "");
-  if (!digits) return "";
-  if (digits.startsWith("972")) return digits;
-  if (digits.startsWith("0")) return `972${digits.slice(1)}`;
-  if (digits.startsWith("5") && digits.length === 9) return `972${digits}`;
-  return digits;
+  const domestic = normalizeIsraeliPhone(phone);
+  if (!domestic) return "";
+  if (domestic.startsWith("0")) {
+    return `972${domestic.slice(1)}`;
+  }
+  return domestic;
 }
 
-export function buildEventOwnersText(event) {
-  if (!event) return "";
-  if (event.eventType === "חתונה") {
-    return `${event.groomName || ""} ו${event.brideName || ""}`.trim();
-  }
-  if (event.eventType === "ברית") {
-    return `${event.parentName1 || ""} ו${event.parentName2 || ""}`.trim();
-  }
-  return String(event.eventNames || "").trim();
-}
-
-export function buildGuestWhatsAppMessage({ fullName, event, eventId, origin }) {
+export function buildGuestWhatsAppMessage({ event, eventId, origin }) {
   const baseOrigin = origin || (typeof window !== "undefined" ? window.location.origin : "");
   const publicLink = `${baseOrigin}/event/${eventId}`;
-  const owners = buildEventOwnersText(event);
-  const eventType = event?.eventType || "האירוע";
-  const venue = event?.venueName || "";
-  const city = event?.city || "";
-  const street = event?.streetAndNumber || "";
+  const weekday = formatIsraeliWeekday(event?.eventDate);
   const date = formatIsraeliDate(event?.eventDate);
-  const time = event?.eventTime || "";
+  const venue = event?.venueName || "";
+  const dateLine = [weekday, date].filter(Boolean).join(" ");
 
-  return `שלום ${fullName},
-שמחים להזמינכם לחגוג עימנו את האירוע: ${eventType} של ${owners}.
+  if (event?.eventType === "חתונה") {
+    const groom = event.groomName || "";
+    const bride = event.brideName || "";
+    return `משפחה וחברים יקרים,
+הנכם מוזמנים לחתונה שלנו! 💍
 
-📅 פרטי האירוע:
-📍 מתחם/אולם: ${venue} (${city}, ${street})
-🗓️ תאריך: ${date}
-⏰ שעה: ${time}
+האירוע יתקיים ב${dateLine}
+ב${venue} 🥂
 
-נשמח אם תוכלו לאשר הגעתכם בקישור:
+נשמח אם תוכלו לאשר הגעתכם בקישור המצורף:
 ${publicLink}
 
-תודה רבה,
+אוהבים,
+${groom} ו${bride}`;
+  }
+
+  if (event?.eventType === "ברית") {
+    const parent1 = event.parentName1 || "";
+    const parent2 = event.parentName2 || "";
+    return `משפחה וחברים יקרים,
+הנכם מוזמנים לחגוג עימנו את ברית המילה של בננו! 👶
+
+האירוע יתקיים ב${dateLine}
+ב${venue} 🎉
+
+נשמח אם תוכלו לאשר הגעתכם בקישור המצורף:
+${publicLink}
+
+אוהבים,
+${parent1} ו${parent2}`;
+  }
+
+  const owners = event?.eventNames || "";
+  return `משפחה וחברים יקרים,
+הנכם מוזמנים לאירוע שלנו!
+
+האירוע יתקיים ב${dateLine}
+ב${venue}
+
+נשמח אם תוכלו לאשר הגעתכם בקישור המצורף:
+${publicLink}
+
+אוהבים,
 ${owners}`;
 }
 
-export function buildWhatsAppSendUrl({ phone, fullName, event, eventId, origin }) {
+export function buildWhatsAppSendUrl({ phone, fullName: _fullName, event, eventId, origin }) {
   const intlPhone = toInternationalWhatsAppPhone(phone);
-  const message = buildGuestWhatsAppMessage({ fullName, event, eventId, origin });
+  const message = buildGuestWhatsAppMessage({ event, eventId, origin });
   return `https://api.whatsapp.com/send?phone=${intlPhone}&text=${encodeURIComponent(message)}`;
 }
