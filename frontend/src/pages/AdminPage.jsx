@@ -54,38 +54,155 @@ export default function AdminPage() {
   };
 
   return (
-    <div className="container">
-      <h1>ממשק מנהל - יצירת לקוח</h1>
-      <form className="card form-grid" onSubmit={onSubmit}>
-        <input name="username" placeholder="שם משתמש" value={form.username} onChange={onChange} required />
-        <input name="password" placeholder="סיסמה" value={form.password} onChange={onChange} required />
-        <select name="eventType" value={form.eventType} onChange={onChange}>
-          <option value="חתונה">חתונה</option>
-          <option value="ברית">ברית</option>
-          <option value="אחר">אחר</option>
-        </select>
-        <input name="eventNames" placeholder="שמות" value={form.eventNames} onChange={onChange} required />
-        <input name="venueName" placeholder="שם המתחם" value={form.venueName} onChange={onChange} required />
-        <input name="city" placeholder="עיר" value={form.city} onChange={onChange} required />
-        <input name="streetAndNumber" placeholder="רחוב ומספר" value={form.streetAndNumber} onChange={onChange} required />
-        <input type="date" name="eventDate" value={form.eventDate} onChange={onChange} required />
-        <input type="time" name="eventTime" value={form.eventTime} onChange={onChange} required />
-        <button disabled={loading} type="submit">
-          {loading ? "שומר..." : "שמור"}
-        </button>
-      </form>
+    <div className="page-shell">
+      <div className="page-container">
+        <header className="page-header">
+          <h1>ממשק מנהל</h1>
+          <p>יצירת לקוח חדש ואירוע</p>
+        </header>
 
-      {error ? <p className="error">{error}</p> : null}
+        <form className="card form-stack" onSubmit={onSubmit}>
+          <h2 className="card-title">פרטי התחברות</h2>
+          <div className="field">
+            <label className="field-label" htmlFor="username">
+              שם משתמש
+            </label>
+            <input
+              id="username"
+              className="field-input"
+              name="username"
+              value={form.username}
+              onChange={onChange}
+              required
+            />
+          </div>
+          <div className="field">
+            <label className="field-label" htmlFor="password">
+              סיסמה
+            </label>
+            <input
+              id="password"
+              className="field-input"
+              name="password"
+              type="password"
+              value={form.password}
+              onChange={onChange}
+              required
+            />
+          </div>
 
-      {result ? (
-        <div className="card">
-          <h2>הלקוח נוצר בהצלחה</h2>
-          <p>שם משתמש: {result.credentials.username}</p>
-          <p>סיסמה: {result.credentials.password}</p>
-          <p>דשבורד לקוח: {result.clientDashboardLink}</p>
-          <p>קישור ציבורי: {result.publicEventLink}</p>
-        </div>
-      ) : null}
+          <hr className="divider" />
+
+          <h2 className="card-title">פרטי האירוע</h2>
+          <div className="field">
+            <label className="field-label" htmlFor="eventType">
+              סוג אירוע
+            </label>
+            <select id="eventType" className="field-input" name="eventType" value={form.eventType} onChange={onChange}>
+              <option value="חתונה">חתונה</option>
+              <option value="ברית">ברית</option>
+              <option value="אחר">אחר</option>
+            </select>
+          </div>
+          <div className="field">
+            <label className="field-label" htmlFor="eventNames">
+              שמות
+            </label>
+            <input
+              id="eventNames"
+              className="field-input"
+              name="eventNames"
+              value={form.eventNames}
+              onChange={onChange}
+              required
+            />
+          </div>
+          <div className="field">
+            <label className="field-label" htmlFor="venueName">
+              שם המתחם
+            </label>
+            <input
+              id="venueName"
+              className="field-input"
+              name="venueName"
+              value={form.venueName}
+              onChange={onChange}
+              required
+            />
+          </div>
+          <div className="field">
+            <label className="field-label" htmlFor="city">
+              עיר
+            </label>
+            <input id="city" className="field-input" name="city" value={form.city} onChange={onChange} required />
+          </div>
+          <div className="field">
+            <label className="field-label" htmlFor="streetAndNumber">
+              רחוב ומספר
+            </label>
+            <input
+              id="streetAndNumber"
+              className="field-input"
+              name="streetAndNumber"
+              value={form.streetAndNumber}
+              onChange={onChange}
+              required
+            />
+          </div>
+          <div className="field">
+            <label className="field-label" htmlFor="eventDate">
+              תאריך
+            </label>
+            <input
+              id="eventDate"
+              className="field-input"
+              type="date"
+              name="eventDate"
+              value={form.eventDate}
+              onChange={onChange}
+              required
+            />
+          </div>
+          <div className="field">
+            <label className="field-label" htmlFor="eventTime">
+              שעה
+            </label>
+            <input
+              id="eventTime"
+              className="field-input"
+              type="time"
+              name="eventTime"
+              value={form.eventTime}
+              onChange={onChange}
+              required
+            />
+          </div>
+
+          <button className="btn btn-primary btn-block" disabled={loading} type="submit">
+            {loading ? "שומר…" : "שמור לקוח"}
+          </button>
+        </form>
+
+        {error ? <p className="message message--error">{error}</p> : null}
+
+        {result ? (
+          <div className="card result-links">
+            <h2 className="card-title">הלקוח נוצר בהצלחה</h2>
+            <p>
+              <strong>שם משתמש:</strong> {result.credentials.username}
+            </p>
+            <p>
+              <strong>סיסמה:</strong> {result.credentials.password}
+            </p>
+            <p>
+              <strong>דשבורד לקוח:</strong> {result.clientDashboardLink}
+            </p>
+            <p>
+              <strong>קישור ציבורי:</strong> {result.publicEventLink}
+            </p>
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
