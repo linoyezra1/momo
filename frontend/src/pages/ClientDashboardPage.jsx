@@ -106,11 +106,13 @@ export default function ClientDashboardPage() {
               ) : (
                 guests.map((guest) => (
                   <tr key={guest._id}>
-                    <td>{guest.fullName}</td>
-                    <td dir="ltr">{guest.phone}</td>
-                    <td>{guest.attendeesCount}</td>
-                    <td>{guest.status}</td>
-                    <td>
+                    <td data-label="שם מלא">{guest.fullName}</td>
+                    <td data-label="טלפון" dir="ltr">
+                      {guest.phone}
+                    </td>
+                    <td data-label="כמה מגיעים">{guest.attendeesCount}</td>
+                    <td data-label="סטטוס">{guest.status}</td>
+                    <td data-label="וואטסאפ">
                       <a href={toWhatsappLink(guest.phone, guest.fullName)} target="_blank" rel="noreferrer">
                         שליחה
                       </a>

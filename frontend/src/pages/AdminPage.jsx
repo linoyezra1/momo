@@ -10,23 +10,74 @@ const initialForm = {
   city: "",
   streetAndNumber: "",
   eventDate: "",
-  eventTime: ""
+  eventTime: "",
+  imageDataUrl: ""
 };
+
+function toAppUrl(linkOrPath) {
+  if (!linkOrPath) return "";
+  try {
+    const currentOrigin = window.location.origin;
+    const parsed = new URL(linkOrPath, currentOrigin);
+    return `${currentOrigin}${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch {
+    return linkOrPath;
+  }
+}
 
 export default function AdminPage() {
   const [form, setForm] = useState(initialForm);
   const [result, setResult] = useState(null);
+  const [createdEvent, setCreatedEvent] = useState(null);
+  const [copyDone, setCopyDone] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const publicEventUrl = toAppUrl(result?.publicEventLink);
+  const clientDashboardUrl = toAppUrl(result?.clientDashboardLink);
+  const shareMessage = createdEvent
+    ? `הזמנה לאירוע ${createdEvent.eventType} של ${createdEvent.eventNames}
+תאריך: ${createdEvent.eventDate} | שעה: ${createdEvent.eventTime}
+מיקום: ${createdEvent.venueName}, ${createdEvent.city}, ${createdEvent.streetAndNumber}
+
+נא אשרו הגעה בקישור:
+${publicEventUrl}`
+    : "";
 
   const onChange = (event) => {
     setForm((prev) => ({ ...prev, [event.target.name]: event.target.value }));
+  };
+
+  const onImageChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      setForm((prev) => ({ ...prev, imageDataUrl: "" }));
+      return;
+    }
+    if (!file.type.startsWith("image/")) {
+      setError("יש לבחור קובץ תמונה בלבד");
+      event.target.value = "";
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setError("התמונה גדולה מדי. העלו תמונה עד 2MB");
+      event.target.value = "";
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const resultData = typeof reader.result === "string" ? reader.result : "";
+      setForm((prev) => ({ ...prev, imageDataUrl: resultData }));
+    };
+    reader.onerror = () => setError("נכשלה קריאת קובץ התמונה");
+    reader.readAsDataURL(file);
   };
 
   const onSubmit = async (event) => {
     event.preventDefault();
     setError("");
     setResult(null);
+    setCreatedEvent(null);
+    setCopyDone(false);
     setLoading(true);
 
     try {
@@ -40,16 +91,29 @@ export default function AdminPage() {
           city: form.city,
           streetAndNumber: form.streetAndNumber,
           eventDate: form.eventDate,
-          eventTime: form.eventTime
+          eventTime: form.eventTime,
+          imageDataUrl: form.imageDataUrl
         }
       };
       const response = await api.post("/admin/create-client", payload);
       setResult(response.data);
+      setCreatedEvent(payload.event);
       setForm(initialForm);
     } catch (submitError) {
       setError(submitError.response?.data?.message || "שמירה נכשלה");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const copyShareMessage = async () => {
+    if (!shareMessage) return;
+    try {
+      await navigator.clipboard.writeText(shareMessage);
+      setCopyDone(true);
+      window.setTimeout(() => setCopyDone(false), 1800);
+    } catch {
+      setError("לא הצלחנו להעתיק את הודעת השיתוף");
     }
   };
 
@@ -177,6 +241,13 @@ export default function AdminPage() {
               required
             />
           </div>
+          <div className="field">
+            <label className="field-label" htmlFor="eventImage">
+              תמונת אירוע
+            </label>
+            <input id="eventImage" className="field-input" type="file" accept="image/*" onChange={onImageChange} />
+            {form.imageDataUrl ? <img className="event-image-preview" src={form.imageDataUrl} alt="תצוגה מקדימה" /> : null}
+          </div>
 
           <button className="btn btn-primary btn-block" disabled={loading} type="submit">
             {loading ? "שומר…" : "שמור לקוח"}
@@ -195,11 +266,24 @@ export default function AdminPage() {
               <strong>סיסמה:</strong> {result.credentials.password}
             </p>
             <p>
-              <strong>דשבורד לקוח:</strong> {result.clientDashboardLink}
+              <strong>דשבורד לקוח:</strong>{" "}
+              <a href={clientDashboardUrl} target="_blank" rel="noreferrer">
+                {clientDashboardUrl}
+              </a>
             </p>
             <p>
-              <strong>קישור ציבורי:</strong> {result.publicEventLink}
+              <strong>קישור ציבורי:</strong>{" "}
+              <a href={publicEventUrl} target="_blank" rel="noreferrer">
+                {publicEventUrl}
+              </a>
             </p>
+            <div className="share-block">
+              <p className="share-title">הודעת שיתוף מוכנה עם הקשר מלא:</p>
+              <textarea className="field-input share-textarea" value={shareMessage} readOnly />
+              <button className="btn btn-secondary" type="button" onClick={copyShareMessage}>
+                {copyDone ? "הועתק בהצלחה" : "העתקת הודעה לשליחה"}
+              </button>
+            </div>
           </div>
         ) : null}
       </div>

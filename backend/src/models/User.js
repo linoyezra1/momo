@@ -12,7 +12,8 @@ const eventSchema = new mongoose.Schema(
     city: { type: String, required: true },
     streetAndNumber: { type: String, required: true },
     eventDate: { type: String, required: true },
-    eventTime: { type: String, required: true }
+    eventTime: { type: String, required: true },
+    imageDataUrl: { type: String, default: "" }
   },
   { _id: false }
 );

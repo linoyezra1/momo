@@ -84,6 +84,9 @@ export default function EventPage() {
   }
 
   const event = eventData?.event;
+  const eventDateText = event?.eventDate ? String(event.eventDate) : "";
+  const eventTimeText = event?.eventTime ? String(event.eventTime) : "";
+  const hasEventImage = Boolean(event?.imageDataUrl);
 
   return (
     <div className="invite-page">
@@ -91,9 +94,19 @@ export default function EventPage() {
         {event ? (
           <>
             <header className="invite-hero">
+              <div
+                className={`invite-hero-media ${hasEventImage ? "has-image" : ""}`}
+                style={hasEventImage ? { backgroundImage: `url(${event.imageDataUrl})` } : undefined}
+                aria-hidden="true"
+              >
+                <div className="invite-hero-overlay" />
+                <div className="invite-hero-hearts">♡</div>
+                {eventDateText ? <p className="invite-hero-date">{eventDateText}</p> : null}
+              </div>
               <h1 className="invite-title">
                 הנכם מוזמנים לאירוע {event.eventType} של {event.eventNames}
               </h1>
+              {eventTimeText ? <p className="invite-subtitle">שמחים ונרגשים להזמינכם ליום המאושר בחיינו - {eventTimeText}</p> : null}
 
               <div className="invite-details">
                 <div className="invite-detail-row">
@@ -149,78 +162,89 @@ export default function EventPage() {
         ) : null}
 
         <form className="invite-form-section" onSubmit={onSubmit} noValidate>
-          <div className="field">
-            <label className="field-label" htmlFor="fullName">
-              שם מלא
-            </label>
-            <input
-              id="fullName"
-              className="field-input"
-              name="fullName"
-              placeholder="הזינו שם מלא"
-              value={form.fullName}
-              onChange={onChange}
-              required
-            />
-          </div>
-
-          <div className="field">
-            <label className="field-label" htmlFor="phone">
-              טלפון
-            </label>
-            <input
-              id="phone"
-              className="field-input"
-              name="phone"
-              type="tel"
-              dir="ltr"
-              placeholder="050-0000000"
-              value={form.phone}
-              onChange={onChange}
-              required
-            />
-          </div>
-
-          <div className="field">
-            <label className="field-label" htmlFor="attendeesCount">
-              כמות מגיעים
-            </label>
-            <input
-              id="attendeesCount"
-              className="field-input"
-              name="attendeesCount"
-              type="number"
-              min="0"
-              value={form.attendeesCount}
-              onChange={onChange}
-              required
-            />
-          </div>
-
-          <div className="field">
-            <span className="field-label">סטטוס הגעה</span>
-            <div className="status-group status-group--horizontal" role="group" aria-label="סטטוס הגעה">
-              {STATUS_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  className={`btn status-btn ${form.status === option.value ? "is-selected" : ""}`}
-                  onClick={() => setStatus(option.value)}
-                  aria-pressed={form.status === option.value}
-                >
-                  {option.label}
-                </button>
-              ))}
+          {message ? (
+            <div className="invite-success">
+              <div className="success-check" aria-hidden="true">
+                ✓
+              </div>
+              <h2>נשמח לארח אתכם!</h2>
+              <p>האישור נקלט בהצלחה. תודה שהקדשתם רגע לעדכן אותנו.</p>
             </div>
-          </div>
+          ) : (
+            <>
+              <div className="field">
+                <label className="field-label" htmlFor="fullName">
+                  שם מלא
+                </label>
+                <input
+                  id="fullName"
+                  className="field-input"
+                  name="fullName"
+                  placeholder="הזינו שם מלא"
+                  value={form.fullName}
+                  onChange={onChange}
+                  required
+                />
+              </div>
 
-          <button className="btn btn-primary btn-lg btn-block" type="submit" disabled={submitting}>
-            {submitting ? "שולח…" : "אישור הגעה"}
-          </button>
+              <div className="field">
+                <label className="field-label" htmlFor="phone">
+                  טלפון
+                </label>
+                <input
+                  id="phone"
+                  className="field-input"
+                  name="phone"
+                  type="tel"
+                  dir="ltr"
+                  placeholder="050-0000000"
+                  value={form.phone}
+                  onChange={onChange}
+                  required
+                />
+              </div>
 
-          <p className="invite-closing">נשמח לראותכם בין אורחינו…</p>
+              <div className="field">
+                <label className="field-label" htmlFor="attendeesCount">
+                  כמות מגיעים
+                </label>
+                <input
+                  id="attendeesCount"
+                  className="field-input"
+                  name="attendeesCount"
+                  type="number"
+                  min="0"
+                  value={form.attendeesCount}
+                  onChange={onChange}
+                  required
+                />
+              </div>
 
-          {message ? <p className="message message--success">{message}</p> : null}
+              <div className="field">
+                <span className="field-label">סטטוס הגעה</span>
+                <div className="status-group status-group--horizontal" role="group" aria-label="סטטוס הגעה">
+                  {STATUS_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      className={`btn status-btn ${form.status === option.value ? "is-selected" : ""}`}
+                      onClick={() => setStatus(option.value)}
+                      aria-pressed={form.status === option.value}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <button className="btn btn-primary btn-lg btn-block" type="submit" disabled={submitting}>
+                {submitting ? "שולח…" : "אישור הגעה"}
+              </button>
+
+              <p className="invite-closing">נשמח לראותכם בין אורחינו…</p>
+            </>
+          )}
+
           {error && eventData ? <p className="message message--error">{error}</p> : null}
         </form>
       </div>
