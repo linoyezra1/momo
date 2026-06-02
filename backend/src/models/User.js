@@ -22,11 +22,20 @@ const eventSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const paymentSchema = new mongoose.Schema(
+  {
+    amountPaid: { type: Number, default: 0, min: 0 },
+    paymentMethod: { type: String, trim: true, default: "" }
+  },
+  { _id: false }
+);
+
 const userSchema = new mongoose.Schema(
   {
     username: { type: String, required: true, unique: true, trim: true },
     passwordHash: { type: String, required: true },
-    event: { type: eventSchema, required: true }
+    event: { type: eventSchema, required: true },
+    payment: { type: paymentSchema, default: () => ({ amountPaid: 0, paymentMethod: "" }) }
   },
   { timestamps: true }
 );

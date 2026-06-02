@@ -74,20 +74,34 @@ function buildClientLinks(userId) {
   };
 }
 
+function normalizePaymentPayload(rawPayment) {
+  const amountRaw = rawPayment?.amountPaid;
+  let amountPaid = 0;
+  if (amountRaw !== "" && amountRaw != null && !Number.isNaN(Number(amountRaw))) {
+    amountPaid = Math.max(0, Number(amountRaw));
+  }
+  const paymentMethod =
+    rawPayment?.paymentMethod == null ? "" : String(rawPayment.paymentMethod).trim();
+  return { amountPaid, paymentMethod };
+}
+
 router.get("/clients", async (_req, res) => {
   try {
-    const users = await User.find({}, "username event createdAt").sort({ createdAt: -1 });
+    const users = await User.find({}, "username event createdAt payment").sort({ createdAt: -1 });
     const clients = users.map((user) => {
       const links = buildClientLinks(user._id);
+      const payment = normalizePaymentPayload(user.payment || {});
       return {
         userId: user._id,
         username: user.username,
         event: user.event,
+        payment,
         createdAt: user.createdAt,
         ...links
       };
     });
-    return res.json({ clients });
+    const totalRevenue = clients.reduce((sum, client) => sum + (client.payment?.amountPaid || 0), 0);
+    return res.json({ clients, totalRevenue });
   } catch (error) {
     return res.status(500).json({ message: "Failed to load clients", error: error.message });
   }
@@ -172,6 +186,27 @@ router.patch("/clients/:userId", async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ message: "Failed to update client", error: error.message });
+  }
+});
+
+router.patch("/clients/:userId/payment", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "Client not found" });
+    }
+
+    user.payment = normalizePaymentPayload(req.body);
+    await user.save();
+
+    return res.json({
+      message: "Payment updated",
+      userId: user._id,
+      payment: user.payment
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "Failed to update payment" });
   }
 });
 

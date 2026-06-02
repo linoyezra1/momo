@@ -56,6 +56,10 @@ export default function AdminPage() {
   const [loadingClients, setLoadingClients] = useState(false);
   const [error, setError] = useState("");
   const [clientsError, setClientsError] = useState("");
+  const [totalRevenue, setTotalRevenue] = useState(0);
+  const [paymentDraft, setPaymentDraft] = useState({ amountPaid: "", paymentMethod: "" });
+  const [paymentSaving, setPaymentSaving] = useState(false);
+  const [paymentSaved, setPaymentSaved] = useState(false);
   const publicEventUrl = toAppUrl(result?.publicEventLink);
   const clientDashboardUrl = toAppUrl(result?.clientDashboardLink);
   const eventDisplayText = buildEventDisplayText(createdEvent);
@@ -81,6 +85,11 @@ ${publicEventUrl}`
     }
     return "הסיסמה שהוגדרה בעת יצירת החשבון";
   }, [result, selectedClient]);
+
+  const totalRevenueFromClients = useMemo(
+    () => clients.reduce((sum, client) => sum + (Number(client.payment?.amountPaid) || 0), 0),
+    [clients]
+  );
 
   const clientMessageForSelected = useMemo(() => {
     if (!selectedClient) return "";
@@ -108,6 +117,7 @@ ${publicEventUrl}`
     try {
       const response = await api.get("/admin/clients");
       setClients(response.data.clients || []);
+      setTotalRevenue(Number(response.data.totalRevenue) || 0);
       if (!selectedClientId && response.data.clients?.length) {
         setSelectedClientId(response.data.clients[0].userId);
       }
@@ -121,6 +131,48 @@ ${publicEventUrl}`
   useEffect(() => {
     loadClients();
   }, []);
+
+  useEffect(() => {
+    if (!selectedClient) {
+      setPaymentDraft({ amountPaid: "", paymentMethod: "" });
+      return;
+    }
+    const amount = selectedClient.payment?.amountPaid;
+    setPaymentDraft({
+      amountPaid: amount === 0 || amount == null ? "" : String(amount),
+      paymentMethod: selectedClient.payment?.paymentMethod || ""
+    });
+    setPaymentSaved(false);
+  }, [selectedClient]);
+
+  const onPaymentChange = (event) => {
+    const { name, value } = event.target;
+    setPaymentDraft((prev) => ({ ...prev, [name]: value }));
+    setPaymentSaved(false);
+  };
+
+  const savePayment = async () => {
+    if (!selectedClientId) return;
+    setPaymentSaving(true);
+    setError("");
+    try {
+      const amountPaid =
+        paymentDraft.amountPaid === "" || paymentDraft.amountPaid == null
+          ? 0
+          : Math.max(0, Number(paymentDraft.amountPaid));
+      await api.patch(`/admin/clients/${selectedClientId}/payment`, {
+        amountPaid,
+        paymentMethod: paymentDraft.paymentMethod.trim()
+      });
+      await loadClients();
+      setPaymentSaved(true);
+      window.setTimeout(() => setPaymentSaved(false), 2000);
+    } catch (paymentErr) {
+      setError(paymentErr.response?.data?.message || "שמירת פרטי התשלום נכשלה");
+    } finally {
+      setPaymentSaving(false);
+    }
+  };
 
   const onChange = (event) => {
     setForm((prev) => ({ ...prev, [event.target.name]: event.target.value }));
@@ -284,6 +336,13 @@ ${publicEventUrl}`
 
         {error ? <p className="message message--error">{error}</p> : null}
 
+        <div className="stats-grid admin-stats">
+          <div className="stat-card stat-card-revenue">
+            <h3>סה״כ הכנסות</h3>
+            <p>₪{(totalRevenue || totalRevenueFromClients).toLocaleString("he-IL")}</p>
+          </div>
+        </div>
+
         <section className="admin-layout">
           <div className="card">
             <h2 className="card-title">לקוחות פעילים</h2>
@@ -294,7 +353,12 @@ ${publicEventUrl}`
                 <div key={client.userId} className={`admin-client-row ${String(selectedClientId) === String(client.userId) ? "is-active" : ""}`}>
                   <button className="admin-client-main" type="button" onClick={() => setSelectedClientId(client.userId)}>
                     <strong>{client.username}</strong>
-                    <span>{client.event?.eventType || "אירוע"}</span>
+                    <span>
+                      {client.event?.eventType || "אירוע"}
+                      {Number(client.payment?.amountPaid) > 0
+                        ? ` · ₪${Number(client.payment.amountPaid).toLocaleString("he-IL")}`
+                        : ""}
+                    </span>
                   </button>
                   <button className="btn btn-secondary btn-xs" type="button" onClick={() => openEditWizard(client)} aria-label="עריכת לקוח">
                     <Pencil size={14} />
@@ -350,6 +414,46 @@ ${publicEventUrl}`
                     {toAppUrl(selectedClient.clientDashboardLink)}
                   </a>
                 </p>
+
+                <div className="payment-block">
+                  <h3 className="payment-block-title">פרטי תשלום (אופציונלי)</h3>
+                  <p className="payment-block-hint">ניתן להשאיר ריק או 0 אם הלקוח טרם שילם.</p>
+                  <div className="payment-fields">
+                    <div className="field">
+                      <label className="field-label" htmlFor="payment-amount">
+                        כמה שולם (₪)
+                      </label>
+                      <input
+                        id="payment-amount"
+                        className="field-input"
+                        name="amountPaid"
+                        type="number"
+                        min="0"
+                        step="1"
+                        placeholder="0"
+                        value={paymentDraft.amountPaid}
+                        onChange={onPaymentChange}
+                      />
+                    </div>
+                    <div className="field">
+                      <label className="field-label" htmlFor="payment-method">
+                        איך שולם?
+                      </label>
+                      <input
+                        id="payment-method"
+                        className="field-input"
+                        name="paymentMethod"
+                        type="text"
+                        placeholder="לדוגמה: מזומן, העברה, ביט…"
+                        value={paymentDraft.paymentMethod}
+                        onChange={onPaymentChange}
+                      />
+                    </div>
+                  </div>
+                  <button className="btn btn-secondary btn-xs" type="button" disabled={paymentSaving} onClick={savePayment}>
+                    {paymentSaving ? "שומר…" : paymentSaved ? "נשמר" : "שמירת תשלום"}
+                  </button>
+                </div>
 
                 <div className="share-block share-block--persistent">
                   <p className="share-title">הודעה מוכנה ללקוח (להעתקה לוואטסאפ):</p>
