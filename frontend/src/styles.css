@@ -506,9 +506,28 @@ select.field-input {
   background: #f9fafb;
 }
 
+.dashboard-page {
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+.dashboard-stats {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
 .dashboard-stats .stat-card {
   background: #f3f4f6;
   border-color: #e5e7eb;
+  padding: 14px 10px;
+}
+
+.dashboard-stats .stat-card p {
+  font-size: 1.5rem;
+}
+
+.dashboard-stats .stat-card h3 {
+  font-size: 0.82rem;
 }
 
 .dashboard-stats .stat-card-maybe {
@@ -567,6 +586,43 @@ select.field-input {
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
+  width: 100%;
+}
+
+.dashboard-toolbar-scroll {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+}
+
+.dashboard-table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+}
+
+.dashboard-table-scroll .table {
+  min-width: 720px;
+}
+
+.modal-card--mobile {
+  max-width: 480px;
+}
+
+.dashboard-page .public-link-box {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.dashboard-page .public-link-box a {
+  word-break: break-all;
+  font-size: 0.9rem;
+}
+
+.dashboard-page .page-header h1 {
+  font-size: 1.35rem;
 }
 
 .btn-compact {
@@ -984,6 +1040,32 @@ select.field-input {
 }
 
 @media (min-width: 768px) {
+  .dashboard-stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--space-md);
+  }
+
+  .dashboard-stats .stat-card {
+    padding: var(--space-lg);
+  }
+
+  .dashboard-stats .stat-card p {
+    font-size: 2rem;
+  }
+
+  .dashboard-stats .stat-card h3 {
+    font-size: 0.95rem;
+  }
+
+  .dashboard-page .public-link-box {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .modal-card--mobile {
+    width: 100%;
+    max-width: 640px;
+  }
   .invite-page {
     padding-top: 28px;
     padding-bottom: 28px;
@@ -1007,44 +1089,98 @@ select.field-input {
 }
 
 @media (max-width: 720px) {
-  .toolbar {
+  .toolbar:not(.dashboard-toolbar-compact) {
     flex-direction: column;
   }
 
-  .toolbar .btn {
+  .toolbar:not(.dashboard-toolbar-compact) .btn {
     width: 100%;
   }
 
-  .table thead {
+  .modal-card--mobile {
+    width: 95vw;
+    max-width: 95vw;
+    margin: 0 auto;
+  }
+
+  .modal-backdrop {
+    padding: 10px;
+    align-items: flex-start;
+    padding-top: 24px;
+  }
+
+  .dashboard-toolbar-compact {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 8px;
+  }
+
+  .dashboard-toolbar-compact .btn-compact {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .table.dashboard-guests-table {
+    display: table;
+    min-width: 720px;
+  }
+
+  .table.dashboard-guests-table thead {
+    display: table-header-group;
+  }
+
+  .table.dashboard-guests-table tbody {
+    display: table-row-group;
+  }
+
+  .table.dashboard-guests-table tr {
+    display: table-row;
+    border: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .table.dashboard-guests-table td,
+  .table.dashboard-guests-table th {
+    display: table-cell;
+    width: auto;
+  }
+
+  .table.dashboard-guests-table td[data-label]::before {
+    content: none;
+  }
+
+  .table:not(.dashboard-guests-table) thead {
     display: none;
   }
 
-  .table,
-  .table tbody,
-  .table tr,
-  .table td {
+  .table:not(.dashboard-guests-table),
+  .table:not(.dashboard-guests-table) tbody,
+  .table:not(.dashboard-guests-table) tr,
+  .table:not(.dashboard-guests-table) td {
     display: block;
     width: 100%;
   }
 
-  .table tr {
+  .table:not(.dashboard-guests-table) tr {
     border: 1px solid var(--color-neutral);
     border-radius: 12px;
     margin-bottom: 10px;
     padding: 6px 10px;
   }
 
-  .table td {
+  .table:not(.dashboard-guests-table) td {
     border-bottom: 1px solid var(--color-neutral);
     text-align: right;
     padding: 10px 0;
   }
 
-  .table td:last-child {
+  .table:not(.dashboard-guests-table) td:last-child {
     border-bottom: none;
   }
 
-  .table td[data-label]::before {
+  .table:not(.dashboard-guests-table) td[data-label]::before {
     content: attr(data-label) ": ";
     font-weight: 600;
     color: var(--color-primary);

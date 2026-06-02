@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { MessageSquare, RotateCw } from "lucide-react";
 import api from "../api";
@@ -110,14 +110,16 @@ export default function ClientDashboardPage() {
     }
   };
 
-  const toWhatsappLink = (phone, fullName) =>
-    buildWhatsAppSendUrl({
-      phone,
-      fullName,
-      event: eventInfo,
-      eventId: userId,
-      origin: window.location.origin
-    });
+  const getWhatsappLink = useCallback(
+    (phone) =>
+      buildWhatsAppSendUrl({
+        phone,
+        event: eventInfo,
+        eventId: userId,
+        origin: window.location.origin
+      }),
+    [eventInfo, userId]
+  );
 
   const sourceLabel = (source) => {
     if (source === "excel") return "קובץ אקסל";
@@ -270,7 +272,7 @@ export default function ClientDashboardPage() {
 
   return (
     <div className="page-shell dashboard-shell">
-      <div className="page-container">
+      <div className="page-container dashboard-page">
         <header className="page-header">
           <h1>{getOwnerGreeting(eventInfo)}</h1>
           <p>ניהול אורחים ואישורי הגעה לאירוע</p>
@@ -337,8 +339,8 @@ export default function ClientDashboardPage() {
         </div>
         {importError ? <p className="message message--error">{importError}</p> : null}
 
-        <div className="card table-wrap dashboard-table-wrap">
-          <table className="table">
+        <div className="card table-wrap dashboard-table-wrap dashboard-table-scroll">
+          <table className="table dashboard-guests-table">
             <thead>
               <tr>
                 <th>שם מלא</th>
@@ -398,7 +400,7 @@ export default function ClientDashboardPage() {
                       <span className="source-badge">{sourceLabel(guest.source)}</span>
                     </td>
                     <td data-label="וואטסאפ">
-                      <a className="whatsapp-link" href={toWhatsappLink(guest.phone, guest.fullName)} target="_blank" rel="noreferrer">
+                      <a className="whatsapp-link" href={getWhatsappLink(guest.phone)} target="_blank" rel="noreferrer">
                         <MessageSquare size={18} />
                       </a>
                     </td>
@@ -422,7 +424,7 @@ export default function ClientDashboardPage() {
 
         {showConflictModal ? (
           <div className="modal-backdrop" role="presentation">
-            <div className="card modal-card modal-card-scroll conflict-modal">
+            <div className="card modal-card modal-card-scroll modal-card--mobile conflict-modal">
               <h2 className="card-title">נמצאו מוזמנים עם מספר טלפון קיים</h2>
               <p className="conflict-modal-intro">
                 זוהו {importConflicts.length} רשומות חופפות. לא בוצעה שמירה אוטומטית — בחרו לכל רשומה האם
@@ -494,7 +496,7 @@ export default function ClientDashboardPage() {
 
         {showModal ? (
           <div className="modal-backdrop" role="presentation">
-            <form className="card modal-card form-stack" onSubmit={addManualGuest}>
+            <form className="card modal-card modal-card--mobile form-stack" onSubmit={addManualGuest}>
               <h2 className="card-title">הוספת רשומה ידנית</h2>
               <div className="field">
                 <label className="field-label" htmlFor="manual-fullName">

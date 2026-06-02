@@ -34,6 +34,7 @@ const userSchema = new mongoose.Schema(
   {
     username: { type: String, required: true, unique: true, trim: true },
     passwordHash: { type: String, required: true },
+    loginPassword: { type: String, default: "", trim: true },
     event: { type: eventSchema, required: true },
     payment: { type: paymentSchema, default: () => ({ amountPaid: 0, paymentMethod: "" }) }
   },

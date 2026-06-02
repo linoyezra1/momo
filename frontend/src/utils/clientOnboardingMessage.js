@@ -1,4 +1,4 @@
-export function buildClientOnboardingMessage({ username, passwordHint, publicEventUrl, clientDashboardUrl }) {
+export function buildClientOnboardingMessage({ username, password, publicEventUrl, clientDashboardUrl }) {
   return `🎉 יופי, הכול מוכן! 🎉
 ההזמנה הדיגיטלית ומערכת אישורי ההגעה שלכם הוקמו בהצלחה.
 
@@ -12,7 +12,7 @@ ${clientDashboardUrl}
 ${username}
 
 🔒 סיסמה:
-${passwordHint}
+${password}
 
 במערכת תוכלו:
 ✅ לצפות ברשימת המוזמנים

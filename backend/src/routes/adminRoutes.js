@@ -87,13 +87,16 @@ function normalizePaymentPayload(rawPayment) {
 
 router.get("/clients", async (_req, res) => {
   try {
-    const users = await User.find({}, "username event createdAt payment").sort({ createdAt: -1 });
+    const users = await User.find({}, "username event createdAt payment loginPassword").sort({
+      createdAt: -1
+    });
     const clients = users.map((user) => {
       const links = buildClientLinks(user._id);
       const payment = normalizePaymentPayload(user.payment || {});
       return {
         userId: user._id,
         username: user.username,
+        loginPassword: user.loginPassword || "",
         event: user.event,
         payment,
         createdAt: user.createdAt,
@@ -130,6 +133,7 @@ router.post("/create-client", async (req, res) => {
     const user = await User.create({
       username: username.trim(),
       passwordHash,
+      loginPassword: String(password),
       event: normalizedEvent
     });
 
@@ -165,6 +169,7 @@ router.patch("/clients/:userId", async (req, res) => {
 
     if (password) {
       user.passwordHash = await bcrypt.hash(password, 10);
+      user.loginPassword = String(password);
     }
 
     if (event) {
@@ -182,6 +187,7 @@ router.patch("/clients/:userId", async (req, res) => {
       message: "Client updated",
       userId: user._id,
       username: user.username,
+      loginPassword: user.loginPassword || "",
       ...links
     });
   } catch (error) {

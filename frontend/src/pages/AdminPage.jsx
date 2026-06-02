@@ -75,15 +75,13 @@ export default function AdminPage() {
 נא אשרו הגעה בקישור:
 ${publicEventUrl}`
     : "";
-  const passwordHintForSelected = useMemo(() => {
-    if (
-      result?.credentials?.password &&
-      selectedClient &&
-      String(result.userId) === String(selectedClient.userId)
-    ) {
+  const passwordForSelected = useMemo(() => {
+    if (!selectedClient) return "";
+    if (selectedClient.loginPassword) return selectedClient.loginPassword;
+    if (result?.credentials?.password && String(result.userId) === String(selectedClient.userId)) {
       return result.credentials.password;
     }
-    return "הסיסמה שהוגדרה בעת יצירת החשבון";
+    return "";
   }, [result, selectedClient]);
 
   const totalRevenueFromClients = useMemo(
@@ -95,17 +93,17 @@ ${publicEventUrl}`
     if (!selectedClient) return "";
     return buildClientOnboardingMessage({
       username: selectedClient.username,
-      passwordHint: passwordHintForSelected,
+      password: passwordForSelected,
       publicEventUrl: toAppUrl(selectedClient.publicEventLink),
       clientDashboardUrl: toAppUrl(selectedClient.clientDashboardLink)
     });
-  }, [selectedClient, passwordHintForSelected]);
+  }, [selectedClient, passwordForSelected]);
 
   const finalClientMessage =
     result && createdEvent
       ? buildClientOnboardingMessage({
           username: result.credentials?.username || form.username,
-          passwordHint: result.credentials?.password || "עודכנה",
+          password: result.credentials?.password || "",
           publicEventUrl,
           clientDashboardUrl
         })
