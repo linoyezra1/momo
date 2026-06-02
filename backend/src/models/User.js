@@ -16,6 +16,7 @@ const eventSchema = new mongoose.Schema(
     city: { type: String, required: true },
     streetAndNumber: { type: String, required: true },
     eventDate: { type: String, required: true },
+    eventDateHebrew: { type: String, trim: true, default: "" },
     eventTime: { type: String, required: true },
     imageDataUrl: { type: String, default: "" }
   },

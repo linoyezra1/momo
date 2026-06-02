@@ -1,4 +1,4 @@
-import { formatIsraeliDate, formatIsraeliWeekday } from "./dateFormat.js";
+import { formatDateDots, formatIsraeliDate, formatIsraeliWeekday } from "./dateFormat.js";
 import { normalizeIsraeliPhone } from "./phoneNormalize.js";
 
 export function toInternationalWhatsAppPhone(phone) {
@@ -50,11 +50,28 @@ ${groom} ו${bride}`;
   if (kind === "brit") {
     const parent1 = event?.parentName1 || "";
     const parent2 = event?.parentName2 || "";
-    return `משפחה וחברים יקרים,
-הנכם מוזמנים לחגוג עימנו את ברית המילה של בננו! 👶
+    const dateDots = formatDateDots(event?.eventDate);
+    const street = String(event?.streetAndNumber || "").trim();
+    const city = String(event?.city || "").trim();
+    const time = event?.eventTime ? String(event.eventTime).trim() : "";
+    const weekdaySuffix = weekday ? ` ב${weekday}` : "";
+    const addressInParens = [street, city].filter(Boolean).join(", ");
+    const locationLine = venue
+      ? addressInParens
+        ? `${venue} (${addressInParens})`
+        : venue
+      : addressInParens;
 
-האירוע יתקיים ב${dateLine}
-ב${venueLine} 🎉
+    const detailLines = [
+      dateDots ? `🗓️ תאריך: ${dateDots}` : "",
+      locationLine ? `📍 מיקום: ${locationLine}` : "",
+      time ? `⏰ שעה: בשעה ${time}` : ""
+    ].filter(Boolean);
+
+    return `משפחה וחברים יקרים,
+שמחים להזמינכם לחגוג עמנו את ברית המילה של בננו שתתקיים${weekdaySuffix}! 👶
+
+${detailLines.join("\n")}
 
 נשמח אם תוכלו לאשר הגעתכם בקישור המצורף:
 ${publicLink}

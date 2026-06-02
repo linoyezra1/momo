@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { MapPin } from "lucide-react";
 import api from "../api";
 import gigBackground from "../../GIG.gif";
 import babyBackground from "../../BABY.gif";
@@ -33,6 +32,20 @@ function getEventClosing(event) {
   return "נשמח לראותכם בין אורחינו…";
 }
 
+function getPageBackgroundGif(event) {
+  if (event?.eventType === "ברית") return babyBackground;
+  return gigBackground;
+}
+
+function InvitePageBackdrop({ backgroundSrc }) {
+  return (
+    <>
+      <img className="invite-bg-gif" src={backgroundSrc} alt="" aria-hidden="true" />
+      <div className="invite-bg-overlay" />
+    </>
+  );
+}
+
 function BritInviteDetails({ event }) {
   const weekday = event?.eventDate ? formatIsraeliWeekday(event.eventDate) : "";
   const hebrewDate = event?.eventDateHebrew?.trim() || "";
@@ -53,17 +66,8 @@ function BritInviteDetails({ event }) {
         <p className="invite-brit-line invite-brit-when">ב{whenLineParts.join(" ")}</p>
       ) : null}
       {dateDots ? <p className="invite-brit-date">{dateDots}</p> : null}
-      {venue ? (
-        <p className="invite-brit-line invite-brit-venue">
-          באולמי &ldquo;{venue}&rdquo;
-        </p>
-      ) : null}
-      {addressLine ? (
-        <p className="invite-brit-line invite-brit-location">
-          <MapPin className="invite-brit-pin" size={18} strokeWidth={1.5} aria-hidden="true" />
-          <span>{addressLine}</span>
-        </p>
-      ) : null}
+      {venue ? <p className="invite-brit-line invite-brit-venue">{venue}</p> : null}
+      {addressLine ? <p className="invite-brit-line">{addressLine}</p> : null}
       {time ? <p className="invite-brit-line invite-brit-time">בשעה {time}</p> : null}
     </div>
   );
@@ -125,11 +129,13 @@ export default function EventPage() {
     }
   };
 
+  const event = eventData?.event;
+  const pageBackgroundGif = getPageBackgroundGif(event);
+
   if (loading) {
     return (
       <div className="invite-page">
-        <img className="invite-bg-gif" src={gigBackground} alt="" aria-hidden="true" />
-        <div className="invite-bg-overlay" />
+        <InvitePageBackdrop backgroundSrc={gigBackground} />
         <div className="invite-loading">
           <p>טוען את פרטי האירוע…</p>
         </div>
@@ -140,8 +146,7 @@ export default function EventPage() {
   if (error && !eventData) {
     return (
       <div className="invite-page">
-        <img className="invite-bg-gif" src={gigBackground} alt="" aria-hidden="true" />
-        <div className="invite-bg-overlay" />
+        <InvitePageBackdrop backgroundSrc={gigBackground} />
         <div className="invite-error-state">
           <p>{error}</p>
         </div>
@@ -149,7 +154,6 @@ export default function EventPage() {
     );
   }
 
-  const event = eventData?.event;
   const isBrit = event?.eventType === "ברית";
   const eventDateText = event?.eventDate
     ? isBrit
@@ -157,25 +161,29 @@ export default function EventPage() {
       : formatIsraeliDate(event.eventDate)
     : "";
   const eventTimeText = event?.eventTime ? String(event.eventTime) : "";
-  const hasEventImage = Boolean(event?.imageDataUrl);
+  const hasCoverImage = Boolean(event?.imageDataUrl?.trim());
+  const heroCoverStyle = hasCoverImage ? { backgroundImage: `url(${event.imageDataUrl})` } : undefined;
   const closingText = getEventClosing(event);
-  const defaultBackground = isBrit ? babyBackground : gigBackground;
-  const coverStyle = hasEventImage
-    ? { backgroundImage: `url(${event.imageDataUrl})` }
-    : { backgroundImage: `url(${defaultBackground})` };
 
   return (
     <div className="invite-page">
-      <img className="invite-bg-gif" src={defaultBackground} alt="" aria-hidden="true" />
-      <div className="invite-bg-overlay" />
+      <InvitePageBackdrop backgroundSrc={pageBackgroundGif} />
       <div className="invite-shell">
         {event ? (
           <>
             <header className="invite-hero">
-              <div className="invite-hero-media" style={coverStyle} aria-hidden="true">
-                <div className="invite-hero-overlay" />
-                <div className="invite-hero-content" />
-                {eventDateText ? <p className="invite-hero-date">{eventDateText}</p> : null}
+              <div
+                className={`invite-hero-media${hasCoverImage ? "" : " invite-hero-media--plain"}`}
+                style={heroCoverStyle}
+                aria-hidden="true"
+              >
+                {hasCoverImage ? (
+                  <>
+                    <div className="invite-hero-overlay" />
+                    <div className="invite-hero-content" />
+                    {eventDateText && !isBrit ? <p className="invite-hero-date">{eventDateText}</p> : null}
+                  </>
+                ) : null}
               </div>
 
               <div className="invite-details centered">

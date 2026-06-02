@@ -15,6 +15,7 @@ const initialForm = {
   city: "",
   streetAndNumber: "",
   eventDate: "",
+  eventDateHebrew: "",
   eventTime: "",
   imageDataUrl: ""
 };
@@ -222,6 +223,7 @@ ${publicEventUrl}`
           city: form.city,
           streetAndNumber: form.streetAndNumber,
           eventDate: form.eventDate,
+          eventDateHebrew: form.eventType === "ברית" ? form.eventDateHebrew : "",
           eventTime: form.eventTime,
           imageDataUrl: form.imageDataUrl
         }
@@ -294,6 +296,7 @@ ${publicEventUrl}`
       city: client.event?.city || "",
       streetAndNumber: client.event?.streetAndNumber || "",
       eventDate: client.event?.eventDate || "",
+      eventDateHebrew: client.event?.eventDateHebrew || "",
       eventTime: client.event?.eventTime || "",
       imageDataUrl: client.event?.imageDataUrl || ""
     });
@@ -390,6 +393,11 @@ ${publicEventUrl}`
                 <p>
                   <strong>תאריך:</strong> {selectedClient.event?.eventDate}
                 </p>
+                {selectedClient.event?.eventType === "ברית" && selectedClient.event?.eventDateHebrew ? (
+                  <p>
+                    <strong>תאריך עברי:</strong> {selectedClient.event.eventDateHebrew}
+                  </p>
+                ) : null}
                 <p>
                   <strong>שעה:</strong> {selectedClient.event?.eventTime}
                 </p>
@@ -619,6 +627,22 @@ ${publicEventUrl}`
                   required
                 />
               </div>
+              {form.eventType === "ברית" ? (
+                <div className="field">
+                  <label className="field-label" htmlFor="eventDateHebrew">
+                    תאריך עברי (אופציונלי)
+                  </label>
+                  <input
+                    id="eventDateHebrew"
+                    className="field-input"
+                    name="eventDateHebrew"
+                    placeholder='למשל: כ״ג באייר תשפ״ו'
+                    value={form.eventDateHebrew}
+                    onChange={onChange}
+                  />
+                  <p className="field-hint">מוצג בדף ההזמנה לברית ליד יום השבוע. אם ריק — לא יוצג.</p>
+                </div>
+              ) : null}
               <div className="field">
                 <label className="field-label" htmlFor="eventTime">
                   שעה

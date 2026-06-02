@@ -18,6 +18,8 @@ function normalizeEventPayload(rawEvent) {
     city: String(rawEvent?.city || "").trim(),
     streetAndNumber: String(rawEvent?.streetAndNumber || "").trim(),
     eventDate: String(rawEvent?.eventDate || "").trim(),
+    eventDateHebrew:
+      eventType === "ברית" ? String(rawEvent?.eventDateHebrew || "").trim() : "",
     eventTime: String(rawEvent?.eventTime || "").trim(),
     imageDataUrl: String(rawEvent?.imageDataUrl || "").trim(),
     groomName,

@@ -103,6 +103,14 @@ a {
   color: var(--color-primary);
 }
 
+.field-hint {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: var(--color-primary);
+  opacity: 0.75;
+}
+
 .field-input {
   width: 100%;
   min-height: 44px;
@@ -820,6 +828,13 @@ select.field-input {
   background-repeat: no-repeat;
 }
 
+.invite-hero-media--plain {
+  min-height: 0;
+  height: 0;
+  overflow: hidden;
+  border: none;
+}
+
 .invite-hero-overlay {
   position: absolute;
   inset: 0;
@@ -883,6 +898,43 @@ select.field-input {
   line-height: 1.4;
   font-weight: 600;
   color: var(--color-primary);
+}
+
+.invite-brit-details {
+  margin: 0 auto;
+  max-width: 28rem;
+  text-align: center;
+  font-family: "Frank Ruhl Libre", "David Libre", "Times New Roman", serif;
+  font-weight: 300;
+  line-height: 1.7;
+  letter-spacing: 0.02em;
+  color: var(--color-primary);
+}
+
+.invite-brit-line {
+  margin: 0.2em 0;
+  font-size: clamp(1.05rem, 3.6vw, 1.32rem);
+  font-weight: 300;
+}
+
+.invite-brit-when {
+  margin-top: 0.45em;
+}
+
+.invite-brit-date {
+  margin: 0.65em 0 0.75em;
+  font-size: clamp(1.15rem, 4vw, 1.45rem);
+  font-weight: 400;
+  letter-spacing: 0.04em;
+}
+
+.invite-brit-venue {
+  margin-top: 0.5em;
+}
+
+.invite-brit-time {
+  margin-top: 0.45em;
+  font-weight: 400;
 }
 
 .invite-detail-value {
