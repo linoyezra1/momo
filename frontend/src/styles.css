@@ -404,6 +404,13 @@ select.field-input {
   text-align: center;
 }
 
+.invite-image-label {
+  margin: 0 0 10px;
+  font-size: 0.88rem;
+  color: var(--color-primary);
+  opacity: 0.8;
+}
+
 .invite-hero-title {
   margin: 0;
   font-size: clamp(1.75rem, 5vw, 2.5rem);
@@ -450,18 +457,43 @@ select.field-input {
   text-align: center;
 }
 
+.invite-meta {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.invite-meta-pill {
+  border: 1px solid var(--color-neutral);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 0.9rem;
+  color: var(--color-primary);
+  background: #fff;
+}
+
 .invite-details {
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
+  gap: 12px;
   margin-top: var(--space-lg);
+  text-align: center;
+}
+
+.invite-details-title {
+  margin: 0;
+  font-weight: 700;
+  font-size: 1.15rem;
 }
 
 .invite-detail-row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
+  justify-content: center;
   gap: var(--space-sm);
-  text-align: right;
+  text-align: center;
 }
 
 .invite-detail-icon {
@@ -482,8 +514,7 @@ select.field-input {
 }
 
 .invite-detail-text {
-  flex: 1;
-  padding-top: 6px;
+  padding-top: 2px;
 }
 
 .invite-detail-label {
@@ -499,6 +530,12 @@ select.field-input {
   margin: 0;
   font-size: 1.05rem;
   font-weight: 500;
+  color: var(--color-primary);
+}
+
+.invite-sep {
+  margin: 0;
+  font-size: 1.2rem;
   color: var(--color-primary);
 }
 
@@ -541,6 +578,7 @@ select.field-input {
   display: flex;
   gap: 10px;
   align-items: center;
+  justify-content: flex-end;
 }
 
 .attendees-input {
@@ -663,6 +701,11 @@ select.field-input {
   .invite-hero-content {
     inset-inline: 12px;
     top: 14%;
+  }
+
+  .invite-meta-pill {
+    font-size: 0.82rem;
+    padding: 5px 10px;
   }
 
   .invite-form-section {

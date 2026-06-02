@@ -5,8 +5,8 @@ import { IconCity, IconDate, IconStreet, IconTime, IconVenue } from "../componen
 
 const STATUS_OPTIONS = [
   { value: "מגיע", label: "מגיע" },
-  { value: "לא מגיע", label: "לא מגיע" },
-  { value: "אולי", label: "אולי יגיע" }
+  { value: "אולי", label: "אולי יגיע" },
+  { value: "לא מגיע", label: "לא מגיע" }
 ];
 
 const initialRsvp = {
@@ -139,14 +139,24 @@ export default function EventPage() {
               >
                 <div className="invite-hero-overlay" />
                 <div className="invite-hero-content">
+                  <p className="invite-image-label">תמונת האירוע</p>
                   <h1 className="invite-hero-title">{eventCopy.title}</h1>
                   <p className="invite-hero-subtitle">{eventCopy.subtitle}</p>
                 </div>
                 {eventDateText ? <p className="invite-hero-date">{eventDateText}</p> : null}
               </div>
-              {eventTimeText ? <p className="invite-subtitle">{eventTimeText}</p> : null}
+              <div className="invite-meta">
+                {eventDateText ? <span className="invite-meta-pill">{eventDateText}</span> : null}
+                {(eventTimeText || event?.city) ? (
+                  <span className="invite-meta-pill">
+                    {[eventTimeText, event?.city].filter(Boolean).join(" • ")}
+                  </span>
+                ) : null}
+                {event?.eventType ? <span className="invite-meta-pill">{event.eventType}</span> : null}
+              </div>
 
               <div className="invite-details">
+                <p className="invite-details-title">האירוע יתקיים</p>
                 <div className="invite-detail-row">
                   <span className="invite-detail-icon" aria-hidden="true">
                     <IconVenue />
@@ -158,37 +168,22 @@ export default function EventPage() {
                 </div>
                 <div className="invite-detail-row">
                   <span className="invite-detail-icon" aria-hidden="true">
-                    <IconCity />
-                  </span>
-                  <div className="invite-detail-text">
-                    <span className="invite-detail-label">עיר</span>
-                    <p className="invite-detail-value">{event.city}</p>
-                  </div>
-                </div>
-                <div className="invite-detail-row">
-                  <span className="invite-detail-icon" aria-hidden="true">
                     <IconStreet />
                   </span>
                   <div className="invite-detail-text">
-                    <span className="invite-detail-label">רחוב ומספר</span>
-                    <p className="invite-detail-value">{event.streetAndNumber}</p>
+                    <span className="invite-detail-label">כתובת</span>
+                    <p className="invite-detail-value">
+                      {event.streetAndNumber}, {event.city}
+                    </p>
                   </div>
                 </div>
-                <div className="invite-detail-row">
-                  <span className="invite-detail-icon" aria-hidden="true">
-                    <IconDate />
-                  </span>
-                  <div className="invite-detail-text">
-                    <span className="invite-detail-label">תאריך</span>
-                    <p className="invite-detail-value">{event.eventDate}</p>
-                  </div>
-                </div>
+                <p className="invite-sep">✦</p>
                 <div className="invite-detail-row">
                   <span className="invite-detail-icon" aria-hidden="true">
                     <IconTime />
                   </span>
                   <div className="invite-detail-text">
-                    <span className="invite-detail-label">שעה</span>
+                    <span className="invite-detail-label">קבלת פנים</span>
                     <p className="invite-detail-value">{event.eventTime}</p>
                   </div>
                 </div>
