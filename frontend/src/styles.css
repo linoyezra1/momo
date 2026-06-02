@@ -251,6 +251,24 @@ select.field-input {
   color: var(--color-bg);
 }
 
+.invite-form-section .status-btn.is-selected.status-btn--yes {
+  background: #16a34a;
+  border-color: #16a34a;
+  color: #fff;
+}
+
+.invite-form-section .status-btn.is-selected.status-btn--no {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #fff;
+}
+
+.invite-form-section .status-btn.is-selected.status-btn--maybe {
+  background: #6b7280;
+  border-color: #6b7280;
+  color: #fff;
+}
+
 .divider {
   height: 1px;
   background: var(--color-neutral);

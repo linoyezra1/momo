@@ -6,10 +6,17 @@ import babyBackground from "../../BABY.gif";
 import { formatDateDots, formatIsraeliDate, formatIsraeliWeekday } from "../utils/dateFormat";
 
 const STATUS_OPTIONS = [
-  { value: "מגיע", label: "מגיע" },
-  { value: "אולי", label: "אולי יגיע" },
-  { value: "לא מגיע", label: "לא מגיע" }
+  { value: "מגיע", label: "אגיע", stateClass: "status-btn--yes" },
+  { value: "לא מגיע", label: "לא אגיע", stateClass: "status-btn--no" },
+  { value: "אולי", label: "אולי אגיע...", stateClass: "status-btn--maybe" }
 ];
+
+function attendeesCountForStatus(status, currentCount) {
+  if (status === "מגיע") return Math.max(1, Number(currentCount) || 1);
+  if (status === "לא מגיע") return 0;
+  if (status === "אולי") return 1;
+  return currentCount;
+}
 
 const initialRsvp = {
   fullName: "",
@@ -101,8 +108,14 @@ export default function EventPage() {
   };
 
   const setStatus = (status) => {
-    setForm((prev) => ({ ...prev, status }));
+    setForm((prev) => ({
+      ...prev,
+      status,
+      attendeesCount: attendeesCountForStatus(status, prev.attendeesCount)
+    }));
   };
+
+  const isAttending = form.status === "מגיע";
 
   const increaseAttendees = () => {
     setForm((prev) => ({ ...prev, attendeesCount: Math.min(20, Number(prev.attendeesCount || 0) + 1) }));
@@ -118,7 +131,11 @@ export default function EventPage() {
     setError("");
     setSubmitting(true);
     try {
-      await api.post(`/public/event/${eventId}/rsvp`, form);
+      const payload = {
+        ...form,
+        attendeesCount: attendeesCountForStatus(form.status, form.attendeesCount)
+      };
+      await api.post(`/public/event/${eventId}/rsvp`, payload);
       setMessage("תודה! האישור נשמר בהצלחה");
       setForm(initialRsvp);
     } catch (err) {
@@ -271,30 +288,6 @@ export default function EventPage() {
                 />
               </div>
 
-              <div className="field attendees-field">
-                <div className="attendees-header">
-                  <span className="field-label">כמה מגיעים?</span>
-                </div>
-                <div className="attendees-stepper">
-                  <button className="btn stepper-btn" type="button" onClick={increaseAttendees} aria-label="הגדלת כמות">
-                    +
-                  </button>
-                  <input
-                    id="attendeesCount"
-                    className="field-input attendees-input"
-                    name="attendeesCount"
-                    type="number"
-                    min="1"
-                    value={form.attendeesCount}
-                    onChange={onChange}
-                    required
-                  />
-                  <button className="btn stepper-btn" type="button" onClick={decreaseAttendees} aria-label="הקטנת כמות">
-                    -
-                  </button>
-                </div>
-              </div>
-
               <div className="field">
                 <span className="field-label">סטטוס הגעה</span>
                 <div className="status-group status-group--horizontal" role="group" aria-label="סטטוס הגעה">
@@ -302,7 +295,9 @@ export default function EventPage() {
                     <button
                       key={option.value}
                       type="button"
-                      className={`btn status-btn ${form.status === option.value ? "is-selected" : ""}`}
+                      className={`btn status-btn ${option.stateClass} ${
+                        form.status === option.value ? "is-selected" : ""
+                      }`}
                       onClick={() => setStatus(option.value)}
                       aria-pressed={form.status === option.value}
                     >
@@ -311,6 +306,32 @@ export default function EventPage() {
                   ))}
                 </div>
               </div>
+
+              {isAttending ? (
+                <div className="field attendees-field">
+                  <div className="attendees-header">
+                    <span className="field-label">כמה מגיעים?</span>
+                  </div>
+                  <div className="attendees-stepper">
+                    <button className="btn stepper-btn" type="button" onClick={increaseAttendees} aria-label="הגדלת כמות">
+                      +
+                    </button>
+                    <input
+                      id="attendeesCount"
+                      className="field-input attendees-input"
+                      name="attendeesCount"
+                      type="number"
+                      min="1"
+                      value={form.attendeesCount}
+                      onChange={onChange}
+                      required
+                    />
+                    <button className="btn stepper-btn" type="button" onClick={decreaseAttendees} aria-label="הקטנת כמות">
+                      -
+                    </button>
+                  </div>
+                </div>
+              ) : null}
 
               <button className="btn btn-primary btn-lg btn-block" type="submit" disabled={submitting}>
                 {submitting ? "שולח…" : "אישור הגעה"}
