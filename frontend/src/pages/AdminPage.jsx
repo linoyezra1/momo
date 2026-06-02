@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import api from "../api";
 
 const initialForm = {
@@ -42,14 +42,23 @@ function buildEventDisplayText(event) {
 
 export default function AdminPage() {
   const [form, setForm] = useState(initialForm);
+  const [clients, setClients] = useState([]);
+  const [selectedClientId, setSelectedClientId] = useState("");
+  const [showCreateWizard, setShowCreateWizard] = useState(false);
   const [result, setResult] = useState(null);
   const [createdEvent, setCreatedEvent] = useState(null);
   const [copyDone, setCopyDone] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loadingClients, setLoadingClients] = useState(false);
   const [error, setError] = useState("");
+  const [clientsError, setClientsError] = useState("");
   const publicEventUrl = toAppUrl(result?.publicEventLink);
   const clientDashboardUrl = toAppUrl(result?.clientDashboardLink);
   const eventDisplayText = buildEventDisplayText(createdEvent);
+  const selectedClient = useMemo(
+    () => clients.find((client) => String(client.userId) === String(selectedClientId)) || null,
+    [clients, selectedClientId]
+  );
   const shareMessage = createdEvent
     ? `הזמנה לאירוע ${createdEvent.eventType} של ${eventDisplayText}
 תאריך: ${createdEvent.eventDate} | שעה: ${createdEvent.eventTime}
@@ -58,6 +67,26 @@ export default function AdminPage() {
 נא אשרו הגעה בקישור:
 ${publicEventUrl}`
     : "";
+
+  const loadClients = async () => {
+    setLoadingClients(true);
+    setClientsError("");
+    try {
+      const response = await api.get("/admin/clients");
+      setClients(response.data.clients || []);
+      if (!selectedClientId && response.data.clients?.length) {
+        setSelectedClientId(response.data.clients[0].userId);
+      }
+    } catch (loadError) {
+      setClientsError(loadError.response?.data?.message || "טעינת לקוחות נכשלה");
+    } finally {
+      setLoadingClients(false);
+    }
+  };
+
+  useEffect(() => {
+    loadClients();
+  }, []);
 
   const onChange = (event) => {
     setForm((prev) => ({ ...prev, [event.target.name]: event.target.value }));
@@ -119,6 +148,8 @@ ${publicEventUrl}`
       setResult(response.data);
       setCreatedEvent(payload.event);
       setForm(initialForm);
+      setShowCreateWizard(false);
+      await loadClients();
     } catch (submitError) {
       setError(submitError.response?.data?.message || "שמירה נכשלה");
     } finally {
@@ -141,198 +172,276 @@ ${publicEventUrl}`
     <div className="page-shell">
       <div className="page-container">
         <header className="page-header">
-          <h1>ממשק מנהל</h1>
-          <p>יצירת לקוח חדש ואירוע</p>
+          <h1>מרכז ניהול אירועים</h1>
+          <p>רשימת הלקוחות ודפי הנחיתה הפעילים</p>
         </header>
 
-        <form className="card form-stack" onSubmit={onSubmit}>
-          <h2 className="card-title">פרטי התחברות</h2>
-          <div className="field">
-            <label className="field-label" htmlFor="username">
-              שם משתמש
-            </label>
-            <input
-              id="username"
-              className="field-input"
-              name="username"
-              value={form.username}
-              onChange={onChange}
-              required
-            />
-          </div>
-          <div className="field">
-            <label className="field-label" htmlFor="password">
-              סיסמה
-            </label>
-            <input
-              id="password"
-              className="field-input"
-              name="password"
-              type="password"
-              value={form.password}
-              onChange={onChange}
-              required
-            />
-          </div>
-
-          <hr className="divider" />
-
-          <h2 className="card-title">פרטי האירוע</h2>
-          <div className="field">
-            <label className="field-label" htmlFor="eventType">
-              סוג אירוע
-            </label>
-            <select id="eventType" className="field-input" name="eventType" value={form.eventType} onChange={onChange}>
-              <option value="חתונה">חתונה</option>
-              <option value="ברית">ברית</option>
-            </select>
-          </div>
-          {form.eventType === "חתונה" ? (
-            <>
-              <div className="field">
-                <label className="field-label" htmlFor="groomName">
-                  שם החתן
-                </label>
-                <input
-                  id="groomName"
-                  className="field-input"
-                  name="groomName"
-                  value={form.groomName}
-                  onChange={onChange}
-                  required
-                />
-              </div>
-              <div className="field">
-                <label className="field-label" htmlFor="brideName">
-                  שם הכלה
-                </label>
-                <input
-                  id="brideName"
-                  className="field-input"
-                  name="brideName"
-                  value={form.brideName}
-                  onChange={onChange}
-                  required
-                />
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="field">
-                <label className="field-label" htmlFor="parentName1">
-                  שם הורה 1
-                </label>
-                <input
-                  id="parentName1"
-                  className="field-input"
-                  name="parentName1"
-                  value={form.parentName1}
-                  onChange={onChange}
-                  required
-                />
-              </div>
-              <div className="field">
-                <label className="field-label" htmlFor="parentName2">
-                  שם הורה 2
-                </label>
-                <input
-                  id="parentName2"
-                  className="field-input"
-                  name="parentName2"
-                  value={form.parentName2}
-                  onChange={onChange}
-                  required
-                />
-              </div>
-            </>
-          )}
-          <div className="field">
-            <label className="field-label" htmlFor="familyName">
-              שם משפחה
-            </label>
-            <input
-              id="familyName"
-              className="field-input"
-              name="familyName"
-              value={form.familyName}
-              onChange={onChange}
-              required
-            />
-          </div>
-          <div className="field">
-            <label className="field-label" htmlFor="venueName">
-              שם המתחם
-            </label>
-            <input
-              id="venueName"
-              className="field-input"
-              name="venueName"
-              value={form.venueName}
-              onChange={onChange}
-              required
-            />
-          </div>
-          <div className="field">
-            <label className="field-label" htmlFor="city">
-              עיר
-            </label>
-            <input id="city" className="field-input" name="city" value={form.city} onChange={onChange} required />
-          </div>
-          <div className="field">
-            <label className="field-label" htmlFor="streetAndNumber">
-              רחוב ומספר
-            </label>
-            <input
-              id="streetAndNumber"
-              className="field-input"
-              name="streetAndNumber"
-              value={form.streetAndNumber}
-              onChange={onChange}
-              required
-            />
-          </div>
-          <div className="field">
-            <label className="field-label" htmlFor="eventDate">
-              תאריך
-            </label>
-            <input
-              id="eventDate"
-              className="field-input"
-              type="date"
-              name="eventDate"
-              value={form.eventDate}
-              onChange={onChange}
-              required
-            />
-          </div>
-          <div className="field">
-            <label className="field-label" htmlFor="eventTime">
-              שעה
-            </label>
-            <input
-              id="eventTime"
-              className="field-input"
-              type="time"
-              name="eventTime"
-              value={form.eventTime}
-              onChange={onChange}
-              required
-            />
-          </div>
-          <div className="field">
-            <label className="field-label" htmlFor="eventImage">
-              תמונת אירוע
-            </label>
-            <input id="eventImage" className="field-input" type="file" accept="image/*" onChange={onImageChange} />
-            {form.imageDataUrl ? <img className="event-image-preview" src={form.imageDataUrl} alt="תצוגה מקדימה" /> : null}
-          </div>
-
-          <button className="btn btn-primary btn-block" disabled={loading} type="submit">
-            {loading ? "שומר…" : "שמור לקוח"}
+        <div className="toolbar">
+          <button className="btn btn-primary" type="button" onClick={() => setShowCreateWizard(true)}>
+            לקוח חדש
           </button>
-        </form>
+        </div>
 
         {error ? <p className="message message--error">{error}</p> : null}
+
+        <section className="admin-layout">
+          <div className="card">
+            <h2 className="card-title">לקוחות פעילים</h2>
+            {loadingClients ? <p>טוען רשימה…</p> : null}
+            {clientsError ? <p className="message message--error">{clientsError}</p> : null}
+            <div className="admin-client-list">
+              {clients.map((client) => (
+                <button
+                  key={client.userId}
+                  className={`admin-client-row ${String(selectedClientId) === String(client.userId) ? "is-active" : ""}`}
+                  type="button"
+                  onClick={() => setSelectedClientId(client.userId)}
+                >
+                  <strong>{client.username}</strong>
+                  <span>{client.event?.eventType || "אירוע"}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="card">
+            <h2 className="card-title">אזור אישי ללקוח</h2>
+            {!selectedClient ? (
+              <p>בחרו לקוח להצגת פרטים</p>
+            ) : (
+              <div className="form-stack">
+                <p>
+                  <strong>סוג אירוע:</strong> {selectedClient.event?.eventType}
+                </p>
+                <p>
+                  <strong>שמות:</strong>{" "}
+                  {buildEventDisplayText(selectedClient.event) || selectedClient.event?.eventNames || "-"}
+                </p>
+                <p>
+                  <strong>תאריך:</strong> {selectedClient.event?.eventDate}
+                </p>
+                <p>
+                  <strong>שעה:</strong> {selectedClient.event?.eventTime}
+                </p>
+                <p>
+                  <strong>מיקום:</strong> {selectedClient.event?.venueName}, {selectedClient.event?.city},{" "}
+                  {selectedClient.event?.streetAndNumber}
+                </p>
+                {selectedClient.event?.imageDataUrl ? (
+                  <img className="event-image-preview" src={selectedClient.event.imageDataUrl} alt="תמונת קאבר" />
+                ) : null}
+                <p>
+                  <strong>קישור ציבורי:</strong>{" "}
+                  <a href={toAppUrl(selectedClient.publicEventLink)} target="_blank" rel="noreferrer">
+                    {toAppUrl(selectedClient.publicEventLink)}
+                  </a>
+                </p>
+                <p>
+                  <strong>קישור דשבורד:</strong>{" "}
+                  <a href={toAppUrl(selectedClient.clientDashboardLink)} target="_blank" rel="noreferrer">
+                    {toAppUrl(selectedClient.clientDashboardLink)}
+                  </a>
+                </p>
+              </div>
+            )}
+          </div>
+        </section>
+
+        {showCreateWizard ? (
+          <div className="modal-backdrop" role="presentation" onClick={() => setShowCreateWizard(false)}>
+            <form className="card modal-card form-stack" onSubmit={onSubmit} onClick={(event) => event.stopPropagation()}>
+              <h2 className="card-title">אשף יצירת לקוח חדש</h2>
+              <div className="field">
+                <label className="field-label" htmlFor="username">
+                  שם משתמש
+                </label>
+                <input
+                  id="username"
+                  className="field-input"
+                  name="username"
+                  value={form.username}
+                  onChange={onChange}
+                  required
+                />
+              </div>
+              <div className="field">
+                <label className="field-label" htmlFor="password">
+                  סיסמה
+                </label>
+                <input
+                  id="password"
+                  className="field-input"
+                  name="password"
+                  type="password"
+                  value={form.password}
+                  onChange={onChange}
+                  required
+                />
+              </div>
+
+              <hr className="divider" />
+
+              <h2 className="card-title">פרטי האירוע</h2>
+              <div className="field">
+                <label className="field-label" htmlFor="eventType">
+                  סוג אירוע
+                </label>
+                <select id="eventType" className="field-input" name="eventType" value={form.eventType} onChange={onChange}>
+                  <option value="חתונה">חתונה</option>
+                  <option value="ברית">ברית</option>
+                </select>
+              </div>
+              {form.eventType === "חתונה" ? (
+                <>
+                  <div className="field">
+                    <label className="field-label" htmlFor="groomName">
+                      שם החתן
+                    </label>
+                    <input
+                      id="groomName"
+                      className="field-input"
+                      name="groomName"
+                      value={form.groomName}
+                      onChange={onChange}
+                      required
+                    />
+                  </div>
+                  <div className="field">
+                    <label className="field-label" htmlFor="brideName">
+                      שם הכלה
+                    </label>
+                    <input
+                      id="brideName"
+                      className="field-input"
+                      name="brideName"
+                      value={form.brideName}
+                      onChange={onChange}
+                      required
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="field">
+                    <label className="field-label" htmlFor="parentName1">
+                      שם הורה 1
+                    </label>
+                    <input
+                      id="parentName1"
+                      className="field-input"
+                      name="parentName1"
+                      value={form.parentName1}
+                      onChange={onChange}
+                      required
+                    />
+                  </div>
+                  <div className="field">
+                    <label className="field-label" htmlFor="parentName2">
+                      שם הורה 2
+                    </label>
+                    <input
+                      id="parentName2"
+                      className="field-input"
+                      name="parentName2"
+                      value={form.parentName2}
+                      onChange={onChange}
+                      required
+                    />
+                  </div>
+                </>
+              )}
+              <div className="field">
+                <label className="field-label" htmlFor="familyName">
+                  שם משפחה
+                </label>
+                <input
+                  id="familyName"
+                  className="field-input"
+                  name="familyName"
+                  value={form.familyName}
+                  onChange={onChange}
+                  required
+                />
+              </div>
+              <div className="field">
+                <label className="field-label" htmlFor="venueName">
+                  שם המתחם
+                </label>
+                <input
+                  id="venueName"
+                  className="field-input"
+                  name="venueName"
+                  value={form.venueName}
+                  onChange={onChange}
+                  required
+                />
+              </div>
+              <div className="field">
+                <label className="field-label" htmlFor="city">
+                  עיר
+                </label>
+                <input id="city" className="field-input" name="city" value={form.city} onChange={onChange} required />
+              </div>
+              <div className="field">
+                <label className="field-label" htmlFor="streetAndNumber">
+                  רחוב ומספר
+                </label>
+                <input
+                  id="streetAndNumber"
+                  className="field-input"
+                  name="streetAndNumber"
+                  value={form.streetAndNumber}
+                  onChange={onChange}
+                  required
+                />
+              </div>
+              <div className="field">
+                <label className="field-label" htmlFor="eventDate">
+                  תאריך
+                </label>
+                <input
+                  id="eventDate"
+                  className="field-input"
+                  type="date"
+                  name="eventDate"
+                  value={form.eventDate}
+                  onChange={onChange}
+                  required
+                />
+              </div>
+              <div className="field">
+                <label className="field-label" htmlFor="eventTime">
+                  שעה
+                </label>
+                <input
+                  id="eventTime"
+                  className="field-input"
+                  type="time"
+                  name="eventTime"
+                  value={form.eventTime}
+                  onChange={onChange}
+                  required
+                />
+              </div>
+              <div className="field">
+                <label className="field-label" htmlFor="eventImage">
+                  תמונת אירוע
+                </label>
+                <input id="eventImage" className="field-input" type="file" accept="image/*" onChange={onImageChange} />
+                {form.imageDataUrl ? <img className="event-image-preview" src={form.imageDataUrl} alt="תצוגה מקדימה" /> : null}
+              </div>
+
+              <div className="toolbar">
+                <button className="btn btn-primary" disabled={loading} type="submit">
+                  {loading ? "שומר…" : "שמור לקוח"}
+                </button>
+                <button className="btn btn-secondary" type="button" onClick={() => setShowCreateWizard(false)}>
+                  ביטול
+                </button>
+              </div>
+            </form>
+          </div>
+        ) : null}
 
         {result ? (
           <div className="card result-links">

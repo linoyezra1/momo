@@ -67,6 +67,33 @@ function validateEvent(normalizedEvent) {
   return "";
 }
 
+function buildClientLinks(userId) {
+  const baseUrl = process.env.CLIENT_URL || "http://localhost:5173";
+  return {
+    clientDashboardLink: `${baseUrl}/client/login`,
+    publicEventLink: `${baseUrl}/event/${userId}`
+  };
+}
+
+router.get("/clients", async (_req, res) => {
+  try {
+    const users = await User.find({}, "username event createdAt").sort({ createdAt: -1 });
+    const clients = users.map((user) => {
+      const links = buildClientLinks(user._id);
+      return {
+        userId: user._id,
+        username: user.username,
+        event: user.event,
+        createdAt: user.createdAt,
+        ...links
+      };
+    });
+    return res.json({ clients });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to load clients", error: error.message });
+  }
+});
+
 router.post("/create-client", async (req, res) => {
   try {
     const { username, password, event } = req.body;
@@ -93,12 +120,11 @@ router.post("/create-client", async (req, res) => {
       event: normalizedEvent
     });
 
-    const baseUrl = process.env.CLIENT_URL || "http://localhost:5173";
+    const links = buildClientLinks(user._id);
 
     return res.status(201).json({
       userId: user._id,
-      clientDashboardLink: `${baseUrl}/client/login`,
-      publicEventLink: `${baseUrl}/event/${user._id}`,
+      ...links,
       credentials: { username, password }
     });
   } catch (error) {

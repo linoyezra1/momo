@@ -184,6 +184,21 @@ select.field-input {
   border-color: var(--color-primary);
 }
 
+.btn-neutral {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+  color: #374151;
+}
+
+.btn-neutral:hover:not(:disabled) {
+  background: #e5e7eb;
+  border-color: #9ca3af;
+}
+
+.btn-link-like {
+  text-decoration: underline;
+}
+
 .btn-block {
   width: 100%;
 }
@@ -392,6 +407,53 @@ select.field-input {
   flex-wrap: wrap;
   gap: var(--space-sm);
   margin-bottom: var(--space-lg);
+}
+
+.admin-layout {
+  display: grid;
+  gap: var(--space-md);
+  grid-template-columns: 1fr;
+}
+
+.admin-client-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-client-row {
+  text-align: right;
+  border: 1px solid var(--color-neutral);
+  background: #fff;
+  border-radius: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+}
+
+.admin-client-row.is-active {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+.dashboard-shell {
+  background: #f9fafb;
+}
+
+.dashboard-stats .stat-card {
+  background: #f3f4f6;
+  border-color: #e5e7eb;
+}
+
+.dashboard-toolbar {
+  padding-bottom: 6px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.dashboard-table-wrap {
+  background: #f8fafc;
+  border-color: #e5e7eb;
 }
 
 /* Landing / RSVP invitation page */
@@ -666,6 +728,12 @@ select.field-input {
     padding: 26px 22px 20px;
   }
 
+  .admin-layout {
+    grid-template-columns: 0.9fr 1.1fr;
+  }
+}
+
+@media (max-width: 720px) {
   .toolbar {
     flex-direction: column;
   }

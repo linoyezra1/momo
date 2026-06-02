@@ -15,10 +15,22 @@ const STATUS_OPTIONS = [
   { value: "אולי", label: "אולי" }
 ];
 
+function getOwnerGreeting(event) {
+  if (!event) return "שלום";
+  if (event.eventType === "חתונה") {
+    return `שלום ${event.groomName || ""} ו${event.brideName || ""}`.trim();
+  }
+  if (event.eventType === "ברית") {
+    return `שלום ${event.parentName1 || ""} ו${event.parentName2 || ""}`.trim();
+  }
+  return "שלום";
+}
+
 export default function ClientDashboardPage() {
   const { userId } = useParams();
   const [summary, setSummary] = useState({ totalComing: 0, totalNotComing: 0, totalMaybe: 0 });
   const [guests, setGuests] = useState([]);
+  const [eventInfo, setEventInfo] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [manualGuest, setManualGuest] = useState(initialGuest);
   const [editingGuestId, setEditingGuestId] = useState("");
@@ -29,6 +41,7 @@ export default function ClientDashboardPage() {
     const response = await api.get(`/client/${userId}/guests`);
     setSummary(response.data.summary);
     setGuests(response.data.guests);
+    setEventInfo(response.data.event || null);
   };
 
   useEffect(() => {
@@ -113,6 +126,16 @@ export default function ClientDashboardPage() {
     });
   };
 
+  const downloadTemplate = () => {
+    import("xlsx").then((XLSX) => {
+      const rows = [{ "שם מלא": "", טלפון: "", "כמות אנשים": "" }];
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Template");
+      XLSX.writeFile(workbook, "guests-template.xlsx");
+    });
+  };
+
   const startEdit = (guest) => {
     setEditingGuestId(guest._id);
     setEditingValues({ status: guest.status, attendeesCount: guest.attendeesCount });
@@ -125,14 +148,14 @@ export default function ClientDashboardPage() {
   };
 
   return (
-    <div className="page-shell">
+    <div className="page-shell dashboard-shell">
       <div className="page-container">
         <header className="page-header">
-          <h1>דשבורד לקוח</h1>
-          <p>ניהול אורחים ואישורי הגעה</p>
+          <h1>{getOwnerGreeting(eventInfo)}</h1>
+          <p>ניהול אורחים ואישורי הגעה לאירוע</p>
         </header>
 
-        <div className="stats-grid">
+        <div className="stats-grid dashboard-stats">
           <div className="stat-card">
             <h3>סה״כ מגיעים</h3>
             <p>{summary.totalComing}</p>
@@ -147,15 +170,18 @@ export default function ClientDashboardPage() {
           </div>
         </div>
 
-        <div className="toolbar">
+        <div className="toolbar dashboard-toolbar">
           <button className="btn btn-primary" type="button" onClick={() => setShowModal(true)}>
             הוספת מוזמן ידנית
           </button>
-          <button className="btn btn-secondary" type="button" onClick={onImportClick}>
+          <button className="btn btn-neutral" type="button" onClick={onImportClick}>
             העלאת מוזמנים מאקסל
           </button>
-          <button className="btn btn-secondary" type="button" onClick={exportGuests}>
+          <button className="btn btn-neutral" type="button" onClick={exportGuests}>
             ייצוא לאקסל
+          </button>
+          <button className="btn btn-neutral btn-link-like" type="button" onClick={downloadTemplate}>
+            הורדת קובץ אקסל לדוגמה
           </button>
           <input
             ref={fileInputRef}
@@ -166,7 +192,7 @@ export default function ClientDashboardPage() {
           />
         </div>
 
-        <div className="card table-wrap">
+        <div className="card table-wrap dashboard-table-wrap">
           <table className="table">
             <thead>
               <tr>

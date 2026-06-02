@@ -35,6 +35,10 @@ router.post("/login", async (req, res) => {
 router.get("/:userId/guests", async (req, res) => {
   try {
     const { userId } = req.params;
+    const user = await User.findById(userId).select("event username");
+    if (!user) {
+      return res.status(404).json({ message: "Client not found" });
+    }
     const guests = await Guest.find({ userId }).sort({ createdAt: -1 });
 
     const summary = guests.reduce(
@@ -51,7 +55,7 @@ router.get("/:userId/guests", async (req, res) => {
       { totalComing: 0, totalNotComing: 0, totalMaybe: 0 }
     );
 
-    return res.json({ summary, guests });
+    return res.json({ summary, guests, event: user.event, username: user.username });
   } catch (error) {
     return res.status(500).json({ message: "Failed to load guests", error: error.message });
   }
