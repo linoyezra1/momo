@@ -23,3 +23,28 @@ export function formatIsraeliWeekday(dateStr) {
   const date = new Date(year, month - 1, day);
   return date.toLocaleDateString("he-IL", { weekday: "long" });
 }
+
+/** DD.MM.YYYY — לדף הזמנה (ברית) */
+export function formatDateDots(dateStr) {
+  const parts = parseIsoDateParts(dateStr);
+  if (!parts) return "";
+  const { year, month, day } = parts;
+  return `${String(day).padStart(2, "0")}.${String(month).padStart(2, "0")}.${year}`;
+}
+
+/** תאריך עברי — מחושב מהתאריך הלועזי; ריק אם אין תאריך תקין */
+export function formatHebrewCalendarDate(dateStr) {
+  const parts = parseIsoDateParts(dateStr);
+  if (!parts) return "";
+  const { year, month, day } = parts;
+  const date = new Date(year, month - 1, day);
+  try {
+    return date.toLocaleDateString("he-IL-u-ca-hebrew", {
+      day: "numeric",
+      month: "long",
+      year: "numeric"
+    });
+  } catch {
+    return "";
+  }
+}

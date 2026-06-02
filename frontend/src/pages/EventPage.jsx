@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import { MapPin } from "lucide-react";
 import api from "../api";
 import gigBackground from "../../GIG.gif";
-import { formatIsraeliDate } from "../utils/dateFormat";
+import babyBackground from "../../BABY.gif";
+import { formatDateDots, formatIsraeliDate, formatIsraeliWeekday } from "../utils/dateFormat";
 
 const STATUS_OPTIONS = [
   { value: "מגיע", label: "מגיע" },
@@ -29,6 +31,42 @@ function getEventClosing(event) {
     return `נשמח לראותכם בין אורחינו, ${event.eventNames}`.trim();
   }
   return "נשמח לראותכם בין אורחינו…";
+}
+
+function BritInviteDetails({ event }) {
+  const weekday = event?.eventDate ? formatIsraeliWeekday(event.eventDate) : "";
+  const hebrewDate = event?.eventDateHebrew?.trim() || "";
+  const dateDots = event?.eventDate ? formatDateDots(event.eventDate) : "";
+  const venue = event?.venueName?.trim() || "";
+  const street = event?.streetAndNumber?.trim() || "";
+  const city = event?.city?.trim() || "";
+  const time = event?.eventTime ? String(event.eventTime).trim() : "";
+
+  const whenLineParts = [weekday, hebrewDate].filter(Boolean);
+  const addressLine = [street, city].filter(Boolean).join(", ");
+
+  return (
+    <div className="invite-brit-details" dir="rtl">
+      <p className="invite-brit-line">שמחים להזמינכם לחגוג עמנו</p>
+      <p className="invite-brit-line">את ברית המילה של בננו שתתקיים</p>
+      {whenLineParts.length > 0 ? (
+        <p className="invite-brit-line invite-brit-when">ב{whenLineParts.join(" ")}</p>
+      ) : null}
+      {dateDots ? <p className="invite-brit-date">{dateDots}</p> : null}
+      {venue ? (
+        <p className="invite-brit-line invite-brit-venue">
+          באולמי &ldquo;{venue}&rdquo;
+        </p>
+      ) : null}
+      {addressLine ? (
+        <p className="invite-brit-line invite-brit-location">
+          <MapPin className="invite-brit-pin" size={18} strokeWidth={1.5} aria-hidden="true" />
+          <span>{addressLine}</span>
+        </p>
+      ) : null}
+      {time ? <p className="invite-brit-line invite-brit-time">בשעה {time}</p> : null}
+    </div>
+  );
 }
 
 export default function EventPage() {
@@ -112,15 +150,23 @@ export default function EventPage() {
   }
 
   const event = eventData?.event;
-  const eventDateText = event?.eventDate ? formatIsraeliDate(event.eventDate) : "";
+  const isBrit = event?.eventType === "ברית";
+  const eventDateText = event?.eventDate
+    ? isBrit
+      ? formatDateDots(event.eventDate)
+      : formatIsraeliDate(event.eventDate)
+    : "";
   const eventTimeText = event?.eventTime ? String(event.eventTime) : "";
   const hasEventImage = Boolean(event?.imageDataUrl);
   const closingText = getEventClosing(event);
-  const coverStyle = hasEventImage ? { backgroundImage: `url(${event.imageDataUrl})` } : { backgroundImage: `url(${gigBackground})` };
+  const defaultBackground = isBrit ? babyBackground : gigBackground;
+  const coverStyle = hasEventImage
+    ? { backgroundImage: `url(${event.imageDataUrl})` }
+    : { backgroundImage: `url(${defaultBackground})` };
 
   return (
     <div className="invite-page">
-      <img className="invite-bg-gif" src={gigBackground} alt="" aria-hidden="true" />
+      <img className="invite-bg-gif" src={defaultBackground} alt="" aria-hidden="true" />
       <div className="invite-bg-overlay" />
       <div className="invite-shell">
         {event ? (
@@ -141,16 +187,7 @@ export default function EventPage() {
                     </h1>
                   </div>
                 ) : event.eventType === "ברית" ? (
-                  <div className="invite-headline">
-                    <h1 className="invite-headline-brit">הנכם מוזמנים לחגוג עמנו את ברית בננו</h1>
-                    {event.parentName1 || event.parentName2 ? (
-                      <p className="invite-headline-names">
-                        {event.parentName1}
-                        {event.parentName1 && event.parentName2 ? " ו" : ""}
-                        {event.parentName2}
-                      </p>
-                    ) : null}
-                  </div>
+                  <BritInviteDetails event={event} />
                 ) : (
                   <div className="invite-headline">
                     <p className="invite-headline-intro">
@@ -161,12 +198,16 @@ export default function EventPage() {
                     ) : null}
                   </div>
                 )}
-                <p className="invite-detail-value">{eventDateText}</p>
-                <p className="invite-detail-value">{event.venueName}</p>
-                <p className="invite-detail-label">
-                  {event.streetAndNumber}, {event.city}
-                </p>
-                <p className="invite-detail-label">{eventTimeText}</p>
+                {event.eventType !== "ברית" ? (
+                  <>
+                    <p className="invite-detail-value">{eventDateText}</p>
+                    <p className="invite-detail-value">{event.venueName}</p>
+                    <p className="invite-detail-label">
+                      {event.streetAndNumber}, {event.city}
+                    </p>
+                    <p className="invite-detail-label">{eventTimeText}</p>
+                  </>
+                ) : null}
               </div>
             </header>
 
