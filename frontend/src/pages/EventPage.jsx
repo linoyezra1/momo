@@ -16,6 +16,35 @@ const initialRsvp = {
   status: "מגיע"
 };
 
+function getEventCopy(event) {
+  if (!event) {
+    return { title: "", subtitle: "", closing: "נשמח לראותכם בין אורחינו…" };
+  }
+
+  if (event.eventType === "חתונה") {
+    const fullNames = `${event.groomName || ""} & ${event.brideName || ""} ${event.familyName || ""}`.trim();
+    return {
+      title: `הנכם מוזמנים לאירוע חתונה של ${fullNames}`,
+      subtitle: "שמחים ונרגשים להזמינכם לחגוג עמנו את נישואינו",
+      closing: `נשמח לראותכם בין אורחינו, ${event.groomName || ""} ו${event.brideName || ""}`.trim()
+    };
+  }
+
+  if (event.eventType === "ברית") {
+    return {
+      title: `הנכם מוזמנים לאירוע ברית של משפחת ${event.familyName || ""}`.trim(),
+      subtitle: "שמחים להזמינכם לחגוג עמנו את ברית המילה של בנינו",
+      closing: `נשמח לראותכם בין אורחינו, ${event.parentName1 || ""} ו${event.parentName2 || ""} ${event.familyName || ""}`.trim()
+    };
+  }
+
+  return {
+    title: `הנכם מוזמנים לאירוע ${event.eventType} של ${event.eventNames || ""}`.trim(),
+    subtitle: "שמחים ונרגשים להזמינכם ליום המאושר בחיינו",
+    closing: "נשמח לראותכם בין אורחינו…"
+  };
+}
+
 export default function EventPage() {
   const { eventId } = useParams();
   const [eventData, setEventData] = useState(null);
@@ -87,6 +116,7 @@ export default function EventPage() {
   const eventDateText = event?.eventDate ? String(event.eventDate) : "";
   const eventTimeText = event?.eventTime ? String(event.eventTime) : "";
   const hasEventImage = Boolean(event?.imageDataUrl);
+  const eventCopy = getEventCopy(event);
 
   return (
     <div className="invite-page">
@@ -103,10 +133,8 @@ export default function EventPage() {
                 <div className="invite-hero-hearts">♡</div>
                 {eventDateText ? <p className="invite-hero-date">{eventDateText}</p> : null}
               </div>
-              <h1 className="invite-title">
-                הנכם מוזמנים לאירוע {event.eventType} של {event.eventNames}
-              </h1>
-              {eventTimeText ? <p className="invite-subtitle">שמחים ונרגשים להזמינכם ליום המאושר בחיינו - {eventTimeText}</p> : null}
+              <h1 className="invite-title">{eventCopy.title}</h1>
+              {eventTimeText ? <p className="invite-subtitle">{eventCopy.subtitle} - {eventTimeText}</p> : null}
 
               <div className="invite-details">
                 <div className="invite-detail-row">
@@ -241,7 +269,7 @@ export default function EventPage() {
                 {submitting ? "שולח…" : "אישור הגעה"}
               </button>
 
-              <p className="invite-closing">נשמח לראותכם בין אורחינו…</p>
+              <p className="invite-closing">{eventCopy.closing}</p>
             </>
           )}
 

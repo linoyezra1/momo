@@ -5,7 +5,11 @@ const initialForm = {
   username: "",
   password: "",
   eventType: "חתונה",
-  eventNames: "",
+  groomName: "",
+  brideName: "",
+  parentName1: "",
+  parentName2: "",
+  familyName: "",
   venueName: "",
   city: "",
   streetAndNumber: "",
@@ -25,6 +29,17 @@ function toAppUrl(linkOrPath) {
   }
 }
 
+function buildEventDisplayText(event) {
+  if (!event) return "";
+  if (event.eventType === "חתונה") {
+    return `${event.groomName} & ${event.brideName} ${event.familyName}`.trim();
+  }
+  if (event.eventType === "ברית") {
+    return `משפחת ${event.familyName}`.trim();
+  }
+  return "";
+}
+
 export default function AdminPage() {
   const [form, setForm] = useState(initialForm);
   const [result, setResult] = useState(null);
@@ -34,8 +49,9 @@ export default function AdminPage() {
   const [error, setError] = useState("");
   const publicEventUrl = toAppUrl(result?.publicEventLink);
   const clientDashboardUrl = toAppUrl(result?.clientDashboardLink);
+  const eventDisplayText = buildEventDisplayText(createdEvent);
   const shareMessage = createdEvent
-    ? `הזמנה לאירוע ${createdEvent.eventType} של ${createdEvent.eventNames}
+    ? `הזמנה לאירוע ${createdEvent.eventType} של ${eventDisplayText}
 תאריך: ${createdEvent.eventDate} | שעה: ${createdEvent.eventTime}
 מיקום: ${createdEvent.venueName}, ${createdEvent.city}, ${createdEvent.streetAndNumber}
 
@@ -86,7 +102,11 @@ ${publicEventUrl}`
         password: form.password,
         event: {
           eventType: form.eventType,
-          eventNames: form.eventNames,
+          groomName: form.eventType === "חתונה" ? form.groomName : "",
+          brideName: form.eventType === "חתונה" ? form.brideName : "",
+          parentName1: form.eventType === "ברית" ? form.parentName1 : "",
+          parentName2: form.eventType === "ברית" ? form.parentName2 : "",
+          familyName: form.familyName,
           venueName: form.venueName,
           city: form.city,
           streetAndNumber: form.streetAndNumber,
@@ -165,18 +185,76 @@ ${publicEventUrl}`
             <select id="eventType" className="field-input" name="eventType" value={form.eventType} onChange={onChange}>
               <option value="חתונה">חתונה</option>
               <option value="ברית">ברית</option>
-              <option value="אחר">אחר</option>
             </select>
           </div>
+          {form.eventType === "חתונה" ? (
+            <>
+              <div className="field">
+                <label className="field-label" htmlFor="groomName">
+                  שם החתן
+                </label>
+                <input
+                  id="groomName"
+                  className="field-input"
+                  name="groomName"
+                  value={form.groomName}
+                  onChange={onChange}
+                  required
+                />
+              </div>
+              <div className="field">
+                <label className="field-label" htmlFor="brideName">
+                  שם הכלה
+                </label>
+                <input
+                  id="brideName"
+                  className="field-input"
+                  name="brideName"
+                  value={form.brideName}
+                  onChange={onChange}
+                  required
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="field">
+                <label className="field-label" htmlFor="parentName1">
+                  שם הורה 1
+                </label>
+                <input
+                  id="parentName1"
+                  className="field-input"
+                  name="parentName1"
+                  value={form.parentName1}
+                  onChange={onChange}
+                  required
+                />
+              </div>
+              <div className="field">
+                <label className="field-label" htmlFor="parentName2">
+                  שם הורה 2
+                </label>
+                <input
+                  id="parentName2"
+                  className="field-input"
+                  name="parentName2"
+                  value={form.parentName2}
+                  onChange={onChange}
+                  required
+                />
+              </div>
+            </>
+          )}
           <div className="field">
-            <label className="field-label" htmlFor="eventNames">
-              שמות
+            <label className="field-label" htmlFor="familyName">
+              שם משפחה
             </label>
             <input
-              id="eventNames"
+              id="familyName"
               className="field-input"
-              name="eventNames"
-              value={form.eventNames}
+              name="familyName"
+              value={form.familyName}
               onChange={onChange}
               required
             />

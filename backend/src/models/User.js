@@ -7,7 +7,12 @@ const eventSchema = new mongoose.Schema(
       enum: ["חתונה", "ברית", "אחר"],
       required: true
     },
-    eventNames: { type: String, required: true },
+    groomName: { type: String, trim: true, default: "" },
+    brideName: { type: String, trim: true, default: "" },
+    parentName1: { type: String, trim: true, default: "" },
+    parentName2: { type: String, trim: true, default: "" },
+    familyName: { type: String, trim: true, default: "" },
+    eventNames: { type: String, trim: true, default: "" },
     venueName: { type: String, required: true },
     city: { type: String, required: true },
     streetAndNumber: { type: String, required: true },

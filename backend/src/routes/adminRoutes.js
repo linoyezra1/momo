@@ -4,12 +4,80 @@ import User from "../models/User.js";
 
 const router = express.Router();
 
+function normalizeEventPayload(rawEvent) {
+  const eventType = String(rawEvent?.eventType || "").trim();
+  const familyName = String(rawEvent?.familyName || "").trim();
+  const groomName = String(rawEvent?.groomName || "").trim();
+  const brideName = String(rawEvent?.brideName || "").trim();
+  const parentName1 = String(rawEvent?.parentName1 || "").trim();
+  const parentName2 = String(rawEvent?.parentName2 || "").trim();
+
+  const baseEvent = {
+    eventType,
+    venueName: String(rawEvent?.venueName || "").trim(),
+    city: String(rawEvent?.city || "").trim(),
+    streetAndNumber: String(rawEvent?.streetAndNumber || "").trim(),
+    eventDate: String(rawEvent?.eventDate || "").trim(),
+    eventTime: String(rawEvent?.eventTime || "").trim(),
+    imageDataUrl: String(rawEvent?.imageDataUrl || "").trim(),
+    groomName,
+    brideName,
+    parentName1,
+    parentName2,
+    familyName
+  };
+
+  if (eventType === "חתונה") {
+    return {
+      ...baseEvent,
+      eventNames: `${groomName} & ${brideName} ${familyName}`.trim()
+    };
+  }
+
+  if (eventType === "ברית") {
+    return {
+      ...baseEvent,
+      eventNames: `משפחת ${familyName}`.trim()
+    };
+  }
+
+  return {
+    ...baseEvent,
+    eventNames: String(rawEvent?.eventNames || "").trim()
+  };
+}
+
+function validateEvent(normalizedEvent) {
+  if (!normalizedEvent.eventType || !normalizedEvent.venueName || !normalizedEvent.city || !normalizedEvent.streetAndNumber || !normalizedEvent.eventDate || !normalizedEvent.eventTime) {
+    return "Missing required event fields";
+  }
+
+  if (normalizedEvent.eventType === "חתונה") {
+    if (!normalizedEvent.groomName || !normalizedEvent.brideName || !normalizedEvent.familyName) {
+      return "Missing required wedding names";
+    }
+  } else if (normalizedEvent.eventType === "ברית") {
+    if (!normalizedEvent.parentName1 || !normalizedEvent.parentName2 || !normalizedEvent.familyName) {
+      return "Missing required brit names";
+    }
+  } else if (!normalizedEvent.eventNames) {
+    return "Missing required event names";
+  }
+
+  return "";
+}
+
 router.post("/create-client", async (req, res) => {
   try {
     const { username, password, event } = req.body;
 
     if (!username || !password || !event) {
       return res.status(400).json({ message: "Missing required fields" });
+    }
+    const normalizedEvent = normalizeEventPayload(event);
+    const eventValidationError = validateEvent(normalizedEvent);
+    if (eventValidationError) {
+      return res.status(400).json({ message: eventValidationError });
     }
 
     const existing = await User.findOne({ username: username.trim() });
@@ -22,7 +90,7 @@ router.post("/create-client", async (req, res) => {
     const user = await User.create({
       username: username.trim(),
       passwordHash,
-      event
+      event: normalizedEvent
     });
 
     const baseUrl = process.env.CLIENT_URL || "http://localhost:5173";
