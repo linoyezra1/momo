@@ -76,6 +76,14 @@ export default function EventPage() {
     setForm((prev) => ({ ...prev, status }));
   };
 
+  const increaseAttendees = () => {
+    setForm((prev) => ({ ...prev, attendeesCount: Math.min(20, Number(prev.attendeesCount || 0) + 1) }));
+  };
+
+  const decreaseAttendees = () => {
+    setForm((prev) => ({ ...prev, attendeesCount: Math.max(0, Number(prev.attendeesCount || 0) - 1) }));
+  };
+
   const onSubmit = async (event) => {
     event.preventDefault();
     setMessage("");
@@ -130,11 +138,13 @@ export default function EventPage() {
                 aria-hidden="true"
               >
                 <div className="invite-hero-overlay" />
-                <div className="invite-hero-hearts">♡</div>
+                <div className="invite-hero-content">
+                  <h1 className="invite-hero-title">{eventCopy.title}</h1>
+                  <p className="invite-hero-subtitle">{eventCopy.subtitle}</p>
+                </div>
                 {eventDateText ? <p className="invite-hero-date">{eventDateText}</p> : null}
               </div>
-              <h1 className="invite-title">{eventCopy.title}</h1>
-              {eventTimeText ? <p className="invite-subtitle">{eventCopy.subtitle} - {eventTimeText}</p> : null}
+              {eventTimeText ? <p className="invite-subtitle">{eventTimeText}</p> : null}
 
               <div className="invite-details">
                 <div className="invite-detail-row">
@@ -200,6 +210,11 @@ export default function EventPage() {
             </div>
           ) : (
             <>
+              <div className="invite-form-heading">
+                <h2>אשרו את הגעתכם</h2>
+                <p>נשמח לדעת שתוכלו לחגוג איתנו את הרגע המיוחד</p>
+              </div>
+
               <div className="field">
                 <label className="field-label" htmlFor="fullName">
                   שם מלא
@@ -232,20 +247,29 @@ export default function EventPage() {
                 />
               </div>
 
-              <div className="field">
-                <label className="field-label" htmlFor="attendeesCount">
-                  כמות מגיעים
-                </label>
-                <input
-                  id="attendeesCount"
-                  className="field-input"
-                  name="attendeesCount"
-                  type="number"
-                  min="0"
-                  value={form.attendeesCount}
-                  onChange={onChange}
-                  required
-                />
+              <div className="field attendees-field">
+                <div className="attendees-header">
+                  <span className="field-label">כמה מגיעים?</span>
+                  <span className="attendees-hint">כולל ילדים</span>
+                </div>
+                <div className="attendees-stepper">
+                  <button className="btn stepper-btn" type="button" onClick={increaseAttendees} aria-label="הגדלת כמות">
+                    +
+                  </button>
+                  <input
+                    id="attendeesCount"
+                    className="field-input attendees-input"
+                    name="attendeesCount"
+                    type="number"
+                    min="0"
+                    value={form.attendeesCount}
+                    onChange={onChange}
+                    required
+                  />
+                  <button className="btn stepper-btn" type="button" onClick={decreaseAttendees} aria-label="הקטנת כמות">
+                    -
+                  </button>
+                </div>
               </div>
 
               <div className="field">
