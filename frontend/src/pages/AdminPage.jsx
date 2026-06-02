@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Pencil } from "lucide-react";
 import api from "../api";
 
 const initialForm = {
@@ -45,9 +46,12 @@ export default function AdminPage() {
   const [clients, setClients] = useState([]);
   const [selectedClientId, setSelectedClientId] = useState("");
   const [showCreateWizard, setShowCreateWizard] = useState(false);
+  const [wizardMode, setWizardMode] = useState("create");
+  const [editingClientId, setEditingClientId] = useState("");
   const [result, setResult] = useState(null);
   const [createdEvent, setCreatedEvent] = useState(null);
   const [copyDone, setCopyDone] = useState(false);
+  const [clientMessageCopied, setClientMessageCopied] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingClients, setLoadingClients] = useState(false);
   const [error, setError] = useState("");
@@ -67,6 +71,32 @@ export default function AdminPage() {
 נא אשרו הגעה בקישור:
 ${publicEventUrl}`
     : "";
+  const finalClientMessage =
+    result && createdEvent
+      ? `🎉 יופי, הכול מוכן! 🎉
+ההזמנה הדיגיטלית ומערכת אישורי ההגעה שלכם הוקמו בהצלחה.
+
+📩 קישור להזמנה הדיגיטלית ולאישורי ההגעה:
+${publicEventUrl}
+
+🖥️ קישור למערכת ניהול המוזמנים:
+${clientDashboardUrl}
+
+👤 שם משתמש:
+${result.credentials?.username || form.username}
+
+🔒 סיסמה:
+${result.credentials?.password || "עודכנה"}
+
+במערכת תוכלו:
+✅ לצפות ברשימת המוזמנים
+✅ לעקוב אחר אישורי ההגעה בזמן אמת
+✅ להוסיף מוזמנים ידנית
+✅ להעלות קובץ Excel
+✅ לנהל את כל פרטי האירוע במקום אחד
+
+🎊 מאחלים לכם המון מזל טוב, אירוע שמח והמון נחת! 🎊`
+      : "";
 
   const loadClients = async () => {
     setLoadingClients(true);
@@ -144,17 +174,51 @@ ${publicEventUrl}`
           imageDataUrl: form.imageDataUrl
         }
       };
-      const response = await api.post("/admin/create-client", payload);
+      const response =
+        wizardMode === "edit"
+          ? await api.patch(`/admin/clients/${editingClientId}`, payload)
+          : await api.post("/admin/create-client", payload);
       setResult(response.data);
       setCreatedEvent(payload.event);
       setForm(initialForm);
       setShowCreateWizard(false);
+      setWizardMode("create");
+      setEditingClientId("");
       await loadClients();
     } catch (submitError) {
       setError(submitError.response?.data?.message || "שמירה נכשלה");
     } finally {
       setLoading(false);
     }
+  };
+
+  const openCreateWizard = () => {
+    setForm(initialForm);
+    setWizardMode("create");
+    setEditingClientId("");
+    setShowCreateWizard(true);
+  };
+
+  const openEditWizard = (client) => {
+    setWizardMode("edit");
+    setEditingClientId(client.userId);
+    setForm({
+      username: client.username || "",
+      password: "",
+      eventType: client.event?.eventType || "חתונה",
+      groomName: client.event?.groomName || "",
+      brideName: client.event?.brideName || "",
+      parentName1: client.event?.parentName1 || "",
+      parentName2: client.event?.parentName2 || "",
+      familyName: client.event?.familyName || "",
+      venueName: client.event?.venueName || "",
+      city: client.event?.city || "",
+      streetAndNumber: client.event?.streetAndNumber || "",
+      eventDate: client.event?.eventDate || "",
+      eventTime: client.event?.eventTime || "",
+      imageDataUrl: client.event?.imageDataUrl || ""
+    });
+    setShowCreateWizard(true);
   };
 
   const copyShareMessage = async () => {
@@ -168,6 +232,13 @@ ${publicEventUrl}`
     }
   };
 
+  const copyFinalClientMessage = async () => {
+    if (!finalClientMessage) return;
+    await navigator.clipboard.writeText(finalClientMessage);
+    setClientMessageCopied(true);
+    window.setTimeout(() => setClientMessageCopied(false), 2000);
+  };
+
   return (
     <div className="page-shell">
       <div className="page-container">
@@ -177,7 +248,7 @@ ${publicEventUrl}`
         </header>
 
         <div className="toolbar">
-          <button className="btn btn-primary" type="button" onClick={() => setShowCreateWizard(true)}>
+          <button className="btn btn-primary" type="button" onClick={openCreateWizard}>
             לקוח חדש
           </button>
         </div>
@@ -191,15 +262,15 @@ ${publicEventUrl}`
             {clientsError ? <p className="message message--error">{clientsError}</p> : null}
             <div className="admin-client-list">
               {clients.map((client) => (
-                <button
-                  key={client.userId}
-                  className={`admin-client-row ${String(selectedClientId) === String(client.userId) ? "is-active" : ""}`}
-                  type="button"
-                  onClick={() => setSelectedClientId(client.userId)}
-                >
-                  <strong>{client.username}</strong>
-                  <span>{client.event?.eventType || "אירוע"}</span>
-                </button>
+                <div key={client.userId} className={`admin-client-row ${String(selectedClientId) === String(client.userId) ? "is-active" : ""}`}>
+                  <button className="admin-client-main" type="button" onClick={() => setSelectedClientId(client.userId)}>
+                    <strong>{client.username}</strong>
+                    <span>{client.event?.eventType || "אירוע"}</span>
+                  </button>
+                  <button className="btn btn-secondary btn-xs" type="button" onClick={() => openEditWizard(client)}>
+                    <Pencil size={14} />
+                  </button>
+                </div>
               ))}
             </div>
           </div>
@@ -249,8 +320,8 @@ ${publicEventUrl}`
 
         {showCreateWizard ? (
           <div className="modal-backdrop" role="presentation" onClick={() => setShowCreateWizard(false)}>
-            <form className="card modal-card form-stack" onSubmit={onSubmit} onClick={(event) => event.stopPropagation()}>
-              <h2 className="card-title">אשף יצירת לקוח חדש</h2>
+            <form className="card modal-card modal-card-scroll form-stack" onSubmit={onSubmit} onClick={(event) => event.stopPropagation()}>
+              <h2 className="card-title">{wizardMode === "edit" ? "עריכת לקוח" : "אשף יצירת לקוח חדש"}</h2>
               <div className="field">
                 <label className="field-label" htmlFor="username">
                   שם משתמש
@@ -433,7 +504,7 @@ ${publicEventUrl}`
 
               <div className="toolbar">
                 <button className="btn btn-primary" disabled={loading} type="submit">
-                  {loading ? "שומר…" : "שמור לקוח"}
+                  {loading ? "שומר…" : wizardMode === "edit" ? "שמירת שינויים" : "שמור לקוח"}
                 </button>
                 <button className="btn btn-secondary" type="button" onClick={() => setShowCreateWizard(false)}>
                   ביטול
@@ -445,7 +516,7 @@ ${publicEventUrl}`
 
         {result ? (
           <div className="card result-links">
-            <h2 className="card-title">הלקוח נוצר בהצלחה</h2>
+            <h2 className="card-title">🎉 יופי, הכול מוכן! 🎉</h2>
             <p>
               <strong>שם משתמש:</strong> {result.credentials.username}
             </p>
@@ -465,8 +536,11 @@ ${publicEventUrl}`
               </a>
             </p>
             <div className="share-block">
-              <p className="share-title">הודעת שיתוף מוכנה עם הקשר מלא:</p>
-              <textarea className="field-input share-textarea" value={shareMessage} readOnly />
+              <p className="share-title">הודעה מוכנה ללקוח:</p>
+              <textarea className="field-input share-textarea" value={finalClientMessage} readOnly />
+              <button className="btn btn-primary" type="button" onClick={copyFinalClientMessage}>
+                {clientMessageCopied ? "הודעה הועתקה" : "העתק הודעה ללקוח"}
+              </button>
               <button className="btn btn-secondary" type="button" onClick={copyShareMessage}>
                 {copyDone ? "הועתק בהצלחה" : "העתקת הודעה לשליחה"}
               </button>

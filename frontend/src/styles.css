@@ -352,6 +352,7 @@ select.field-input {
   align-items: center;
   justify-content: center;
   text-decoration: none;
+  color: #4b5563;
 }
 
 .whatsapp-link img {
@@ -402,6 +403,11 @@ select.field-input {
   max-width: 480px;
 }
 
+.modal-card-scroll {
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
 .toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -422,14 +428,24 @@ select.field-input {
 }
 
 .admin-client-row {
-  text-align: right;
   border: 1px solid var(--color-neutral);
   background: #fff;
   border-radius: 10px;
-  padding: 10px 12px;
-  cursor: pointer;
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+}
+
+.admin-client-main {
+  all: unset;
+  cursor: pointer;
+  text-align: right;
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .admin-client-row.is-active {
@@ -454,6 +470,18 @@ select.field-input {
 .dashboard-table-wrap {
   background: #f8fafc;
   border-color: #e5e7eb;
+}
+
+.public-link-box {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.public-link-label {
+  font-weight: 600;
 }
 
 /* Landing / RSVP invitation page */

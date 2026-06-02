@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
+import { MessageSquare } from "lucide-react";
 import api from "../api";
 
 const initialGuest = {
@@ -35,7 +36,9 @@ export default function ClientDashboardPage() {
   const [manualGuest, setManualGuest] = useState(initialGuest);
   const [editingGuestId, setEditingGuestId] = useState("");
   const [editingValues, setEditingValues] = useState({ status: "מגיע", attendeesCount: 1 });
+  const [linkCopied, setLinkCopied] = useState(false);
   const fileInputRef = useRef(null);
+  const publicLink = `${window.location.origin}/event/${userId}`;
 
   const loadGuests = async () => {
     const response = await api.get(`/client/${userId}/guests`);
@@ -147,12 +150,27 @@ export default function ClientDashboardPage() {
     await loadGuests();
   };
 
+  const copyPublicLink = async () => {
+    await navigator.clipboard.writeText(publicLink);
+    setLinkCopied(true);
+    window.setTimeout(() => setLinkCopied(false), 1600);
+  };
+
   return (
     <div className="page-shell dashboard-shell">
       <div className="page-container">
         <header className="page-header">
           <h1>{getOwnerGreeting(eventInfo)}</h1>
           <p>ניהול אורחים ואישורי הגעה לאירוע</p>
+          <div className="public-link-box">
+            <span className="public-link-label">קישור ציבורי לאישור הגעה:</span>
+            <a href={publicLink} target="_blank" rel="noreferrer">
+              {publicLink}
+            </a>
+            <button className="btn btn-neutral btn-xs" type="button" onClick={copyPublicLink}>
+              {linkCopied ? "הועתק" : "העתק קישור"}
+            </button>
+          </div>
         </header>
 
         <div className="stats-grid dashboard-stats">
@@ -254,16 +272,7 @@ export default function ClientDashboardPage() {
                     </td>
                     <td data-label="וואטסאפ">
                       <a className="whatsapp-link" href={toWhatsappLink(guest.phone, guest.fullName)} target="_blank" rel="noreferrer">
-                        <img
-                          src="/image_574ceb.png"
-                          alt="WhatsApp"
-                          onError={(event) => {
-                            event.currentTarget.style.display = "none";
-                          }}
-                        />
-                        <span className="whatsapp-fallback" aria-hidden="true">
-                          🟢
-                        </span>
+                        <MessageSquare size={18} />
                       </a>
                     </td>
                     <td data-label="עריכה">

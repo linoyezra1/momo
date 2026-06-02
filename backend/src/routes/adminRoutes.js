@@ -132,4 +132,48 @@ router.post("/create-client", async (req, res) => {
   }
 });
 
+router.patch("/clients/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { username, password, event } = req.body;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "Client not found" });
+    }
+
+    if (username && username.trim() !== user.username) {
+      const existing = await User.findOne({ username: username.trim() }).select("_id");
+      if (existing) {
+        return res.status(409).json({ message: "Username already exists" });
+      }
+      user.username = username.trim();
+    }
+
+    if (password) {
+      user.passwordHash = await bcrypt.hash(password, 10);
+    }
+
+    if (event) {
+      const normalizedEvent = normalizeEventPayload(event);
+      const eventValidationError = validateEvent(normalizedEvent);
+      if (eventValidationError) {
+        return res.status(400).json({ message: eventValidationError });
+      }
+      user.event = normalizedEvent;
+    }
+
+    await user.save();
+    const links = buildClientLinks(user._id);
+    return res.json({
+      message: "Client updated",
+      userId: user._id,
+      username: user.username,
+      ...links
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to update client", error: error.message });
+  }
+});
+
 export default router;
