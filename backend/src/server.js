@@ -2,6 +2,8 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
+import path from "path";
+import { fileURLToPath } from "url";
 import adminRoutes from "./routes/adminRoutes.js";
 import publicRoutes from "./routes/publicRoutes.js";
 import clientRoutes from "./routes/clientRoutes.js";
@@ -10,6 +12,9 @@ dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 5000;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const frontendDistPath = path.resolve(__dirname, "../../frontend/dist");
 
 app.use(cors());
 app.use(express.json());
@@ -21,6 +26,14 @@ app.get("/api/health", (_req, res) => {
 app.use("/api/admin", adminRoutes);
 app.use("/api/public", publicRoutes);
 app.use("/api/client", clientRoutes);
+
+app.use(express.static(frontendDistPath));
+app.get("*", (req, res, next) => {
+  if (req.path.startsWith("/api")) {
+    return next();
+  }
+  return res.sendFile(path.join(frontendDistPath, "index.html"));
+});
 
 async function startServer() {
   try {
