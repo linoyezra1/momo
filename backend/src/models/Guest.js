@@ -13,7 +13,7 @@ const guestSchema = new mongoose.Schema(
     attendeesCount: { type: Number, required: true, min: 0, default: 1 },
     status: {
       type: String,
-      enum: ["מגיע", "לא מגיע", "אולי"],
+      enum: ["מגיע", "לא מגיע", "אולי", "לא ידוע"],
       required: true
     },
     source: {

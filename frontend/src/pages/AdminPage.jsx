@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Pencil } from "lucide-react";
+import { Pencil, Trash2, X } from "lucide-react";
 import api from "../api";
 
 const initialForm = {
@@ -133,8 +133,8 @@ ${result.credentials?.password || "עודכנה"}
       event.target.value = "";
       return;
     }
-    if (file.size > 2 * 1024 * 1024) {
-      setError("התמונה גדולה מדי. העלו תמונה עד 2MB");
+    if (file.size > 8 * 1024 * 1024) {
+      setError("התמונה גדולה מדי. העלו תמונה עד 8MB");
       event.target.value = "";
       return;
     }
@@ -158,7 +158,6 @@ ${result.credentials?.password || "עודכנה"}
     try {
       const payload = {
         username: form.username,
-        password: form.password,
         event: {
           eventType: form.eventType,
           groomName: form.eventType === "חתונה" ? form.groomName : "",
@@ -174,6 +173,9 @@ ${result.credentials?.password || "עודכנה"}
           imageDataUrl: form.imageDataUrl
         }
       };
+      if (wizardMode === "create" || form.password.trim()) {
+        payload.password = form.password;
+      }
       const response =
         wizardMode === "edit"
           ? await api.patch(`/admin/clients/${editingClientId}`, payload)
@@ -192,11 +194,35 @@ ${result.credentials?.password || "עודכנה"}
     }
   };
 
+  const closeWizard = () => {
+    setShowCreateWizard(false);
+    setWizardMode("create");
+    setEditingClientId("");
+    setForm(initialForm);
+  };
+
   const openCreateWizard = () => {
     setForm(initialForm);
     setWizardMode("create");
     setEditingClientId("");
     setShowCreateWizard(true);
+  };
+
+  const deleteClient = async (client, clickEvent) => {
+    clickEvent.stopPropagation();
+    const confirmed = window.confirm("האם אתה בטוח שברצונך למחוק את הלקוח ואת כל נתוני האירוע?");
+    if (!confirmed) return;
+
+    setError("");
+    try {
+      await api.delete(`/admin/clients/${client.userId}`);
+      if (String(selectedClientId) === String(client.userId)) {
+        setSelectedClientId("");
+      }
+      await loadClients();
+    } catch (deleteError) {
+      setError(deleteError.response?.data?.message || "מחיקת לקוח נכשלה");
+    }
   };
 
   const openEditWizard = (client) => {
@@ -267,8 +293,16 @@ ${result.credentials?.password || "עודכנה"}
                     <strong>{client.username}</strong>
                     <span>{client.event?.eventType || "אירוע"}</span>
                   </button>
-                  <button className="btn btn-secondary btn-xs" type="button" onClick={() => openEditWizard(client)}>
+                  <button className="btn btn-secondary btn-xs" type="button" onClick={() => openEditWizard(client)} aria-label="עריכת לקוח">
                     <Pencil size={14} />
+                  </button>
+                  <button
+                    className="btn btn-delete btn-xs"
+                    type="button"
+                    onClick={(event) => deleteClient(client, event)}
+                    aria-label="מחיקת לקוח"
+                  >
+                    <Trash2 size={14} />
                   </button>
                 </div>
               ))}
@@ -319,9 +353,14 @@ ${result.credentials?.password || "עודכנה"}
         </section>
 
         {showCreateWizard ? (
-          <div className="modal-backdrop" role="presentation" onClick={() => setShowCreateWizard(false)}>
-            <form className="card modal-card modal-card-scroll form-stack" onSubmit={onSubmit} onClick={(event) => event.stopPropagation()}>
-              <h2 className="card-title">{wizardMode === "edit" ? "עריכת לקוח" : "אשף יצירת לקוח חדש"}</h2>
+          <div className="modal-backdrop" role="presentation">
+            <form className="card modal-card modal-card-scroll form-stack" onSubmit={onSubmit}>
+              <div className="modal-header-row">
+                <h2 className="card-title">{wizardMode === "edit" ? "עריכת לקוח" : "אשף יצירת לקוח חדש"}</h2>
+                <button className="modal-close-btn" type="button" onClick={closeWizard} aria-label="סגירה">
+                  <X size={18} />
+                </button>
+              </div>
               <div className="field">
                 <label className="field-label" htmlFor="username">
                   שם משתמש
@@ -337,7 +376,7 @@ ${result.credentials?.password || "עודכנה"}
               </div>
               <div className="field">
                 <label className="field-label" htmlFor="password">
-                  סיסמה
+                  סיסמה {wizardMode === "edit" ? "(השאירו ריק לשמירת הסיסמה הקיימת)" : ""}
                 </label>
                 <input
                   id="password"
@@ -346,7 +385,7 @@ ${result.credentials?.password || "עודכנה"}
                   type="password"
                   value={form.password}
                   onChange={onChange}
-                  required
+                  required={wizardMode === "create"}
                 />
               </div>
 
@@ -506,7 +545,7 @@ ${result.credentials?.password || "עודכנה"}
                 <button className="btn btn-primary" disabled={loading} type="submit">
                   {loading ? "שומר…" : wizardMode === "edit" ? "שמירת שינויים" : "שמור לקוח"}
                 </button>
-                <button className="btn btn-secondary" type="button" onClick={() => setShowCreateWizard(false)}>
+                <button className="btn btn-secondary" type="button" onClick={closeWizard}>
                   ביטול
                 </button>
               </div>

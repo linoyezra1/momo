@@ -13,8 +13,33 @@ const initialGuest = {
 const STATUS_OPTIONS = [
   { value: "מגיע", label: "מגיע" },
   { value: "לא מגיע", label: "לא מגיע" },
-  { value: "אולי", label: "אולי" }
+  { value: "אולי", label: "אולי" },
+  { value: "לא ידוע", label: "לא ידוע" }
 ];
+
+function parseAttendeesCount(raw) {
+  if (raw == null || raw === "") return 1;
+  const asNumber = Number(raw);
+  if (!Number.isNaN(asNumber) && asNumber > 0) return asNumber;
+  const match = String(raw).match(/\d+/);
+  return match ? Number(match[0]) : 1;
+}
+
+function normalizePhoneFromExcel(phone) {
+  let value = String(phone ?? "").trim();
+  if (typeof phone === "number" && Number.isFinite(phone)) {
+    value = String(Math.trunc(phone));
+  }
+  value = value.replace(/[^\d]/g, "");
+  if (value.startsWith("5") && value.length === 9) {
+    value = `0${value}`;
+  }
+  return value;
+}
+
+function isUnknownStatus(status) {
+  return status === "לא ידוע" || status === "אולי";
+}
 
 function getOwnerGreeting(event) {
   if (!event) return "שלום";
@@ -29,7 +54,8 @@ function getOwnerGreeting(event) {
 
 export default function ClientDashboardPage() {
   const { userId } = useParams();
-  const [summary, setSummary] = useState({ totalComing: 0, totalNotComing: 0, totalMaybe: 0 });
+  const [summary, setSummary] = useState({ totalInvited: 0, totalComing: 0, totalNotComing: 0, totalMaybe: 0 });
+  const [importError, setImportError] = useState("");
   const [guests, setGuests] = useState([]);
   const [eventInfo, setEventInfo] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -87,27 +113,44 @@ export default function ClientDashboardPage() {
 
   const mapRowToGuest = (row) => {
     const fullName = String(row["שם מלא"] ?? row["fullName"] ?? row["name"] ?? "").trim();
-    const phone = String(row["טלפון"] ?? row["phone"] ?? "").trim();
-    const attendeesCount = Number(row["כמות"] ?? row["כמות מגיעים"] ?? row["attendeesCount"] ?? 1) || 1;
-    return { fullName, phone, attendeesCount, status: "אולי" };
+    const phone = normalizePhoneFromExcel(row["טלפון"] ?? row["phone"] ?? "");
+    const amountRaw =
+      row["כמות"] ??
+      row["כמות מגיעים"] ??
+      row["כמות אנשים"] ??
+      row["מוזמנים"] ??
+      row["amount"] ??
+      row["count"] ??
+      row["attendeesCount"];
+    const attendeesCount = Math.max(1, parseAttendeesCount(amountRaw));
+    return { fullName, phone, attendeesCount, status: "לא ידוע" };
   };
 
   const onImportFile = async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    setImportError("");
     try {
       const XLSX = await import("xlsx");
       const buffer = await file.arrayBuffer();
       const workbook = XLSX.read(buffer, { type: "array" });
+      if (!workbook.SheetNames?.length) {
+        setImportError("קובץ האקסל ריק או לא תקין.");
+        return;
+      }
       const firstSheetName = workbook.SheetNames[0];
-      const rows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheetName], { defval: "" });
+      const rows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheetName], { defval: "", raw: false });
       const guestsToImport = rows.map(mapRowToGuest).filter((row) => row.fullName && row.phone);
       if (!guestsToImport.length) {
+        setImportError("לא נמצאו שורות תקינות. ודאו שיש עמודות: שם מלא, טלפון, וכמות (אופציונלי).");
         return;
       }
       await api.post(`/client/${userId}/guests/import`, { guests: guestsToImport });
       await loadGuests();
+    } catch (importErr) {
+      const serverMessage = importErr.response?.data?.message || importErr.response?.data?.error;
+      setImportError(serverMessage || "העלאת קובץ האקסל נכשלה. בדקו את הפורמט ונסו שוב.");
     } finally {
       event.target.value = "";
     }
@@ -131,7 +174,7 @@ export default function ClientDashboardPage() {
 
   const downloadTemplate = () => {
     import("xlsx").then((XLSX) => {
-      const rows = [{ "שם מלא": "", טלפון: "", "כמות אנשים": "" }];
+      const rows = [{ "שם מלא": "ישראל ישראלי", טלפון: "0501234567", "כמות אנשים": 2 }];
       const worksheet = XLSX.utils.json_to_sheet(rows);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Template");
@@ -175,6 +218,10 @@ export default function ClientDashboardPage() {
 
         <div className="stats-grid dashboard-stats">
           <div className="stat-card">
+            <h3>סה״כ מוזמנים</h3>
+            <p>{summary.totalInvited ?? summary.totalComing + summary.totalNotComing + summary.totalMaybe}</p>
+          </div>
+          <div className="stat-card">
             <h3>סה״כ מגיעים</h3>
             <p>{summary.totalComing}</p>
           </div>
@@ -182,23 +229,19 @@ export default function ClientDashboardPage() {
             <h3>סה״כ לא מגיעים</h3>
             <p>{summary.totalNotComing}</p>
           </div>
-          <div className="stat-card">
-            <h3>סה״כ אולי</h3>
-            <p>{summary.totalMaybe}</p>
-          </div>
         </div>
 
-        <div className="toolbar dashboard-toolbar">
-          <button className="btn btn-primary" type="button" onClick={() => setShowModal(true)}>
+        <div className="toolbar dashboard-toolbar dashboard-toolbar-compact">
+          <button className="btn btn-primary btn-compact" type="button" onClick={() => setShowModal(true)}>
             הוספת מוזמן ידנית
           </button>
-          <button className="btn btn-neutral" type="button" onClick={onImportClick}>
+          <button className="btn btn-neutral btn-compact" type="button" onClick={onImportClick}>
             העלאת מוזמנים מאקסל
           </button>
-          <button className="btn btn-neutral" type="button" onClick={exportGuests}>
+          <button className="btn btn-neutral btn-compact" type="button" onClick={exportGuests}>
             ייצוא לאקסל
           </button>
-          <button className="btn btn-neutral btn-link-like" type="button" onClick={downloadTemplate}>
+          <button className="btn btn-neutral btn-compact btn-link-like" type="button" onClick={downloadTemplate}>
             הורדת קובץ אקסל לדוגמה
           </button>
           <input
@@ -209,6 +252,7 @@ export default function ClientDashboardPage() {
             onChange={onImportFile}
           />
         </div>
+        {importError ? <p className="message message--error">{importError}</p> : null}
 
         <div className="card table-wrap dashboard-table-wrap">
           <table className="table">
@@ -230,7 +274,7 @@ export default function ClientDashboardPage() {
                 </tr>
               ) : (
                 guests.map((guest) => (
-                  <tr key={guest._id}>
+                  <tr key={guest._id} className={isUnknownStatus(guest.status) ? "table-row-unknown" : ""}>
                     <td data-label="שם מלא">{guest.fullName}</td>
                     <td data-label="טלפון" dir="ltr">
                       {guest.phone}
@@ -294,12 +338,8 @@ export default function ClientDashboardPage() {
         </div>
 
         {showModal ? (
-          <div className="modal-backdrop" role="presentation" onClick={() => setShowModal(false)}>
-            <form
-              className="card modal-card form-stack"
-              onSubmit={addManualGuest}
-              onClick={(event) => event.stopPropagation()}
-            >
+          <div className="modal-backdrop" role="presentation">
+            <form className="card modal-card form-stack" onSubmit={addManualGuest}>
               <h2 className="card-title">הוספת רשומה ידנית</h2>
               <div className="field">
                 <label className="field-label" htmlFor="manual-fullName">

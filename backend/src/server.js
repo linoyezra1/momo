@@ -17,7 +17,9 @@ const __dirname = path.dirname(__filename);
 const frontendDistPath = path.resolve(__dirname, "../../frontend/dist");
 
 app.use(cors());
-app.use(express.json());
+const bodyLimit = "50mb";
+app.use(express.json({ limit: bodyLimit }));
+app.use(express.urlencoded({ limit: bodyLimit, extended: true }));
 
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true });
@@ -26,6 +28,15 @@ app.get("/api/health", (_req, res) => {
 app.use("/api/admin", adminRoutes);
 app.use("/api/public", publicRoutes);
 app.use("/api/client", clientRoutes);
+
+app.use((err, req, res, next) => {
+  if (err?.type === "entity.too.large") {
+    return res.status(413).json({
+      message: "הקובץ גדול מדי. נסו להקטין את תמונת הקאבר או את נתוני האירוע."
+    });
+  }
+  return res.status(err.status || 500).json({ message: err.message || "שגיאת שרת" });
+});
 
 app.use(express.static(frontendDistPath));
 app.get("*", (req, res, next) => {

@@ -5,6 +5,47 @@ import Guest from "../models/Guest.js";
 
 const router = express.Router();
 
+function parseAttendeesCount(raw) {
+  if (raw == null || raw === "") return 1;
+  const asNumber = Number(raw);
+  if (!Number.isNaN(asNumber) && asNumber > 0) return asNumber;
+  const match = String(raw).match(/\d+/);
+  return match ? Number(match[0]) : 1;
+}
+
+function normalizePhone(phone) {
+  let value = String(phone ?? "").trim();
+  if (typeof phone === "number" && Number.isFinite(phone)) {
+    value = String(Math.trunc(phone));
+  }
+  if (!value) return "";
+  value = value.replace(/[^\d]/g, "");
+  if (value.startsWith("5") && value.length === 9) {
+    value = `0${value}`;
+  }
+  return value;
+}
+
+function mapRowToGuest(row) {
+  const fullName = String(row["שם מלא"] ?? row["fullName"] ?? row["name"] ?? "").trim();
+  const phone = normalizePhone(row["טלפון"] ?? row["phone"] ?? "");
+  const amountRaw =
+    row["כמות"] ??
+    row["כמות מגיעים"] ??
+    row["כמות אנשים"] ??
+    row["מוזמנים"] ??
+    row["amount"] ??
+    row["count"] ??
+    row["attendeesCount"];
+  const attendeesCount = Math.max(1, parseAttendeesCount(amountRaw));
+  const statusRaw = String(row["סטטוס"] ?? row["status"] ?? row["סטטוס הגעה"] ?? "").trim();
+  let status = "לא ידוע";
+  if (statusRaw === "מגיע" || statusRaw === "לא מגיע" || statusRaw === "אולי") {
+    status = statusRaw;
+  }
+  return { fullName, phone, attendeesCount, status };
+}
+
 router.post("/login", async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -43,16 +84,18 @@ router.get("/:userId/guests", async (req, res) => {
 
     const summary = guests.reduce(
       (acc, guest) => {
+        const count = Math.max(0, Number(guest.attendeesCount || 0));
+        acc.totalInvited += count;
         if (guest.status === "מגיע") {
-          acc.totalComing += guest.attendeesCount;
+          acc.totalComing += count;
         } else if (guest.status === "לא מגיע") {
-          acc.totalNotComing += 1;
-        } else if (guest.status === "אולי") {
-          acc.totalMaybe += 1;
+          acc.totalNotComing += count;
+        } else {
+          acc.totalMaybe += count;
         }
         return acc;
       },
-      { totalComing: 0, totalNotComing: 0, totalMaybe: 0 }
+      { totalInvited: 0, totalComing: 0, totalNotComing: 0, totalMaybe: 0 }
     );
 
     return res.json({ summary, guests, event: user.event, username: user.username });
@@ -78,7 +121,7 @@ router.post("/:userId/guests/manual", async (req, res) => {
     const guest = await Guest.create({
       userId,
       fullName: fullName.trim(),
-      phone: phone.trim(),
+      phone: normalizePhone(phone),
       attendeesCount: Number(attendeesCount || 1),
       status,
       source: "manual"
@@ -105,14 +148,17 @@ router.post("/:userId/guests/import", async (req, res) => {
     }
 
     const docs = guests
-      .map((guest) => ({
-        userId,
-        fullName: String(guest?.fullName || "").trim(),
-        phone: String(guest?.phone || "").trim(),
-        attendeesCount: Math.max(0, Number(guest?.attendeesCount || 1)),
-        status: ["מגיע", "לא מגיע", "אולי"].includes(guest?.status) ? guest.status : "אולי",
-        source: "excel"
-      }))
+      .map((row) => {
+        const mapped = mapRowToGuest(row);
+        return {
+          userId,
+          fullName: mapped.fullName,
+          phone: normalizePhone(mapped.phone),
+          attendeesCount: mapped.attendeesCount,
+          status: mapped.status,
+          source: "excel"
+        };
+      })
       .filter((guest) => guest.fullName && guest.phone);
 
     if (docs.length === 0) {
@@ -136,7 +182,7 @@ router.patch("/:userId/guests/:guestId", async (req, res) => {
       update.attendeesCount = Math.max(0, Number(attendeesCount));
     }
     if (typeof status !== "undefined") {
-      if (!["מגיע", "לא מגיע", "אולי"].includes(status)) {
+      if (!["מגיע", "לא מגיע", "אולי", "לא ידוע"].includes(status)) {
         return res.status(400).json({ message: "Invalid status" });
       }
       update.status = status;

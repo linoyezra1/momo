@@ -1,6 +1,7 @@
 import express from "express";
 import bcrypt from "bcryptjs";
 import User from "../models/User.js";
+import Guest from "../models/Guest.js";
 
 const router = express.Router();
 
@@ -173,6 +174,20 @@ router.patch("/clients/:userId", async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ message: "Failed to update client", error: error.message });
+  }
+});
+
+router.delete("/clients/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await User.findByIdAndDelete(userId);
+    if (!user) {
+      return res.status(404).json({ message: "Client not found" });
+    }
+    await Guest.deleteMany({ userId });
+    return res.json({ message: "Client deleted" });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "Failed to delete client" });
   }
 });
 
