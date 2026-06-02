@@ -387,6 +387,10 @@ select.field-input {
   margin-bottom: var(--space-sm);
 }
 
+.share-block--persistent .share-textarea {
+  min-height: 280px;
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;

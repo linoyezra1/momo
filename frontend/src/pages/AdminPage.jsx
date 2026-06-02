@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Pencil, Trash2, X } from "lucide-react";
 import api from "../api";
+import { buildClientOnboardingMessage } from "../utils/clientOnboardingMessage";
 
 const initialForm = {
   username: "",
@@ -70,31 +71,35 @@ export default function AdminPage() {
 נא אשרו הגעה בקישור:
 ${publicEventUrl}`
     : "";
+  const passwordHintForSelected = useMemo(() => {
+    if (
+      result?.credentials?.password &&
+      selectedClient &&
+      String(result.userId) === String(selectedClient.userId)
+    ) {
+      return result.credentials.password;
+    }
+    return "הסיסמה שהוגדרה בעת יצירת החשבון";
+  }, [result, selectedClient]);
+
+  const clientMessageForSelected = useMemo(() => {
+    if (!selectedClient) return "";
+    return buildClientOnboardingMessage({
+      username: selectedClient.username,
+      passwordHint: passwordHintForSelected,
+      publicEventUrl: toAppUrl(selectedClient.publicEventLink),
+      clientDashboardUrl: toAppUrl(selectedClient.clientDashboardLink)
+    });
+  }, [selectedClient, passwordHintForSelected]);
+
   const finalClientMessage =
     result && createdEvent
-      ? `🎉 יופי, הכול מוכן! 🎉
-ההזמנה הדיגיטלית ומערכת אישורי ההגעה שלכם הוקמו בהצלחה.
-
-📩 קישור להזמנה הדיגיטלית ולאישורי ההגעה:
-${publicEventUrl}
-
-🖥️ קישור למערכת ניהול המוזמנים:
-${clientDashboardUrl}
-
-👤 שם משתמש:
-${result.credentials?.username || form.username}
-
-🔒 סיסמה:
-${result.credentials?.password || "עודכנה"}
-
-במערכת תוכלו:
-✅ לצפות ברשימת המוזמנים
-✅ לעקוב אחר אישורי ההגעה בזמן אמת
-✅ להוסיף מוזמנים ידנית
-✅ להעלות קובץ Excel
-🔹 פיצ'ר ייחודי לשליחת הודעות וואטסאפ ישירות מהוואטסאפ האישי שלכם!
-
-🎊 מאחלים לכם המון מזל טוב, אירוע שמח והמון נחת! 🎊`
+      ? buildClientOnboardingMessage({
+          username: result.credentials?.username || form.username,
+          passwordHint: result.credentials?.password || "עודכנה",
+          publicEventUrl,
+          clientDashboardUrl
+        })
       : "";
 
   const loadClients = async () => {
@@ -180,6 +185,7 @@ ${result.credentials?.password || "עודכנה"}
           : await api.post("/admin/create-client", payload);
       setResult(response.data);
       setCreatedEvent(payload.event);
+      setSelectedClientId(response.data.userId);
       setForm(initialForm);
       setShowCreateWizard(false);
       setWizardMode("create");
@@ -255,9 +261,9 @@ ${result.credentials?.password || "עודכנה"}
     }
   };
 
-  const copyFinalClientMessage = async () => {
-    if (!finalClientMessage) return;
-    await navigator.clipboard.writeText(finalClientMessage);
+  const copyClientMessage = async (message) => {
+    if (!message) return;
+    await navigator.clipboard.writeText(message);
     setClientMessageCopied(true);
     window.setTimeout(() => setClientMessageCopied(false), 2000);
   };
@@ -344,6 +350,14 @@ ${result.credentials?.password || "עודכנה"}
                     {toAppUrl(selectedClient.clientDashboardLink)}
                   </a>
                 </p>
+
+                <div className="share-block share-block--persistent">
+                  <p className="share-title">הודעה מוכנה ללקוח (להעתקה לוואטסאפ):</p>
+                  <textarea className="field-input share-textarea" value={clientMessageForSelected} readOnly />
+                  <button className="btn btn-primary" type="button" onClick={() => copyClientMessage(clientMessageForSelected)}>
+                    {clientMessageCopied ? "הודעה הועתקה" : "העתק הודעה ללקוח"}
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -561,7 +575,7 @@ ${result.credentials?.password || "עודכנה"}
             <div className="share-block">
               <p className="share-title">הודעה מוכנה ללקוח:</p>
               <textarea className="field-input share-textarea" value={finalClientMessage} readOnly />
-              <button className="btn btn-primary" type="button" onClick={copyFinalClientMessage}>
+              <button className="btn btn-primary" type="button" onClick={() => copyClientMessage(finalClientMessage)}>
                 {clientMessageCopied ? "הודעה הועתקה" : "העתק הודעה ללקוח"}
               </button>
               <button className="btn btn-secondary" type="button" onClick={copyShareMessage}>

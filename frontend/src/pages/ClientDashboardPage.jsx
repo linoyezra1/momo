@@ -133,6 +133,7 @@ export default function ClientDashboardPage() {
     buildWhatsAppSendUrl({
       phone,
       fullName,
+      event: eventInfo,
       eventId: userId,
       origin: window.location.origin
     });

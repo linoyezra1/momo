@@ -65,13 +65,6 @@ export default function EventPage() {
       .finally(() => setLoading(false));
   }, [eventId]);
 
-  useEffect(() => {
-    const phoneFromUrl = new URLSearchParams(window.location.search).get("phone");
-    if (phoneFromUrl) {
-      setForm((prev) => ({ ...prev, phone: phoneFromUrl }));
-    }
-  }, [eventId]);
-
   const onChange = (event) => {
     const { name, value } = event.target;
     setForm((prev) => ({

@@ -1,3 +1,5 @@
+import { formatIsraeliDate } from "./dateFormat.js";
+
 export function toInternationalWhatsAppPhone(phone) {
   let digits = String(phone ?? "").replace(/[^\d]/g, "");
   if (!digits) return "";
@@ -7,10 +9,45 @@ export function toInternationalWhatsAppPhone(phone) {
   return digits;
 }
 
-export function buildWhatsAppSendUrl({ phone, fullName, eventId, origin }) {
-  const intlPhone = toInternationalWhatsAppPhone(phone);
+export function buildEventOwnersText(event) {
+  if (!event) return "";
+  if (event.eventType === "חתונה") {
+    return `${event.groomName || ""} ו${event.brideName || ""}`.trim();
+  }
+  if (event.eventType === "ברית") {
+    return `${event.parentName1 || ""} ו${event.parentName2 || ""}`.trim();
+  }
+  return String(event.eventNames || "").trim();
+}
+
+export function buildGuestWhatsAppMessage({ fullName, event, eventId, origin }) {
   const baseOrigin = origin || (typeof window !== "undefined" ? window.location.origin : "");
-  const guestLink = `${baseOrigin}/event/${eventId}?phone=${encodeURIComponent(phone)}`;
-  const whatsappMessage = `שלום ${fullName}, נשמח שתאשרו את ההגעה לאירוע שלנו בקישור האישי שלכם: ${guestLink}`;
-  return `https://api.whatsapp.com/send?phone=${intlPhone}&text=${encodeURIComponent(whatsappMessage)}`;
+  const publicLink = `${baseOrigin}/event/${eventId}`;
+  const owners = buildEventOwnersText(event);
+  const eventType = event?.eventType || "האירוע";
+  const venue = event?.venueName || "";
+  const city = event?.city || "";
+  const street = event?.streetAndNumber || "";
+  const date = formatIsraeliDate(event?.eventDate);
+  const time = event?.eventTime || "";
+
+  return `שלום ${fullName},
+שמחים להזמינכם לחגוג עימנו את האירוע: ${eventType} של ${owners}.
+
+📅 פרטי האירוע:
+📍 מתחם/אולם: ${venue} (${city}, ${street})
+🗓️ תאריך: ${date}
+⏰ שעה: ${time}
+
+נשמח אם תוכלו לאשר הגעתכם בקישור:
+${publicLink}
+
+תודה רבה,
+${owners}`;
+}
+
+export function buildWhatsAppSendUrl({ phone, fullName, event, eventId, origin }) {
+  const intlPhone = toInternationalWhatsAppPhone(phone);
+  const message = buildGuestWhatsAppMessage({ fullName, event, eventId, origin });
+  return `https://api.whatsapp.com/send?phone=${intlPhone}&text=${encodeURIComponent(message)}`;
 }
