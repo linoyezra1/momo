@@ -18,8 +18,8 @@ const guestSchema = new mongoose.Schema(
     },
     source: {
       type: String,
-      enum: ["public", "manual"],
-      default: "public"
+      enum: ["excel", "form", "manual"],
+      default: "manual"
     }
   },
   { timestamps: true }

@@ -39,7 +39,7 @@ router.post("/event/:eventId/rsvp", async (req, res) => {
       phone: phone.trim(),
       attendeesCount: Number(attendeesCount || 1),
       status,
-      source: "public"
+      source: "form"
     });
 
     return res.status(201).json({ message: "RSVP saved", guestId: guest._id });

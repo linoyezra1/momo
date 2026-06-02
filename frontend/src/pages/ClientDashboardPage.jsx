@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import api from "../api";
 
@@ -21,6 +21,9 @@ export default function ClientDashboardPage() {
   const [guests, setGuests] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [manualGuest, setManualGuest] = useState(initialGuest);
+  const [editingGuestId, setEditingGuestId] = useState("");
+  const [editingValues, setEditingValues] = useState({ status: "מגיע", attendeesCount: 1 });
+  const fileInputRef = useRef(null);
 
   const loadGuests = async () => {
     const response = await api.get(`/client/${userId}/guests`);
@@ -58,6 +61,69 @@ export default function ClientDashboardPage() {
     return `https://wa.me/${cleanPhone}?text=${text}`;
   };
 
+  const sourceLabel = (source) => {
+    if (source === "excel") return "קובץ אקסל";
+    if (source === "form" || source === "public") return "אישור הגעה עצמי";
+    return "ידני";
+  };
+
+  const onImportClick = () => fileInputRef.current?.click();
+
+  const mapRowToGuest = (row) => {
+    const fullName = String(row["שם מלא"] ?? row["fullName"] ?? row["name"] ?? "").trim();
+    const phone = String(row["טלפון"] ?? row["phone"] ?? "").trim();
+    const attendeesCount = Number(row["כמות"] ?? row["כמות מגיעים"] ?? row["attendeesCount"] ?? 1) || 1;
+    return { fullName, phone, attendeesCount, status: "אולי" };
+  };
+
+  const onImportFile = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const XLSX = await import("xlsx");
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: "array" });
+      const firstSheetName = workbook.SheetNames[0];
+      const rows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheetName], { defval: "" });
+      const guestsToImport = rows.map(mapRowToGuest).filter((row) => row.fullName && row.phone);
+      if (!guestsToImport.length) {
+        return;
+      }
+      await api.post(`/client/${userId}/guests/import`, { guests: guestsToImport });
+      await loadGuests();
+    } finally {
+      event.target.value = "";
+    }
+  };
+
+  const exportGuests = () => {
+    import("xlsx").then((XLSX) => {
+    const rows = guests.map((guest) => ({
+      "שם מלא": guest.fullName,
+      טלפון: guest.phone,
+      "סטטוס הגעה": guest.status,
+      "כמות מגיעים": guest.attendeesCount,
+      מקור: sourceLabel(guest.source)
+    }));
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Guests");
+    XLSX.writeFile(workbook, "guests.xlsx");
+    });
+  };
+
+  const startEdit = (guest) => {
+    setEditingGuestId(guest._id);
+    setEditingValues({ status: guest.status, attendeesCount: guest.attendeesCount });
+  };
+
+  const saveEdit = async (guestId) => {
+    await api.patch(`/client/${userId}/guests/${guestId}`, editingValues);
+    setEditingGuestId("");
+    await loadGuests();
+  };
+
   return (
     <div className="page-shell">
       <div className="page-container">
@@ -85,6 +151,19 @@ export default function ClientDashboardPage() {
           <button className="btn btn-primary" type="button" onClick={() => setShowModal(true)}>
             הוספת מוזמן ידנית
           </button>
+          <button className="btn btn-secondary" type="button" onClick={onImportClick}>
+            העלאת מוזמנים מאקסל
+          </button>
+          <button className="btn btn-secondary" type="button" onClick={exportGuests}>
+            ייצוא לאקסל
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            className="hidden-file-input"
+            onChange={onImportFile}
+          />
         </div>
 
         <div className="card table-wrap">
@@ -95,13 +174,15 @@ export default function ClientDashboardPage() {
                 <th>טלפון</th>
                 <th>כמה מגיעים</th>
                 <th>סטטוס</th>
+                <th>מקור</th>
                 <th>וואטסאפ</th>
+                <th>עריכה</th>
               </tr>
             </thead>
             <tbody>
               {guests.length === 0 ? (
                 <tr>
-                  <td colSpan={5}>אין אורחים עדיין</td>
+                  <td colSpan={7}>אין אורחים עדיין</td>
                 </tr>
               ) : (
                 guests.map((guest) => (
@@ -110,12 +191,65 @@ export default function ClientDashboardPage() {
                     <td data-label="טלפון" dir="ltr">
                       {guest.phone}
                     </td>
-                    <td data-label="כמה מגיעים">{guest.attendeesCount}</td>
-                    <td data-label="סטטוס">{guest.status}</td>
+                    <td data-label="כמה מגיעים">
+                      {editingGuestId === guest._id ? (
+                        <input
+                          className="table-inline-input"
+                          type="number"
+                          min="0"
+                          value={editingValues.attendeesCount}
+                          onChange={(event) =>
+                            setEditingValues((prev) => ({ ...prev, attendeesCount: Number(event.target.value) }))
+                          }
+                        />
+                      ) : (
+                        guest.attendeesCount
+                      )}
+                    </td>
+                    <td data-label="סטטוס">
+                      {editingGuestId === guest._id ? (
+                        <select
+                          className="table-inline-input"
+                          value={editingValues.status}
+                          onChange={(event) => setEditingValues((prev) => ({ ...prev, status: event.target.value }))}
+                        >
+                          {STATUS_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        guest.status
+                      )}
+                    </td>
+                    <td data-label="מקור">
+                      <span className="source-badge">{sourceLabel(guest.source)}</span>
+                    </td>
                     <td data-label="וואטסאפ">
-                      <a href={toWhatsappLink(guest.phone, guest.fullName)} target="_blank" rel="noreferrer">
-                        שליחה
+                      <a className="whatsapp-link" href={toWhatsappLink(guest.phone, guest.fullName)} target="_blank" rel="noreferrer">
+                        <img
+                          src="/image_574ceb.png"
+                          alt="WhatsApp"
+                          onError={(event) => {
+                            event.currentTarget.style.display = "none";
+                          }}
+                        />
+                        <span className="whatsapp-fallback" aria-hidden="true">
+                          🟢
+                        </span>
                       </a>
+                    </td>
+                    <td data-label="עריכה">
+                      {editingGuestId === guest._id ? (
+                        <button className="btn btn-secondary btn-xs" type="button" onClick={() => saveEdit(guest._id)}>
+                          שמירה
+                        </button>
+                      ) : (
+                        <button className="btn btn-secondary btn-xs" type="button" onClick={() => startEdit(guest)}>
+                          ✎
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))

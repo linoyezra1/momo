@@ -193,6 +193,12 @@ select.field-input {
   font-size: 1.125rem;
 }
 
+.btn-xs {
+  min-height: 34px;
+  padding: 6px 10px;
+  font-size: 0.85rem;
+}
+
 .status-group {
   display: flex;
   flex-direction: column;
@@ -302,6 +308,45 @@ select.field-input {
 .table a {
   font-weight: 500;
   text-decoration: underline;
+}
+
+.hidden-file-input {
+  display: none;
+}
+
+.table-inline-input {
+  width: 86px;
+  min-height: 32px;
+  border: 1px solid var(--color-neutral);
+  border-radius: 8px;
+  text-align: center;
+  font: inherit;
+  color: var(--color-primary);
+}
+
+.source-badge {
+  display: inline-flex;
+  padding: 4px 10px;
+  border: 1px solid var(--color-neutral);
+  border-radius: 999px;
+  font-size: 0.8rem;
+}
+
+.whatsapp-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.whatsapp-link img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+.whatsapp-fallback {
+  font-size: 1.1rem;
 }
 
 .result-links p {

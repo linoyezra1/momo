@@ -86,4 +86,73 @@ router.post("/:userId/guests/manual", async (req, res) => {
   }
 });
 
+router.post("/:userId/guests/import", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { guests } = req.body;
+
+    if (!Array.isArray(guests) || guests.length === 0) {
+      return res.status(400).json({ message: "Guests array is required" });
+    }
+
+    const user = await User.findById(userId).select("_id");
+    if (!user) {
+      return res.status(404).json({ message: "Client not found" });
+    }
+
+    const docs = guests
+      .map((guest) => ({
+        userId,
+        fullName: String(guest?.fullName || "").trim(),
+        phone: String(guest?.phone || "").trim(),
+        attendeesCount: Math.max(0, Number(guest?.attendeesCount || 1)),
+        status: ["מגיע", "לא מגיע", "אולי"].includes(guest?.status) ? guest.status : "אולי",
+        source: "excel"
+      }))
+      .filter((guest) => guest.fullName && guest.phone);
+
+    if (docs.length === 0) {
+      return res.status(400).json({ message: "No valid guests to import" });
+    }
+
+    const inserted = await Guest.insertMany(docs, { ordered: false });
+    return res.status(201).json({ message: "Guests imported", insertedCount: inserted.length });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to import guests", error: error.message });
+  }
+});
+
+router.patch("/:userId/guests/:guestId", async (req, res) => {
+  try {
+    const { userId, guestId } = req.params;
+    const { attendeesCount, status } = req.body;
+
+    const update = {};
+    if (typeof attendeesCount !== "undefined") {
+      update.attendeesCount = Math.max(0, Number(attendeesCount));
+    }
+    if (typeof status !== "undefined") {
+      if (!["מגיע", "לא מגיע", "אולי"].includes(status)) {
+        return res.status(400).json({ message: "Invalid status" });
+      }
+      update.status = status;
+    }
+    if (!Object.keys(update).length) {
+      return res.status(400).json({ message: "No fields to update" });
+    }
+
+    const guest = await Guest.findOneAndUpdate({ _id: guestId, userId }, update, {
+      new: true,
+      runValidators: true
+    });
+    if (!guest) {
+      return res.status(404).json({ message: "Guest not found" });
+    }
+
+    return res.json({ message: "Guest updated", guest });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to update guest", error: error.message });
+  }
+});
+
 export default router;
