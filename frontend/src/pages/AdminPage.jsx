@@ -10,7 +10,6 @@ const initialForm = {
   brideName: "",
   parentName1: "",
   parentName2: "",
-  familyName: "",
   venueName: "",
   city: "",
   streetAndNumber: "",
@@ -33,10 +32,10 @@ function toAppUrl(linkOrPath) {
 function buildEventDisplayText(event) {
   if (!event) return "";
   if (event.eventType === "חתונה") {
-    return `${event.groomName} & ${event.brideName} ${event.familyName}`.trim();
+    return `${event.groomName} & ${event.brideName}`.trim();
   }
   if (event.eventType === "ברית") {
-    return `משפחת ${event.familyName}`.trim();
+    return `${event.parentName1} ו${event.parentName2}`.trim();
   }
   return "";
 }
@@ -93,7 +92,7 @@ ${result.credentials?.password || "עודכנה"}
 ✅ לעקוב אחר אישורי ההגעה בזמן אמת
 ✅ להוסיף מוזמנים ידנית
 ✅ להעלות קובץ Excel
-✅ לנהל את כל פרטי האירוע במקום אחד
+🔹 פיצ'ר ייחודי לשליחת הודעות וואטסאפ ישירות מהוואטסאפ האישי שלכם!
 
 🎊 מאחלים לכם המון מזל טוב, אירוע שמח והמון נחת! 🎊`
       : "";
@@ -164,7 +163,6 @@ ${result.credentials?.password || "עודכנה"}
           brideName: form.eventType === "חתונה" ? form.brideName : "",
           parentName1: form.eventType === "ברית" ? form.parentName1 : "",
           parentName2: form.eventType === "ברית" ? form.parentName2 : "",
-          familyName: form.familyName,
           venueName: form.venueName,
           city: form.city,
           streetAndNumber: form.streetAndNumber,
@@ -236,7 +234,6 @@ ${result.credentials?.password || "עודכנה"}
       brideName: client.event?.brideName || "",
       parentName1: client.event?.parentName1 || "",
       parentName2: client.event?.parentName2 || "",
-      familyName: client.event?.familyName || "",
       venueName: client.event?.venueName || "",
       city: client.event?.city || "",
       streetAndNumber: client.event?.streetAndNumber || "",
@@ -460,19 +457,6 @@ ${result.credentials?.password || "עודכנה"}
                   </div>
                 </>
               )}
-              <div className="field">
-                <label className="field-label" htmlFor="familyName">
-                  שם משפחה
-                </label>
-                <input
-                  id="familyName"
-                  className="field-input"
-                  name="familyName"
-                  value={form.familyName}
-                  onChange={onChange}
-                  required
-                />
-              </div>
               <div className="field">
                 <label className="field-label" htmlFor="venueName">
                   שם המתחם

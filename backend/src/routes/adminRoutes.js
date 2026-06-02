@@ -7,7 +7,6 @@ const router = express.Router();
 
 function normalizeEventPayload(rawEvent) {
   const eventType = String(rawEvent?.eventType || "").trim();
-  const familyName = String(rawEvent?.familyName || "").trim();
   const groomName = String(rawEvent?.groomName || "").trim();
   const brideName = String(rawEvent?.brideName || "").trim();
   const parentName1 = String(rawEvent?.parentName1 || "").trim();
@@ -24,21 +23,20 @@ function normalizeEventPayload(rawEvent) {
     groomName,
     brideName,
     parentName1,
-    parentName2,
-    familyName
+    parentName2
   };
 
   if (eventType === "חתונה") {
     return {
       ...baseEvent,
-      eventNames: `${groomName} & ${brideName} ${familyName}`.trim()
+      eventNames: `${groomName} & ${brideName}`.trim()
     };
   }
 
   if (eventType === "ברית") {
     return {
       ...baseEvent,
-      eventNames: `משפחת ${familyName}`.trim()
+      eventNames: `${parentName1} ו${parentName2}`.trim()
     };
   }
 
@@ -54,11 +52,11 @@ function validateEvent(normalizedEvent) {
   }
 
   if (normalizedEvent.eventType === "חתונה") {
-    if (!normalizedEvent.groomName || !normalizedEvent.brideName || !normalizedEvent.familyName) {
+    if (!normalizedEvent.groomName || !normalizedEvent.brideName) {
       return "Missing required wedding names";
     }
   } else if (normalizedEvent.eventType === "ברית") {
-    if (!normalizedEvent.parentName1 || !normalizedEvent.parentName2 || !normalizedEvent.familyName) {
+    if (!normalizedEvent.parentName1 || !normalizedEvent.parentName2) {
       return "Missing required brit names";
     }
   } else if (!normalizedEvent.eventNames) {

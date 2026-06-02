@@ -11,7 +11,6 @@ const eventSchema = new mongoose.Schema(
     brideName: { type: String, trim: true, default: "" },
     parentName1: { type: String, trim: true, default: "" },
     parentName2: { type: String, trim: true, default: "" },
-    familyName: { type: String, trim: true, default: "" },
     eventNames: { type: String, trim: true, default: "" },
     venueName: { type: String, required: true },
     city: { type: String, required: true },

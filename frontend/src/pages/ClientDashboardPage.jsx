@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { MessageSquare } from "lucide-react";
+import { MessageSquare, RotateCw } from "lucide-react";
 import api from "../api";
+import { buildWhatsAppSendUrl } from "../utils/whatsapp";
 
 const initialGuest = {
   fullName: "",
@@ -77,6 +78,7 @@ export default function ClientDashboardPage() {
   const [editingGuestId, setEditingGuestId] = useState("");
   const [editingValues, setEditingValues] = useState({ status: "מגיע", attendeesCount: 1 });
   const [linkCopied, setLinkCopied] = useState(false);
+  const [refreshingGuests, setRefreshingGuests] = useState(false);
   const fileInputRef = useRef(null);
   const publicLink = `${window.location.origin}/event/${userId}`;
 
@@ -85,6 +87,15 @@ export default function ClientDashboardPage() {
     setSummary(response.data.summary);
     setGuests(response.data.guests);
     setEventInfo(response.data.event || null);
+  };
+
+  const refreshGuests = async () => {
+    setRefreshingGuests(true);
+    try {
+      await loadGuests();
+    } finally {
+      setRefreshingGuests(false);
+    }
   };
 
   useEffect(() => {
@@ -118,11 +129,13 @@ export default function ClientDashboardPage() {
     }
   };
 
-  const toWhatsappLink = (phone, fullName) => {
-    const cleanPhone = phone.replace(/[^\d]/g, "");
-    const text = encodeURIComponent(`היי ${fullName}, רצינו לוודא הגעה לאירוע. נשמח לעדכון.`);
-    return `https://wa.me/${cleanPhone}?text=${text}`;
-  };
+  const toWhatsappLink = (phone, fullName) =>
+    buildWhatsAppSendUrl({
+      phone,
+      fullName,
+      eventId: userId,
+      origin: window.location.origin
+    });
 
   const sourceLabel = (source) => {
     if (source === "excel") return "קובץ אקסל";
@@ -291,9 +304,23 @@ export default function ClientDashboardPage() {
             <h3>סה״כ לא מגיעים</h3>
             <p>{summary.totalNotComing}</p>
           </div>
+          <div className="stat-card stat-card-maybe">
+            <h3>סה״כ אולי</h3>
+            <p>{summary.totalMaybe}</p>
+          </div>
         </div>
 
         <div className="toolbar dashboard-toolbar dashboard-toolbar-compact">
+          <button
+            className="btn btn-icon-refresh"
+            type="button"
+            onClick={refreshGuests}
+            disabled={refreshingGuests}
+            aria-label="רענון רשימת מוזמנים"
+            title="רענון"
+          >
+            <RotateCw size={16} className={refreshingGuests ? "spinning" : ""} />
+          </button>
           <button className="btn btn-primary btn-compact" type="button" onClick={() => setShowModal(true)}>
             הוספת מוזמן ידנית
           </button>

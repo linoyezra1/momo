@@ -462,6 +462,52 @@ select.field-input {
   border-color: #e5e7eb;
 }
 
+.dashboard-stats .stat-card-maybe {
+  background: #eceff1;
+  border-color: #d1d5db;
+}
+
+.dashboard-stats .stat-card-maybe h3,
+.dashboard-stats .stat-card-maybe p {
+  color: #6b7280;
+}
+
+.btn-icon-refresh {
+  min-height: 34px;
+  width: 34px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #4b5563;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.btn-icon-refresh:hover:not(:disabled) {
+  background: #f3f4f6;
+}
+
+.btn-icon-refresh:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.spinning {
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .dashboard-toolbar {
   padding-bottom: 6px;
   border-bottom: 1px solid #e5e7eb;
@@ -583,11 +629,20 @@ select.field-input {
 .invite-page {
   position: relative;
   min-height: 100vh;
-  background-image: var(--invite-bg);
-  background-size: cover;
-  background-position: center;
-  background-attachment: fixed;
+  background: #fff;
   padding: 14px;
+  overflow-x: hidden;
+}
+
+.invite-bg-gif {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  z-index: 0;
+  pointer-events: none;
 }
 
 .invite-bg-overlay {
@@ -819,6 +874,8 @@ select.field-input {
 
 .invite-loading,
 .invite-error-state {
+  position: relative;
+  z-index: 1;
   min-height: 60vh;
   display: flex;
   align-items: center;

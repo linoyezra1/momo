@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import api from "../api";
 import gigBackground from "../../GIG.gif";
+import { formatIsraeliDate } from "../utils/dateFormat";
 
 const STATUS_OPTIONS = [
   { value: "מגיע", label: "מגיע" },
@@ -22,7 +23,7 @@ function getEventCopy(event) {
   }
 
   if (event.eventType === "חתונה") {
-    const fullNames = `${event.groomName || ""} & ${event.brideName || ""} ${event.familyName || ""}`.trim();
+    const fullNames = `${event.groomName || ""} & ${event.brideName || ""}`.trim();
     return {
       title: `הנכם מוזמנים לאירוע חתונה של ${fullNames}`,
       subtitle: "שמחים ונרגשים להזמינכם לחגוג עמנו את נישואינו",
@@ -32,9 +33,9 @@ function getEventCopy(event) {
 
   if (event.eventType === "ברית") {
     return {
-      title: `הנכם מוזמנים לאירוע ברית של משפחת ${event.familyName || ""}`.trim(),
+      title: `הנכם מוזמנים לאירוע ברית של ${event.parentName1 || ""} ו${event.parentName2 || ""}`.trim(),
       subtitle: "שמחים להזמינכם לחגוג עמנו את ברית המילה של בנינו",
-      closing: `נשמח לראותכם בין אורחינו, ${event.parentName1 || ""} ו${event.parentName2 || ""} ${event.familyName || ""}`.trim()
+      closing: `נשמח לראותכם בין אורחינו, ${event.parentName1 || ""} ו${event.parentName2 || ""}`.trim()
     };
   }
 
@@ -62,6 +63,13 @@ export default function EventPage() {
       .then((response) => setEventData(response.data))
       .catch(() => setError("לא ניתן לטעון את פרטי האירוע"))
       .finally(() => setLoading(false));
+  }, [eventId]);
+
+  useEffect(() => {
+    const phoneFromUrl = new URLSearchParams(window.location.search).get("phone");
+    if (phoneFromUrl) {
+      setForm((prev) => ({ ...prev, phone: phoneFromUrl }));
+    }
   }, [eventId]);
 
   const onChange = (event) => {
@@ -103,6 +111,8 @@ export default function EventPage() {
   if (loading) {
     return (
       <div className="invite-page">
+        <img className="invite-bg-gif" src={gigBackground} alt="" aria-hidden="true" />
+        <div className="invite-bg-overlay" />
         <div className="invite-loading">
           <p>טוען את פרטי האירוע…</p>
         </div>
@@ -113,6 +123,8 @@ export default function EventPage() {
   if (error && !eventData) {
     return (
       <div className="invite-page">
+        <img className="invite-bg-gif" src={gigBackground} alt="" aria-hidden="true" />
+        <div className="invite-bg-overlay" />
         <div className="invite-error-state">
           <p>{error}</p>
         </div>
@@ -121,14 +133,15 @@ export default function EventPage() {
   }
 
   const event = eventData?.event;
-  const eventDateText = event?.eventDate ? String(event.eventDate) : "";
+  const eventDateText = event?.eventDate ? formatIsraeliDate(event.eventDate) : "";
   const eventTimeText = event?.eventTime ? String(event.eventTime) : "";
   const hasEventImage = Boolean(event?.imageDataUrl);
   const eventCopy = getEventCopy(event);
   const coverStyle = hasEventImage ? { backgroundImage: `url(${event.imageDataUrl})` } : { backgroundImage: `url(${gigBackground})` };
 
   return (
-    <div className="invite-page" style={{ "--invite-bg": `url(${gigBackground})` }}>
+    <div className="invite-page">
+      <img className="invite-bg-gif" src={gigBackground} alt="" aria-hidden="true" />
       <div className="invite-bg-overlay" />
       <div className="invite-shell">
         {event ? (
