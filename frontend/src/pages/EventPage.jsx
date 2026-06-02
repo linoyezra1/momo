@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import api from "../api";
-import { IconCity, IconDate, IconStreet, IconTime, IconVenue } from "../components/EventIcons.jsx";
+import gigBackground from "../../GIG.gif";
 
 const STATUS_OPTIONS = [
   { value: "מגיע", label: "מגיע" },
@@ -125,68 +125,31 @@ export default function EventPage() {
   const eventTimeText = event?.eventTime ? String(event.eventTime) : "";
   const hasEventImage = Boolean(event?.imageDataUrl);
   const eventCopy = getEventCopy(event);
+  const coverStyle = hasEventImage ? { backgroundImage: `url(${event.imageDataUrl})` } : { backgroundImage: `url(${gigBackground})` };
 
   return (
-    <div className="invite-page">
-      <div className="invite-flow">
+    <div className="invite-page" style={{ "--invite-bg": `url(${gigBackground})` }}>
+      <div className="invite-bg-overlay" />
+      <div className="invite-shell">
         {event ? (
           <>
             <header className="invite-hero">
-              <div
-                className={`invite-hero-media ${hasEventImage ? "has-image" : ""}`}
-                style={hasEventImage ? { backgroundImage: `url(${event.imageDataUrl})` } : undefined}
-                aria-hidden="true"
-              >
+              <div className="invite-hero-media" style={coverStyle} aria-hidden="true">
                 <div className="invite-hero-overlay" />
-                <div className="invite-hero-content">
-                  <p className="invite-image-label">תמונת האירוע</p>
-                  <h1 className="invite-hero-title">{eventCopy.title}</h1>
-                  <p className="invite-hero-subtitle">{eventCopy.subtitle}</p>
-                </div>
+                <div className="invite-hero-content" />
                 {eventDateText ? <p className="invite-hero-date">{eventDateText}</p> : null}
               </div>
-              <div className="invite-meta">
-                {eventDateText ? <span className="invite-meta-pill">{eventDateText}</span> : null}
-                {(eventTimeText || event?.city) ? (
-                  <span className="invite-meta-pill">
-                    {[eventTimeText, event?.city].filter(Boolean).join(" • ")}
-                  </span>
-                ) : null}
-                {event?.eventType ? <span className="invite-meta-pill">{event.eventType}</span> : null}
-              </div>
 
-              <div className="invite-details">
-                <p className="invite-details-title">האירוע יתקיים</p>
-                <div className="invite-detail-row">
-                  <span className="invite-detail-icon" aria-hidden="true">
-                    <IconVenue />
-                  </span>
-                  <div className="invite-detail-text">
-                    <span className="invite-detail-label">מתחם</span>
-                    <p className="invite-detail-value">{event.venueName}</p>
-                  </div>
-                </div>
-                <div className="invite-detail-row">
-                  <span className="invite-detail-icon" aria-hidden="true">
-                    <IconStreet />
-                  </span>
-                  <div className="invite-detail-text">
-                    <span className="invite-detail-label">כתובת</span>
-                    <p className="invite-detail-value">
-                      {event.streetAndNumber}, {event.city}
-                    </p>
-                  </div>
-                </div>
-                <p className="invite-sep">✦</p>
-                <div className="invite-detail-row">
-                  <span className="invite-detail-icon" aria-hidden="true">
-                    <IconTime />
-                  </span>
-                  <div className="invite-detail-text">
-                    <span className="invite-detail-label">קבלת פנים</span>
-                    <p className="invite-detail-value">{event.eventTime}</p>
-                  </div>
-                </div>
+              <div className="invite-details centered">
+                <p className="invite-event-type">{event.eventType}</p>
+                <h1 className="invite-title">{eventCopy.title}</h1>
+                <p className="invite-subtitle">{eventCopy.subtitle}</p>
+                <p className="invite-detail-value">{eventDateText}</p>
+                <p className="invite-detail-value">{event.venueName}</p>
+                <p className="invite-detail-label">
+                  {event.streetAndNumber}, {event.city}
+                </p>
+                <p className="invite-detail-label">{eventTimeText}</p>
               </div>
             </header>
 
