@@ -2,6 +2,7 @@ import express from "express";
 import bcrypt from "bcryptjs";
 import User from "../models/User.js";
 import Guest from "../models/Guest.js";
+import { normalizePhone, isSelfConfirmedSource } from "../utils/guestPhone.js";
 
 const router = express.Router();
 
@@ -11,19 +12,6 @@ function parseAttendeesCount(raw) {
   if (!Number.isNaN(asNumber) && asNumber > 0) return asNumber;
   const match = String(raw).match(/\d+/);
   return match ? Number(match[0]) : 1;
-}
-
-function normalizePhone(phone) {
-  let value = String(phone ?? "").trim();
-  if (typeof phone === "number" && Number.isFinite(phone)) {
-    value = String(Math.trunc(phone));
-  }
-  if (!value) return "";
-  value = value.replace(/[^\d]/g, "");
-  if (value.startsWith("5") && value.length === 9) {
-    value = `0${value}`;
-  }
-  return value;
 }
 
 function mapRowToGuest(row) {
@@ -44,6 +32,39 @@ function mapRowToGuest(row) {
     status = statusRaw;
   }
   return { fullName, phone, attendeesCount, status };
+}
+
+function toGuestDoc(userId, mapped) {
+  return {
+    userId,
+    fullName: mapped.fullName,
+    phone: normalizePhone(mapped.phone),
+    attendeesCount: mapped.attendeesCount,
+    status: mapped.status,
+    source: "excel"
+  };
+}
+
+async function upsertExcelGuest(userId, doc) {
+  const existing = await Guest.findOne({ userId, phone: doc.phone });
+  if (!existing) {
+    const created = await Guest.create(doc);
+    return { action: "inserted", guest: created };
+  }
+  if (isSelfConfirmedSource(existing.source)) {
+    return { action: "conflict", existing };
+  }
+  const updated = await Guest.findByIdAndUpdate(
+    existing._id,
+    {
+      fullName: doc.fullName,
+      attendeesCount: doc.attendeesCount,
+      status: doc.status,
+      source: "excel"
+    },
+    { new: true, runValidators: true }
+  );
+  return { action: "updated", guest: updated };
 }
 
 router.post("/login", async (req, res) => {
@@ -118,10 +139,36 @@ router.post("/:userId/guests/manual", async (req, res) => {
       return res.status(404).json({ message: "Client not found" });
     }
 
+    const normalizedPhone = normalizePhone(phone);
+    if (!normalizedPhone) {
+      return res.status(400).json({ message: "Invalid phone number" });
+    }
+
+    const existing = await Guest.findOne({ userId, phone: normalizedPhone });
+    if (existing) {
+      if (isSelfConfirmedSource(existing.source)) {
+        return res.status(409).json({
+          message: "מוזמן עם מספר טלפון זה כבר אישר הגעה בעצמו במערכת"
+        });
+      }
+      const guest = await Guest.findByIdAndUpdate(
+        existing._id,
+        {
+          fullName: fullName.trim(),
+          phone: normalizedPhone,
+          attendeesCount: Number(attendeesCount || 1),
+          status,
+          source: "manual"
+        },
+        { new: true, runValidators: true }
+      );
+      return res.json({ message: "Guest updated", guest });
+    }
+
     const guest = await Guest.create({
       userId,
       fullName: fullName.trim(),
-      phone: normalizePhone(phone),
+      phone: normalizedPhone,
       attendeesCount: Number(attendeesCount || 1),
       status,
       source: "manual"
@@ -129,16 +176,16 @@ router.post("/:userId/guests/manual", async (req, res) => {
 
     return res.status(201).json({ message: "Guest added", guest });
   } catch (error) {
-    return res.status(500).json({ message: "Failed to add guest", error: error.message });
+    return res.status(500).json({ message: error.message || "Failed to add guest" });
   }
 });
 
 router.post("/:userId/guests/import", async (req, res) => {
   try {
     const { userId } = req.params;
-    const { guests } = req.body;
+    const { guests, resolutions } = req.body;
 
-    if (!Array.isArray(guests) || guests.length === 0) {
+    if (!Array.isArray(guests)) {
       return res.status(400).json({ message: "Guests array is required" });
     }
 
@@ -148,27 +195,72 @@ router.post("/:userId/guests/import", async (req, res) => {
     }
 
     const docs = guests
-      .map((row) => {
-        const mapped = mapRowToGuest(row);
-        return {
-          userId,
-          fullName: mapped.fullName,
-          phone: normalizePhone(mapped.phone),
-          attendeesCount: mapped.attendeesCount,
-          status: mapped.status,
-          source: "excel"
-        };
-      })
+      .map((row) => toGuestDoc(userId, mapRowToGuest(row)))
       .filter((guest) => guest.fullName && guest.phone);
 
-    if (docs.length === 0) {
-      return res.status(400).json({ message: "No valid guests to import" });
+    let insertedCount = 0;
+    let updatedCount = 0;
+    const conflicts = [];
+
+    for (const doc of docs) {
+      const result = await upsertExcelGuest(userId, doc);
+      if (result.action === "inserted") insertedCount += 1;
+      if (result.action === "updated") updatedCount += 1;
+      if (result.action === "conflict") {
+        conflicts.push({
+          guestId: result.existing._id,
+          phone: doc.phone,
+          existing: {
+            fullName: result.existing.fullName,
+            attendeesCount: result.existing.attendeesCount,
+            status: result.existing.status,
+            source: result.existing.source
+          },
+          excel: {
+            fullName: doc.fullName,
+            attendeesCount: doc.attendeesCount,
+            status: doc.status
+          }
+        });
+      }
     }
 
-    const inserted = await Guest.insertMany(docs, { ordered: false });
-    return res.status(201).json({ message: "Guests imported", insertedCount: inserted.length });
+    const resolutionList = Array.isArray(resolutions) ? resolutions : [];
+    let resolvedCount = 0;
+
+    for (const resolution of resolutionList) {
+      if (resolution?.choice !== "use_excel") continue;
+      const phone = normalizePhone(resolution.phone);
+      const excelRow = resolution.excel || resolution.excelData;
+      if (!phone || !excelRow) continue;
+
+      const mapped = mapRowToGuest(excelRow);
+      const doc = toGuestDoc(userId, mapped);
+      const existing = await Guest.findOne({ userId, phone });
+      if (!existing || !isSelfConfirmedSource(existing.source)) continue;
+
+      await Guest.findByIdAndUpdate(
+        existing._id,
+        {
+          fullName: doc.fullName,
+          attendeesCount: doc.attendeesCount,
+          status: doc.status,
+          source: "excel"
+        },
+        { runValidators: true }
+      );
+      resolvedCount += 1;
+    }
+
+    return res.status(201).json({
+      message: "Guests import processed",
+      insertedCount,
+      updatedCount,
+      resolvedCount,
+      conflicts
+    });
   } catch (error) {
-    return res.status(500).json({ message: "Failed to import guests", error: error.message });
+    return res.status(500).json({ message: error.message || "Failed to import guests" });
   }
 });
 

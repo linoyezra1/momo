@@ -1,6 +1,7 @@
 import express from "express";
 import User from "../models/User.js";
 import Guest from "../models/Guest.js";
+import { normalizePhone, resolveSourceAfterSelfRsvp } from "../utils/guestPhone.js";
 
 const router = express.Router();
 
@@ -33,18 +34,40 @@ router.post("/event/:eventId/rsvp", async (req, res) => {
       return res.status(404).json({ message: "Event not found" });
     }
 
+    const normalizedPhone = normalizePhone(phone);
+    if (!normalizedPhone) {
+      return res.status(400).json({ message: "Invalid phone number" });
+    }
+
+    const existing = await Guest.findOne({ userId: eventId, phone: normalizedPhone });
+
+    if (existing) {
+      const updated = await Guest.findByIdAndUpdate(
+        existing._id,
+        {
+          fullName: fullName.trim(),
+          phone: normalizedPhone,
+          attendeesCount: Math.max(0, Number(attendeesCount || 1)),
+          status,
+          source: resolveSourceAfterSelfRsvp(existing)
+        },
+        { new: true, runValidators: true }
+      );
+      return res.json({ message: "RSVP updated", guestId: updated._id, updated: true });
+    }
+
     const guest = await Guest.create({
       userId: eventId,
       fullName: fullName.trim(),
-      phone: phone.trim(),
-      attendeesCount: Number(attendeesCount || 1),
+      phone: normalizedPhone,
+      attendeesCount: Math.max(0, Number(attendeesCount || 1)),
       status,
       source: "form"
     });
 
-    return res.status(201).json({ message: "RSVP saved", guestId: guest._id });
+    return res.status(201).json({ message: "RSVP saved", guestId: guest._id, updated: false });
   } catch (error) {
-    return res.status(500).json({ message: "Failed to save RSVP", error: error.message });
+    return res.status(500).json({ message: error.message || "Failed to save RSVP" });
   }
 });
 

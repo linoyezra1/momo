@@ -41,6 +41,16 @@ function isUnknownStatus(status) {
   return status === "לא ידוע" || status === "אולי";
 }
 
+function conflictGuestDescription(existing) {
+  if (existing.status === "מגיע") {
+    return `שמגיע עם ${existing.attendeesCount} מלווים`;
+  }
+  if (existing.status === "לא מגיע") {
+    return "שלא מגיע";
+  }
+  return `שסטטוס "${existing.status}" עם ${existing.attendeesCount} מלווים`;
+}
+
 function getOwnerGreeting(event) {
   if (!event) return "שלום";
   if (event.eventType === "חתונה") {
@@ -56,6 +66,10 @@ export default function ClientDashboardPage() {
   const { userId } = useParams();
   const [summary, setSummary] = useState({ totalInvited: 0, totalComing: 0, totalNotComing: 0, totalMaybe: 0 });
   const [importError, setImportError] = useState("");
+  const [showConflictModal, setShowConflictModal] = useState(false);
+  const [importConflicts, setImportConflicts] = useState([]);
+  const [conflictChoices, setConflictChoices] = useState({});
+  const [importSubmitting, setImportSubmitting] = useState(false);
   const [guests, setGuests] = useState([]);
   const [eventInfo, setEventInfo] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -91,10 +105,17 @@ export default function ClientDashboardPage() {
 
   const addManualGuest = async (event) => {
     event.preventDefault();
-    await api.post(`/client/${userId}/guests/manual`, manualGuest);
-    setManualGuest(initialGuest);
-    setShowModal(false);
-    loadGuests();
+    try {
+      await api.post(`/client/${userId}/guests/manual`, {
+        ...manualGuest,
+        phone: normalizePhoneFromExcel(manualGuest.phone)
+      });
+      setManualGuest(initialGuest);
+      setShowModal(false);
+      loadGuests();
+    } catch (manualErr) {
+      setImportError(manualErr.response?.data?.message || "הוספת מוזמן נכשלה");
+    }
   };
 
   const toWhatsappLink = (phone, fullName) => {
@@ -105,6 +126,7 @@ export default function ClientDashboardPage() {
 
   const sourceLabel = (source) => {
     if (source === "excel") return "קובץ אקסל";
+    if (source === "excel_and_form") return "הועלה מאקסל ואישר עצמית";
     if (source === "form" || source === "public") return "אישור הגעה עצמי";
     return "ידני";
   };
@@ -146,8 +168,19 @@ export default function ClientDashboardPage() {
         setImportError("לא נמצאו שורות תקינות. ודאו שיש עמודות: שם מלא, טלפון, וכמות (אופציונלי).");
         return;
       }
-      await api.post(`/client/${userId}/guests/import`, { guests: guestsToImport });
+      const response = await api.post(`/client/${userId}/guests/import`, { guests: guestsToImport });
       await loadGuests();
+
+      const conflicts = response.data?.conflicts || [];
+      if (conflicts.length > 0) {
+        const defaults = {};
+        conflicts.forEach((item) => {
+          defaults[item.phone] = "keep_guest";
+        });
+        setImportConflicts(conflicts);
+        setConflictChoices(defaults);
+        setShowConflictModal(true);
+      }
     } catch (importErr) {
       const serverMessage = importErr.response?.data?.message || importErr.response?.data?.error;
       setImportError(serverMessage || "העלאת קובץ האקסל נכשלה. בדקו את הפורמט ונסו שוב.");
@@ -191,6 +224,35 @@ export default function ClientDashboardPage() {
     await api.patch(`/client/${userId}/guests/${guestId}`, editingValues);
     setEditingGuestId("");
     await loadGuests();
+  };
+
+  const setConflictChoice = (phone, choice) => {
+    setConflictChoices((prev) => ({ ...prev, [phone]: choice }));
+  };
+
+  const closeConflictModal = () => {
+    setShowConflictModal(false);
+    setImportConflicts([]);
+    setConflictChoices({});
+  };
+
+  const applyConflictResolutions = async () => {
+    setImportSubmitting(true);
+    setImportError("");
+    try {
+      const resolutions = importConflicts.map((item) => ({
+        phone: item.phone,
+        choice: conflictChoices[item.phone] || "keep_guest",
+        excel: item.excel
+      }));
+      await api.post(`/client/${userId}/guests/import`, { guests: [], resolutions });
+      closeConflictModal();
+      await loadGuests();
+    } catch (resolveErr) {
+      setImportError(resolveErr.response?.data?.message || "עדכון הקונפליקטים נכשל");
+    } finally {
+      setImportSubmitting(false);
+    }
   };
 
   const copyPublicLink = async () => {
@@ -336,6 +398,61 @@ export default function ClientDashboardPage() {
             </tbody>
           </table>
         </div>
+
+        {showConflictModal ? (
+          <div className="modal-backdrop" role="presentation">
+            <div className="card modal-card modal-card-scroll conflict-modal">
+              <h2 className="card-title">נמצאו מוזמנים שכבר עדכנו את פרטיהם עצמית</h2>
+              <p className="conflict-modal-intro">
+                עבור כל מוזמן בחרו האם לשמור את מה שעודכן באתר או לאמץ את הנתונים מקובץ האקסל.
+              </p>
+              <div className="conflict-list">
+                {importConflicts.map((item) => (
+                  <div key={item.phone} className="conflict-item">
+                    <p className="conflict-item-title">
+                      המוזמן <strong>{item.existing.fullName}</strong> כבר עדכן בעצמו{" "}
+                      {conflictGuestDescription(item.existing)}.
+                    </p>
+                    <p className="conflict-item-excel">
+                      בקובץ האקסל: {item.excel.fullName}, כמות {item.excel.attendeesCount}, סטטוס{" "}
+                      {item.excel.status}
+                    </p>
+                    <div className="conflict-options" role="radiogroup" aria-label={`בחירה עבור ${item.existing.fullName}`}>
+                      <label className="conflict-option">
+                        <input
+                          type="radio"
+                          name={`conflict-${item.phone}`}
+                          value="keep_guest"
+                          checked={(conflictChoices[item.phone] || "keep_guest") === "keep_guest"}
+                          onChange={() => setConflictChoice(item.phone, "keep_guest")}
+                        />
+                        להשאיר את מה שהמוזמן עדכן (מומלץ)
+                      </label>
+                      <label className="conflict-option">
+                        <input
+                          type="radio"
+                          name={`conflict-${item.phone}`}
+                          value="use_excel"
+                          checked={conflictChoices[item.phone] === "use_excel"}
+                          onChange={() => setConflictChoice(item.phone, "use_excel")}
+                        />
+                        לאשר את שינוי הפרטים לפי קובץ האקסל
+                      </label>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="toolbar">
+                <button className="btn btn-primary" type="button" disabled={importSubmitting} onClick={applyConflictResolutions}>
+                  {importSubmitting ? "שומר…" : "אישור ושמירה"}
+                </button>
+                <button className="btn btn-secondary" type="button" onClick={closeConflictModal}>
+                  ביטול
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         {showModal ? (
           <div className="modal-backdrop" role="presentation">

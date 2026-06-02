@@ -18,11 +18,13 @@ const guestSchema = new mongoose.Schema(
     },
     source: {
       type: String,
-      enum: ["excel", "form", "manual"],
+      enum: ["excel", "form", "manual", "excel_and_form"],
       default: "manual"
     }
   },
   { timestamps: true }
 );
+
+guestSchema.index({ userId: 1, phone: 1 });
 
 export default mongoose.model("Guest", guestSchema);
