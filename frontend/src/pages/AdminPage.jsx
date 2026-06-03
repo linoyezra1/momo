@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Pencil, Trash2, X } from "lucide-react";
 import api from "../api";
 import { buildClientOnboardingMessage } from "../utils/clientOnboardingMessage";
+import { formatIsraeliDate } from "../utils/dateFormat";
 
 const initialForm = {
   username: "",
@@ -70,7 +71,7 @@ export default function AdminPage() {
   );
   const shareMessage = createdEvent
     ? `הזמנה לאירוע ${createdEvent.eventType} של ${eventDisplayText}
-תאריך: ${createdEvent.eventDate} | שעה: ${createdEvent.eventTime}
+תאריך: ${formatIsraeliDate(createdEvent.eventDate)} | שעה: ${createdEvent.eventTime}
 מיקום: ${createdEvent.venueName}, ${createdEvent.city}, ${createdEvent.streetAndNumber}
 
 נא אשרו הגעה בקישור:
@@ -391,7 +392,7 @@ ${publicEventUrl}`
                   {buildEventDisplayText(selectedClient.event) || selectedClient.event?.eventNames || "-"}
                 </p>
                 <p>
-                  <strong>תאריך:</strong> {selectedClient.event?.eventDate}
+                  <strong>תאריך:</strong> {formatIsraeliDate(selectedClient.event?.eventDate)}
                 </p>
                 {selectedClient.event?.eventType === "ברית" && selectedClient.event?.eventDateHebrew ? (
                   <p>

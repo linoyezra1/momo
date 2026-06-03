@@ -306,9 +306,16 @@ router.post("/:userId/guests/import", async (req, res) => {
 router.patch("/:userId/guests/:guestId", async (req, res) => {
   try {
     const { userId, guestId } = req.params;
-    const { attendeesCount, status } = req.body;
+    const { fullName, attendeesCount, status } = req.body;
 
     const update = {};
+    if (typeof fullName !== "undefined") {
+      const trimmed = String(fullName).trim();
+      if (!trimmed) {
+        return res.status(400).json({ message: "שם מלא הוא שדה חובה" });
+      }
+      update.fullName = trimmed;
+    }
     if (typeof attendeesCount !== "undefined") {
       update.attendeesCount = Math.max(0, Number(attendeesCount));
     }

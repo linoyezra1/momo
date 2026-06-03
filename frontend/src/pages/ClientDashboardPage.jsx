@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { MessageSquare, RotateCw } from "lucide-react";
+import { Check, HelpCircle, RotateCw, Users, X } from "lucide-react";
 import api from "../api";
+import WhatsAppIcon from "../components/WhatsAppIcon";
 import { buildWhatsAppSendUrl } from "../utils/whatsapp";
 import { normalizeIsraeliPhone } from "../utils/phoneNormalize";
 
@@ -57,7 +58,11 @@ export default function ClientDashboardPage() {
   const [showModal, setShowModal] = useState(false);
   const [manualGuest, setManualGuest] = useState(initialGuest);
   const [editingGuestId, setEditingGuestId] = useState("");
-  const [editingValues, setEditingValues] = useState({ status: "מגיע", attendeesCount: 1 });
+  const [editingValues, setEditingValues] = useState({
+    fullName: "",
+    status: "מגיע",
+    attendeesCount: 1
+  });
   const [linkCopied, setLinkCopied] = useState(false);
   const [refreshingGuests, setRefreshingGuests] = useState(false);
   const fileInputRef = useRef(null);
@@ -226,7 +231,11 @@ export default function ClientDashboardPage() {
 
   const startEdit = (guest) => {
     setEditingGuestId(guest._id);
-    setEditingValues({ status: guest.status, attendeesCount: guest.attendeesCount });
+    setEditingValues({
+      fullName: guest.fullName || "",
+      status: guest.status,
+      attendeesCount: guest.attendeesCount
+    });
   };
 
   const saveEdit = async (guestId) => {
@@ -288,20 +297,32 @@ export default function ClientDashboardPage() {
         </header>
 
         <div className="stats-grid dashboard-stats">
-          <div className="stat-card">
-            <h3>סה״כ מוזמנים</h3>
+          <div className="stat-card stat-card--total">
+            <div className="stat-card-head">
+              <Users className="stat-card-icon" size={22} strokeWidth={2} aria-hidden="true" />
+              <h3>סה״כ מוזמנים</h3>
+            </div>
             <p>{summary.totalInvited ?? summary.totalComing + summary.totalNotComing + summary.totalMaybe}</p>
           </div>
-          <div className="stat-card">
-            <h3>סה״כ מגיעים</h3>
+          <div className="stat-card stat-card--coming">
+            <div className="stat-card-head">
+              <Check className="stat-card-icon" size={22} strokeWidth={2.5} aria-hidden="true" />
+              <h3>סה״כ מגיעים</h3>
+            </div>
             <p>{summary.totalComing}</p>
           </div>
-          <div className="stat-card">
-            <h3>סה״כ לא מגיעים</h3>
+          <div className="stat-card stat-card--not-coming">
+            <div className="stat-card-head">
+              <X className="stat-card-icon" size={22} strokeWidth={2.5} aria-hidden="true" />
+              <h3>סה״כ לא מגיעים</h3>
+            </div>
             <p>{summary.totalNotComing}</p>
           </div>
-          <div className="stat-card stat-card-maybe">
-            <h3>סה״כ אולי</h3>
+          <div className="stat-card stat-card--maybe">
+            <div className="stat-card-head">
+              <HelpCircle className="stat-card-icon" size={22} strokeWidth={2} aria-hidden="true" />
+              <h3>סה״כ אולי</h3>
+            </div>
             <p>{summary.totalMaybe}</p>
           </div>
         </div>
@@ -360,9 +381,29 @@ export default function ClientDashboardPage() {
               ) : (
                 guests.map((guest) => (
                   <tr key={guest._id} className={isUnknownStatus(guest.status) ? "table-row-unknown" : ""}>
-                    <td data-label="שם מלא">{guest.fullName}</td>
+                    <td data-label="שם מלא">
+                      {editingGuestId === guest._id ? (
+                        <input
+                          className="table-inline-input table-inline-input--wide"
+                          type="text"
+                          value={editingValues.fullName}
+                          onChange={(event) =>
+                            setEditingValues((prev) => ({ ...prev, fullName: event.target.value }))
+                          }
+                          required
+                        />
+                      ) : (
+                        guest.fullName
+                      )}
+                    </td>
                     <td data-label="טלפון" dir="ltr">
-                      {guest.phone}
+                      {editingGuestId === guest._id ? (
+                        <span className="table-phone-readonly" title="מספר הטלפון אינו ניתן לעריכה">
+                          {guest.phone}
+                        </span>
+                      ) : (
+                        guest.phone
+                      )}
                     </td>
                     <td data-label="כמה מגיעים">
                       {editingGuestId === guest._id ? (
@@ -400,8 +441,15 @@ export default function ClientDashboardPage() {
                       <span className="source-badge">{sourceLabel(guest.source)}</span>
                     </td>
                     <td data-label="וואטסאפ">
-                      <a className="whatsapp-link" href={getWhatsappLink(guest.phone)} target="_blank" rel="noreferrer">
-                        <MessageSquare size={18} />
+                      <a
+                        className="whatsapp-link"
+                        href={getWhatsappLink(guest.phone)}
+                        target="_blank"
+                        rel="noreferrer"
+                        aria-label="שליחת הודעת וואטסאפ"
+                        title="שליחת וואטסאפ"
+                      >
+                        <WhatsAppIcon size={22} />
                       </a>
                     </td>
                     <td data-label="עריכה">

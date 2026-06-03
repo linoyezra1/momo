@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import api from "../api";
 import gigBackground from "../../GIG.gif";
 import babyBackground from "../../BABY.gif";
-import { formatDateDots, formatIsraeliDate, formatIsraeliWeekday } from "../utils/dateFormat";
+import { formatIsraeliDate, formatIsraeliWeekday } from "../utils/dateFormat";
 
 const STATUS_OPTIONS = [
   { value: "מגיע", label: "אגיע", stateClass: "status-btn--yes" },
@@ -56,7 +56,7 @@ function InvitePageBackdrop({ backgroundSrc }) {
 function BritInviteDetails({ event }) {
   const weekday = event?.eventDate ? formatIsraeliWeekday(event.eventDate) : "";
   const hebrewDate = event?.eventDateHebrew?.trim() || "";
-  const dateDots = event?.eventDate ? formatDateDots(event.eventDate) : "";
+  const dateDots = event?.eventDate ? formatIsraeliDate(event.eventDate) : "";
   const venue = event?.venueName?.trim() || "";
   const street = event?.streetAndNumber?.trim() || "";
   const city = event?.city?.trim() || "";
@@ -72,10 +72,14 @@ function BritInviteDetails({ event }) {
       {whenLineParts.length > 0 ? (
         <p className="invite-brit-line invite-brit-when">ב{whenLineParts.join(" ")}</p>
       ) : null}
-      {dateDots ? <p className="invite-brit-date">{dateDots}</p> : null}
+      {dateDots ? <p className="invite-brit-date invite-num">{dateDots}</p> : null}
       {venue ? <p className="invite-brit-line invite-brit-venue">{venue}</p> : null}
-      {addressLine ? <p className="invite-brit-line">{addressLine}</p> : null}
-      {time ? <p className="invite-brit-line invite-brit-time">בשעה {time}</p> : null}
+      {addressLine ? <p className="invite-brit-line invite-num">{addressLine}</p> : null}
+      {time ? (
+        <p className="invite-brit-line invite-brit-time">
+          בשעה <span className="invite-num">{time}</span>
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -172,11 +176,7 @@ export default function EventPage() {
   }
 
   const isBrit = event?.eventType === "ברית";
-  const eventDateText = event?.eventDate
-    ? isBrit
-      ? formatDateDots(event.eventDate)
-      : formatIsraeliDate(event.eventDate)
-    : "";
+  const eventDateText = event?.eventDate ? formatIsraeliDate(event.eventDate) : "";
   const eventTimeText = event?.eventTime ? String(event.eventTime) : "";
   const hasCoverImage = Boolean(event?.imageDataUrl?.trim());
   const heroCoverStyle = hasCoverImage ? { backgroundImage: `url(${event.imageDataUrl})` } : undefined;
@@ -198,7 +198,7 @@ export default function EventPage() {
                   <>
                     <div className="invite-hero-overlay" />
                     <div className="invite-hero-content" />
-                    {eventDateText && !isBrit ? <p className="invite-hero-date">{eventDateText}</p> : null}
+                    {eventDateText && !isBrit ? <p className="invite-hero-date invite-num">{eventDateText}</p> : null}
                   </>
                 ) : null}
               </div>
@@ -225,12 +225,16 @@ export default function EventPage() {
                 )}
                 {event.eventType !== "ברית" ? (
                   <>
-                    <p className="invite-detail-value">{eventDateText}</p>
+                    <p className="invite-detail-value invite-num">{eventDateText}</p>
                     <p className="invite-detail-value">{event.venueName}</p>
                     <p className="invite-detail-label">
                       {event.streetAndNumber}, {event.city}
                     </p>
-                    <p className="invite-detail-label">{eventTimeText}</p>
+                    {eventTimeText ? (
+                      <p className="invite-detail-label">
+                        בשעה <span className="invite-num">{eventTimeText}</span>
+                      </p>
+                    ) : null}
                   </>
                 ) : null}
               </div>
@@ -277,10 +281,11 @@ export default function EventPage() {
                 </label>
                 <input
                   id="phone"
-                  className="field-input"
+                  className="field-input invite-num"
                   name="phone"
                   type="tel"
                   dir="ltr"
+                  inputMode="tel"
                   placeholder="050-0000000"
                   value={form.phone}
                   onChange={onChange}
@@ -318,9 +323,9 @@ export default function EventPage() {
                     </button>
                     <input
                       id="attendeesCount"
-                      className="field-input attendees-input"
-                      name="attendeesCount"
-                      type="number"
+                    className="field-input attendees-input invite-num"
+                    name="attendeesCount"
+                    type="number"
                       min="1"
                       value={form.attendeesCount}
                       onChange={onChange}

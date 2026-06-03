@@ -1,4 +1,4 @@
-import { formatDateDots, formatIsraeliDate, formatIsraeliWeekday } from "./dateFormat.js";
+import { formatIsraeliDate, formatIsraeliWeekday } from "./dateFormat.js";
 import { normalizeIsraeliPhone } from "./phoneNormalize.js";
 
 export function toInternationalWhatsAppPhone(phone) {
@@ -50,7 +50,7 @@ ${groom} ו${bride}`;
   if (kind === "brit") {
     const parent1 = event?.parentName1 || "";
     const parent2 = event?.parentName2 || "";
-    const dateDots = formatDateDots(event?.eventDate);
+    const dateDots = formatIsraeliDate(event?.eventDate);
     const street = String(event?.streetAndNumber || "").trim();
     const city = String(event?.city || "").trim();
     const time = event?.eventTime ? String(event.eventTime).trim() : "";

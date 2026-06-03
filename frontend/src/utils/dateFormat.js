@@ -9,11 +9,17 @@ function parseIsoDateParts(dateStr) {
   };
 }
 
+/** DD.MM.YYYY — פורמט תצוגה רשמי בכל המערכת */
 export function formatIsraeliDate(dateStr) {
   const parts = parseIsoDateParts(dateStr);
-  if (!parts) return String(dateStr ?? "").trim();
+  if (!parts) return String(dateStr ?? "").trim().replace(/-/g, ".");
   const { year, month, day } = parts;
-  return `${String(day).padStart(2, "0")}-${String(month).padStart(2, "0")}-${year}`;
+  return `${String(day).padStart(2, "0")}.${String(month).padStart(2, "0")}.${year}`;
+}
+
+/** @deprecated — alias; השתמשו ב-formatIsraeliDate */
+export function formatDateDots(dateStr) {
+  return formatIsraeliDate(dateStr);
 }
 
 export function formatIsraeliWeekday(dateStr) {
@@ -22,14 +28,6 @@ export function formatIsraeliWeekday(dateStr) {
   const { year, month, day } = parts;
   const date = new Date(year, month - 1, day);
   return date.toLocaleDateString("he-IL", { weekday: "long" });
-}
-
-/** DD.MM.YYYY — לדף הזמנה (ברית) */
-export function formatDateDots(dateStr) {
-  const parts = parseIsoDateParts(dateStr);
-  if (!parts) return "";
-  const { year, month, day } = parts;
-  return `${String(day).padStart(2, "0")}.${String(month).padStart(2, "0")}.${year}`;
 }
 
 /** תאריך עברי — מחושב מהתאריך הלועזי; ריק אם אין תאריך תקין */

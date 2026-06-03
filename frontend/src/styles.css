@@ -15,6 +15,14 @@
   --content-max: 720px;
 }
 
+@font-face {
+  font-family: "SaturdayFont";
+  src: url("../Saturday.otf") format("opentype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -378,7 +386,13 @@ select.field-input {
   align-items: center;
   justify-content: center;
   text-decoration: none;
-  color: #4b5563;
+  color: #25d366;
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.whatsapp-link:hover {
+  color: #128c7e;
+  transform: scale(1.08);
 }
 
 .whatsapp-link img {
@@ -543,27 +557,96 @@ select.field-input {
 }
 
 .dashboard-stats .stat-card {
-  background: #f3f4f6;
-  border-color: #e5e7eb;
-  padding: 14px 10px;
+  background: #ffffff;
+  border-color: var(--color-neutral);
+  padding: 14px 12px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dashboard-stats .stat-card:hover {
+  transform: scale(1.03);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
+}
+
+.dashboard-stats .stat-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.dashboard-stats .stat-card-icon {
+  flex-shrink: 0;
+  animation: stat-icon-pulse 2.5s ease-in-out infinite;
+}
+
+@keyframes stat-icon-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.82;
+    transform: scale(1.06);
+  }
 }
 
 .dashboard-stats .stat-card p {
   font-size: 1.5rem;
+  margin-top: 6px;
 }
 
 .dashboard-stats .stat-card h3 {
   font-size: 0.82rem;
+  margin: 0;
 }
 
-.dashboard-stats .stat-card-maybe {
-  background: #eceff1;
-  border-color: #d1d5db;
+.dashboard-stats .stat-card--total h3,
+.dashboard-stats .stat-card--total p,
+.dashboard-stats .stat-card--total .stat-card-icon {
+  color: #374151;
 }
 
-.dashboard-stats .stat-card-maybe h3,
-.dashboard-stats .stat-card-maybe p {
+.dashboard-stats .stat-card--coming h3,
+.dashboard-stats .stat-card--coming p,
+.dashboard-stats .stat-card--coming .stat-card-icon {
+  color: #16a34a;
+}
+
+.dashboard-stats .stat-card--not-coming h3,
+.dashboard-stats .stat-card--not-coming p,
+.dashboard-stats .stat-card--not-coming .stat-card-icon {
+  color: #dc2626;
+}
+
+.dashboard-stats .stat-card--maybe h3,
+.dashboard-stats .stat-card--maybe p,
+.dashboard-stats .stat-card--maybe .stat-card-icon {
   color: #6b7280;
+}
+
+.table-inline-input--wide {
+  width: min(100%, 180px);
+  text-align: right;
+}
+
+.table-phone-readonly {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: #f3f4f6;
+  color: #6b7280;
+  font-size: 0.9rem;
+  cursor: not-allowed;
+}
+
+.invite-page .invite-num,
+.invite-page .invite-num.field-input {
+  font-family: "SaturdayFont", "Heebo", sans-serif;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
 }
 
 .btn-icon-refresh {
