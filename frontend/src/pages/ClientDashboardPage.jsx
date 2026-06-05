@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Check, HelpCircle, RotateCw, Users, X } from "lucide-react";
+import { Check, HelpCircle, RotateCw, Search, Users, X } from "lucide-react";
 import api from "../api";
 import WhatsAppIcon from "../components/WhatsAppIcon";
 import { buildWhatsAppSendUrl } from "../utils/whatsapp";
@@ -10,6 +10,7 @@ const initialGuest = {
   fullName: "",
   phone: "",
   attendeesCount: 1,
+  giftAmount: 0,
   status: "מגיע"
 };
 
@@ -28,8 +29,11 @@ function parseAttendeesCount(raw) {
   return match ? Number(match[0]) : 1;
 }
 
-function isUnknownStatus(status) {
-  return status === "לא ידוע" || status === "אולי";
+function getGuestRowClass(status) {
+  if (status === "מגיע") return "table-row-coming";
+  if (status === "לא מגיע") return "table-row-not-coming";
+  if (status === "אולי") return "table-row-maybe";
+  return "table-row-unknown";
 }
 
 function getOwnerGreeting(event) {
@@ -39,6 +43,9 @@ function getOwnerGreeting(event) {
   }
   if (event.eventType === "ברית") {
     return `שלום ${event.parentName1 || ""} ו${event.parentName2 || ""}`.trim();
+  }
+  if (event.eventType === "בת מצווה") {
+    return `שלום ${event.parentName1 || ""}`.trim();
   }
   return "שלום";
 }
@@ -61,12 +68,24 @@ export default function ClientDashboardPage() {
   const [editingValues, setEditingValues] = useState({
     fullName: "",
     status: "מגיע",
-    attendeesCount: 1
+    attendeesCount: 1,
+    giftAmount: 0
   });
   const [linkCopied, setLinkCopied] = useState(false);
   const [refreshingGuests, setRefreshingGuests] = useState(false);
+  const [searchInput, setSearchInput] = useState("");
+  const [appliedSearch, setAppliedSearch] = useState("");
   const fileInputRef = useRef(null);
   const publicLink = `${window.location.origin}/event/${userId}`;
+  const filteredGuests = useMemo(() => {
+    const query = appliedSearch.trim().toLowerCase();
+    if (!query) return guests;
+    return guests.filter((guest) => {
+      const fullName = String(guest.fullName || "").toLowerCase();
+      const phone = String(guest.phone || "");
+      return fullName.includes(query) || phone.includes(query);
+    });
+  }, [guests, appliedSearch]);
 
   const loadGuests = async () => {
     const response = await api.get(`/client/${userId}/guests`);
@@ -92,7 +111,7 @@ export default function ClientDashboardPage() {
     const { name, value } = event.target;
     setManualGuest((prev) => ({
       ...prev,
-      [name]: name === "attendeesCount" ? Number(value) : value
+      [name]: name === "attendeesCount" || name === "giftAmount" ? Number(value) : value
     }));
   };
 
@@ -210,6 +229,7 @@ export default function ClientDashboardPage() {
       טלפון: guest.phone,
       "סטטוס הגעה": guest.status,
       "כמות מגיעים": guest.attendeesCount,
+      "סכום מתנה": guest.giftAmount || 0,
       מקור: sourceLabel(guest.source)
     }));
     const worksheet = XLSX.utils.json_to_sheet(rows);
@@ -234,7 +254,8 @@ export default function ClientDashboardPage() {
     setEditingValues({
       fullName: guest.fullName || "",
       status: guest.status,
-      attendeesCount: guest.attendeesCount
+      attendeesCount: guest.attendeesCount,
+      giftAmount: guest.giftAmount || 0
     });
   };
 
@@ -277,6 +298,10 @@ export default function ClientDashboardPage() {
     await navigator.clipboard.writeText(publicLink);
     setLinkCopied(true);
     window.setTimeout(() => setLinkCopied(false), 1600);
+  };
+
+  const applySearch = () => {
+    setAppliedSearch(searchInput);
   };
 
   return (
@@ -350,6 +375,24 @@ export default function ClientDashboardPage() {
           <button className="btn btn-neutral btn-compact btn-link-like" type="button" onClick={downloadTemplate}>
             הורדת קובץ אקסל לדוגמה
           </button>
+          <div className="dashboard-search">
+            <input
+              className="field-input dashboard-search-input"
+              type="text"
+              placeholder="חיפוש שם / טלפון"
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  applySearch();
+                }
+              }}
+            />
+            <button className="btn btn-neutral btn-icon-refresh" type="button" onClick={applySearch} aria-label="חפש">
+              <Search size={16} />
+            </button>
+          </div>
           <input
             ref={fileInputRef}
             type="file"
@@ -367,6 +410,7 @@ export default function ClientDashboardPage() {
                 <th>שם מלא</th>
                 <th>טלפון</th>
                 <th>כמה מגיעים</th>
+                <th>סכום מתנה</th>
                 <th>סטטוס</th>
                 <th>מקור</th>
                 <th>וואטסאפ</th>
@@ -374,13 +418,13 @@ export default function ClientDashboardPage() {
               </tr>
             </thead>
             <tbody>
-              {guests.length === 0 ? (
+              {filteredGuests.length === 0 ? (
                 <tr>
-                  <td colSpan={7}>אין אורחים עדיין</td>
+                  <td colSpan={8}>{appliedSearch ? "לא נמצאו תוצאות לחיפוש" : "אין אורחים עדיין"}</td>
                 </tr>
               ) : (
-                guests.map((guest) => (
-                  <tr key={guest._id} className={isUnknownStatus(guest.status) ? "table-row-unknown" : ""}>
+                filteredGuests.map((guest) => (
+                  <tr key={guest._id} className={getGuestRowClass(guest.status)}>
                     <td data-label="שם מלא">
                       {editingGuestId === guest._id ? (
                         <input
@@ -418,6 +462,21 @@ export default function ClientDashboardPage() {
                         />
                       ) : (
                         guest.attendeesCount
+                      )}
+                    </td>
+                    <td data-label="סכום מתנה">
+                      {editingGuestId === guest._id ? (
+                        <input
+                          className="table-inline-input"
+                          type="number"
+                          min="0"
+                          value={editingValues.giftAmount || 0}
+                          onChange={(event) =>
+                            setEditingValues((prev) => ({ ...prev, giftAmount: Number(event.target.value) }))
+                          }
+                        />
+                      ) : (
+                        guest.giftAmount || 0
                       )}
                     </td>
                     <td data-label="סטטוס">
@@ -587,6 +646,20 @@ export default function ClientDashboardPage() {
                   value={manualGuest.attendeesCount}
                   onChange={onManualChange}
                   required
+                />
+              </div>
+              <div className="field">
+                <label className="field-label" htmlFor="manual-giftAmount">
+                  סכום מתנה (€/₪)
+                </label>
+                <input
+                  id="manual-giftAmount"
+                  className="field-input"
+                  name="giftAmount"
+                  type="number"
+                  min="0"
+                  value={manualGuest.giftAmount}
+                  onChange={onManualChange}
                 />
               </div>
               <div className="field">

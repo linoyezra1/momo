@@ -14,6 +14,7 @@ function resolveEventKind(event) {
   const type = String(event?.eventType || "").trim();
   if (type === "חתונה") return "wedding";
   if (type === "ברית") return "brit";
+  if (type === "בת מצווה") return "bat_mitzvah";
   if (event?.groomName && event?.brideName) return "wedding";
   if (event?.parentName1 && event?.parentName2) return "brit";
   return "other";
@@ -78,6 +79,31 @@ ${publicLink}
 
 אוהבים,
 ${parent1} ו${parent2}`;
+  }
+
+  if (kind === "bat_mitzvah") {
+    const bat = event?.batMitzvahName || "";
+    const parent1 = event?.parentName1 || "";
+    const parent2 = event?.parentName2 || "";
+    const street = String(event?.streetAndNumber || "").trim();
+    const city = String(event?.city || "").trim();
+    const address = [street, city].filter(Boolean).join(", ");
+    const time = event?.eventTime ? String(event.eventTime).trim() : "";
+    const weekdaySuffix = weekday ? `${weekday}` : "";
+    const loveLine = `באהבה, ${bat}, ${parent1}${parent2 ? ` ו${parent2}` : ""}`;
+
+    return `משפחה וחברים יקרים,
+אנו נרגשים להזמינכם לחגיגת בת המצווה של בתנו ${bat}! 🌸
+
+האירוע יתקיים ב${weekdaySuffix} ${date}
+בשעה ${time}
+באולמי ${venue}, בכתובת ${address} 🎈
+
+נשמח לראותכם בין אורחינו!
+${loveLine}
+
+לפרטים נוספים ואישור הגעה בקישור המצורף:
+${publicLink}`;
   }
 
   const owners = event?.eventNames || "";

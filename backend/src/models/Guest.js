@@ -11,6 +11,7 @@ const guestSchema = new mongoose.Schema(
     fullName: { type: String, required: true, trim: true },
     phone: { type: String, required: true, trim: true },
     attendeesCount: { type: Number, required: true, min: 0, default: 1 },
+    giftAmount: { type: Number, min: 0, default: 0 },
     status: {
       type: String,
       enum: ["מגיע", "לא מגיע", "אולי", "לא ידוע"],

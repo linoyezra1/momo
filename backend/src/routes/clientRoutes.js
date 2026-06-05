@@ -31,7 +31,7 @@ function mapRowToGuest(row) {
   if (statusRaw === "מגיע" || statusRaw === "לא מגיע" || statusRaw === "אולי") {
     status = statusRaw;
   }
-  return { fullName, phone, attendeesCount, status };
+  return { fullName, phone, attendeesCount, status, giftAmount: 0 };
 }
 
 function toGuestDoc(userId, mapped) {
@@ -40,6 +40,7 @@ function toGuestDoc(userId, mapped) {
     fullName: mapped.fullName,
     phone: normalizePhone(mapped.phone),
     attendeesCount: mapped.attendeesCount,
+    giftAmount: Math.max(0, Number(mapped.giftAmount || 0)),
     status: mapped.status,
     source: "excel"
   };
@@ -49,6 +50,7 @@ function guestSnapshot(guest) {
   return {
     fullName: guest.fullName,
     attendeesCount: guest.attendeesCount,
+    giftAmount: guest.giftAmount || 0,
     status: guest.status,
     source: guest.source
   };
@@ -122,7 +124,7 @@ router.get("/:userId/guests", async (req, res) => {
 router.post("/:userId/guests/manual", async (req, res) => {
   try {
     const { userId } = req.params;
-    const { fullName, phone, attendeesCount, status } = req.body;
+    const { fullName, phone, attendeesCount, status, giftAmount } = req.body;
 
     if (!fullName || !phone || !status) {
       return res.status(400).json({ message: "Missing required fields" });
@@ -151,6 +153,7 @@ router.post("/:userId/guests/manual", async (req, res) => {
           fullName: fullName.trim(),
           phone: normalizedPhone,
           attendeesCount: Number(attendeesCount || 1),
+          giftAmount: Math.max(0, Number(giftAmount || 0)),
           status,
           source: "manual"
         },
@@ -164,6 +167,7 @@ router.post("/:userId/guests/manual", async (req, res) => {
       fullName: fullName.trim(),
       phone: normalizedPhone,
       attendeesCount: Number(attendeesCount || 1),
+      giftAmount: Math.max(0, Number(giftAmount || 0)),
       status,
       source: "manual"
     });
@@ -255,6 +259,7 @@ router.post("/:userId/guests/import", async (req, res) => {
               fullName: String(row.fullName).trim(),
               phone: normalizePhone(row.phone),
               attendeesCount: Math.max(1, Number(row.attendeesCount || 1)),
+              giftAmount: Math.max(0, Number(row.giftAmount || 0)),
               status: row.status || "לא ידוע",
               source: "excel"
             }
@@ -285,6 +290,7 @@ router.post("/:userId/guests/import", async (req, res) => {
         {
           fullName: doc.fullName,
           attendeesCount: doc.attendeesCount,
+          giftAmount: Math.max(0, Number(doc.giftAmount || 0)),
           status: doc.status,
           source: resolveSourceAfterExcelOverwrite(existing.source)
         },
@@ -306,7 +312,7 @@ router.post("/:userId/guests/import", async (req, res) => {
 router.patch("/:userId/guests/:guestId", async (req, res) => {
   try {
     const { userId, guestId } = req.params;
-    const { fullName, attendeesCount, status } = req.body;
+    const { fullName, attendeesCount, status, giftAmount } = req.body;
 
     const update = {};
     if (typeof fullName !== "undefined") {
@@ -318,6 +324,9 @@ router.patch("/:userId/guests/:guestId", async (req, res) => {
     }
     if (typeof attendeesCount !== "undefined") {
       update.attendeesCount = Math.max(0, Number(attendeesCount));
+    }
+    if (typeof giftAmount !== "undefined") {
+      update.giftAmount = Math.max(0, Number(giftAmount));
     }
     if (typeof status !== "undefined") {
       if (!["מגיע", "לא מגיע", "אולי", "לא ידוע"].includes(status)) {

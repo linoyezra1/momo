@@ -4,11 +4,12 @@ const eventSchema = new mongoose.Schema(
   {
     eventType: {
       type: String,
-      enum: ["חתונה", "ברית", "אחר"],
+      enum: ["חתונה", "ברית", "בת מצווה", "אחר"],
       required: true
     },
     groomName: { type: String, trim: true, default: "" },
     brideName: { type: String, trim: true, default: "" },
+    batMitzvahName: { type: String, trim: true, default: "" },
     parentName1: { type: String, trim: true, default: "" },
     parentName2: { type: String, trim: true, default: "" },
     eventNames: { type: String, trim: true, default: "" },

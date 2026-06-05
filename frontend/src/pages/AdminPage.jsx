@@ -10,6 +10,7 @@ const initialForm = {
   eventType: "חתונה",
   groomName: "",
   brideName: "",
+  batMitzvahName: "",
   parentName1: "",
   parentName2: "",
   venueName: "",
@@ -39,6 +40,9 @@ function buildEventDisplayText(event) {
   }
   if (event.eventType === "ברית") {
     return `${event.parentName1} ו${event.parentName2}`.trim();
+  }
+  if (event.eventType === "בת מצווה") {
+    return `${event.batMitzvahName || ""}`.trim();
   }
   return "";
 }
@@ -218,8 +222,9 @@ ${publicEventUrl}`
           eventType: form.eventType,
           groomName: form.eventType === "חתונה" ? form.groomName : "",
           brideName: form.eventType === "חתונה" ? form.brideName : "",
-          parentName1: form.eventType === "ברית" ? form.parentName1 : "",
-          parentName2: form.eventType === "ברית" ? form.parentName2 : "",
+          batMitzvahName: form.eventType === "בת מצווה" ? form.batMitzvahName : "",
+          parentName1: form.eventType === "ברית" || form.eventType === "בת מצווה" ? form.parentName1 : "",
+          parentName2: form.eventType === "ברית" || form.eventType === "בת מצווה" ? form.parentName2 : "",
           venueName: form.venueName,
           city: form.city,
           streetAndNumber: form.streetAndNumber,
@@ -291,6 +296,7 @@ ${publicEventUrl}`
       eventType: client.event?.eventType || "חתונה",
       groomName: client.event?.groomName || "",
       brideName: client.event?.brideName || "",
+      batMitzvahName: client.event?.batMitzvahName || "",
       parentName1: client.event?.parentName1 || "",
       parentName2: client.event?.parentName2 || "",
       venueName: client.event?.venueName || "",
@@ -521,6 +527,7 @@ ${publicEventUrl}`
                 <select id="eventType" className="field-input" name="eventType" value={form.eventType} onChange={onChange}>
                   <option value="חתונה">חתונה</option>
                   <option value="ברית">ברית</option>
+                  <option value="בת מצווה">בת מצווה</option>
                 </select>
               </div>
               {form.eventType === "חתונה" ? (
@@ -552,7 +559,7 @@ ${publicEventUrl}`
                     />
                   </div>
                 </>
-              ) : (
+              ) : form.eventType === "ברית" ? (
                 <>
                   <div className="field">
                     <label className="field-label" htmlFor="parentName1">
@@ -578,6 +585,48 @@ ${publicEventUrl}`
                       value={form.parentName2}
                       onChange={onChange}
                       required
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="field">
+                    <label className="field-label" htmlFor="batMitzvahName">
+                      שם כלת המצווה
+                    </label>
+                    <input
+                      id="batMitzvahName"
+                      className="field-input"
+                      name="batMitzvahName"
+                      value={form.batMitzvahName}
+                      onChange={onChange}
+                      required
+                    />
+                  </div>
+                  <div className="field">
+                    <label className="field-label" htmlFor="parentName1">
+                      שם הורה 1
+                    </label>
+                    <input
+                      id="parentName1"
+                      className="field-input"
+                      name="parentName1"
+                      value={form.parentName1}
+                      onChange={onChange}
+                      required
+                    />
+                  </div>
+                  <div className="field">
+                    <label className="field-label" htmlFor="parentName2">
+                      שם הורה 2 (אופציונלי)
+                    </label>
+                    <input
+                      id="parentName2"
+                      className="field-input"
+                      name="parentName2"
+                      value={form.parentName2}
+                      onChange={onChange}
+                      placeholder="אופציונלי"
                     />
                   </div>
                 </>

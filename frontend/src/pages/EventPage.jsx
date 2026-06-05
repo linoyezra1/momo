@@ -84,6 +84,16 @@ function BritInviteDetails({ event }) {
   );
 }
 
+function BatMitzvahInviteDetails({ event }) {
+  const name = event?.batMitzvahName?.trim() || "";
+  return (
+    <div className="invite-headline">
+      <p className="invite-headline-intro">אנו נרגשים להזמינכם לחגיגת בת המצווה של בתנו</p>
+      <h1 className="invite-headline-names">{name}</h1>
+    </div>
+  );
+}
+
 export default function EventPage() {
   const { eventId } = useParams();
   const [eventData, setEventData] = useState(null);
@@ -198,9 +208,9 @@ export default function EventPage() {
                   <>
                     <div className="invite-hero-overlay" />
                     <div className="invite-hero-content" />
-                    {eventDateText && !isBrit ? <p className="invite-hero-date invite-num">{eventDateText}</p> : null}
                   </>
                 ) : null}
+                {eventDateText && !isBrit ? <p className="invite-hero-date invite-num">{eventDateText}</p> : null}
               </div>
 
               <div className="invite-details centered">
@@ -213,6 +223,8 @@ export default function EventPage() {
                   </div>
                 ) : event.eventType === "ברית" ? (
                   <BritInviteDetails event={event} />
+                ) : event.eventType === "בת מצווה" ? (
+                  <BatMitzvahInviteDetails event={event} />
                 ) : (
                   <div className="invite-headline">
                     <p className="invite-headline-intro">

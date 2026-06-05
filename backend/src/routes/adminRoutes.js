@@ -9,6 +9,7 @@ function normalizeEventPayload(rawEvent) {
   const eventType = String(rawEvent?.eventType || "").trim();
   const groomName = String(rawEvent?.groomName || "").trim();
   const brideName = String(rawEvent?.brideName || "").trim();
+  const batMitzvahName = String(rawEvent?.batMitzvahName || "").trim();
   const parentName1 = String(rawEvent?.parentName1 || "").trim();
   const parentName2 = String(rawEvent?.parentName2 || "").trim();
 
@@ -24,6 +25,7 @@ function normalizeEventPayload(rawEvent) {
     imageDataUrl: String(rawEvent?.imageDataUrl || "").trim(),
     groomName,
     brideName,
+    batMitzvahName,
     parentName1,
     parentName2
   };
@@ -39,6 +41,13 @@ function normalizeEventPayload(rawEvent) {
     return {
       ...baseEvent,
       eventNames: `${parentName1} ו${parentName2}`.trim()
+    };
+  }
+
+  if (eventType === "בת מצווה") {
+    return {
+      ...baseEvent,
+      eventNames: batMitzvahName
     };
   }
 
@@ -60,6 +69,10 @@ function validateEvent(normalizedEvent) {
   } else if (normalizedEvent.eventType === "ברית") {
     if (!normalizedEvent.parentName1 || !normalizedEvent.parentName2) {
       return "Missing required brit names";
+    }
+  } else if (normalizedEvent.eventType === "בת מצווה") {
+    if (!normalizedEvent.batMitzvahName || !normalizedEvent.parentName1) {
+      return "Missing required bat mitzvah names";
     }
   } else if (!normalizedEvent.eventNames) {
     return "Missing required event names";
