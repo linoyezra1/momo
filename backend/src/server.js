@@ -7,6 +7,7 @@ import { fileURLToPath } from "url";
 import adminRoutes from "./routes/adminRoutes.js";
 import publicRoutes from "./routes/publicRoutes.js";
 import clientRoutes from "./routes/clientRoutes.js";
+import setupRoutes from "./routes/setupRoutes.js";
 
 dotenv.config();
 
@@ -27,6 +28,7 @@ app.get("/api/health", (_req, res) => {
 
 app.use("/api/admin", adminRoutes);
 app.use("/api/public", publicRoutes);
+app.use("/api/public", setupRoutes);
 app.use("/api/client", clientRoutes);
 
 app.use((err, req, res, next) => {
