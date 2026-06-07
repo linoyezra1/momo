@@ -66,17 +66,8 @@ export default function UsEventPage() {
     );
   }
 
-  const heroBg = event.images?.hero_bg || "/images/floral-bg.png";
-
   return (
-    <main
-      className="us-invite-page min-h-screen bg-background bg-repeat-y"
-      style={{
-        backgroundImage: `url('${heroBg}')`,
-        backgroundSize: "100% auto",
-        backgroundPosition: "top center"
-      }}
-    >
+    <main className="us-invite-page bg-background">
       <UsHero event={event} />
       <UsReveal delay={0}>
         <UsCountdown event={event} />

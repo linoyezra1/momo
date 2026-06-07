@@ -69,7 +69,62 @@
 
 .us-invite-page {
   font-family: var(--font-sans);
+  min-height: 100vh;
   background-color: var(--us-ivory);
+}
+
+.us-hero {
+  position: relative;
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(3.5rem, 9vh, 6rem) clamp(1.5rem, 6vw, 3rem);
+  text-align: center;
+  background-color: var(--us-ivory);
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
+}
+
+.us-hero-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: 100%;
+  max-width: 40rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  margin-inline: auto;
+  padding-inline: clamp(1rem, 5vw, 2rem);
+}
+
+.us-hero-divider {
+  width: 6rem;
+  height: 1px;
+  background-color: var(--border);
+}
+
+.us-hero-intro,
+.us-hero-celebration {
+  width: 100%;
+  max-width: 22rem;
+  margin-inline: auto;
+  padding-inline: clamp(0.75rem, 4vw, 1.5rem);
+}
+
+.us-hero-names {
+  width: 100%;
+  max-width: 36rem;
+  padding-inline: clamp(0.5rem, 3vw, 1rem);
+}
+
+.us-hero-logo {
+  width: 100%;
 }
 
 @keyframes us-fade-up {
@@ -120,19 +175,24 @@
 
 .us-hero-date-grid {
   display: grid;
-  grid-template-columns: minmax(4.5rem, 1fr) auto minmax(6.5rem, 1fr);
+  width: min(100%, 26rem);
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1.2fr);
   align-items: center;
+  justify-items: center;
   gap: 0;
-  width: min(100%, 28rem);
+  margin-inline: auto;
+  padding-inline: clamp(0.25rem, 2vw, 0.75rem);
 }
 
 .us-hero-date-col {
   display: flex;
+  width: 100%;
+  min-width: 0;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 0.5rem 1rem;
-  min-height: 5.5rem;
+  padding: 0.5rem 0.75rem;
+  min-height: 5rem;
 }
 
 .us-hero-date-col--month {
@@ -141,17 +201,18 @@
 }
 
 .us-hero-date-col--day {
-  border-left: 1px solid var(--border);
-  border-right: 1px solid var(--border);
-  padding-left: 1.5rem;
-  padding-right: 1.5rem;
+  width: auto;
+  border-left: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+  border-right: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+  padding-inline: clamp(1rem, 4vw, 1.75rem);
 }
 
 .us-hero-date-day {
-  font-size: clamp(3rem, 10vw, 4.5rem);
+  font-size: clamp(2.75rem, 11vw, 4.5rem);
   font-weight: 300;
   line-height: 1;
   letter-spacing: 0.02em;
+  color: var(--foreground);
 }
 
 .us-hero-date-col--meta {
@@ -160,24 +221,25 @@
   justify-content: center;
 }
 
-@media (max-width: 480px) {
+@media (max-width: 640px) {
+  .us-hero-content {
+    gap: 1.75rem;
+    padding-inline: 1.5rem;
+  }
+
   .us-hero-date-grid {
-    grid-template-columns: minmax(3.5rem, 1fr) auto minmax(5.5rem, 1fr);
     width: 100%;
+    max-width: 20rem;
+    grid-template-columns: minmax(0, 0.95fr) auto minmax(0, 1.05fr);
   }
 
   .us-hero-date-col {
-    padding: 0.35rem 0.5rem;
+    padding: 0.35rem 0.4rem;
+    min-height: 4.5rem;
   }
 
   .us-hero-date-col--day {
-    padding-left: 1rem;
-    padding-right: 1rem;
-  }
-
-  .us-hero-date-col--meta p {
-    font-size: 0.62rem;
-    letter-spacing: 0.18em;
+    padding-inline: 0.85rem;
   }
 }
 
