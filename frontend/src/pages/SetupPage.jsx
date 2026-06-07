@@ -2,7 +2,6 @@ import { useState } from "react";
 import api from "../api.js";
 import "../us/us.css";
 import "../us/client-portal.css";
-import UsEnCountdownPicker from "../us/components/UsEnCountdownPicker.jsx";
 
 const emptyTimelineItem = { time: "", title: "" };
 
@@ -207,7 +206,7 @@ export default function SetupPage() {
           </p>
         </div>
 
-        <form onSubmit={onSubmit} className="mt-12 space-y-10">
+        <form onSubmit={onSubmit} className="mt-12 space-y-10" dir="ltr" lang="en-US">
           <section className="space-y-4 rounded-sm border border-border bg-card p-6">
             <h2 className="font-serif text-xl uppercase tracking-[0.2em] text-foreground">Account &amp; Etsy</h2>
             <div className="grid gap-4 md:grid-cols-2">
@@ -234,13 +233,12 @@ export default function SetupPage() {
               </label>
             </div>
             <label className="flex flex-col gap-2 font-sans text-sm">
-              Event URL Slug * (e.g. bella-and-mark)
+              Event URL Slug (optional — auto-generated if blank)
               <input
                 name="slug"
                 value={form.slug}
                 onChange={onChange}
-                required
-                pattern="[a-z0-9-]{3,60}"
+                placeholder="bella-and-mark"
                 className="border border-border bg-transparent px-3 py-2"
               />
             </label>
@@ -249,14 +247,17 @@ export default function SetupPage() {
           <section className="space-y-4 rounded-sm border border-border bg-card p-6">
             <h2 className="font-serif text-xl uppercase tracking-[0.2em] text-foreground">Couple &amp; Date</h2>
             <label className="flex flex-col gap-2 font-sans text-sm">
-              Host Names * (e.g. Emma &amp; Lucas)
+              Host Names (e.g. Emma &amp; Lucas)
               <input
                 name="hostNames"
                 value={form.hostNames}
                 onChange={onChange}
-                required
+                placeholder="Emma & Lucas"
                 className="border border-border bg-transparent px-3 py-2"
               />
+              <span className="font-sans text-xs text-muted-foreground">
+                Highly recommended for initial layout generation
+              </span>
             </label>
             <div className="grid gap-4 md:grid-cols-2">
               <label className="flex flex-col gap-2 font-sans text-sm">
@@ -275,47 +276,45 @@ export default function SetupPage() {
             </div>
             <div className="grid gap-4 md:grid-cols-3">
               <label className="flex flex-col gap-2 font-sans text-sm">
-                Date (formatted) *
+                Date (formatted)
                 <input
                   name="eventDateFormatted"
                   placeholder="Saturday, July 22, 2027"
                   value={form.eventDateFormatted}
                   onChange={onChange}
-                  required
                   className="border border-border bg-transparent px-3 py-2"
                 />
               </label>
               <label className="flex flex-col gap-2 font-sans text-sm">
-                Time *
+                Time
                 <input
                   name="eventTime"
                   placeholder="at 3:30 pm"
                   value={form.eventTime}
                   onChange={onChange}
-                  required
                   className="border border-border bg-transparent px-3 py-2"
                 />
               </label>
-              <div className="md:col-span-3">
-                <UsEnCountdownPicker
+              <label className="flex flex-col gap-2 font-sans text-sm md:col-span-3" dir="ltr" lang="en-US">
+                Wedding Date &amp; Time (Countdown)
+                <input
+                  type="datetime-local"
+                  name="countdownTargetDate"
+                  lang="en-US"
                   value={form.countdownTargetDate}
-                  onChange={(nextValue) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      countdownTargetDate: nextValue
-                    }))
-                  }
-                  required
+                  onChange={onChange}
+                  className="border border-border bg-transparent px-3 py-2"
                 />
-              </div>
+                <span className="font-sans text-xs text-muted-foreground">MM/DD/YYYY, --:-- AM/PM</span>
+              </label>
             </div>
           </section>
 
           <section className="space-y-4 rounded-sm border border-border bg-card p-6">
             <h2 className="font-serif text-xl uppercase tracking-[0.2em] text-foreground">Venue</h2>
             <label className="flex flex-col gap-2 font-sans text-sm">
-              Venue Name *
-              <input name="venueName" value={form.venueName} onChange={onChange} required className="border border-border bg-transparent px-3 py-2" />
+              Venue Name
+              <input name="venueName" value={form.venueName} onChange={onChange} className="border border-border bg-transparent px-3 py-2" />
             </label>
             <label className="flex flex-col gap-2 font-sans text-sm">
               Description

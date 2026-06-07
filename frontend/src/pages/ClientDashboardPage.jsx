@@ -5,6 +5,7 @@ import api from "../api";
 import WhatsAppIcon from "../components/WhatsAppIcon";
 import { formatUsLongDate } from "../utils/usDateFormat";
 import { buildUsWhatsAppSendUrl } from "../utils/usWhatsApp";
+import UsInvitationEditor from "../us/components/UsInvitationEditor.jsx";
 import "../us/client-portal.css";
 
 const DIETARY_OPTIONS = ["None", "Vegetarian", "Vegan", "Gluten-Free", "Nut Allergy"];
@@ -110,6 +111,7 @@ export default function ClientDashboardPage() {
     dietaryNotes: ""
   });
   const [linkCopied, setLinkCopied] = useState(false);
+  const [showInvitationEditor, setShowInvitationEditor] = useState(false);
   const [refreshingGuests, setRefreshingGuests] = useState(false);
   const [searchInput, setSearchInput] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
@@ -381,6 +383,13 @@ export default function ClientDashboardPage() {
             </a>
             <button className="us-btn" type="button" onClick={copyPublicLink}>
               {linkCopied ? "Copied!" : "Copy Link"}
+            </button>
+            <button
+              className="us-btn us-btn--design-portal"
+              type="button"
+              onClick={() => setShowInvitationEditor(true)}
+            >
+              ✨ Edit Invitation &amp; Preview
             </button>
           </div>
         </header>
@@ -813,6 +822,18 @@ export default function ClientDashboardPage() {
               </div>
             </form>
           </div>
+        ) : null}
+
+        {showInvitationEditor && eventInfo ? (
+          <UsInvitationEditor
+            userId={userId}
+            eventInfo={eventInfo}
+            slug={eventSlug}
+            onClose={() => setShowInvitationEditor(false)}
+            onSaved={(updatedEvent) => {
+              setEventInfo(updatedEvent);
+            }}
+          />
         ) : null}
       </div>
     </div>

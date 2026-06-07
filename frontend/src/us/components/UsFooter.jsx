@@ -1,5 +1,5 @@
 export default function UsFooter({ event }) {
-  const names = String(event.host_names || "").toUpperCase();
+  const names = String(event.host_names || "Bride & Groom").trim().toUpperCase();
   const dateText = event.event_date_formatted || "";
   const venueName = event.venue?.name || "";
 
@@ -12,7 +12,7 @@ export default function UsFooter({ event }) {
         </svg>
         do
       </p>
-      {names ? <p className="mt-4 font-serif text-lg tracking-[0.3em] text-foreground">{names}</p> : null}
+      <p className="mt-4 font-serif text-lg tracking-[0.3em] text-foreground">{names}</p>
       {dateText || venueName ? (
         <p className="mt-2 font-sans text-xs uppercase tracking-[0.25em] text-muted-foreground">
           {[dateText, venueName].filter(Boolean).join(" · ")}

@@ -18,6 +18,20 @@ export function validateSlug(slug) {
   return normalized;
 }
 
+export function generateDefaultSlug(contactEmail, etsyOrderId) {
+  const fromEmail = validateSlug(String(contactEmail || "").split("@")[0]);
+  if (fromEmail) {
+    return fromEmail;
+  }
+
+  const fromOrder = validateSlug(`order-${String(etsyOrderId || "").toLowerCase()}`);
+  if (fromOrder) {
+    return fromOrder;
+  }
+
+  return validateSlug(`wedding-${Date.now().toString(36)}`) || `evt-${Date.now().toString(36)}`.slice(0, 60);
+}
+
 export function normalizeTimeline(rawTimeline) {
   if (!Array.isArray(rawTimeline)) {
     return [];
@@ -85,7 +99,7 @@ export function normalizeSetupPayload(body) {
   return {
     etsyOrderId: String(body?.etsyOrderId || "").trim(),
     contactEmail: String(body?.contactEmail || "").trim().toLowerCase(),
-    slug: validateSlug(body?.slug),
+    slug: validateSlug(body?.slug) || generateDefaultSlug(body?.contactEmail, body?.etsyOrderId),
     event
   };
 }
@@ -98,30 +112,62 @@ export function validateSetupPayload(payload) {
     return "A valid contact email is required";
   }
   if (!payload.slug) {
-    return "Event URL slug must be 3–60 characters (letters, numbers, hyphens)";
-  }
-  if (!payload.event.hostNames) {
-    return "Host names are required";
-  }
-  if (!payload.event.eventDateFormatted || !payload.event.eventTime || !payload.event.countdownTargetDate) {
-    return "Event date, time, and countdown date are required";
-  }
-  if (!payload.event.venue.name) {
-    return "Venue name is required";
-  }
-  if (payload.event.features.includeTimeline && payload.event.timeline.length === 0) {
-    return "Add at least one timeline item or disable the timeline section";
-  }
-  if (payload.event.features.includeTransportation && !payload.event.details.transportation) {
-    return "Transportation details are required when that section is enabled";
-  }
-  if (payload.event.features.includeAccommodation) {
-    const { accommodationTitle, accommodationBody } = payload.event.details;
-    if (!accommodationTitle || !accommodationBody) {
-      return "Accommodation title and details are required when that section is enabled";
-    }
+    return "Unable to generate a valid event URL slug";
   }
   return "";
+}
+
+export function normalizeEventUpdatePayload(body) {
+  const features = {
+    includeTimeline: Boolean(body?.features?.includeTimeline),
+    includeTransportation: Boolean(body?.features?.includeTransportation),
+    includeAccommodation: Boolean(body?.features?.includeAccommodation)
+  };
+
+  return {
+    eventType: String(body?.eventType || "wedding").trim() || "wedding",
+    hostNames: String(body?.hostNames || "").trim(),
+    introText: String(body?.introText || "").trim(),
+    celebrationText: String(body?.celebrationText || "").trim(),
+    eventDateFormatted: String(body?.eventDateFormatted || "").trim(),
+    eventTime: String(body?.eventTime || "").trim(),
+    countdownTargetDate: String(body?.countdownTargetDate || "").trim(),
+    images: {
+      heroBg: String(body?.images?.heroBg || "/images/floral-bg.png").trim(),
+      countdownBg: String(body?.images?.countdownBg || "/images/coral-floral-bg.png").trim(),
+      rsvpBg: String(body?.images?.rsvpBg || "/images/pink-sprig-bg.png").trim(),
+      timelineBanner: String(body?.images?.timelineBanner || "").trim(),
+      venueBanner: String(body?.images?.venueBanner || "").trim(),
+      accommodationBanner: String(body?.images?.accommodationBanner || "").trim()
+    },
+    timeline: features.includeTimeline ? normalizeTimeline(body?.timeline) : [],
+    venue: {
+      name: String(body?.venue?.name || "").trim(),
+      description: String(body?.venue?.description || "").trim(),
+      address: String(body?.venue?.address || "").trim(),
+      mapsLink: String(body?.venue?.mapsLink || "").trim()
+    },
+    details: {
+      dressCode: String(body?.details?.dressCode || "").trim(),
+      transportation: features.includeTransportation
+        ? String(body?.details?.transportation || "").trim()
+        : "",
+      accommodationTitle: features.includeAccommodation
+        ? String(body?.details?.accommodationTitle || "").trim()
+        : "",
+      accommodationSubtitle: features.includeAccommodation
+        ? String(body?.details?.accommodationSubtitle || "").trim()
+        : "",
+      accommodationBody: features.includeAccommodation
+        ? String(body?.details?.accommodationBody || "").trim()
+        : ""
+    },
+    rsvpSettings: {
+      deadlineText: String(body?.rsvpSettings?.deadlineText || "").trim(),
+      registryLink: String(body?.rsvpSettings?.registryLink || "").trim()
+    },
+    features
+  };
 }
 
 export function toPublicEventPayload(user) {
@@ -132,9 +178,9 @@ export function toPublicEventPayload(user) {
     eventId: user._id,
     slug: user.slug,
     event_type: event.eventType || "wedding",
-    host_names: event.hostNames || "",
-    intro_text: event.introText || "",
-    celebration_text: event.celebrationText || "",
+    host_names: event.hostNames || "Bride & Groom",
+    intro_text: event.introText || "Together with their families",
+    celebration_text: event.celebrationText || "Invite you to their wedding celebration",
     event_date_formatted: event.eventDateFormatted || "",
     event_time: event.eventTime || "",
     countdown_target_date: event.countdownTargetDate || "",
@@ -148,7 +194,7 @@ export function toPublicEventPayload(user) {
     },
     timeline: features.includeTimeline ? event.timeline || [] : [],
     venue: {
-      name: event.venue?.name || "",
+      name: event.venue?.name || "Your Venue Name",
       description: event.venue?.description || "",
       address: event.venue?.address || "",
       maps_link: event.venue?.mapsLink || ""

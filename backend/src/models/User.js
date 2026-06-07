@@ -11,12 +11,12 @@ const timelineItemSchema = new mongoose.Schema(
 const usEventSchema = new mongoose.Schema(
   {
     eventType: { type: String, default: "wedding", trim: true },
-    hostNames: { type: String, required: true, trim: true },
+    hostNames: { type: String, trim: true, default: "" },
     introText: { type: String, trim: true, default: "" },
     celebrationText: { type: String, trim: true, default: "" },
-    eventDateFormatted: { type: String, required: true, trim: true },
-    eventTime: { type: String, required: true, trim: true },
-    countdownTargetDate: { type: String, required: true, trim: true },
+    eventDateFormatted: { type: String, trim: true, default: "" },
+    eventTime: { type: String, trim: true, default: "" },
+    countdownTargetDate: { type: String, trim: true, default: "" },
     images: {
       heroBg: { type: String, default: "/images/floral-bg.png" },
       countdownBg: { type: String, default: "/images/coral-floral-bg.png" },
@@ -27,7 +27,7 @@ const usEventSchema = new mongoose.Schema(
     },
     timeline: { type: [timelineItemSchema], default: [] },
     venue: {
-      name: { type: String, required: true, trim: true },
+      name: { type: String, trim: true, default: "" },
       description: { type: String, trim: true, default: "" },
       address: { type: String, trim: true, default: "" },
       mapsLink: { type: String, trim: true, default: "" }

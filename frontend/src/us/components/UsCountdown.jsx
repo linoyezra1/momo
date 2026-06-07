@@ -23,6 +23,10 @@ export default function UsCountdown({ event }) {
     return () => clearInterval(id);
   }, [event.countdown_target_date]);
 
+  if (!event.countdown_target_date) {
+    return null;
+  }
+
   const units = [
     { label: "Days", value: time.days },
     { label: "Hours", value: time.hours },

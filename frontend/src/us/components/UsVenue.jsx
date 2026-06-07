@@ -22,9 +22,9 @@ export default function UsVenue({ event }) {
           <p className="font-sans text-sm leading-relaxed text-muted-foreground">{venue.description}</p>
         ) : null}
         <p className="mt-6 font-sans text-xs uppercase tracking-[0.25em] text-muted-foreground">The Venue</p>
-        {venue.name ? (
-          <p className="mt-1 font-serif text-2xl tracking-wide text-foreground">{venue.name}</p>
-        ) : null}
+        <p className="mt-1 font-serif text-2xl tracking-wide text-foreground">
+          {venue.name?.trim() || "Your Venue Name"}
+        </p>
         {venue.address ? (
           <p className="mt-2 font-sans text-sm text-muted-foreground">{venue.address}</p>
         ) : null}

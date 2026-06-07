@@ -2,7 +2,7 @@ import express from "express";
 import bcrypt from "bcryptjs";
 import User from "../models/User.js";
 import Guest from "../models/Guest.js";
-import { normalizeDietaryRestrictions } from "../utils/usEvent.js";
+import { normalizeDietaryRestrictions, normalizeEventUpdatePayload } from "../utils/usEvent.js";
 import { formatStoredPhone } from "../utils/usPhone.js";
 
 const router = express.Router();
@@ -149,6 +149,27 @@ router.post("/login", async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ message: "Login failed", error: error.message });
+  }
+});
+
+router.put("/:userId/event", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "Client not found" });
+    }
+
+    user.event = normalizeEventUpdatePayload(req.body);
+    await user.save();
+
+    return res.json({
+      message: "Your live wedding invitation has been updated successfully!",
+      event: user.event,
+      slug: user.slug
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "Failed to update invitation" });
   }
 });
 

@@ -20,7 +20,12 @@ function parseEventDate(event) {
 }
 
 export default function UsHero({ event }) {
-  const [first, second] = String(event.host_names || "")
+  const hostNames = String(event.host_names || "").trim() || "Bride & Groom";
+  const introText = String(event.intro_text || "").trim() || "Together with their families";
+  const celebrationText =
+    String(event.celebration_text || "").trim() || "Invite you to their wedding celebration";
+
+  const [first, second] = hostNames
     .split("&")
     .map((name) => name.trim());
 
@@ -51,11 +56,9 @@ export default function UsHero({ event }) {
 
         <div className="us-animate-in us-animate-delay-2 us-hero-divider" aria-hidden="true" />
 
-        {event.intro_text ? (
-          <p className="us-animate-in us-animate-delay-3 us-hero-intro font-sans text-[0.65rem] uppercase tracking-[0.35em] text-muted-foreground sm:text-xs">
-            {event.intro_text}
-          </p>
-        ) : null}
+        <p className="us-animate-in us-animate-delay-3 us-hero-intro font-sans text-[0.65rem] uppercase tracking-[0.35em] text-muted-foreground sm:text-xs">
+          {introText}
+        </p>
 
         <div className="us-animate-in us-animate-delay-4 us-hero-names flex w-full flex-wrap items-center justify-center gap-x-4 gap-y-2">
           {first ? (
@@ -73,11 +76,9 @@ export default function UsHero({ event }) {
           ) : null}
         </div>
 
-        {event.celebration_text ? (
-          <p className="us-animate-in us-animate-delay-5 us-hero-celebration font-sans text-[0.65rem] uppercase leading-relaxed tracking-[0.3em] text-muted-foreground sm:text-xs">
-            {event.celebration_text}
-          </p>
-        ) : null}
+        <p className="us-animate-in us-animate-delay-5 us-hero-celebration font-sans text-[0.65rem] uppercase leading-relaxed tracking-[0.3em] text-muted-foreground sm:text-xs">
+          {celebrationText}
+        </p>
 
         {month || day || weekday || time ? (
           <div

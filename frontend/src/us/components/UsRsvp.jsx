@@ -46,7 +46,7 @@ function toggleDietary(current, option) {
   return [...withoutNone, option];
 }
 
-export default function UsRsvp({ event, slug }) {
+export default function UsRsvp({ event, slug, previewMode = false }) {
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState(initialForm);
   const [submitting, setSubmitting] = useState(false);
@@ -147,8 +147,9 @@ export default function UsRsvp({ event, slug }) {
           ) : (
             <button
               type="button"
-              onClick={openModal}
-              className="mt-12 border border-primary px-10 py-3 font-sans text-xs uppercase tracking-[0.3em] text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
+              onClick={previewMode ? undefined : openModal}
+              disabled={previewMode}
+              className="mt-12 border border-primary px-10 py-3 font-sans text-xs uppercase tracking-[0.3em] text-primary transition-colors hover:bg-primary hover:text-primary-foreground disabled:cursor-default disabled:opacity-80"
             >
               RSVP Here
             </button>
@@ -170,7 +171,7 @@ export default function UsRsvp({ event, slug }) {
         </div>
       </section>
 
-      {modalOpen
+      {!previewMode && modalOpen
         ? createPortal(
             <div
               className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/40 p-6 backdrop-blur-sm"
