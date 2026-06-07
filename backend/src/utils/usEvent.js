@@ -1,6 +1,87 @@
 const DIETARY_OPTIONS = ["None", "Vegetarian", "Vegan", "Gluten-Free", "Nut Allergy"];
 const RSVP_STATUSES = ["Joyfully Accepts", "Regretfully Declines"];
 
+const FIELD_LABEL_PREFIXES = [
+  "transportation text",
+  "dress code text",
+  "accommodation text",
+  "accommodation title",
+  "accommodation subtitle",
+  "accommodation body",
+  "accommodation details",
+  "wedding registry link",
+  "registry link",
+  "rsvp deadline text",
+  "google maps link",
+  "venue description",
+  "venue address",
+  "venue name",
+  "countdown date & time",
+  "countdown date",
+  "wedding date & time",
+  "wedding date",
+  "date (formatted)",
+  "celebration text",
+  "intro text",
+  "host names",
+  "dress code",
+  "transportation",
+  "accommodation",
+  "description",
+  "address"
+];
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function stripFieldLabelPrefixes(text) {
+  let value = String(text || "").trim();
+  if (!value) {
+    return "";
+  }
+
+  for (const label of FIELD_LABEL_PREFIXES) {
+    const pattern = new RegExp(`^\\s*${escapeRegExp(label)}\\s*:?\\s*`, "i");
+    if (pattern.test(value)) {
+      value = value.replace(pattern, "").trim();
+      break;
+    }
+  }
+
+  return value;
+}
+
+function stripDecorativeQuotes(text) {
+  let value = String(text || "").trim();
+  if (!value) {
+    return "";
+  }
+
+  const quotePairs = [
+    ["'", "'"],
+    ['"', '"'],
+    ["\u2018", "\u2019"],
+    ["\u201C", "\u201D"]
+  ];
+
+  for (const [open, close] of quotePairs) {
+    if (value.startsWith(open) && value.endsWith(close)) {
+      value = value.slice(open.length, value.length - close.length).trim();
+      break;
+    }
+  }
+
+  return value
+    .replace(/['\u2018]([^'\u2019]+)['\u2019]/g, "$1")
+    .replace(/"([^"]+)"/g, "$1")
+    .trim();
+}
+
+function sanitizeInvitationDetailText(text) {
+  return stripDecorativeQuotes(stripFieldLabelPrefixes(text));
+}
+
 export function normalizeSlug(slug) {
   return String(slug || "")
     .trim()
@@ -75,18 +156,18 @@ export function normalizeSetupPayload(body) {
       mapsLink: String(body?.venue?.mapsLink || "").trim()
     },
     details: {
-      dressCode: String(body?.details?.dressCode || "").trim(),
+      dressCode: sanitizeInvitationDetailText(body?.details?.dressCode),
       transportation: features.includeTransportation
-        ? String(body?.details?.transportation || "").trim()
+        ? sanitizeInvitationDetailText(body?.details?.transportation)
         : "",
       accommodationTitle: features.includeAccommodation
-        ? String(body?.details?.accommodationTitle || "").trim()
+        ? sanitizeInvitationDetailText(body?.details?.accommodationTitle)
         : "",
       accommodationSubtitle: features.includeAccommodation
-        ? String(body?.details?.accommodationSubtitle || "").trim()
+        ? sanitizeInvitationDetailText(body?.details?.accommodationSubtitle)
         : "",
       accommodationBody: features.includeAccommodation
-        ? String(body?.details?.accommodationBody || "").trim()
+        ? sanitizeInvitationDetailText(body?.details?.accommodationBody)
         : ""
     },
     rsvpSettings: {
@@ -148,18 +229,18 @@ export function normalizeEventUpdatePayload(body) {
       mapsLink: String(body?.venue?.mapsLink || "").trim()
     },
     details: {
-      dressCode: String(body?.details?.dressCode || "").trim(),
+      dressCode: sanitizeInvitationDetailText(body?.details?.dressCode),
       transportation: features.includeTransportation
-        ? String(body?.details?.transportation || "").trim()
+        ? sanitizeInvitationDetailText(body?.details?.transportation)
         : "",
       accommodationTitle: features.includeAccommodation
-        ? String(body?.details?.accommodationTitle || "").trim()
+        ? sanitizeInvitationDetailText(body?.details?.accommodationTitle)
         : "",
       accommodationSubtitle: features.includeAccommodation
-        ? String(body?.details?.accommodationSubtitle || "").trim()
+        ? sanitizeInvitationDetailText(body?.details?.accommodationSubtitle)
         : "",
       accommodationBody: features.includeAccommodation
-        ? String(body?.details?.accommodationBody || "").trim()
+        ? sanitizeInvitationDetailText(body?.details?.accommodationBody)
         : ""
     },
     rsvpSettings: {
@@ -180,7 +261,8 @@ export function toPublicEventPayload(user) {
     event_type: event.eventType || "wedding",
     host_names: event.hostNames || "Bride & Groom",
     intro_text: event.introText || "Together with their families",
-    celebration_text: event.celebrationText || "Invite you to their wedding celebration",
+    celebration_text:
+      event.celebrationText || "request the pleasure of your company as they celebrate their marriage",
     event_date_formatted: event.eventDateFormatted || "",
     event_time: event.eventTime || "",
     countdown_target_date: event.countdownTargetDate || "",
@@ -200,11 +282,19 @@ export function toPublicEventPayload(user) {
       maps_link: event.venue?.mapsLink || ""
     },
     details: {
-      dress_code: event.details?.dressCode || "",
-      transportation: features.includeTransportation ? event.details?.transportation || "" : "",
-      accommodation_title: features.includeAccommodation ? event.details?.accommodationTitle || "" : "",
-      accommodation_subtitle: features.includeAccommodation ? event.details?.accommodationSubtitle || "" : "",
-      accommodation_body: features.includeAccommodation ? event.details?.accommodationBody || "" : ""
+      dress_code: sanitizeInvitationDetailText(event.details?.dressCode),
+      transportation: features.includeTransportation
+        ? sanitizeInvitationDetailText(event.details?.transportation)
+        : "",
+      accommodation_title: features.includeAccommodation
+        ? sanitizeInvitationDetailText(event.details?.accommodationTitle)
+        : "",
+      accommodation_subtitle: features.includeAccommodation
+        ? sanitizeInvitationDetailText(event.details?.accommodationSubtitle)
+        : "",
+      accommodation_body: features.includeAccommodation
+        ? sanitizeInvitationDetailText(event.details?.accommodationBody)
+        : ""
     },
     rsvp_settings: {
       deadline_text: event.rsvpSettings?.deadlineText || "",

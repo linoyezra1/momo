@@ -1,14 +1,18 @@
 import { Bus, Shirt } from "lucide-react";
+import { sanitizeInvitationDetailText } from "../../utils/usInvitationCopy.js";
 
 export default function UsDetails({ event }) {
   const details = event.details || {};
   const items = [];
 
-  if (details.dress_code) {
-    items.push({ icon: Shirt, title: "Dress Code", text: details.dress_code });
+  const dressCode = sanitizeInvitationDetailText(details.dress_code);
+  const transportation = sanitizeInvitationDetailText(details.transportation);
+
+  if (dressCode) {
+    items.push({ icon: Shirt, title: "Dress Code", text: dressCode });
   }
-  if (details.transportation) {
-    items.push({ icon: Bus, title: "Transportation", text: details.transportation });
+  if (transportation) {
+    items.push({ icon: Bus, title: "Transportation", text: transportation });
   }
 
   if (!items.length) {

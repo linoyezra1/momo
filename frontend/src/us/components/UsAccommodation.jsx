@@ -1,8 +1,10 @@
+import { sanitizeInvitationDetailText } from "../../utils/usInvitationCopy.js";
+
 export default function UsAccommodation({ event }) {
   const details = event.details || {};
-  const title = details.accommodation_title || "";
-  const subtitle = details.accommodation_subtitle || "";
-  const body = details.accommodation_body || "";
+  const title = sanitizeInvitationDetailText(details.accommodation_title);
+  const subtitle = sanitizeInvitationDetailText(details.accommodation_subtitle);
+  const body = sanitizeInvitationDetailText(details.accommodation_body);
   const banner = event.images?.accommodation_banner;
 
   if (!title && !body) {
