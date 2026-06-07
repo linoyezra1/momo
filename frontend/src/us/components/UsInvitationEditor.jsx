@@ -84,8 +84,8 @@ export default function UsInvitationEditor({ userId, eventInfo, slug, onClose, o
         </button>
       </div>
 
-      <div className="us-invitation-editor__layout">
-        <div className="us-invitation-editor__form-panel">
+      <div className="us-invitation-editor__layout min-h-0 flex-1 overflow-hidden">
+        <div className="us-invitation-editor__form-panel h-full min-h-0 overflow-y-auto overscroll-y-contain pr-2 lg:h-[calc(100vh-8.5rem)] lg:max-h-[calc(100vh-8.5rem)]">
           <section className="us-editor-section">
             <h3>General Info</h3>
             <label className="us-editor-field">
@@ -235,9 +235,9 @@ export default function UsInvitationEditor({ userId, eventInfo, slug, onClose, o
           </section>
         </div>
 
-        <div className="us-invitation-editor__preview-panel">
-          <p className="us-invitation-editor__preview-label">Live Preview</p>
-          <div className="us-invitation-editor__preview-frame">
+        <div className="us-invitation-editor__preview-panel sticky top-0 flex h-full min-h-0 flex-col self-start lg:max-h-[calc(100vh-8.5rem)]">
+          <p className="us-invitation-editor__preview-label shrink-0">Live Preview</p>
+          <div className="us-invitation-editor__preview-frame min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
             <div className="us-invitation-editor__preview-scale">
               <UsInvitationPreview event={previewEvent} slug={slug} />
             </div>
