@@ -1,13 +1,13 @@
 @import "tailwindcss";
 
 :root {
-  --us-olive: #636c4b;
-  --us-brown: #88623e;
-  --us-cream: #faf8f4;
-  --us-cream-card: #fffdf9;
-  --us-border: #e8e2d8;
-  --us-text: #3d3a35;
-  --us-muted: #7a756c;
+  --us-rose: #d57e7e;
+  --us-espresso: #4a2e2b;
+  --us-ivory: #fdfbf7;
+  --us-ivory-card: #fffefb;
+  --us-border: #e8d5d0;
+  --us-text: #4a2e2b;
+  --us-muted: #8a6f6b;
 }
 
 .us-client-portal {
@@ -15,6 +15,7 @@
   color: var(--us-text);
   direction: ltr;
   text-align: left;
+  background-color: var(--us-ivory);
 }
 
 .us-login-shell {
@@ -24,8 +25,8 @@
   justify-content: center;
   padding: 2rem 1.25rem;
   background:
-    radial-gradient(circle at top, rgb(255 253 249 / 92%), rgb(250 248 244 / 96%)),
-    linear-gradient(160deg, #f5f0e8 0%, #ebe4d8 100%);
+    radial-gradient(circle at top, rgb(255 254 251 / 94%), rgb(253 251 247 / 98%)),
+    linear-gradient(160deg, #fdfbf7 0%, #f8f0ee 100%);
 }
 
 .us-login-card {
@@ -33,8 +34,8 @@
   max-width: 28rem;
   border: 1px solid var(--us-border);
   border-radius: 0.75rem;
-  background: var(--us-cream-card);
-  box-shadow: 0 18px 48px rgb(99 108 75 / 12%);
+  background: var(--us-ivory-card);
+  box-shadow: 0 18px 48px rgb(213 126 126 / 14%);
   padding: 2.5rem 2rem;
 }
 
@@ -44,7 +45,7 @@
   font-weight: 500;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--us-olive);
+  color: var(--us-espresso);
   text-align: center;
 }
 
@@ -62,7 +63,7 @@
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--us-brown);
+  color: var(--us-espresso);
 }
 
 .us-field-input {
@@ -77,14 +78,14 @@
 }
 
 .us-field-input:focus {
-  border-bottom-color: var(--us-olive);
+  border-bottom-color: var(--us-rose);
 }
 
 .us-btn-primary {
   width: 100%;
   margin-top: 1.5rem;
-  border: 1px solid var(--us-olive);
-  background: var(--us-olive);
+  border: 1px solid var(--us-rose);
+  background: var(--us-rose);
   color: #fff;
   padding: 0.85rem 1rem;
   font-size: 0.72rem;
@@ -96,7 +97,7 @@
 
 .us-btn-primary:hover:not(:disabled) {
   background: transparent;
-  color: var(--us-olive);
+  color: var(--us-rose);
 }
 
 .us-btn-primary:disabled {
@@ -113,7 +114,7 @@
 .us-dashboard-shell {
   min-height: 100vh;
   position: relative;
-  background-color: var(--us-cream);
+  background-color: var(--us-ivory);
 }
 
 .us-dashboard-shell::before {
@@ -125,7 +126,7 @@
   background-size: cover;
   background-position: center;
   background-attachment: fixed;
-  opacity: 0.28;
+  opacity: 0.22;
   pointer-events: none;
 }
 
@@ -134,7 +135,7 @@
   position: fixed;
   inset: 0;
   z-index: 0;
-  background: linear-gradient(180deg, rgb(250 248 244 / 82%) 0%, rgb(250 248 244 / 94%) 100%);
+  background: linear-gradient(180deg, rgb(253 251 247 / 84%) 0%, rgb(253 251 247 / 96%) 100%);
   pointer-events: none;
 }
 
@@ -150,7 +151,7 @@
   font-family: "Cormorant Garamond", Georgia, serif;
   font-size: clamp(1.75rem, 4vw, 2.5rem);
   font-weight: 500;
-  color: var(--us-olive);
+  color: var(--us-espresso);
 }
 
 .us-dashboard-header p {
@@ -168,12 +169,12 @@
   padding: 0.85rem 1rem;
   border: 1px solid var(--us-border);
   border-radius: 0.5rem;
-  background: rgb(255 253 249 / 88%);
+  background: rgb(255 254 251 / 90%);
   font-size: 0.82rem;
 }
 
 .us-public-link-box a {
-  color: var(--us-brown);
+  color: var(--us-rose);
   word-break: break-all;
 }
 
@@ -193,7 +194,7 @@
 .us-stat-card {
   border: 1px solid var(--us-border);
   border-radius: 0.5rem;
-  background: rgb(255 253 249 / 92%);
+  background: rgb(255 254 251 / 94%);
   padding: 1rem;
   text-align: left;
 }
@@ -211,19 +212,19 @@
   font-family: "Cormorant Garamond", Georgia, serif;
   font-size: 2rem;
   line-height: 1;
-  color: var(--us-olive);
+  color: var(--us-espresso);
 }
 
 .us-stat-card--attending p {
-  color: #4a7c59;
+  color: var(--us-rose);
 }
 
 .us-stat-card--declined p {
-  color: #9b4d4d;
+  color: #9b5a5a;
 }
 
 .us-stat-card--dietary p {
-  color: var(--us-brown);
+  color: var(--us-espresso);
 }
 
 .us-toolbar {
@@ -236,29 +237,30 @@
 
 .us-btn {
   border: 1px solid var(--us-border);
-  background: rgb(255 253 249 / 92%);
+  background: rgb(255 254 251 / 94%);
   color: var(--us-text);
   padding: 0.5rem 0.85rem;
   font-size: 0.68rem;
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+  transition: border-color 0.2s ease, color 0.2s ease;
 }
 
 .us-btn:hover {
-  border-color: var(--us-olive);
-  color: var(--us-olive);
+  border-color: var(--us-rose);
+  color: var(--us-rose);
 }
 
 .us-btn--primary {
-  background: var(--us-olive);
-  border-color: var(--us-olive);
+  background: var(--us-rose);
+  border-color: var(--us-rose);
   color: #fff;
 }
 
 .us-btn--primary:hover {
   background: transparent;
-  color: var(--us-olive);
+  color: var(--us-rose);
 }
 
 .us-search-wrap {
@@ -272,16 +274,21 @@
   min-width: 12rem;
   border: 1px solid var(--us-border);
   border-radius: 0.35rem;
-  background: rgb(255 253 249 / 92%);
+  background: rgb(255 254 251 / 94%);
   padding: 0.45rem 0.65rem;
   font-size: 0.85rem;
+}
+
+.us-search-input:focus {
+  outline: none;
+  border-color: var(--us-rose);
 }
 
 .us-table-wrap {
   margin-top: 1rem;
   border: 1px solid var(--us-border);
   border-radius: 0.5rem;
-  background: rgb(255 253 249 / 94%);
+  background: rgb(255 254 251 / 96%);
   overflow-x: auto;
 }
 
@@ -299,13 +306,13 @@
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--us-brown);
-  background: rgb(250 248 244 / 80%);
+  color: var(--us-espresso);
+  background: rgb(253 251 247 / 88%);
 }
 
 .us-guest-table td {
   padding: 0.8rem 0.75rem;
-  border-bottom: 1px solid rgb(232 226 216 / 70%);
+  border-bottom: 1px solid rgb(232 213 208 / 70%);
   vertical-align: top;
 }
 
@@ -314,11 +321,11 @@
 }
 
 .us-row-accepts {
-  background: rgb(74 124 89 / 6%);
+  background: rgb(213 126 126 / 7%);
 }
 
 .us-row-declines {
-  background: rgb(155 77 77 / 5%);
+  background: rgb(155 90 90 / 6%);
 }
 
 .us-dietary-badges {
@@ -338,28 +345,28 @@
 }
 
 .us-dietary-badge--vegan {
-  background: #e8f5e9;
-  color: #2e7d32;
+  background: #fce8ec;
+  color: #a64d5a;
 }
 
 .us-dietary-badge--vegetarian {
-  background: #f1f8e9;
-  color: #558b2f;
+  background: #faeef0;
+  color: #c06b73;
 }
 
 .us-dietary-badge--gluten-free {
-  background: #fff8e1;
-  color: #f57f17;
+  background: #fff5e8;
+  color: #b07a3a;
 }
 
 .us-dietary-badge--nut-allergy {
-  background: #ffebee;
-  color: #c62828;
+  background: #fdecea;
+  color: #9b3d3d;
 }
 
 .us-dietary-badge--none {
-  background: #f5f5f5;
-  color: #757575;
+  background: #f5efed;
+  color: var(--us-muted);
 }
 
 .us-inline-input {
@@ -372,6 +379,11 @@
   background: #fff;
 }
 
+.us-inline-input:focus {
+  outline: none;
+  border-color: var(--us-rose);
+}
+
 .us-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -380,7 +392,7 @@
   align-items: center;
   justify-content: center;
   padding: 1.25rem;
-  background: rgb(0 0 0 / 42%);
+  background: rgb(74 46 43 / 35%);
 }
 
 .us-modal-card {
@@ -390,14 +402,14 @@
   overflow-y: auto;
   border: 1px solid var(--us-border);
   border-radius: 0.5rem;
-  background: var(--us-cream-card);
+  background: var(--us-ivory-card);
   padding: 1.5rem;
 }
 
 .us-modal-title {
   font-family: "Cormorant Garamond", Georgia, serif;
   font-size: 1.5rem;
-  color: var(--us-olive);
+  color: var(--us-espresso);
 }
 
 .us-setup-success-shell {
@@ -408,6 +420,7 @@
   justify-content: center;
   padding: 2rem 1.25rem;
   overflow: hidden;
+  background-color: var(--us-ivory);
 }
 
 .us-setup-success-bg {
@@ -422,7 +435,7 @@
 .us-setup-success-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgb(250 248 244 / 72%) 0%, rgb(250 248 244 / 90%) 100%);
+  background: linear-gradient(180deg, rgb(253 251 247 / 72%) 0%, rgb(253 251 247 / 92%) 100%);
 }
 
 .us-setup-success-card {
@@ -432,8 +445,8 @@
   max-width: 36rem;
   border: 1px solid var(--us-border);
   border-radius: 0.75rem;
-  background: rgb(255 253 249 / 94%);
-  box-shadow: 0 20px 50px rgb(99 108 75 / 14%);
+  background: rgb(255 254 251 / 94%);
+  box-shadow: 0 20px 50px rgb(213 126 126 / 16%);
   padding: 2.5rem 2rem;
   text-align: center;
 }
@@ -463,7 +476,7 @@
     border: 1px solid var(--us-border);
     border-radius: 0.5rem;
     padding: 0.5rem 0.65rem;
-    background: rgb(255 253 249 / 96%);
+    background: rgb(255 254 251 / 98%);
   }
 
   .us-guest-table td {
@@ -480,7 +493,7 @@
     font-weight: 700;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: var(--us-brown);
+    color: var(--us-espresso);
     flex-shrink: 0;
   }
 }

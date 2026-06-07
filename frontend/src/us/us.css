@@ -25,21 +25,24 @@
 }
 
 :root {
-  --background: oklch(0.985 0.006 20);
-  --foreground: oklch(0.42 0.05 15);
-  --card: oklch(0.995 0.004 20);
-  --card-foreground: oklch(0.42 0.05 15);
-  --primary: oklch(0.66 0.13 12);
-  --primary-foreground: oklch(0.99 0.005 20);
-  --secondary: oklch(0.94 0.025 18);
-  --secondary-foreground: oklch(0.48 0.07 14);
-  --muted: oklch(0.95 0.018 20);
-  --muted-foreground: oklch(0.58 0.06 14);
-  --accent: oklch(0.9 0.05 16);
-  --accent-foreground: oklch(0.45 0.08 14);
-  --border: oklch(0.89 0.03 16);
-  --input: oklch(0.89 0.03 16);
-  --ring: oklch(0.7 0.1 14);
+  --us-rose: #d57e7e;
+  --us-espresso: #4a2e2b;
+  --us-ivory: #fdfbf7;
+  --background: #fdfbf7;
+  --foreground: #4a2e2b;
+  --card: #fffefb;
+  --card-foreground: #4a2e2b;
+  --primary: #d57e7e;
+  --primary-foreground: #fffefb;
+  --secondary: #f8f0ee;
+  --secondary-foreground: #4a2e2b;
+  --muted: #f5ebe8;
+  --muted-foreground: #8a6f6b;
+  --accent: #f3d9d6;
+  --accent-foreground: #4a2e2b;
+  --border: #e8d5d0;
+  --input: #e8d5d0;
+  --ring: #d57e7e;
   --radius: 0.625rem;
 }
 
@@ -66,6 +69,116 @@
 
 .us-invite-page {
   font-family: var(--font-sans);
+  background-color: var(--us-ivory);
+}
+
+@keyframes us-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.us-animate-in {
+  opacity: 0;
+  animation: us-fade-up 1.2s ease-out forwards;
+}
+
+.us-animate-delay-1 {
+  animation-delay: 0.1s;
+}
+.us-animate-delay-2 {
+  animation-delay: 0.25s;
+}
+.us-animate-delay-3 {
+  animation-delay: 0.4s;
+}
+.us-animate-delay-4 {
+  animation-delay: 0.55s;
+}
+.us-animate-delay-5 {
+  animation-delay: 0.7s;
+}
+.us-animate-delay-6 {
+  animation-delay: 0.85s;
+}
+
+.us-scroll-reveal {
+  opacity: 0;
+  transform: translateY(15px);
+  transition: opacity 1.2s ease-out, transform 1.2s ease-out;
+}
+
+.us-scroll-reveal--visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.us-hero-date-grid {
+  display: grid;
+  grid-template-columns: minmax(4.5rem, 1fr) auto minmax(6.5rem, 1fr);
+  align-items: center;
+  gap: 0;
+  width: min(100%, 28rem);
+}
+
+.us-hero-date-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1rem;
+  min-height: 5.5rem;
+}
+
+.us-hero-date-col--month {
+  justify-content: center;
+  text-align: center;
+}
+
+.us-hero-date-col--day {
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
+
+.us-hero-date-day {
+  font-size: clamp(3rem, 10vw, 4.5rem);
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: 0.02em;
+}
+
+.us-hero-date-col--meta {
+  align-items: center;
+  text-align: center;
+  justify-content: center;
+}
+
+@media (max-width: 480px) {
+  .us-hero-date-grid {
+    grid-template-columns: minmax(3.5rem, 1fr) auto minmax(5.5rem, 1fr);
+    width: 100%;
+  }
+
+  .us-hero-date-col {
+    padding: 0.35rem 0.5rem;
+  }
+
+  .us-hero-date-col--day {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .us-hero-date-col--meta p {
+    font-size: 0.62rem;
+    letter-spacing: 0.18em;
+  }
 }
 
 .us-rsvp-modal-backdrop {

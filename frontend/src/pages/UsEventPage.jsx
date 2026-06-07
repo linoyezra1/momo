@@ -10,6 +10,7 @@ import UsAccommodation from "../us/components/UsAccommodation.jsx";
 import UsDetails from "../us/components/UsDetails.jsx";
 import UsRsvp from "../us/components/UsRsvp.jsx";
 import UsFooter from "../us/components/UsFooter.jsx";
+import UsReveal from "../us/components/UsReveal.jsx";
 
 export default function UsEventPage() {
   const { slug, eventId } = useParams();
@@ -77,13 +78,31 @@ export default function UsEventPage() {
       }}
     >
       <UsHero event={event} />
-      <UsCountdown event={event} />
-      {event.features?.include_timeline ? <UsSchedule event={event} /> : null}
-      <UsVenue event={event} />
-      {event.features?.include_accommodation ? <UsAccommodation event={event} /> : null}
-      <UsDetails event={event} />
-      <UsRsvp event={event} slug={slug || event.slug} />
-      <UsFooter event={event} />
+      <UsReveal delay={0}>
+        <UsCountdown event={event} />
+      </UsReveal>
+      {event.features?.include_timeline ? (
+        <UsReveal delay={80}>
+          <UsSchedule event={event} />
+        </UsReveal>
+      ) : null}
+      <UsReveal delay={120}>
+        <UsVenue event={event} />
+      </UsReveal>
+      {event.features?.include_accommodation ? (
+        <UsReveal delay={160}>
+          <UsAccommodation event={event} />
+        </UsReveal>
+      ) : null}
+      <UsReveal delay={200}>
+        <UsDetails event={event} />
+      </UsReveal>
+      <UsReveal delay={240}>
+        <UsRsvp event={event} slug={slug || event.slug} />
+      </UsReveal>
+      <UsReveal delay={280}>
+        <UsFooter event={event} />
+      </UsReveal>
     </main>
   );
 }

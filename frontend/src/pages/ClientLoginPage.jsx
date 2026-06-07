@@ -27,7 +27,7 @@ export default function ClientLoginPage() {
   return (
     <div className="us-client-portal us-login-shell" dir="ltr">
       <div className="us-login-card">
-        <p className="font-script text-4xl text-center" style={{ color: "var(--us-brown)" }}>
+        <p className="font-script text-4xl text-center" style={{ color: "var(--us-rose)" }}>
           Welcome back
         </p>
         <h1 className="us-login-title mt-3">Client Portal</h1>
