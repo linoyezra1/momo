@@ -1,7 +1,31 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+import { Frown, Heart } from "lucide-react";
 import api from "../../api.js";
 
 const DIETARY_OPTIONS = ["None", "Vegetarian", "Vegan", "Gluten-Free", "Nut Allergy"];
+const ATTENDANCE_OPTIONS = [
+  {
+    value: "Joyfully Accepts",
+    label: "Joyfully Accepts",
+    sublabel: "Count me in!",
+    Icon: Heart,
+    selectedClass: "border-green-400 bg-[#e6f4ea] text-[#4a2e2b] shadow-sm",
+    iconSelectedClass: "text-green-600",
+    unselectedClass: "border-[#e8e0d8] bg-[#fdfbf7] text-[#4a2e2b]/80 hover:border-green-200",
+    iconUnselectedClass: "text-green-600/45"
+  },
+  {
+    value: "Regretfully Declines",
+    label: "Regretfully Declines",
+    sublabel: "Can't make it",
+    Icon: Frown,
+    selectedClass: "border-red-400 bg-[#fce8e6] text-[#4a2e2b] shadow-sm",
+    iconSelectedClass: "text-red-500",
+    unselectedClass: "border-[#e8e0d8] bg-[#fdfbf7] text-[#4a2e2b]/80 hover:border-red-200",
+    iconUnselectedClass: "text-red-400/45"
+  }
+];
 const initialForm = {
   fullName: "",
   email: "",
@@ -37,18 +61,30 @@ export default function UsRsvp({ event, slug }) {
     if (!modalOpen) {
       return undefined;
     }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
     const onKeyDown = (eventKey) => {
       if (eventKey.key === "Escape") {
         setModalOpen(false);
       }
     };
     document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow || "unset";
+      document.removeEventListener("keydown", onKeyDown);
+    };
   }, [modalOpen]);
 
   function onFieldChange(eventChange) {
     const { name, value } = eventChange.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+  }
+
+  function selectAttendanceStatus(status) {
+    setForm((prev) => ({ ...prev, status }));
   }
 
   async function onSubmit(submitEvent) {
@@ -134,15 +170,20 @@ export default function UsRsvp({ event, slug }) {
         </div>
       </section>
 
-      {modalOpen ? (
-        <div className="us-rsvp-modal-backdrop" onClick={closeModal} role="presentation">
-          <div
-            className="us-rsvp-modal"
-            onClick={(clickEvent) => clickEvent.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="us-rsvp-title"
-          >
+      {modalOpen
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/40 p-6 backdrop-blur-sm"
+              onClick={closeModal}
+              role="presentation"
+            >
+              <div
+                className="my-auto w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-sm border border-border bg-card p-8 shadow-lg"
+                onClick={(clickEvent) => clickEvent.stopPropagation()}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="us-rsvp-title"
+              >
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="font-script text-3xl text-primary">RSVP</p>
@@ -191,21 +232,41 @@ export default function UsRsvp({ event, slug }) {
                 />
               </div>
 
-              <div className="flex flex-col gap-2">
-                <label htmlFor="status" className="font-sans text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                  Attendance
-                </label>
-                <select
-                  id="status"
-                  name="status"
-                  value={form.status}
-                  onChange={onFieldChange}
-                  className="border-b border-border bg-transparent px-1 py-2 font-sans text-sm text-foreground outline-none transition-colors focus:border-primary"
-                >
-                  <option value="Joyfully Accepts">Joyfully Accepts</option>
-                  <option value="Regretfully Declines">Regretfully Declines</option>
-                </select>
-              </div>
+              <fieldset className="flex flex-col gap-3">
+                <legend className="font-sans text-xs uppercase tracking-[0.2em] text-muted-foreground">Attendance</legend>
+                <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="Attendance">
+                  {ATTENDANCE_OPTIONS.map((option) => {
+                    const selected = form.status === option.value;
+                    const OptionIcon = option.Icon;
+
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        role="radio"
+                        aria-checked={selected}
+                        onClick={() => selectAttendanceStatus(option.value)}
+                        className={`flex flex-col items-center justify-center gap-2.5 rounded-sm border-2 px-2 py-5 text-center transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
+                          selected ? option.selectedClass : option.unselectedClass
+                        }`}
+                      >
+                        <OptionIcon
+                          className={`h-8 w-8 ${selected ? option.iconSelectedClass : option.iconUnselectedClass}`}
+                          strokeWidth={1.5}
+                          fill={selected ? "currentColor" : "none"}
+                          aria-hidden="true"
+                        />
+                        <span className="font-serif text-[0.68rem] uppercase leading-snug tracking-[0.12em] sm:text-xs sm:tracking-[0.15em]">
+                          {option.label}
+                        </span>
+                        <span className="font-sans text-[0.65rem] normal-case tracking-normal text-muted-foreground">
+                          {option.sublabel}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </fieldset>
 
               {isAttending ? (
                 <>
@@ -281,9 +342,11 @@ export default function UsRsvp({ event, slug }) {
                 {submitting ? "Sending…" : "Submit RSVP"}
               </button>
             </form>
-          </div>
-        </div>
-      ) : null}
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
     </>
   );
 }
