@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import User from "../models/User.js";
 import Guest from "../models/Guest.js";
 import { normalizeDietaryRestrictions } from "../utils/usEvent.js";
+import { formatStoredPhone } from "../utils/usPhone.js";
 
 const router = express.Router();
 
@@ -59,10 +60,12 @@ function mapRowToGuest(row) {
           .filter(Boolean)
       );
   const dietaryNotes = String(row["Dietary Notes"] ?? row["dietaryNotes"] ?? row["Notes"] ?? "").trim();
+  const phone = formatStoredPhone(row["Phone"] ?? row["phone"] ?? row["Phone Number"] ?? "");
 
   return {
     fullName,
     email,
+    phone,
     attendeesCount,
     status: normalizeStatus(statusRaw),
     dietaryRestrictions,
@@ -75,6 +78,7 @@ function toGuestDoc(userId, mapped) {
     userId,
     fullName: mapped.fullName,
     email: normalizeEmail(mapped.email),
+    phone: formatStoredPhone(mapped.phone),
     attendeesCount: mapped.status === "Regretfully Declines" ? 0 : Math.max(1, mapped.attendeesCount || 1),
     status: mapped.status,
     dietaryRestrictions:
@@ -88,6 +92,7 @@ function guestSnapshot(guest) {
   return {
     fullName: guest.fullName,
     email: guest.email,
+    phone: guest.phone || "",
     attendeesCount: guest.attendeesCount,
     status: guest.status,
     dietaryRestrictions: guest.dietaryRestrictions || [],
@@ -172,7 +177,7 @@ router.get("/:userId/guests", async (req, res) => {
 router.post("/:userId/guests/manual", async (req, res) => {
   try {
     const { userId } = req.params;
-    const { fullName, email, attendeesCount, status, dietaryRestrictions, dietaryNotes } = req.body;
+    const { fullName, email, phone, attendeesCount, status, dietaryRestrictions, dietaryNotes } = req.body;
 
     if (!fullName || !email || !status) {
       return res.status(400).json({ message: "Guest name, email, and RSVP status are required" });
@@ -195,6 +200,7 @@ router.post("/:userId/guests/manual", async (req, res) => {
     const guestData = {
       fullName: fullName.trim(),
       email: normalizedEmail,
+      phone: formatStoredPhone(phone),
       attendeesCount: status === "Regretfully Declines" ? 0 : Math.max(1, Number(attendeesCount || 1)),
       status,
       dietaryRestrictions:
@@ -262,6 +268,7 @@ router.post("/:userId/guests/import/precheck", async (req, res) => {
           existing: guestSnapshot(existing),
           excel: {
             fullName: doc.fullName,
+            phone: doc.phone || "",
             attendeesCount: doc.attendeesCount,
             status: doc.status,
             dietaryRestrictions: doc.dietaryRestrictions,
@@ -306,6 +313,7 @@ router.post("/:userId/guests/import", async (req, res) => {
               userId,
               fullName: String(row.fullName).trim(),
               email: normalizeEmail(row.email),
+              phone: formatStoredPhone(row.phone),
               attendeesCount:
                 row.status === "Regretfully Declines" ? 0 : Math.max(1, Number(row.attendeesCount || 1)),
               status: RSVP_STATUSES.includes(row.status) ? row.status : "Joyfully Accepts",
@@ -339,6 +347,7 @@ router.post("/:userId/guests/import", async (req, res) => {
         existing._id,
         {
           fullName: doc.fullName,
+          phone: doc.phone || "",
           attendeesCount: doc.attendeesCount,
           status: doc.status,
           dietaryRestrictions: doc.dietaryRestrictions,
@@ -363,7 +372,7 @@ router.post("/:userId/guests/import", async (req, res) => {
 router.patch("/:userId/guests/:guestId", async (req, res) => {
   try {
     const { userId, guestId } = req.params;
-    const { fullName, attendeesCount, status, dietaryRestrictions, dietaryNotes } = req.body;
+    const { fullName, phone, attendeesCount, status, dietaryRestrictions, dietaryNotes } = req.body;
 
     const update = {};
     if (typeof fullName !== "undefined") {
@@ -392,6 +401,9 @@ router.patch("/:userId/guests/:guestId", async (req, res) => {
     }
     if (typeof dietaryNotes !== "undefined") {
       update.dietaryNotes = String(dietaryNotes || "").trim();
+    }
+    if (typeof phone !== "undefined") {
+      update.phone = formatStoredPhone(phone);
     }
     if (!Object.keys(update).length) {
       return res.status(400).json({ message: "No fields to update" });

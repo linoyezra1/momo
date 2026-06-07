@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { RotateCw, Search } from "lucide-react";
 import api from "../api";
+import WhatsAppIcon from "../components/WhatsAppIcon";
 import { formatUsLongDate } from "../utils/usDateFormat";
+import { buildUsWhatsAppSendUrl } from "../utils/usWhatsApp";
 import "../us/client-portal.css";
 
 const DIETARY_OPTIONS = ["None", "Vegetarian", "Vegan", "Gluten-Free", "Nut Allergy"];
@@ -15,6 +17,7 @@ const STATUS_OPTIONS = [
 const initialGuest = {
   fullName: "",
   email: "",
+  phone: "",
   attendeesCount: 1,
   status: "Joyfully Accepts",
   dietaryRestrictions: [],
@@ -100,6 +103,7 @@ export default function ClientDashboardPage() {
   const [editingGuestId, setEditingGuestId] = useState("");
   const [editingValues, setEditingValues] = useState({
     fullName: "",
+    phone: "",
     status: "Joyfully Accepts",
     attendeesCount: 1,
     dietaryRestrictions: [],
@@ -121,9 +125,23 @@ export default function ClientDashboardPage() {
     return guests.filter((guest) => {
       const fullName = String(guest.fullName || "").toLowerCase();
       const email = String(guest.email || "").toLowerCase();
-      return fullName.includes(query) || email.includes(query);
+      const phone = String(guest.phone || "").toLowerCase();
+      return fullName.includes(query) || email.includes(query) || phone.includes(query);
     });
   }, [guests, appliedSearch]);
+
+  const getWhatsappLink = useCallback(
+    (guest) =>
+      buildUsWhatsAppSendUrl({
+        phone: guest.phone,
+        guestName: guest.fullName,
+        event: eventInfo,
+        slug: eventSlug,
+        userId,
+        origin: window.location.origin
+      }),
+    [eventInfo, eventSlug, userId]
+  );
 
   const eventDateText = formatUsLongDate(eventInfo?.eventDateFormatted || eventInfo?.countdownTargetDate);
 
@@ -181,6 +199,7 @@ export default function ClientDashboardPage() {
           .map((item) => item.trim())
           .filter(Boolean);
     const dietaryNotes = String(row["Dietary Notes"] ?? row["dietaryNotes"] ?? "").trim();
+    const phone = String(row["Phone"] ?? row["phone"] ?? row["Phone Number"] ?? "").trim();
     const status =
       String(statusRaw).toLowerCase().includes("declin") || String(statusRaw).toLowerCase() === "no"
         ? "Regretfully Declines"
@@ -189,6 +208,7 @@ export default function ClientDashboardPage() {
     return {
       fullName,
       email,
+      phone,
       attendeesCount: Math.max(0, Number(amountRaw) || 1),
       status,
       dietaryRestrictions,
@@ -254,6 +274,7 @@ export default function ClientDashboardPage() {
       const rows = guests.map((guest) => ({
         "Guest Name": guest.fullName,
         Email: guest.email,
+        Phone: guest.phone || "",
         "RSVP Status": guest.status,
         "Guests Attending": guest.attendeesCount,
         "Dietary Restrictions": (guest.dietaryRestrictions || []).join(", "),
@@ -273,6 +294,7 @@ export default function ClientDashboardPage() {
         {
           "Guest Name": "Jane Smith",
           Email: "jane@email.com",
+          Phone: "5551234567",
           "RSVP Status": "Joyfully Accepts",
           "Guests Attending": 2,
           "Dietary Restrictions": "Vegetarian",
@@ -290,6 +312,7 @@ export default function ClientDashboardPage() {
     setEditingGuestId(guest._id);
     setEditingValues({
       fullName: guest.fullName || "",
+      phone: guest.phone || "",
       status: guest.status,
       attendeesCount: guest.attendeesCount,
       dietaryRestrictions: guest.dietaryRestrictions || [],
@@ -408,7 +431,7 @@ export default function ClientDashboardPage() {
             <input
               className="us-search-input"
               type="text"
-              placeholder="Search name or email"
+              placeholder="Search name, email, or phone"
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
               onKeyDown={(event) => {
@@ -439,20 +462,24 @@ export default function ClientDashboardPage() {
                 <th>Guest Name</th>
                 <th>RSVP Status</th>
                 <th>Email</th>
+                <th>Phone</th>
                 <th>Guests</th>
                 <th>Dietary Restrictions</th>
                 <th>Dietary &amp; Special Notes</th>
                 <th>Source</th>
+                <th>WhatsApp</th>
                 <th>Edit</th>
               </tr>
             </thead>
             <tbody>
               {filteredGuests.length === 0 ? (
                 <tr>
-                  <td colSpan={8}>{appliedSearch ? "No guests match your search" : "No guests yet"}</td>
+                  <td colSpan={10}>{appliedSearch ? "No guests match your search" : "No guests yet"}</td>
                 </tr>
               ) : (
-                filteredGuests.map((guest) => (
+                filteredGuests.map((guest) => {
+                  const whatsappLink = getWhatsappLink(guest);
+                  return (
                   <tr key={guest._id} className={getGuestRowClass(guest.status)}>
                     <td data-label="Guest Name">
                       {editingGuestId === guest._id ? (
@@ -487,6 +514,21 @@ export default function ClientDashboardPage() {
                       )}
                     </td>
                     <td data-label="Email">{guest.email}</td>
+                    <td data-label="Phone">
+                      {editingGuestId === guest._id ? (
+                        <input
+                          className="us-inline-input"
+                          type="tel"
+                          value={editingValues.phone}
+                          onChange={(event) =>
+                            setEditingValues((prev) => ({ ...prev, phone: event.target.value }))
+                          }
+                          placeholder="Optional"
+                        />
+                      ) : (
+                        guest.phone || "—"
+                      )}
+                    </td>
                     <td data-label="Guests">
                       {editingGuestId === guest._id && isEditingAttending ? (
                         <input
@@ -542,6 +584,28 @@ export default function ClientDashboardPage() {
                     <td data-label="Source">
                       <span>{sourceLabel(guest.source)}</span>
                     </td>
+                    <td data-label="WhatsApp">
+                      {whatsappLink ? (
+                        <a
+                          className="us-whatsapp-link"
+                          href={whatsappLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-label={`Send WhatsApp invitation to ${guest.fullName}`}
+                          title="Send WhatsApp invitation"
+                        >
+                          <WhatsAppIcon size={20} />
+                        </a>
+                      ) : (
+                        <span
+                          className="us-whatsapp-link us-whatsapp-link--disabled"
+                          title="Add a phone number to send WhatsApp"
+                          aria-hidden="true"
+                        >
+                          <WhatsAppIcon size={20} />
+                        </span>
+                      )}
+                    </td>
                     <td data-label="Edit">
                       {editingGuestId === guest._id ? (
                         <button className="us-btn us-btn--primary" type="button" onClick={() => saveEdit(guest._id)}>
@@ -554,7 +618,8 @@ export default function ClientDashboardPage() {
                       )}
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -651,6 +716,20 @@ export default function ClientDashboardPage() {
                     value={manualGuest.email}
                     onChange={onManualChange}
                     required
+                  />
+                </div>
+                <div>
+                  <label className="us-field-label" htmlFor="manual-phone">
+                    Phone Number <span className="normal-case tracking-normal">(optional)</span>
+                  </label>
+                  <input
+                    id="manual-phone"
+                    className="us-field-input"
+                    name="phone"
+                    type="tel"
+                    placeholder="5551234567"
+                    value={manualGuest.phone}
+                    onChange={onManualChange}
                   />
                 </div>
                 <div>

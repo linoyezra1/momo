@@ -2,6 +2,7 @@ import { useState } from "react";
 import api from "../api.js";
 import "../us/us.css";
 import "../us/client-portal.css";
+import UsEnCountdownPicker from "../us/components/UsEnCountdownPicker.jsx";
 
 const emptyTimelineItem = { time: "", title: "" };
 
@@ -194,7 +195,7 @@ export default function SetupPage() {
   }
 
   return (
-    <div className="us-invite-page min-h-screen bg-background px-6 py-16">
+    <div className="us-invite-page min-h-screen bg-background px-6 py-16" lang="en-US">
       <div className="mx-auto max-w-3xl">
         <div className="text-center">
           <p className="font-script text-5xl text-primary">Welcome</p>
@@ -295,17 +296,18 @@ export default function SetupPage() {
                   className="border border-border bg-transparent px-3 py-2"
                 />
               </label>
-              <label className="flex flex-col gap-2 font-sans text-sm">
-                Countdown ISO Date *
-                <input
-                  name="countdownTargetDate"
-                  type="datetime-local"
+              <div className="md:col-span-3">
+                <UsEnCountdownPicker
                   value={form.countdownTargetDate}
-                  onChange={onChange}
+                  onChange={(nextValue) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      countdownTargetDate: nextValue
+                    }))
+                  }
                   required
-                  className="border border-border bg-transparent px-3 py-2"
                 />
-              </label>
+              </div>
             </div>
           </section>
 

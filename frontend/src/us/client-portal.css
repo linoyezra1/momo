@@ -451,6 +451,30 @@
   text-align: center;
 }
 
+.us-whatsapp-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  color: #25d366;
+  background: rgb(37 211 102 / 10%);
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.us-whatsapp-link:hover {
+  background: rgb(37 211 102 / 18%);
+  transform: scale(1.05);
+}
+
+.us-whatsapp-link--disabled {
+  opacity: 0.35;
+  pointer-events: none;
+  background: rgb(0 0 0 / 5%);
+  color: var(--us-muted);
+}
+
 .hidden-file-input {
   display: none;
 }
