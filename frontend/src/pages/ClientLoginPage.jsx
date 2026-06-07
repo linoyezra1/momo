@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api";
+import "../us/client-portal.css";
 
 export default function ClientLoginPage() {
   const navigate = useNavigate();
@@ -17,50 +18,56 @@ export default function ClientLoginPage() {
       const response = await api.post("/client/login", { username, password });
       navigate(`/client/dashboard/${response.data.userId}`, { state: response.data });
     } catch {
-      setError("שם משתמש או סיסמה שגויים");
+      setError("Invalid email or password. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="page-shell">
-      <div className="page-container">
-        <header className="page-header">
-          <h1>כניסת לקוח</h1>
-          <p>התחברות לדשבורד ניהול האורחים</p>
-        </header>
+    <div className="us-client-portal us-login-shell" dir="ltr">
+      <div className="us-login-card">
+        <p className="font-script text-4xl text-center" style={{ color: "var(--us-brown)" }}>
+          Welcome back
+        </p>
+        <h1 className="us-login-title mt-3">Client Portal</h1>
+        <p className="us-login-subtitle">Sign in to manage your guest list and RSVPs</p>
 
-        <form className="card form-stack" onSubmit={onSubmit}>
-          <div className="field">
-            <label className="field-label" htmlFor="login-username">
-              שם משתמש
+        <form className="mt-8" onSubmit={onSubmit} noValidate>
+          <div className="mb-5">
+            <label className="us-field-label" htmlFor="login-username">
+              Email Address
             </label>
             <input
               id="login-username"
-              className="field-input"
+              className="us-field-input"
+              type="email"
+              autoComplete="username"
+              placeholder="you@email.com"
               value={username}
               onChange={(event) => setUsername(event.target.value)}
               required
             />
           </div>
-          <div className="field">
-            <label className="field-label" htmlFor="login-password">
-              סיסמה
+          <div className="mb-2">
+            <label className="us-field-label" htmlFor="login-password">
+              Password
             </label>
             <input
               id="login-password"
-              className="field-input"
+              className="us-field-input"
               type="password"
+              autoComplete="current-password"
+              placeholder="Enter your password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               required
             />
           </div>
-          <button className="btn btn-primary btn-block" type="submit" disabled={loading}>
-            {loading ? "מתחבר…" : "כניסה"}
+          <button className="us-btn-primary" type="submit" disabled={loading}>
+            {loading ? "Signing in…" : "Sign In"}
           </button>
-          {error ? <p className="message message--error">{error}</p> : null}
+          {error ? <p className="us-error-message">{error}</p> : null}
         </form>
       </div>
     </div>

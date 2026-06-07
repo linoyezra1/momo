@@ -1,58 +1,90 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Check, HelpCircle, RotateCw, Search, Users, X } from "lucide-react";
+import { RotateCw, Search } from "lucide-react";
 import api from "../api";
-import WhatsAppIcon from "../components/WhatsAppIcon";
-import { buildWhatsAppSendUrl } from "../utils/whatsapp";
-import { normalizeIsraeliPhone } from "../utils/phoneNormalize";
+import { formatUsLongDate } from "../utils/usDateFormat";
+import "../us/client-portal.css";
+
+const DIETARY_OPTIONS = ["None", "Vegetarian", "Vegan", "Gluten-Free", "Nut Allergy"];
+
+const STATUS_OPTIONS = [
+  { value: "Joyfully Accepts", label: "Joyfully Accepts" },
+  { value: "Regretfully Declines", label: "Regretfully Declines" }
+];
 
 const initialGuest = {
   fullName: "",
-  phone: "",
+  email: "",
   attendeesCount: 1,
-  giftAmount: 0,
-  status: "מגיע"
+  status: "Joyfully Accepts",
+  dietaryRestrictions: [],
+  dietaryNotes: ""
 };
 
-const STATUS_OPTIONS = [
-  { value: "מגיע", label: "מגיע" },
-  { value: "לא מגיע", label: "לא מגיע" },
-  { value: "אולי", label: "אולי" },
-  { value: "לא ידוע", label: "לא ידוע" }
-];
-
-function parseAttendeesCount(raw) {
-  if (raw == null || raw === "") return 1;
-  const asNumber = Number(raw);
-  if (!Number.isNaN(asNumber) && asNumber > 0) return asNumber;
-  const match = String(raw).match(/\d+/);
-  return match ? Number(match[0]) : 1;
+function getGuestRowClass(status) {
+  if (status === "Joyfully Accepts") return "us-row-accepts";
+  if (status === "Regretfully Declines") return "us-row-declines";
+  return "";
 }
 
-function getGuestRowClass(status) {
-  if (status === "מגיע") return "table-row-coming";
-  if (status === "לא מגיע") return "table-row-not-coming";
-  if (status === "אולי") return "table-row-maybe";
-  return "table-row-unknown";
+function getDietaryBadgeClass(option) {
+  if (option === "Vegan") return "us-dietary-badge--vegan";
+  if (option === "Vegetarian") return "us-dietary-badge--vegetarian";
+  if (option === "Gluten-Free") return "us-dietary-badge--gluten-free";
+  if (option === "Nut Allergy") return "us-dietary-badge--nut-allergy";
+  return "us-dietary-badge--none";
 }
 
 function getOwnerGreeting(event) {
-  if (!event) return "שלום";
-  if (event.eventType === "חתונה") {
-    return `שלום ${event.groomName || ""} ו${event.brideName || ""}`.trim();
+  if (!event) return "Welcome";
+  if (event.hostNames) {
+    return `Welcome, ${event.hostNames}`;
   }
-  if (event.eventType === "ברית") {
-    return `שלום ${event.parentName1 || ""} ו${event.parentName2 || ""}`.trim();
+  return "Welcome";
+}
+
+function toggleDietary(current, option) {
+  if (option === "None") {
+    return current.includes("None") ? [] : ["None"];
   }
-  if (event.eventType === "בת מצווה") {
-    return `שלום ${event.parentName1 || ""}`.trim();
+  const withoutNone = current.filter((item) => item !== "None");
+  if (withoutNone.includes(option)) {
+    return withoutNone.filter((item) => item !== option);
   }
-  return "שלום";
+  return [...withoutNone, option];
+}
+
+function renderDietaryBadges(restrictions) {
+  const list = restrictions || [];
+  if (!list.length) {
+    return <span className="us-dietary-badge us-dietary-badge--none">None</span>;
+  }
+  return (
+    <div className="us-dietary-badges">
+      {list.map((option) => (
+        <span key={option} className={`us-dietary-badge ${getDietaryBadgeClass(option)}`}>
+          {option}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function sourceLabel(source) {
+  if (source === "excel") return "Imported";
+  if (source === "excel_and_form") return "Imported + RSVP";
+  if (source === "form") return "Public RSVP";
+  return "Manual";
 }
 
 export default function ClientDashboardPage() {
   const { userId } = useParams();
-  const [summary, setSummary] = useState({ totalInvited: 0, totalComing: 0, totalNotComing: 0, totalMaybe: 0 });
+  const [summary, setSummary] = useState({
+    totalInvited: 0,
+    totalAttending: 0,
+    totalDeclined: 0,
+    dietaryAlerts: 0
+  });
   const [importError, setImportError] = useState("");
   const [showConflictModal, setShowConflictModal] = useState(false);
   const [importConflicts, setImportConflicts] = useState([]);
@@ -62,36 +94,45 @@ export default function ClientDashboardPage() {
   const [pendingNewGuests, setPendingNewGuests] = useState([]);
   const [guests, setGuests] = useState([]);
   const [eventInfo, setEventInfo] = useState(null);
+  const [eventSlug, setEventSlug] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [manualGuest, setManualGuest] = useState(initialGuest);
   const [editingGuestId, setEditingGuestId] = useState("");
   const [editingValues, setEditingValues] = useState({
     fullName: "",
-    status: "מגיע",
+    status: "Joyfully Accepts",
     attendeesCount: 1,
-    giftAmount: 0
+    dietaryRestrictions: [],
+    dietaryNotes: ""
   });
   const [linkCopied, setLinkCopied] = useState(false);
   const [refreshingGuests, setRefreshingGuests] = useState(false);
   const [searchInput, setSearchInput] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
   const fileInputRef = useRef(null);
-  const publicLink = `${window.location.origin}/event/${userId}`;
+
+  const publicLink = eventSlug
+    ? `${window.location.origin}/e/${eventSlug}`
+    : `${window.location.origin}/event/${userId}`;
+
   const filteredGuests = useMemo(() => {
     const query = appliedSearch.trim().toLowerCase();
     if (!query) return guests;
     return guests.filter((guest) => {
       const fullName = String(guest.fullName || "").toLowerCase();
-      const phone = String(guest.phone || "");
-      return fullName.includes(query) || phone.includes(query);
+      const email = String(guest.email || "").toLowerCase();
+      return fullName.includes(query) || email.includes(query);
     });
   }, [guests, appliedSearch]);
+
+  const eventDateText = formatUsLongDate(eventInfo?.eventDateFormatted || eventInfo?.countdownTargetDate);
 
   const loadGuests = async () => {
     const response = await api.get(`/client/${userId}/guests`);
     setSummary(response.data.summary);
     setGuests(response.data.guests);
     setEventInfo(response.data.event || null);
+    setEventSlug(response.data.slug || "");
   };
 
   const refreshGuests = async () => {
@@ -111,62 +152,48 @@ export default function ClientDashboardPage() {
     const { name, value } = event.target;
     setManualGuest((prev) => ({
       ...prev,
-      [name]: name === "attendeesCount" || name === "giftAmount" ? Number(value) : value
+      [name]: name === "attendeesCount" ? Number(value) : value
     }));
   };
 
-  const setManualStatus = (status) => {
-    setManualGuest((prev) => ({ ...prev, status }));
-  };
-
-  const addManualGuest = async (event) => {
-    event.preventDefault();
+  const addManualGuest = async (submitEvent) => {
+    submitEvent.preventDefault();
     try {
-      await api.post(`/client/${userId}/guests/manual`, {
-        ...manualGuest,
-        phone: normalizeIsraeliPhone(manualGuest.phone)
-      });
+      await api.post(`/client/${userId}/guests/manual`, manualGuest);
       setManualGuest(initialGuest);
       setShowModal(false);
       loadGuests();
     } catch (manualErr) {
-      setImportError(manualErr.response?.data?.message || "הוספת מוזמן נכשלה");
+      setImportError(manualErr.response?.data?.message || "Failed to add guest");
     }
   };
 
-  const getWhatsappLink = useCallback(
-    (phone) =>
-      buildWhatsAppSendUrl({
-        phone,
-        event: eventInfo,
-        eventId: userId,
-        origin: window.location.origin
-      }),
-    [eventInfo, userId]
-  );
-
-  const sourceLabel = (source) => {
-    if (source === "excel") return "קובץ אקסל";
-    if (source === "excel_and_form") return "הועלה מאקסל ואישר עצמית";
-    if (source === "form" || source === "public") return "אישור הגעה עצמי";
-    return "ידני";
-  };
-
-  const onImportClick = () => fileInputRef.current?.click();
-
   const mapRowToGuest = (row) => {
-    const fullName = String(row["שם מלא"] ?? row["fullName"] ?? row["name"] ?? "").trim();
-    const phone = normalizeIsraeliPhone(row["טלפון"] ?? row["phone"] ?? "");
-    const amountRaw =
-      row["כמות"] ??
-      row["כמות מגיעים"] ??
-      row["כמות אנשים"] ??
-      row["מוזמנים"] ??
-      row["amount"] ??
-      row["count"] ??
-      row["attendeesCount"];
-    const attendeesCount = Math.max(1, parseAttendeesCount(amountRaw));
-    return { fullName, phone, attendeesCount, status: "לא ידוע" };
+    const fullName = String(row["Guest Name"] ?? row["Full Name"] ?? row["fullName"] ?? row["name"] ?? "").trim();
+    const email = String(row["Email"] ?? row["email"] ?? "").trim().toLowerCase();
+    const statusRaw = row["RSVP Status"] ?? row["status"] ?? "Joyfully Accepts";
+    const amountRaw = row["Guests Attending"] ?? row["attendeesCount"] ?? row["count"] ?? 1;
+    const dietaryRaw = row["Dietary Restrictions"] ?? row["dietaryRestrictions"] ?? "";
+    const dietaryRestrictions = Array.isArray(dietaryRaw)
+      ? dietaryRaw
+      : String(dietaryRaw || "")
+          .split(/[,;|]/)
+          .map((item) => item.trim())
+          .filter(Boolean);
+    const dietaryNotes = String(row["Dietary Notes"] ?? row["dietaryNotes"] ?? "").trim();
+    const status =
+      String(statusRaw).toLowerCase().includes("declin") || String(statusRaw).toLowerCase() === "no"
+        ? "Regretfully Declines"
+        : "Joyfully Accepts";
+
+    return {
+      fullName,
+      email,
+      attendeesCount: Math.max(0, Number(amountRaw) || 1),
+      status,
+      dietaryRestrictions,
+      dietaryNotes
+    };
   };
 
   const finalizeImport = async (newGuests, resolutions) => {
@@ -185,14 +212,14 @@ export default function ClientDashboardPage() {
       const buffer = await file.arrayBuffer();
       const workbook = XLSX.read(buffer, { type: "array" });
       if (!workbook.SheetNames?.length) {
-        setImportError("קובץ האקסל ריק או לא תקין.");
+        setImportError("The spreadsheet is empty or invalid.");
         return;
       }
       const firstSheetName = workbook.SheetNames[0];
       const rows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheetName], { defval: "", raw: false });
-      const guestsToImport = rows.map(mapRowToGuest).filter((row) => row.fullName && row.phone);
+      const guestsToImport = rows.map(mapRowToGuest).filter((row) => row.fullName && row.email);
       if (!guestsToImport.length) {
-        setImportError("לא נמצאו שורות תקינות. ודאו שיש עמודות: שם מלא, טלפון, וכמות (אופציונלי).");
+        setImportError("No valid rows found. Required columns: Guest Name, Email.");
         return;
       }
 
@@ -204,7 +231,7 @@ export default function ClientDashboardPage() {
       if (conflicts.length > 0) {
         const defaults = {};
         conflicts.forEach((item) => {
-          defaults[item.phone] = "keep_existing";
+          defaults[item.email] = "keep_existing";
         });
         setImportConflicts(conflicts);
         setConflictChoices(defaults);
@@ -215,7 +242,7 @@ export default function ClientDashboardPage() {
       await finalizeImport(newGuests, []);
     } catch (importErr) {
       const serverMessage = importErr.response?.data?.message || importErr.response?.data?.error;
-      setImportError(serverMessage || "העלאת קובץ האקסל נכשלה. בדקו את הפורמט ונסו שוב.");
+      setImportError(serverMessage || "Guest list import failed. Please check the file format.");
     } finally {
       setImportChecking(false);
       event.target.value = "";
@@ -224,28 +251,38 @@ export default function ClientDashboardPage() {
 
   const exportGuests = () => {
     import("xlsx").then((XLSX) => {
-    const rows = guests.map((guest) => ({
-      "שם מלא": guest.fullName,
-      טלפון: guest.phone,
-      "סטטוס הגעה": guest.status,
-      "כמות מגיעים": guest.attendeesCount,
-      "סכום מתנה": guest.giftAmount || 0,
-      מקור: sourceLabel(guest.source)
-    }));
-    const worksheet = XLSX.utils.json_to_sheet(rows);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Guests");
-    XLSX.writeFile(workbook, "guests.xlsx");
+      const rows = guests.map((guest) => ({
+        "Guest Name": guest.fullName,
+        Email: guest.email,
+        "RSVP Status": guest.status,
+        "Guests Attending": guest.attendeesCount,
+        "Dietary Restrictions": (guest.dietaryRestrictions || []).join(", "),
+        "Dietary Notes": guest.dietaryNotes || "",
+        Source: sourceLabel(guest.source)
+      }));
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Guests");
+      XLSX.writeFile(workbook, "guest-list.xlsx");
     });
   };
 
   const downloadTemplate = () => {
     import("xlsx").then((XLSX) => {
-      const rows = [{ "שם מלא": "ישראל ישראלי", טלפון: "0501234567", "כמות אנשים": 2 }];
+      const rows = [
+        {
+          "Guest Name": "Jane Smith",
+          Email: "jane@email.com",
+          "RSVP Status": "Joyfully Accepts",
+          "Guests Attending": 2,
+          "Dietary Restrictions": "Vegetarian",
+          "Dietary Notes": "No mushrooms"
+        }
+      ];
       const worksheet = XLSX.utils.json_to_sheet(rows);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Template");
-      XLSX.writeFile(workbook, "guests-template.xlsx");
+      XLSX.writeFile(workbook, "guest-list-template.xlsx");
     });
   };
 
@@ -255,7 +292,8 @@ export default function ClientDashboardPage() {
       fullName: guest.fullName || "",
       status: guest.status,
       attendeesCount: guest.attendeesCount,
-      giftAmount: guest.giftAmount || 0
+      dietaryRestrictions: guest.dietaryRestrictions || [],
+      dietaryNotes: guest.dietaryNotes || ""
     });
   };
 
@@ -265,8 +303,8 @@ export default function ClientDashboardPage() {
     await loadGuests();
   };
 
-  const setConflictChoice = (phone, choice) => {
-    setConflictChoices((prev) => ({ ...prev, [phone]: choice }));
+  const setConflictChoice = (email, choice) => {
+    setConflictChoices((prev) => ({ ...prev, [email]: choice }));
   };
 
   const closeConflictModal = () => {
@@ -281,14 +319,14 @@ export default function ClientDashboardPage() {
     setImportError("");
     try {
       const resolutions = importConflicts.map((item) => ({
-        phone: item.phone,
-        choice: conflictChoices[item.phone] || "keep_existing",
+        email: item.email,
+        choice: conflictChoices[item.email] || "keep_existing",
         excel: item.excel
       }));
       await finalizeImport(pendingNewGuests, resolutions);
       closeConflictModal();
     } catch (resolveErr) {
-      setImportError(resolveErr.response?.data?.message || "שמירת הייבוא נכשלה");
+      setImportError(resolveErr.response?.data?.message || "Failed to save import resolutions");
     } finally {
       setImportSubmitting(false);
     }
@@ -304,82 +342,73 @@ export default function ClientDashboardPage() {
     setAppliedSearch(searchInput);
   };
 
+  const isEditingAttending = editingValues.status === "Joyfully Accepts";
+  const isManualAttending = manualGuest.status === "Joyfully Accepts";
+
   return (
-    <div className="page-shell dashboard-shell">
-      <div className="page-container dashboard-page">
-        <header className="page-header">
+    <div className="us-client-portal us-dashboard-shell" dir="ltr">
+      <div className="us-dashboard-content">
+        <header className="us-dashboard-header">
           <h1>{getOwnerGreeting(eventInfo)}</h1>
-          <p>ניהול אורחים ואישורי הגעה לאירוע</p>
-          <div className="public-link-box">
-            <span className="public-link-label">קישור ציבורי לאישור הגעה:</span>
+          <p>Guest Attendance &amp; RSVP Tracker{eventDateText ? ` · ${eventDateText}` : ""}</p>
+          <div className="us-public-link-box">
+            <span>Public invitation link:</span>
             <a href={publicLink} target="_blank" rel="noreferrer">
               {publicLink}
             </a>
-            <button className="btn btn-neutral btn-xs" type="button" onClick={copyPublicLink}>
-              {linkCopied ? "הועתק" : "העתק קישור"}
+            <button className="us-btn" type="button" onClick={copyPublicLink}>
+              {linkCopied ? "Copied!" : "Copy Link"}
             </button>
           </div>
         </header>
 
-        <div className="stats-grid dashboard-stats">
-          <div className="stat-card stat-card--total">
-            <div className="stat-card-head">
-              <Users className="stat-card-icon" size={22} strokeWidth={2} aria-hidden="true" />
-              <h3>סה״כ מוזמנים</h3>
-            </div>
-            <p>{summary.totalInvited ?? summary.totalComing + summary.totalNotComing + summary.totalMaybe}</p>
+        <div className="us-stats-grid">
+          <div className="us-stat-card">
+            <h3>Total Invited</h3>
+            <p>{summary.totalInvited}</p>
           </div>
-          <div className="stat-card stat-card--coming">
-            <div className="stat-card-head">
-              <Check className="stat-card-icon" size={22} strokeWidth={2.5} aria-hidden="true" />
-              <h3>סה״כ מגיעים</h3>
-            </div>
-            <p>{summary.totalComing}</p>
+          <div className="us-stat-card us-stat-card--attending">
+            <h3>Joyfully Attending</h3>
+            <p>{summary.totalAttending}</p>
           </div>
-          <div className="stat-card stat-card--not-coming">
-            <div className="stat-card-head">
-              <X className="stat-card-icon" size={22} strokeWidth={2.5} aria-hidden="true" />
-              <h3>סה״כ לא מגיעים</h3>
-            </div>
-            <p>{summary.totalNotComing}</p>
+          <div className="us-stat-card us-stat-card--declined">
+            <h3>Regretfully Declined</h3>
+            <p>{summary.totalDeclined}</p>
           </div>
-          <div className="stat-card stat-card--maybe">
-            <div className="stat-card-head">
-              <HelpCircle className="stat-card-icon" size={22} strokeWidth={2} aria-hidden="true" />
-              <h3>סה״כ אולי</h3>
-            </div>
-            <p>{summary.totalMaybe}</p>
+          <div className="us-stat-card us-stat-card--dietary">
+            <h3>Dietary Alerts</h3>
+            <p>{summary.dietaryAlerts}</p>
           </div>
         </div>
 
-        <div className="toolbar dashboard-toolbar dashboard-toolbar-compact">
+        <div className="us-toolbar">
           <button
-            className="btn btn-icon-refresh"
+            className="us-btn"
             type="button"
             onClick={refreshGuests}
             disabled={refreshingGuests}
-            aria-label="רענון רשימת מוזמנים"
-            title="רענון"
+            aria-label="Refresh guest list"
+            title="Refresh"
           >
             <RotateCw size={16} className={refreshingGuests ? "spinning" : ""} />
           </button>
-          <button className="btn btn-primary btn-compact" type="button" onClick={() => setShowModal(true)}>
-            הוספת מוזמן ידנית
+          <button className="us-btn us-btn--primary" type="button" onClick={() => setShowModal(true)}>
+            Add Guest
           </button>
-          <button className="btn btn-neutral btn-compact" type="button" onClick={onImportClick} disabled={importChecking}>
-            {importChecking ? "בודק קובץ…" : "העלאת מוזמנים מאקסל"}
+          <button className="us-btn" type="button" onClick={() => fileInputRef.current?.click()} disabled={importChecking}>
+            {importChecking ? "Checking file…" : "Import Guest List"}
           </button>
-          <button className="btn btn-neutral btn-compact" type="button" onClick={exportGuests}>
-            ייצוא לאקסל
+          <button className="us-btn" type="button" onClick={exportGuests}>
+            Export Guest List (CSV)
           </button>
-          <button className="btn btn-neutral btn-compact btn-link-like" type="button" onClick={downloadTemplate}>
-            הורדת קובץ אקסל לדוגמה
+          <button className="us-btn" type="button" onClick={downloadTemplate}>
+            Download Template
           </button>
-          <div className="dashboard-search">
+          <div className="us-search-wrap">
             <input
-              className="field-input dashboard-search-input"
+              className="us-search-input"
               type="text"
-              placeholder="חיפוש שם / טלפון"
+              placeholder="Search name or email"
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
               onKeyDown={(event) => {
@@ -389,7 +418,7 @@ export default function ClientDashboardPage() {
                 }
               }}
             />
-            <button className="btn btn-neutral btn-icon-refresh" type="button" onClick={applySearch} aria-label="חפש">
+            <button className="us-btn" type="button" onClick={applySearch} aria-label="Search guests">
               <Search size={16} />
             </button>
           </div>
@@ -401,34 +430,34 @@ export default function ClientDashboardPage() {
             onChange={onImportFile}
           />
         </div>
-        {importError ? <p className="message message--error">{importError}</p> : null}
+        {importError ? <p className="us-error-message" style={{ textAlign: "left" }}>{importError}</p> : null}
 
-        <div className="card table-wrap dashboard-table-wrap dashboard-table-scroll">
-          <table className="table dashboard-guests-table">
+        <div className="us-table-wrap">
+          <table className="us-guest-table">
             <thead>
               <tr>
-                <th>שם מלא</th>
-                <th>טלפון</th>
-                <th>כמה מגיעים</th>
-                <th>סכום מתנה</th>
-                <th>סטטוס</th>
-                <th>מקור</th>
-                <th>וואטסאפ</th>
-                <th>עריכה</th>
+                <th>Guest Name</th>
+                <th>RSVP Status</th>
+                <th>Email</th>
+                <th>Guests</th>
+                <th>Dietary Restrictions</th>
+                <th>Dietary &amp; Special Notes</th>
+                <th>Source</th>
+                <th>Edit</th>
               </tr>
             </thead>
             <tbody>
               {filteredGuests.length === 0 ? (
                 <tr>
-                  <td colSpan={8}>{appliedSearch ? "לא נמצאו תוצאות לחיפוש" : "אין אורחים עדיין"}</td>
+                  <td colSpan={8}>{appliedSearch ? "No guests match your search" : "No guests yet"}</td>
                 </tr>
               ) : (
                 filteredGuests.map((guest) => (
                   <tr key={guest._id} className={getGuestRowClass(guest.status)}>
-                    <td data-label="שם מלא">
+                    <td data-label="Guest Name">
                       {editingGuestId === guest._id ? (
                         <input
-                          className="table-inline-input table-inline-input--wide"
+                          className="us-inline-input"
                           type="text"
                           value={editingValues.fullName}
                           onChange={(event) =>
@@ -440,49 +469,10 @@ export default function ClientDashboardPage() {
                         guest.fullName
                       )}
                     </td>
-                    <td data-label="טלפון" dir="ltr">
-                      {editingGuestId === guest._id ? (
-                        <span className="table-phone-readonly" title="מספר הטלפון אינו ניתן לעריכה">
-                          {guest.phone}
-                        </span>
-                      ) : (
-                        guest.phone
-                      )}
-                    </td>
-                    <td data-label="כמה מגיעים">
-                      {editingGuestId === guest._id ? (
-                        <input
-                          className="table-inline-input"
-                          type="number"
-                          min="0"
-                          value={editingValues.attendeesCount}
-                          onChange={(event) =>
-                            setEditingValues((prev) => ({ ...prev, attendeesCount: Number(event.target.value) }))
-                          }
-                        />
-                      ) : (
-                        guest.attendeesCount
-                      )}
-                    </td>
-                    <td data-label="סכום מתנה">
-                      {editingGuestId === guest._id ? (
-                        <input
-                          className="table-inline-input"
-                          type="number"
-                          min="0"
-                          value={editingValues.giftAmount || 0}
-                          onChange={(event) =>
-                            setEditingValues((prev) => ({ ...prev, giftAmount: Number(event.target.value) }))
-                          }
-                        />
-                      ) : (
-                        guest.giftAmount || 0
-                      )}
-                    </td>
-                    <td data-label="סטטוס">
+                    <td data-label="RSVP Status">
                       {editingGuestId === guest._id ? (
                         <select
-                          className="table-inline-input"
+                          className="us-inline-input"
                           value={editingValues.status}
                           onChange={(event) => setEditingValues((prev) => ({ ...prev, status: event.target.value }))}
                         >
@@ -496,29 +486,70 @@ export default function ClientDashboardPage() {
                         guest.status
                       )}
                     </td>
-                    <td data-label="מקור">
-                      <span className="source-badge">{sourceLabel(guest.source)}</span>
+                    <td data-label="Email">{guest.email}</td>
+                    <td data-label="Guests">
+                      {editingGuestId === guest._id && isEditingAttending ? (
+                        <input
+                          className="us-inline-input"
+                          type="number"
+                          min="1"
+                          value={editingValues.attendeesCount}
+                          onChange={(event) =>
+                            setEditingValues((prev) => ({ ...prev, attendeesCount: Number(event.target.value) }))
+                          }
+                        />
+                      ) : (
+                        guest.attendeesCount
+                      )}
                     </td>
-                    <td data-label="וואטסאפ">
-                      <a
-                        className="whatsapp-link"
-                        href={getWhatsappLink(guest.phone)}
-                        target="_blank"
-                        rel="noreferrer"
-                        aria-label="שליחת הודעת וואטסאפ"
-                        title="שליחת וואטסאפ"
-                      >
-                        <WhatsAppIcon size={22} />
-                      </a>
+                    <td data-label="Dietary Restrictions">
+                      {editingGuestId === guest._id && isEditingAttending ? (
+                        <div className="us-dietary-badges">
+                          {DIETARY_OPTIONS.map((option) => (
+                            <label key={option} className="us-dietary-badge" style={{ cursor: "pointer" }}>
+                              <input
+                                type="checkbox"
+                                checked={editingValues.dietaryRestrictions.includes(option)}
+                                onChange={() =>
+                                  setEditingValues((prev) => ({
+                                    ...prev,
+                                    dietaryRestrictions: toggleDietary(prev.dietaryRestrictions, option)
+                                  }))
+                                }
+                              />{" "}
+                              {option}
+                            </label>
+                          ))}
+                        </div>
+                      ) : (
+                        renderDietaryBadges(guest.dietaryRestrictions)
+                      )}
                     </td>
-                    <td data-label="עריכה">
+                    <td data-label="Notes">
+                      {editingGuestId === guest._id && isEditingAttending ? (
+                        <textarea
+                          className="us-inline-input"
+                          rows={2}
+                          value={editingValues.dietaryNotes}
+                          onChange={(event) =>
+                            setEditingValues((prev) => ({ ...prev, dietaryNotes: event.target.value }))
+                          }
+                        />
+                      ) : (
+                        guest.dietaryNotes || "—"
+                      )}
+                    </td>
+                    <td data-label="Source">
+                      <span>{sourceLabel(guest.source)}</span>
+                    </td>
+                    <td data-label="Edit">
                       {editingGuestId === guest._id ? (
-                        <button className="btn btn-secondary btn-xs" type="button" onClick={() => saveEdit(guest._id)}>
-                          שמירה
+                        <button className="us-btn us-btn--primary" type="button" onClick={() => saveEdit(guest._id)}>
+                          Save
                         </button>
                       ) : (
-                        <button className="btn btn-secondary btn-xs" type="button" onClick={() => startEdit(guest)}>
-                          ✎
+                        <button className="us-btn" type="button" onClick={() => startEdit(guest)}>
+                          Edit
                         </button>
                       )}
                     </td>
@@ -530,71 +561,60 @@ export default function ClientDashboardPage() {
         </div>
 
         {showConflictModal ? (
-          <div className="modal-backdrop" role="presentation">
-            <div className="card modal-card modal-card-scroll modal-card--mobile conflict-modal">
-              <h2 className="card-title">נמצאו מוזמנים עם מספר טלפון קיים</h2>
-              <p className="conflict-modal-intro">
-                זוהו {importConflicts.length} רשומות חופפות. לא בוצעה שמירה אוטומטית — בחרו לכל רשומה האם
-                להשאיר את הקיים או לעדכן לפי האקסל. לאחר מכן לחצו &quot;אשר והמשך שמירה&quot;.
-                {pendingNewGuests.length > 0 ? (
-                  <>
-                    {" "}
-                    בנוסף, {pendingNewGuests.length} מוזמנים חדשים יתווספו אוטומטית עם האישור.
-                  </>
-                ) : null}
+          <div className="us-modal-backdrop" role="presentation">
+            <div className="us-modal-card">
+              <h2 className="us-modal-title">Duplicate Email Addresses Found</h2>
+              <p className="us-login-subtitle" style={{ textAlign: "left" }}>
+                We found {importConflicts.length} guest{importConflicts.length === 1 ? "" : "s"} with an email already
+                in your list. Choose whether to keep the existing record or update from the import.
+                {pendingNewGuests.length > 0
+                  ? ` ${pendingNewGuests.length} new guest${pendingNewGuests.length === 1 ? "" : "s"} will be added automatically.`
+                  : ""}
               </p>
-              <div className="conflict-list">
+              <div className="mt-4 space-y-4">
                 {importConflicts.map((item) => (
-                  <div key={item.phone} className="conflict-item">
-                    <p className="conflict-item-phone" dir="ltr">
-                      {item.phone}
-                    </p>
-                    <div className="conflict-compare">
-                      <div className="conflict-compare-col">
-                        <span className="conflict-compare-label">מה קיים כרגע במערכת</span>
-                        <p>
-                          {item.existing.fullName} | כמות {item.existing.attendeesCount} | מקור:{" "}
-                          {sourceLabel(item.existing.source)}
-                        </p>
+                  <div key={item.email} className="border border-[var(--us-border)] rounded p-3">
+                    <p className="font-semibold text-sm">{item.email}</p>
+                    <div className="mt-2 grid gap-2 text-sm md:grid-cols-2">
+                      <div>
+                        <span className="font-semibold">Current:</span> {item.existing.fullName} ·{" "}
+                        {item.existing.status} · {item.existing.attendeesCount} guest
+                        {item.existing.attendeesCount === 1 ? "" : "s"}
                       </div>
-                      <div className="conflict-compare-col conflict-compare-col--excel">
-                        <span className="conflict-compare-label">מה מנסים להעלות מהאקסל</span>
-                        <p>
-                          {item.excel.fullName} | כמות {item.excel.attendeesCount}
-                        </p>
+                      <div>
+                        <span className="font-semibold">Import:</span> {item.excel.fullName} · {item.excel.status} ·{" "}
+                        {item.excel.attendeesCount} guest{item.excel.attendeesCount === 1 ? "" : "s"}
                       </div>
                     </div>
-                    <div className="conflict-options" role="radiogroup" aria-label={`בחירה עבור ${item.existing.fullName}`}>
-                      <label className="conflict-option">
+                    <div className="mt-3 flex flex-col gap-2 text-sm">
+                      <label>
                         <input
                           type="radio"
-                          name={`conflict-${item.phone}`}
-                          value="keep_existing"
-                          checked={(conflictChoices[item.phone] || "keep_existing") === "keep_existing"}
-                          onChange={() => setConflictChoice(item.phone, "keep_existing")}
-                        />
-                        🔹 השאר את הקיים
+                          name={`conflict-${item.email}`}
+                          checked={(conflictChoices[item.email] || "keep_existing") === "keep_existing"}
+                          onChange={() => setConflictChoice(item.email, "keep_existing")}
+                        />{" "}
+                        Keep existing record
                       </label>
-                      <label className="conflict-option">
+                      <label>
                         <input
                           type="radio"
-                          name={`conflict-${item.phone}`}
-                          value="use_excel"
-                          checked={conflictChoices[item.phone] === "use_excel"}
-                          onChange={() => setConflictChoice(item.phone, "use_excel")}
-                        />
-                        🔸 עדכן לפי האקסל החדש
+                          name={`conflict-${item.email}`}
+                          checked={conflictChoices[item.email] === "use_excel"}
+                          onChange={() => setConflictChoice(item.email, "use_excel")}
+                        />{" "}
+                        Update from import
                       </label>
                     </div>
                   </div>
                 ))}
               </div>
-              <div className="toolbar">
-                <button className="btn btn-primary" type="button" disabled={importSubmitting} onClick={applyConflictResolutions}>
-                  {importSubmitting ? "שומר…" : "אשר והמשך שמירה"}
+              <div className="us-toolbar mt-4">
+                <button className="us-btn us-btn--primary" type="button" disabled={importSubmitting} onClick={applyConflictResolutions}>
+                  {importSubmitting ? "Saving…" : "Confirm & Save Import"}
                 </button>
-                <button className="btn btn-secondary" type="button" onClick={closeConflictModal}>
-                  ביטול
+                <button className="us-btn" type="button" onClick={closeConflictModal}>
+                  Cancel
                 </button>
               </div>
             </div>
@@ -602,88 +622,114 @@ export default function ClientDashboardPage() {
         ) : null}
 
         {showModal ? (
-          <div className="modal-backdrop" role="presentation">
-            <form className="card modal-card modal-card--mobile form-stack" onSubmit={addManualGuest}>
-              <h2 className="card-title">הוספת רשומה ידנית</h2>
-              <div className="field">
-                <label className="field-label" htmlFor="manual-fullName">
-                  שם מלא
-                </label>
-                <input
-                  id="manual-fullName"
-                  className="field-input"
-                  name="fullName"
-                  value={manualGuest.fullName}
-                  onChange={onManualChange}
-                  required
-                />
-              </div>
-              <div className="field">
-                <label className="field-label" htmlFor="manual-phone">
-                  טלפון
-                </label>
-                <input
-                  id="manual-phone"
-                  className="field-input"
-                  name="phone"
-                  type="tel"
-                  dir="ltr"
-                  value={manualGuest.phone}
-                  onChange={onManualChange}
-                  required
-                />
-              </div>
-              <div className="field">
-                <label className="field-label" htmlFor="manual-attendeesCount">
-                  כמות מגיעים
-                </label>
-                <input
-                  id="manual-attendeesCount"
-                  className="field-input"
-                  name="attendeesCount"
-                  type="number"
-                  min="0"
-                  value={manualGuest.attendeesCount}
-                  onChange={onManualChange}
-                  required
-                />
-              </div>
-              <div className="field">
-                <label className="field-label" htmlFor="manual-giftAmount">
-                  סכום מתנה (€/₪)
-                </label>
-                <input
-                  id="manual-giftAmount"
-                  className="field-input"
-                  name="giftAmount"
-                  type="number"
-                  min="0"
-                  value={manualGuest.giftAmount}
-                  onChange={onManualChange}
-                />
-              </div>
-              <div className="field">
-                <span className="field-label">סטטוס</span>
-                <div className="status-group status-group--horizontal" role="group" aria-label="סטטוס">
-                  {STATUS_OPTIONS.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      className={`btn status-btn ${manualGuest.status === option.value ? "is-selected" : ""}`}
-                      onClick={() => setManualStatus(option.value)}
-                      aria-pressed={manualGuest.status === option.value}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
+          <div className="us-modal-backdrop" role="presentation">
+            <form className="us-modal-card" onSubmit={addManualGuest}>
+              <h2 className="us-modal-title">Add Guest Manually</h2>
+              <div className="mt-4 space-y-4">
+                <div>
+                  <label className="us-field-label" htmlFor="manual-fullName">
+                    Guest Name
+                  </label>
+                  <input
+                    id="manual-fullName"
+                    className="us-field-input"
+                    name="fullName"
+                    value={manualGuest.fullName}
+                    onChange={onManualChange}
+                    required
+                  />
                 </div>
+                <div>
+                  <label className="us-field-label" htmlFor="manual-email">
+                    Email
+                  </label>
+                  <input
+                    id="manual-email"
+                    className="us-field-input"
+                    name="email"
+                    type="email"
+                    value={manualGuest.email}
+                    onChange={onManualChange}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="us-field-label" htmlFor="manual-status">
+                    RSVP Status
+                  </label>
+                  <select
+                    id="manual-status"
+                    className="us-field-input"
+                    name="status"
+                    value={manualGuest.status}
+                    onChange={onManualChange}
+                  >
+                    {STATUS_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {isManualAttending ? (
+                  <>
+                    <div>
+                      <label className="us-field-label" htmlFor="manual-attendeesCount">
+                        Guests Attending
+                      </label>
+                      <input
+                        id="manual-attendeesCount"
+                        className="us-field-input"
+                        name="attendeesCount"
+                        type="number"
+                        min="1"
+                        value={manualGuest.attendeesCount}
+                        onChange={onManualChange}
+                        required
+                      />
+                    </div>
+                    <fieldset>
+                      <legend className="us-field-label">Dietary Restrictions</legend>
+                      <div className="us-dietary-badges mt-2">
+                        {DIETARY_OPTIONS.map((option) => (
+                          <label key={option} className="us-dietary-badge" style={{ cursor: "pointer" }}>
+                            <input
+                              type="checkbox"
+                              checked={manualGuest.dietaryRestrictions.includes(option)}
+                              onChange={() =>
+                                setManualGuest((prev) => ({
+                                  ...prev,
+                                  dietaryRestrictions: toggleDietary(prev.dietaryRestrictions, option)
+                                }))
+                              }
+                            />{" "}
+                            {option}
+                          </label>
+                        ))}
+                      </div>
+                    </fieldset>
+                    <div>
+                      <label className="us-field-label" htmlFor="manual-dietaryNotes">
+                        Dietary &amp; Special Notes
+                      </label>
+                      <textarea
+                        id="manual-dietaryNotes"
+                        className="us-inline-input"
+                        name="dietaryNotes"
+                        rows={3}
+                        value={manualGuest.dietaryNotes}
+                        onChange={onManualChange}
+                      />
+                    </div>
+                  </>
+                ) : null}
               </div>
-              <div className="toolbar">
-                <button className="btn btn-primary" type="submit">
-                  שמירה
+              <div className="us-toolbar mt-4">
+                <button className="us-btn us-btn--primary" type="submit">
+                  Save Guest
                 </button>
-                <button className="btn btn-secondary" type="button" onClick={() => setShowModal(false)}>
-                  ביטול
+                <button className="us-btn" type="button" onClick={() => setShowModal(false)}>
+                  Cancel
                 </button>
               </div>
             </form>

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import api from "../api.js";
 import "../us/us.css";
+import "../us/client-portal.css";
 
 const emptyTimelineItem = { time: "", title: "" };
 
@@ -157,13 +158,13 @@ export default function SetupPage() {
 
   if (result) {
     return (
-      <div className="us-invite-page min-h-screen bg-background px-6 py-16">
-        <div className="mx-auto max-w-2xl rounded-sm border border-border bg-card p-8 text-center">
-          <p className="font-script text-4xl text-primary">You&apos;re all set!</p>
-          <h1 className="mt-4 font-serif text-2xl uppercase tracking-[0.2em] text-foreground">
-            Your invitation is live
-          </h1>
-          <p className="mt-6 font-sans text-sm text-muted-foreground">
+      <div className="us-setup-success-shell us-client-portal">
+        <div className="us-setup-success-bg" aria-hidden="true" />
+        <div className="us-setup-success-overlay" aria-hidden="true" />
+        <div className="us-setup-success-card">
+          <p className="font-script text-5xl text-primary">You&apos;re all set!</p>
+          <h1 className="us-login-title mt-4">Your Invitation Is Live</h1>
+          <p className="us-login-subtitle mt-4">
             Save these credentials — they won&apos;t be shown again.
           </p>
 
