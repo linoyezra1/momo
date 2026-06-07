@@ -371,7 +371,7 @@ export default function ClientDashboardPage() {
   const isManualAttending = manualGuest.status === "Joyfully Accepts";
 
   return (
-    <div className="us-client-portal us-dashboard-shell" dir="ltr">
+    <div className="us-client-portal us-dashboard-shell" dir="ltr" lang="en-US">
       <div className="us-dashboard-content">
         <header className="us-dashboard-header">
           <h1>{getOwnerGreeting(eventInfo)}</h1>
@@ -462,7 +462,7 @@ export default function ClientDashboardPage() {
             onChange={onImportFile}
           />
         </div>
-        {importError ? <p className="us-error-message" style={{ textAlign: "left" }}>{importError}</p> : null}
+        {importError ? <p className="us-error-message us-error-message--left">{importError}</p> : null}
 
         <div className="us-table-wrap">
           <table className="us-guest-table">
@@ -483,7 +483,9 @@ export default function ClientDashboardPage() {
             <tbody>
               {filteredGuests.length === 0 ? (
                 <tr>
-                  <td colSpan={10}>{appliedSearch ? "No guests match your search" : "No guests yet"}</td>
+                  <td colSpan={10} className="us-table-empty">
+                    {appliedSearch ? "No guests match your search" : "No guests yet"}
+                  </td>
                 </tr>
               ) : (
                 filteredGuests.map((guest) => {
@@ -638,7 +640,7 @@ export default function ClientDashboardPage() {
           <div className="us-modal-backdrop" role="presentation">
             <div className="us-modal-card">
               <h2 className="us-modal-title">Duplicate Email Addresses Found</h2>
-              <p className="us-login-subtitle" style={{ textAlign: "left" }}>
+              <p className="us-login-subtitle us-login-subtitle--left">
                 We found {importConflicts.length} guest{importConflicts.length === 1 ? "" : "s"} with an email already
                 in your list. Choose whether to keep the existing record or update from the import.
                 {pendingNewGuests.length > 0
@@ -647,16 +649,16 @@ export default function ClientDashboardPage() {
               </p>
               <div className="mt-4 space-y-4">
                 {importConflicts.map((item) => (
-                  <div key={item.email} className="border border-[var(--us-border)] rounded p-3">
-                    <p className="font-semibold text-sm">{item.email}</p>
+                  <div key={item.email} className="us-conflict-card">
+                    <p className="us-dashboard-emphasis text-sm">{item.email}</p>
                     <div className="mt-2 grid gap-2 text-sm md:grid-cols-2">
                       <div>
-                        <span className="font-semibold">Current:</span> {item.existing.fullName} ·{" "}
+                        <span className="us-dashboard-emphasis">Current:</span> {item.existing.fullName} ·{" "}
                         {item.existing.status} · {item.existing.attendeesCount} guest
                         {item.existing.attendeesCount === 1 ? "" : "s"}
                       </div>
                       <div>
-                        <span className="font-semibold">Import:</span> {item.excel.fullName} · {item.excel.status} ·{" "}
+                        <span className="us-dashboard-emphasis">Import:</span> {item.excel.fullName} · {item.excel.status} ·{" "}
                         {item.excel.attendeesCount} guest{item.excel.attendeesCount === 1 ? "" : "s"}
                       </div>
                     </div>
