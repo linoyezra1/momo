@@ -41,7 +41,7 @@ export type EventData = {
 
 export const eventData: EventData = {
   event_type: "wedding",
-  host_names: "Emma & Lucas",
+  host_names: "Bella & Mark",
   intro_text: "Together with their families",
   celebration_text: "Invite you to their wedding celebration",
   event_date_formatted: "Saturday, July 22, 2027",

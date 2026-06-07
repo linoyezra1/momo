@@ -22,7 +22,7 @@ const greatVibes = Great_Vibes({
 })
 
 export const metadata: Metadata = {
-  title: 'Emma & Lucas — We Do',
+  title: 'Bella & Mark — We Do',
   description:
     'Join Emma and Lucas for their wedding celebration at Oheka Castle on Saturday, July 22, 2027.',
   generator: 'v0.app',
