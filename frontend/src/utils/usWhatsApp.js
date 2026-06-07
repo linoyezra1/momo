@@ -96,12 +96,22 @@ export function normalizeUsPhone(phone) {
   return digits;
 }
 
-export function buildUsWhatsAppMessage({ guestName, publicLink, hostNames }) {
-  const name = guestName || "there";
-  const hosts = hostNames || "Us";
-  const link = publicLink || "";
+function guestFirstName(guestName) {
+  const trimmed = String(guestName || "").trim();
+  if (!trimmed) return "Friend";
+  return trimmed.split(/\s+/)[0];
+}
 
-  return `Hi ${name}! We are so excited for our wedding day! Here is the link to our dynamic wedding invitation, where you can view our schedule, registry, and easily submit your RSVP: ${link}. Can't wait to celebrate with you! - ${hosts}`;
+export function buildUsWhatsAppMessage({ guestName, publicLink, hostNames }) {
+  const name = guestFirstName(guestName);
+  const hosts = String(hostNames || "").trim();
+  const link = publicLink || "";
+  const signature = hosts ? `\n— ${hosts}` : "";
+
+  return `${name} — your invitation is here. 💍
+🔗 ${link}
+RSVP + full wedding details inside.
+We can't wait to celebrate with you!${signature}`;
 }
 
 export function buildUsWhatsAppSendUrl({ phone, guestName, event, slug, userId, origin }) {
