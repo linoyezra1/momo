@@ -87,10 +87,8 @@ export default function UsRsvp({ event, slug }) {
 
   return (
     <>
-      <section
-        className="relative overflow-hidden bg-cover bg-center px-6 py-24"
-        style={{ backgroundImage: `url('${event.images?.rsvp_bg || "/images/pink-sprig-bg.png"}')` }}
-      >
+      <section className="relative overflow-hidden bg-[url('/images/Please.png')] bg-cover bg-center bg-no-repeat px-6 py-24">
+        <div className="pointer-events-none absolute inset-0 bg-[#fdfbf7]/68" aria-hidden="true" />
         <div className="relative z-10 mx-auto max-w-xl text-center">
           <p className="font-script text-5xl text-primary md:text-6xl">Please</p>
           <h2 className="mt-1 font-serif text-4xl uppercase tracking-[0.4em] text-foreground md:text-5xl">RSVP</h2>
@@ -104,7 +102,7 @@ export default function UsRsvp({ event, slug }) {
           </p>
 
           {submitted ? (
-            <div className="mt-12 rounded-sm border border-border bg-card px-8 py-12">
+            <div className="mt-12 rounded-sm border border-border bg-card/95 px-8 py-12 shadow-sm backdrop-blur-[1px]">
               <p className="font-script text-4xl text-primary">Thank you!</p>
               <p className="mt-3 font-sans text-sm text-muted-foreground">
                 We&apos;ve received your RSVP and can&apos;t wait to celebrate with you.
