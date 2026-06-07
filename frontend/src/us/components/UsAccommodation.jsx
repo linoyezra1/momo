@@ -14,12 +14,13 @@ export default function UsAccommodation({ event }) {
   const venueName = hasStayAt ? title.replace(/stay at/i, "").trim() : title;
 
   return (
-    <section className="px-6 py-24">
-      <div className="mx-auto max-w-4xl text-center">
+    <section className="relative overflow-hidden bg-[url('/images/Accommodation.png')] bg-cover bg-center bg-no-repeat px-6 py-24">
+      <div className="pointer-events-none absolute inset-0 bg-[#fdfbf7]/72" aria-hidden="true" />
+      <div className="relative z-10 mx-auto max-w-4xl text-center">
         <h2 className="font-serif text-3xl uppercase tracking-[0.3em] text-foreground md:text-4xl">Accommodation</h2>
       </div>
 
-      <div className="mx-auto mt-14 grid max-w-4xl items-center gap-12 md:grid-cols-2">
+      <div className="relative z-10 mx-auto mt-14 grid max-w-4xl items-center gap-12 md:grid-cols-2">
         {banner ? (
           <div className="overflow-hidden rounded-sm shadow-sm">
             <img
@@ -30,7 +31,11 @@ export default function UsAccommodation({ event }) {
           </div>
         ) : null}
 
-        <div className={`text-center ${banner ? "md:text-left" : "md:mx-auto md:max-w-xl"}`}>
+        <div
+          className={`rounded-sm border border-border bg-card/95 px-6 py-8 text-center shadow-sm backdrop-blur-[1px] ${
+            banner ? "md:text-left" : "md:mx-auto md:max-w-xl"
+          }`}
+        >
           {stayAt ? (
             <p className="font-sans text-xs uppercase tracking-[0.25em] text-muted-foreground">{stayAt}</p>
           ) : null}
