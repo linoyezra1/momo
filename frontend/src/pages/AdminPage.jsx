@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { Pencil, Trash2, X } from "lucide-react";
+import { Copy, Pencil, Trash2, X } from "lucide-react";
 import api from "../api";
 import { buildClientOnboardingMessage } from "../utils/clientOnboardingMessage";
 import { formatIsraeliDate } from "../utils/dateFormat";
+import "../us/admin-portal.css";
 
 const initialForm = {
   username: "",
@@ -35,6 +36,7 @@ function toAppUrl(linkOrPath) {
 
 function buildEventDisplayText(event) {
   if (!event) return "";
+  if (event.hostNames) return event.hostNames.trim();
   if (event.eventType === "חתונה") {
     return `${event.groomName} & ${event.brideName}`.trim();
   }
@@ -45,6 +47,37 @@ function buildEventDisplayText(event) {
     return `${event.batMitzvahName || ""}`.trim();
   }
   return "";
+}
+
+function isUsClient(client) {
+  return client?.market === "us" || Boolean(client?.etsyOrderId || client?.event?.hostNames);
+}
+
+function buildClientLabel(client) {
+  return (
+    buildEventDisplayText(client?.event) ||
+    client?.contactEmail ||
+    client?.username ||
+    "לקוח ללא שם"
+  );
+}
+
+function buildClientSubline(client) {
+  const parts = [];
+  if (client?.etsyOrderId) parts.push(`אטסי #${client.etsyOrderId}`);
+  if (client?.contactEmail) parts.push(client.contactEmail);
+  if (Number(client?.payment?.amountPaid) > 0) {
+    parts.push(`₪${Number(client.payment.amountPaid).toLocaleString("he-IL")}`);
+  }
+  return parts.join(" · ") || client?.username || "";
+}
+
+function formatCreatedAt(value) {
+  if (!value) return "—";
+  return new Date(value).toLocaleString("he-IL", {
+    dateStyle: "medium",
+    timeStyle: "short"
+  });
 }
 
 export default function AdminPage() {
@@ -66,6 +99,7 @@ export default function AdminPage() {
   const [paymentDraft, setPaymentDraft] = useState({ amountPaid: "", paymentMethod: "" });
   const [paymentSaving, setPaymentSaving] = useState(false);
   const [paymentSaved, setPaymentSaved] = useState(false);
+  const [copiedField, setCopiedField] = useState("");
   const publicEventUrl = toAppUrl(result?.publicEventLink);
   const clientDashboardUrl = toAppUrl(result?.clientDashboardLink);
   const eventDisplayText = buildEventDisplayText(createdEvent);
@@ -328,187 +362,331 @@ ${publicEventUrl}`
     window.setTimeout(() => setClientMessageCopied(false), 2000);
   };
 
+  const copyFieldValue = async (fieldKey, value) => {
+    if (!value) return;
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedField(fieldKey);
+      window.setTimeout(() => setCopiedField(""), 1800);
+    } catch {
+      setError("לא הצלחנו להעתיק");
+    }
+  };
+
+  const selectedPublicUrl = selectedClient ? toAppUrl(selectedClient.publicEventLink) : "";
+  const selectedDashboardUrl = selectedClient ? toAppUrl(selectedClient.clientDashboardLink) : "";
+
   return (
-    <div className="page-shell">
-      <div className="page-container">
-        <header className="page-header">
+    <div className="us-admin-portal us-admin-shell" dir="rtl">
+      <div className="us-admin-container">
+        <header className="us-admin-header">
           <h1>מרכז ניהול אירועים</h1>
-          <p>רשימת הלקוחות ודפי הנחיתה הפעילים</p>
+          <p>ניהול לקוחות, פרטי הזמנה וקישורים לדשבורד</p>
         </header>
 
-        <div className="toolbar">
-          <button className="btn btn-primary" type="button" onClick={openCreateWizard}>
+        <div className="us-admin-toolbar">
+          <button className="us-admin-btn us-admin-btn--primary" type="button" onClick={openCreateWizard}>
             לקוח חדש
           </button>
         </div>
 
-        {error ? <p className="message message--error">{error}</p> : null}
+        {error ? <p className="us-admin-message us-admin-message--error">{error}</p> : null}
 
-        <div className="stats-grid admin-stats">
-          <div className="stat-card stat-card-revenue">
+        <div className="us-admin-stats">
+          <div className="us-admin-stat-card">
             <h3>סה״כ הכנסות</h3>
             <p>₪{(totalRevenue || totalRevenueFromClients).toLocaleString("he-IL")}</p>
           </div>
+          <div className="us-admin-stat-card">
+            <h3>לקוחות פעילים</h3>
+            <p>{clients.length}</p>
+          </div>
         </div>
 
-        <section className="admin-layout">
-          <div className="card">
-            <h2 className="card-title">לקוחות פעילים</h2>
-            {loadingClients ? <p>טוען רשימה…</p> : null}
-            {clientsError ? <p className="message message--error">{clientsError}</p> : null}
-            <div className="admin-client-list">
-              {clients.map((client) => (
-                <div key={client.userId} className={`admin-client-row ${String(selectedClientId) === String(client.userId) ? "is-active" : ""}`}>
-                  <button className="admin-client-main" type="button" onClick={() => setSelectedClientId(client.userId)}>
-                    <strong>{client.username}</strong>
-                    <span>
-                      {client.event?.eventType || "אירוע"}
-                      {Number(client.payment?.amountPaid) > 0
-                        ? ` · ₪${Number(client.payment.amountPaid).toLocaleString("he-IL")}`
-                        : ""}
-                    </span>
-                  </button>
-                  <button className="btn btn-secondary btn-xs" type="button" onClick={() => openEditWizard(client)} aria-label="עריכת לקוח">
-                    <Pencil size={14} />
-                  </button>
-                  <button
-                    className="btn btn-delete btn-xs"
-                    type="button"
-                    onClick={(event) => deleteClient(client, event)}
-                    aria-label="מחיקת לקוח"
+        <section className="us-admin-layout">
+          <div className="us-admin-card">
+            <h2 className="us-admin-card-title">לקוחות פעילים</h2>
+            <div className="us-admin-card-body">
+              {loadingClients ? <p className="us-admin-empty">טוען רשימה…</p> : null}
+              {clientsError ? <p className="us-admin-message us-admin-message--error">{clientsError}</p> : null}
+              {!loadingClients && !clients.length ? <p className="us-admin-empty">אין לקוחות להצגה</p> : null}
+              <div className="us-admin-client-list">
+                {clients.map((client) => (
+                  <div
+                    key={client.userId}
+                    className={`us-admin-client-row ${String(selectedClientId) === String(client.userId) ? "is-active" : ""}`}
                   >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              ))}
+                    <button className="us-admin-client-main" type="button" onClick={() => setSelectedClientId(client.userId)}>
+                      <strong>{buildClientLabel(client)}</strong>
+                      <span>{buildClientSubline(client)}</span>
+                    </button>
+                    {!isUsClient(client) ? (
+                      <button
+                        className="us-admin-btn us-admin-btn--xs"
+                        type="button"
+                        onClick={() => openEditWizard(client)}
+                        aria-label="עריכת לקוח"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                    ) : null}
+                    <button
+                      className="us-admin-btn us-admin-btn--xs us-admin-btn--danger"
+                      type="button"
+                      onClick={(event) => deleteClient(client, event)}
+                      aria-label="מחיקת לקוח"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
-          <div className="card">
-            <h2 className="card-title">אזור אישי ללקוח</h2>
-            {!selectedClient ? (
-              <p>בחרו לקוח להצגת פרטים</p>
-            ) : (
-              <div className="form-stack">
-                <p>
-                  <strong>סוג אירוע:</strong> {selectedClient.event?.eventType}
-                </p>
-                <p>
-                  <strong>שמות:</strong>{" "}
-                  {buildEventDisplayText(selectedClient.event) || selectedClient.event?.eventNames || "-"}
-                </p>
-                <p>
-                  <strong>תאריך:</strong> {formatIsraeliDate(selectedClient.event?.eventDate)}
-                </p>
-                {selectedClient.event?.eventType === "ברית" && selectedClient.event?.eventDateHebrew ? (
-                  <p>
-                    <strong>תאריך עברי:</strong> {selectedClient.event.eventDateHebrew}
-                  </p>
-                ) : null}
-                <p>
-                  <strong>שעה:</strong> {selectedClient.event?.eventTime}
-                </p>
-                <p>
-                  <strong>מיקום:</strong> {selectedClient.event?.venueName}, {selectedClient.event?.city},{" "}
-                  {selectedClient.event?.streetAndNumber}
-                </p>
-                {selectedClient.event?.imageDataUrl ? (
-                  <img className="event-image-preview" src={selectedClient.event.imageDataUrl} alt="תמונת קאבר" />
-                ) : null}
-                <p>
-                  <strong>קישור ציבורי:</strong>{" "}
-                  <a href={toAppUrl(selectedClient.publicEventLink)} target="_blank" rel="noreferrer">
-                    {toAppUrl(selectedClient.publicEventLink)}
-                  </a>
-                </p>
-                <p>
-                  <strong>קישור דשבורד:</strong>{" "}
-                  <a href={toAppUrl(selectedClient.clientDashboardLink)} target="_blank" rel="noreferrer">
-                    {toAppUrl(selectedClient.clientDashboardLink)}
-                  </a>
-                </p>
+          <div className="us-admin-card">
+            <h2 className="us-admin-card-title">פרטי לקוח</h2>
+            <div className="us-admin-card-body">
+              {!selectedClient ? (
+                <p className="us-admin-empty">בחרו לקוח מהרשימה להצגת פרטים</p>
+              ) : (
+                <>
+                  {buildEventDisplayText(selectedClient.event) ? (
+                    <p className="us-admin-event-summary">
+                      <strong>אירוע:</strong> {buildEventDisplayText(selectedClient.event)}
+                      {selectedClient.event?.eventDate ? (
+                        <>
+                          {" "}
+                          · <strong>תאריך:</strong> {formatIsraeliDate(selectedClient.event.eventDate)}
+                        </>
+                      ) : null}
+                      {selectedClient.event?.venueName ? (
+                        <>
+                          {" "}
+                          · <strong>מיקום:</strong> {selectedClient.event.venueName}
+                        </>
+                      ) : null}
+                    </p>
+                  ) : null}
 
-                <div className="payment-block">
-                  <h3 className="payment-block-title">פרטי תשלום (אופציונלי)</h3>
-                  <p className="payment-block-hint">ניתן להשאיר ריק או 0 אם הלקוח טרם שילם.</p>
-                  <div className="payment-fields">
-                    <div className="field">
-                      <label className="field-label" htmlFor="payment-amount">
-                        כמה שולם (₪)
-                      </label>
-                      <input
-                        id="payment-amount"
-                        className="field-input"
-                        name="amountPaid"
-                        type="number"
-                        min="0"
-                        step="1"
-                        placeholder="0"
-                        value={paymentDraft.amountPaid}
-                        onChange={onPaymentChange}
-                      />
+                  <div className="us-admin-detail-grid">
+                    <div className="us-admin-detail-item">
+                      <span className="us-admin-detail-label">מספר הזמנה באטסי</span>
+                      <div className="us-admin-link-row">
+                        <span className="us-admin-detail-value us-admin-detail-value--mono">
+                          {selectedClient.etsyOrderId || "—"}
+                        </span>
+                        {selectedClient.etsyOrderId ? (
+                          <button
+                            className="us-admin-btn us-admin-btn--xs"
+                            type="button"
+                            onClick={() => copyFieldValue("etsy", selectedClient.etsyOrderId)}
+                            aria-label="העתקת מספר הזמנה"
+                          >
+                            <Copy size={14} />
+                            {copiedField === "etsy" ? "הועתק" : ""}
+                          </button>
+                        ) : null}
+                      </div>
                     </div>
-                    <div className="field">
-                      <label className="field-label" htmlFor="payment-method">
-                        איך שולם?
-                      </label>
-                      <input
-                        id="payment-method"
-                        className="field-input"
-                        name="paymentMethod"
-                        type="text"
-                        placeholder="לדוגמה: מזומן, העברה, ביט…"
-                        value={paymentDraft.paymentMethod}
-                        onChange={onPaymentChange}
-                      />
+
+                    <div className="us-admin-detail-item">
+                      <span className="us-admin-detail-label">כתובת מייל</span>
+                      <div className="us-admin-link-row">
+                        <span className="us-admin-detail-value">{selectedClient.contactEmail || "—"}</span>
+                        {selectedClient.contactEmail ? (
+                          <button
+                            className="us-admin-btn us-admin-btn--xs"
+                            type="button"
+                            onClick={() => copyFieldValue("email", selectedClient.contactEmail)}
+                            aria-label="העתקת מייל"
+                          >
+                            <Copy size={14} />
+                            {copiedField === "email" ? "הועתק" : ""}
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className="us-admin-detail-item">
+                      <span className="us-admin-detail-label">תאריך יצירה</span>
+                      <span className="us-admin-detail-value">{formatCreatedAt(selectedClient.createdAt)}</span>
+                    </div>
+
+                    <div className="us-admin-detail-item">
+                      <span className="us-admin-detail-label">שם משתמש</span>
+                      <div className="us-admin-link-row">
+                        <span className="us-admin-detail-value us-admin-detail-value--mono">{selectedClient.username}</span>
+                        <button
+                          className="us-admin-btn us-admin-btn--xs"
+                          type="button"
+                          onClick={() => copyFieldValue("username", selectedClient.username)}
+                          aria-label="העתקת שם משתמש"
+                        >
+                          <Copy size={14} />
+                          {copiedField === "username" ? "הועתק" : ""}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="us-admin-detail-item">
+                      <span className="us-admin-detail-label">סיסמה</span>
+                      <div className="us-admin-link-row">
+                        <span className="us-admin-detail-value us-admin-detail-value--mono">
+                          {passwordForSelected || "—"}
+                        </span>
+                        {passwordForSelected ? (
+                          <button
+                            className="us-admin-btn us-admin-btn--xs"
+                            type="button"
+                            onClick={() => copyFieldValue("password", passwordForSelected)}
+                            aria-label="העתקת סיסמה"
+                          >
+                            <Copy size={14} />
+                            {copiedField === "password" ? "הועתק" : ""}
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className="us-admin-detail-item us-admin-detail-item--wide">
+                      <span className="us-admin-detail-label">קישור הזמנה</span>
+                      <div className="us-admin-link-row">
+                        <a href={selectedPublicUrl} target="_blank" rel="noreferrer">
+                          {selectedPublicUrl}
+                        </a>
+                        <button
+                          className="us-admin-btn us-admin-btn--xs"
+                          type="button"
+                          onClick={() => copyFieldValue("public", selectedPublicUrl)}
+                          aria-label="העתקת קישור הזמנה"
+                        >
+                          <Copy size={14} />
+                          {copiedField === "public" ? "הועתק" : ""}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="us-admin-detail-item us-admin-detail-item--wide">
+                      <span className="us-admin-detail-label">קישור דשבורד</span>
+                      <div className="us-admin-link-row">
+                        <a href={selectedDashboardUrl} target="_blank" rel="noreferrer">
+                          {selectedDashboardUrl}
+                        </a>
+                        <button
+                          className="us-admin-btn us-admin-btn--xs"
+                          type="button"
+                          onClick={() => copyFieldValue("dashboard", selectedDashboardUrl)}
+                          aria-label="העתקת קישור דשבורד"
+                        >
+                          <Copy size={14} />
+                          {copiedField === "dashboard" ? "הועתק" : ""}
+                        </button>
+                      </div>
                     </div>
                   </div>
-                  <button className="btn btn-secondary btn-xs" type="button" disabled={paymentSaving} onClick={savePayment}>
-                    {paymentSaving ? "שומר…" : paymentSaved ? "נשמר" : "שמירת תשלום"}
-                  </button>
-                </div>
 
-                <div className="share-block share-block--persistent">
-                  <p className="share-title">הודעה מוכנה ללקוח (להעתקה לוואטסאפ):</p>
-                  <textarea className="field-input share-textarea" value={clientMessageForSelected} readOnly />
-                  <button className="btn btn-primary" type="button" onClick={() => copyClientMessage(clientMessageForSelected)}>
-                    {clientMessageCopied ? "הודעה הועתקה" : "העתק הודעה ללקוח"}
-                  </button>
-                </div>
-              </div>
-            )}
+                  {!isUsClient(selectedClient) && selectedClient.event?.imageDataUrl ? (
+                    <img
+                      className="us-admin-event-image"
+                      src={selectedClient.event.imageDataUrl}
+                      alt="תמונת קאבר"
+                    />
+                  ) : null}
+
+                  <div className="us-admin-payment-block">
+                    <h3>פרטי תשלום (אופציונלי)</h3>
+                    <p className="us-admin-field-hint">ניתן להשאיר ריק או 0 אם הלקוח טרם שילם.</p>
+                    <div className="us-admin-payment-fields">
+                      <div className="us-admin-field">
+                        <label className="us-admin-field-label" htmlFor="payment-amount">
+                          כמה שולם (₪)
+                        </label>
+                        <input
+                          id="payment-amount"
+                          className="us-admin-field-input"
+                          name="amountPaid"
+                          type="number"
+                          min="0"
+                          step="1"
+                          placeholder="0"
+                          value={paymentDraft.amountPaid}
+                          onChange={onPaymentChange}
+                        />
+                      </div>
+                      <div className="us-admin-field">
+                        <label className="us-admin-field-label" htmlFor="payment-method">
+                          איך שולם?
+                        </label>
+                        <input
+                          id="payment-method"
+                          className="us-admin-field-input"
+                          name="paymentMethod"
+                          type="text"
+                          placeholder="לדוגמה: מזומן, העברה, ביט…"
+                          value={paymentDraft.paymentMethod}
+                          onChange={onPaymentChange}
+                        />
+                      </div>
+                    </div>
+                    <button
+                      className="us-admin-btn"
+                      type="button"
+                      disabled={paymentSaving}
+                      onClick={savePayment}
+                    >
+                      {paymentSaving ? "שומר…" : paymentSaved ? "נשמר" : "שמירת תשלום"}
+                    </button>
+                  </div>
+
+                  <div className="us-admin-share-block">
+                    <p className="us-admin-share-title">הודעה מוכנה ללקוח (להעתקה לוואטסאפ):</p>
+                    <textarea className="us-admin-share-textarea" value={clientMessageForSelected} readOnly />
+                    <button
+                      className="us-admin-btn us-admin-btn--primary"
+                      type="button"
+                      onClick={() => copyClientMessage(clientMessageForSelected)}
+                    >
+                      {clientMessageCopied ? "הודעה הועתקה" : "העתק הודעה ללקוח"}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </section>
 
         {showCreateWizard ? (
-          <div className="modal-backdrop" role="presentation">
-            <form className="card modal-card modal-card-scroll form-stack" onSubmit={onSubmit}>
-              <div className="modal-header-row">
-                <h2 className="card-title">{wizardMode === "edit" ? "עריכת לקוח" : "אשף יצירת לקוח חדש"}</h2>
-                <button className="modal-close-btn" type="button" onClick={closeWizard} aria-label="סגירה">
+          <div className="us-admin-modal-backdrop" role="presentation">
+            <form className="us-admin-modal" onSubmit={onSubmit}>
+              <div className="us-admin-modal-header">
+                <h2 className="us-admin-card-title" style={{ border: "none", padding: 0, background: "transparent" }}>
+                  {wizardMode === "edit" ? "עריכת לקוח" : "אשף יצירת לקוח חדש"}
+                </h2>
+                <button className="us-admin-modal-close" type="button" onClick={closeWizard} aria-label="סגירה">
                   <X size={18} />
                 </button>
               </div>
-              <div className="field">
-                <label className="field-label" htmlFor="username">
+              <div className="us-admin-field">
+                <label className="us-admin-field-label" htmlFor="username">
                   שם משתמש
                 </label>
                 <input
                   id="username"
-                  className="field-input"
+                  className="us-admin-field-input"
                   name="username"
                   value={form.username}
                   onChange={onChange}
                   required
                 />
               </div>
-              <div className="field">
-                <label className="field-label" htmlFor="password">
+              <div className="us-admin-field">
+                <label className="us-admin-field-label" htmlFor="password">
                   סיסמה {wizardMode === "edit" ? "(השאירו ריק לשמירת הסיסמה הקיימת)" : ""}
                 </label>
                 <input
                   id="password"
-                  className="field-input"
+                  className="us-admin-field-input"
                   name="password"
                   type="password"
                   value={form.password}
@@ -517,14 +695,16 @@ ${publicEventUrl}`
                 />
               </div>
 
-              <hr className="divider" />
+              <hr className="us-admin-divider" />
 
-              <h2 className="card-title">פרטי האירוע</h2>
-              <div className="field">
-                <label className="field-label" htmlFor="eventType">
+              <h2 className="us-admin-card-title" style={{ border: "none", padding: "0 0 0.5rem", background: "transparent" }}>
+                פרטי האירוע
+              </h2>
+              <div className="us-admin-field">
+                <label className="us-admin-field-label" htmlFor="eventType">
                   סוג אירוע
                 </label>
-                <select id="eventType" className="field-input" name="eventType" value={form.eventType} onChange={onChange}>
+                <select id="eventType" className="us-admin-field-input" name="eventType" value={form.eventType} onChange={onChange}>
                   <option value="חתונה">חתונה</option>
                   <option value="ברית">ברית</option>
                   <option value="בת מצווה">בת מצווה</option>
@@ -532,26 +712,26 @@ ${publicEventUrl}`
               </div>
               {form.eventType === "חתונה" ? (
                 <>
-                  <div className="field">
-                    <label className="field-label" htmlFor="groomName">
+                  <div className="us-admin-field">
+                    <label className="us-admin-field-label" htmlFor="groomName">
                       שם החתן
                     </label>
                     <input
                       id="groomName"
-                      className="field-input"
+                      className="us-admin-field-input"
                       name="groomName"
                       value={form.groomName}
                       onChange={onChange}
                       required
                     />
                   </div>
-                  <div className="field">
-                    <label className="field-label" htmlFor="brideName">
+                  <div className="us-admin-field">
+                    <label className="us-admin-field-label" htmlFor="brideName">
                       שם הכלה
                     </label>
                     <input
                       id="brideName"
-                      className="field-input"
+                      className="us-admin-field-input"
                       name="brideName"
                       value={form.brideName}
                       onChange={onChange}
@@ -561,26 +741,26 @@ ${publicEventUrl}`
                 </>
               ) : form.eventType === "ברית" ? (
                 <>
-                  <div className="field">
-                    <label className="field-label" htmlFor="parentName1">
+                  <div className="us-admin-field">
+                    <label className="us-admin-field-label" htmlFor="parentName1">
                       שם הורה 1
                     </label>
                     <input
                       id="parentName1"
-                      className="field-input"
+                      className="us-admin-field-input"
                       name="parentName1"
                       value={form.parentName1}
                       onChange={onChange}
                       required
                     />
                   </div>
-                  <div className="field">
-                    <label className="field-label" htmlFor="parentName2">
+                  <div className="us-admin-field">
+                    <label className="us-admin-field-label" htmlFor="parentName2">
                       שם הורה 2
                     </label>
                     <input
                       id="parentName2"
-                      className="field-input"
+                      className="us-admin-field-input"
                       name="parentName2"
                       value={form.parentName2}
                       onChange={onChange}
@@ -590,39 +770,39 @@ ${publicEventUrl}`
                 </>
               ) : (
                 <>
-                  <div className="field">
-                    <label className="field-label" htmlFor="batMitzvahName">
+                  <div className="us-admin-field">
+                    <label className="us-admin-field-label" htmlFor="batMitzvahName">
                       שם כלת המצווה
                     </label>
                     <input
                       id="batMitzvahName"
-                      className="field-input"
+                      className="us-admin-field-input"
                       name="batMitzvahName"
                       value={form.batMitzvahName}
                       onChange={onChange}
                       required
                     />
                   </div>
-                  <div className="field">
-                    <label className="field-label" htmlFor="parentName1">
+                  <div className="us-admin-field">
+                    <label className="us-admin-field-label" htmlFor="parentName1">
                       שם הורה 1
                     </label>
                     <input
                       id="parentName1"
-                      className="field-input"
+                      className="us-admin-field-input"
                       name="parentName1"
                       value={form.parentName1}
                       onChange={onChange}
                       required
                     />
                   </div>
-                  <div className="field">
-                    <label className="field-label" htmlFor="parentName2">
+                  <div className="us-admin-field">
+                    <label className="us-admin-field-label" htmlFor="parentName2">
                       שם הורה 2 (אופציונלי)
                     </label>
                     <input
                       id="parentName2"
-                      className="field-input"
+                      className="us-admin-field-input"
                       name="parentName2"
                       value={form.parentName2}
                       onChange={onChange}
@@ -631,45 +811,45 @@ ${publicEventUrl}`
                   </div>
                 </>
               )}
-              <div className="field">
-                <label className="field-label" htmlFor="venueName">
+              <div className="us-admin-field">
+                <label className="us-admin-field-label" htmlFor="venueName">
                   שם המתחם
                 </label>
                 <input
                   id="venueName"
-                  className="field-input"
+                  className="us-admin-field-input"
                   name="venueName"
                   value={form.venueName}
                   onChange={onChange}
                   required
                 />
               </div>
-              <div className="field">
-                <label className="field-label" htmlFor="city">
+              <div className="us-admin-field">
+                <label className="us-admin-field-label" htmlFor="city">
                   עיר
                 </label>
-                <input id="city" className="field-input" name="city" value={form.city} onChange={onChange} required />
+                <input id="city" className="us-admin-field-input" name="city" value={form.city} onChange={onChange} required />
               </div>
-              <div className="field">
-                <label className="field-label" htmlFor="streetAndNumber">
+              <div className="us-admin-field">
+                <label className="us-admin-field-label" htmlFor="streetAndNumber">
                   רחוב ומספר
                 </label>
                 <input
                   id="streetAndNumber"
-                  className="field-input"
+                  className="us-admin-field-input"
                   name="streetAndNumber"
                   value={form.streetAndNumber}
                   onChange={onChange}
                   required
                 />
               </div>
-              <div className="field">
-                <label className="field-label" htmlFor="eventDate">
+              <div className="us-admin-field">
+                <label className="us-admin-field-label" htmlFor="eventDate">
                   תאריך
                 </label>
                 <input
                   id="eventDate"
-                  className="field-input"
+                  className="us-admin-field-input"
                   type="date"
                   name="eventDate"
                   value={form.eventDate}
@@ -678,28 +858,28 @@ ${publicEventUrl}`
                 />
               </div>
               {form.eventType === "ברית" ? (
-                <div className="field">
-                  <label className="field-label" htmlFor="eventDateHebrew">
+                <div className="us-admin-field">
+                  <label className="us-admin-field-label" htmlFor="eventDateHebrew">
                     תאריך עברי (אופציונלי)
                   </label>
                   <input
                     id="eventDateHebrew"
-                    className="field-input"
+                    className="us-admin-field-input"
                     name="eventDateHebrew"
                     placeholder='למשל: כ״ג באייר תשפ״ו'
                     value={form.eventDateHebrew}
                     onChange={onChange}
                   />
-                  <p className="field-hint">מוצג בדף ההזמנה לברית ליד יום השבוע. אם ריק — לא יוצג.</p>
+                  <p className="us-admin-field-hint">מוצג בדף ההזמנה לברית ליד יום השבוע. אם ריק — לא יוצג.</p>
                 </div>
               ) : null}
-              <div className="field">
-                <label className="field-label" htmlFor="eventTime">
+              <div className="us-admin-field">
+                <label className="us-admin-field-label" htmlFor="eventTime">
                   שעה
                 </label>
                 <input
                   id="eventTime"
-                  className="field-input"
+                  className="us-admin-field-input"
                   type="time"
                   name="eventTime"
                   value={form.eventTime}
@@ -707,19 +887,19 @@ ${publicEventUrl}`
                   required
                 />
               </div>
-              <div className="field">
-                <label className="field-label" htmlFor="eventImage">
+              <div className="us-admin-field">
+                <label className="us-admin-field-label" htmlFor="eventImage">
                   תמונת אירוע
                 </label>
-                <input id="eventImage" className="field-input" type="file" accept="image/*" onChange={onImageChange} />
-                {form.imageDataUrl ? <img className="event-image-preview" src={form.imageDataUrl} alt="תצוגה מקדימה" /> : null}
+                <input id="eventImage" className="us-admin-field-input" type="file" accept="image/*" onChange={onImageChange} />
+                {form.imageDataUrl ? <img className="us-admin-event-image" src={form.imageDataUrl} alt="תצוגה מקדימה" /> : null}
               </div>
 
-              <div className="toolbar">
-                <button className="btn btn-primary" disabled={loading} type="submit">
+              <div className="us-admin-form-actions">
+                <button className="us-admin-btn us-admin-btn--primary" disabled={loading} type="submit">
                   {loading ? "שומר…" : wizardMode === "edit" ? "שמירת שינויים" : "שמור לקוח"}
                 </button>
-                <button className="btn btn-secondary" type="button" onClick={closeWizard}>
+                <button className="us-admin-btn" type="button" onClick={closeWizard}>
                   ביטול
                 </button>
               </div>
@@ -728,35 +908,43 @@ ${publicEventUrl}`
         ) : null}
 
         {result ? (
-          <div className="card result-links">
-            <h2 className="card-title">🎉 יופי, הכול מוכן! 🎉</h2>
-            <p>
-              <strong>שם משתמש:</strong> {result.credentials.username}
-            </p>
-            <p>
-              <strong>סיסמה:</strong> {result.credentials.password}
-            </p>
-            <p>
-              <strong>דשבורד לקוח:</strong>{" "}
-              <a href={clientDashboardUrl} target="_blank" rel="noreferrer">
-                {clientDashboardUrl}
-              </a>
-            </p>
-            <p>
-              <strong>קישור ציבורי:</strong>{" "}
-              <a href={publicEventUrl} target="_blank" rel="noreferrer">
-                {publicEventUrl}
-              </a>
-            </p>
-            <div className="share-block">
-              <p className="share-title">הודעה מוכנה ללקוח:</p>
-              <textarea className="field-input share-textarea" value={finalClientMessage} readOnly />
-              <button className="btn btn-primary" type="button" onClick={() => copyClientMessage(finalClientMessage)}>
-                {clientMessageCopied ? "הודעה הועתקה" : "העתק הודעה ללקוח"}
-              </button>
-              <button className="btn btn-secondary" type="button" onClick={copyShareMessage}>
-                {copyDone ? "הועתק בהצלחה" : "העתקת הודעה לשליחה"}
-              </button>
+          <div className="us-admin-card us-admin-result-card">
+            <h2 className="us-admin-card-title">🎉 יופי, הכול מוכן! 🎉</h2>
+            <div className="us-admin-card-body">
+              <div className="us-admin-detail-grid">
+                <div className="us-admin-detail-item">
+                  <span className="us-admin-detail-label">שם משתמש</span>
+                  <span className="us-admin-detail-value">{result.credentials.username}</span>
+                </div>
+                <div className="us-admin-detail-item">
+                  <span className="us-admin-detail-label">סיסמה</span>
+                  <span className="us-admin-detail-value us-admin-detail-value--mono">{result.credentials.password}</span>
+                </div>
+                <div className="us-admin-detail-item us-admin-detail-item--wide">
+                  <span className="us-admin-detail-label">קישור דשבורד</span>
+                  <a href={clientDashboardUrl} target="_blank" rel="noreferrer">
+                    {clientDashboardUrl}
+                  </a>
+                </div>
+                <div className="us-admin-detail-item us-admin-detail-item--wide">
+                  <span className="us-admin-detail-label">קישור הזמנה</span>
+                  <a href={publicEventUrl} target="_blank" rel="noreferrer">
+                    {publicEventUrl}
+                  </a>
+                </div>
+              </div>
+              <div className="us-admin-share-block" style={{ borderTop: "none", paddingTop: 0, marginTop: 0 }}>
+                <p className="us-admin-share-title">הודעה מוכנה ללקוח:</p>
+                <textarea className="us-admin-share-textarea" value={finalClientMessage} readOnly />
+                <div className="us-admin-form-actions">
+                  <button className="us-admin-btn us-admin-btn--primary" type="button" onClick={() => copyClientMessage(finalClientMessage)}>
+                    {clientMessageCopied ? "הודעה הועתקה" : "העתק הודעה ללקוח"}
+                  </button>
+                  <button className="us-admin-btn" type="button" onClick={copyShareMessage}>
+                    {copyDone ? "הועתק בהצלחה" : "העתקת הודעה לשליחה"}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         ) : null}
