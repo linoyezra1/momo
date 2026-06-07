@@ -40,6 +40,32 @@ function slugify(value) {
     .replace(/^-|-$/g, "");
 }
 
+function isLocalhostUrl(url) {
+  return /localhost|127\.0\.0\.1/i.test(String(url || ""));
+}
+
+function normalizeSetupResult(data) {
+  if (!data) {
+    return data;
+  }
+
+  const origin = window.location.origin;
+  const onProduction = !/localhost|127\.0\.0\.1/i.test(origin);
+
+  if (!onProduction) {
+    return data;
+  }
+
+  return {
+    ...data,
+    eventUrl:
+      isLocalhostUrl(data.eventUrl) && data.slug ? `${origin}/e/${data.slug}` : data.eventUrl,
+    clientDashboardUrl: isLocalhostUrl(data.clientDashboardUrl)
+      ? `${origin}/client/login`
+      : data.clientDashboardUrl
+  };
+}
+
 export default function SetupPage() {
   const [form, setForm] = useState(initialForm);
   const [submitting, setSubmitting] = useState(false);
@@ -121,7 +147,7 @@ export default function SetupPage() {
 
     try {
       const response = await api.post("/public/setup", payload);
-      setResult(response.data);
+      setResult(normalizeSetupResult(response.data));
     } catch (submitError) {
       setError(submitError.response?.data?.message || "Setup failed. Please try again.");
     } finally {
@@ -206,7 +232,7 @@ export default function SetupPage() {
               </label>
             </div>
             <label className="flex flex-col gap-2 font-sans text-sm">
-              Event URL Slug * (e.g. emma-and-lucas)
+              Event URL Slug * (e.g. bella-and-mark)
               <input
                 name="slug"
                 value={form.slug}

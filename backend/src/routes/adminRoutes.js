@@ -2,6 +2,7 @@ import express from "express";
 import bcrypt from "bcryptjs";
 import User from "../models/User.js";
 import Guest from "../models/Guest.js";
+import { buildClientUrl } from "../utils/clientUrl.js";
 
 const router = express.Router();
 
@@ -81,11 +82,10 @@ function validateEvent(normalizedEvent) {
   return "";
 }
 
-function buildClientLinks(userId) {
-  const baseUrl = process.env.CLIENT_URL || "http://localhost:5173";
+function buildClientLinks(userId, req) {
   return {
-    clientDashboardLink: `${baseUrl}/client/login`,
-    publicEventLink: `${baseUrl}/event/${userId}`
+    clientDashboardLink: buildClientUrl("/client/login", req),
+    publicEventLink: buildClientUrl(`/event/${userId}`, req)
   };
 }
 
@@ -100,13 +100,13 @@ function normalizePaymentPayload(rawPayment) {
   return { amountPaid, paymentMethod };
 }
 
-router.get("/clients", async (_req, res) => {
+router.get("/clients", async (req, res) => {
   try {
     const users = await User.find({}, "username event createdAt payment loginPassword").sort({
       createdAt: -1
     });
     const clients = users.map((user) => {
-      const links = buildClientLinks(user._id);
+      const links = buildClientLinks(user._id, req);
       const payment = normalizePaymentPayload(user.payment || {});
       return {
         userId: user._id,
@@ -152,7 +152,7 @@ router.post("/create-client", async (req, res) => {
       event: normalizedEvent
     });
 
-    const links = buildClientLinks(user._id);
+    const links = buildClientLinks(user._id, req);
 
     return res.status(201).json({
       userId: user._id,
@@ -197,7 +197,7 @@ router.patch("/clients/:userId", async (req, res) => {
     }
 
     await user.save();
-    const links = buildClientLinks(user._id);
+    const links = buildClientLinks(user._id, req);
     return res.json({
       message: "Client updated",
       userId: user._id,

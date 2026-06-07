@@ -3,13 +3,9 @@ import bcrypt from "bcryptjs";
 import User from "../models/User.js";
 import { generateSecurePassword } from "../utils/generatePassword.js";
 import { normalizeSetupPayload, validateSetupPayload } from "../utils/usEvent.js";
+import { buildClientUrl } from "../utils/clientUrl.js";
 
 const router = express.Router();
-
-function buildEventUrl(slug) {
-  const baseUrl = process.env.CLIENT_URL || "http://localhost:5173";
-  return `${baseUrl}/e/${slug}`;
-}
 
 router.post("/setup", async (req, res) => {
   try {
@@ -49,7 +45,8 @@ router.post("/setup", async (req, res) => {
       event: payload.event
     });
 
-    const eventUrl = buildEventUrl(user.slug);
+    const eventUrl = buildClientUrl(`/e/${user.slug}`, req);
+    const clientDashboardUrl = buildClientUrl("/client/login", req);
 
     return res.status(201).json({
       message: "Your wedding invitation is ready",
@@ -60,7 +57,7 @@ router.post("/setup", async (req, res) => {
         username,
         password
       },
-      clientDashboardUrl: `${process.env.CLIENT_URL || "http://localhost:5173"}/client/login`
+      clientDashboardUrl
     });
   } catch (error) {
     if (error?.code === 11000) {
