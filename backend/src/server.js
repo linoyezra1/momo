@@ -9,6 +9,7 @@ import publicRoutes from "./routes/publicRoutes.js";
 import clientRoutes from "./routes/clientRoutes.js";
 import setupRoutes from "./routes/setupRoutes.js";
 import webhooksRoutes from "./routes/webhooksRoutes.js";
+import seatingRoutes from "./routes/seatingRoutes.js";
 
 dotenv.config();
 
@@ -31,6 +32,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/public", publicRoutes);
 app.use("/api/public", setupRoutes);
 app.use("/api/client", clientRoutes);
+app.use("/api/client", seatingRoutes);
 app.use("/api/webhooks", webhooksRoutes);
 
 app.use((err, req, res, next) => {

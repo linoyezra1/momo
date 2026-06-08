@@ -332,6 +332,18 @@ router.patch("/:userId/guests/:guestId", async (req, res) => {
     if (typeof giftAmount !== "undefined") {
       update.giftAmount = Math.max(0, Number(giftAmount));
     }
+    if (typeof req.body.guestSide !== "undefined") {
+      const side = String(req.body.guestSide || "").trim();
+      if (["חתן", "כלה", "משותף", ""].includes(side)) {
+        update.guestSide = side;
+      }
+    }
+    if (typeof req.body.guestGroup !== "undefined") {
+      update.guestGroup = String(req.body.guestGroup || "").trim();
+    }
+    if (typeof req.body.seatingTableId !== "undefined") {
+      update.seatingTableId = String(req.body.seatingTableId || "").trim();
+    }
     if (typeof status !== "undefined") {
       if (!["מגיע", "לא מגיע", "אולי", "לא ידוע"].includes(status)) {
         return res.status(400).json({ message: "Invalid status" });

@@ -1,0 +1,364 @@
+.il-seat-page {
+  min-height: 100vh;
+  padding: 1.25rem 1rem 2rem;
+  background: #faf8f6;
+}
+
+.il-seat-page--state {
+  display: grid;
+  place-items: center;
+  color: #555;
+}
+
+.il-seat-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.il-seat-header h1 {
+  margin: 0 0 0.25rem;
+  font-size: 1.45rem;
+}
+
+.il-seat-header p {
+  margin: 0;
+  color: #666;
+  font-size: 0.92rem;
+}
+
+.il-seat-toast,
+.il-seat-saving {
+  margin: 0 0 0.75rem;
+  padding: 0.55rem 0.8rem;
+  border-radius: 0.5rem;
+  background: #eef6ff;
+  color: #1e4a7a;
+  font-size: 0.9rem;
+}
+
+.il-seat-analytics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.il-seat-analytics > div {
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.55rem;
+  background: #fff;
+  border: 1px solid #e8dfd8;
+  text-align: center;
+}
+
+.il-seat-analytics span {
+  display: block;
+  font-size: 0.75rem;
+  color: #777;
+}
+
+.il-seat-analytics strong {
+  font-size: 1.2rem;
+  color: #2c2c2c;
+}
+
+.il-seat-warnings {
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.il-seat-warnings li {
+  padding: 0.45rem 0.65rem;
+  border-radius: 0.45rem;
+  font-size: 0.85rem;
+}
+
+.il-seat-warnings__item--overfill {
+  background: #fde8e8;
+  color: #9b1c1c;
+}
+
+.il-seat-warnings__item--underfill {
+  background: #fff8e6;
+  color: #8a6d1d;
+}
+
+.il-seat-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 0.65rem;
+  background: #fff;
+  border: 1px solid #e8dfd8;
+}
+
+.il-seat-toolbar__group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.il-seat-toolbar__group > span {
+  font-size: 0.82rem;
+  color: #666;
+  margin-inline-end: 0.25rem;
+}
+
+.il-seat-table-editor {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  padding: 0.55rem 0.75rem;
+  background: #fff;
+  border: 1px solid #e8dfd8;
+  border-radius: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.il-seat-table-editor label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.il-seat-table-editor input {
+  width: 4.5rem;
+  padding: 0.25rem 0.4rem;
+  border: 1px solid #ddd;
+  border-radius: 0.35rem;
+}
+
+.il-seat-group-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.55rem;
+  background: #fdf4ff;
+  border: 1px solid #f0abfc;
+}
+
+.il-seat-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+.il-seat-guest-panel {
+  background: #fff;
+  border: 1px solid #e8dfd8;
+  border-radius: 0.65rem;
+  padding: 0.85rem;
+  max-height: calc(100vh - 280px);
+  overflow: auto;
+}
+
+.il-seat-guest-panel h3 {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+}
+
+.il-seat-guest-panel__hint {
+  margin: 0 0 0.75rem;
+  font-size: 0.78rem;
+  color: #888;
+}
+
+.il-seat-filters {
+  display: grid;
+  gap: 0.45rem;
+  margin-bottom: 0.65rem;
+}
+
+.il-seat-filters select,
+.il-seat-filters input {
+  width: 100%;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid #ddd;
+  border-radius: 0.4rem;
+  font-family: inherit;
+  font-size: 0.85rem;
+}
+
+.il-seat-select-all {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  margin-bottom: 0.5rem;
+}
+
+.il-seat-guest-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.il-seat-guest-item {
+  display: flex;
+  gap: 0.45rem;
+  padding: 0.5rem;
+  border-radius: 0.45rem;
+  border: 1px solid #ece7e2;
+  cursor: grab;
+}
+
+.il-seat-guest-item.is-seated {
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+
+.il-seat-guest-item.is-floating {
+  background: #fffbeb;
+  border-color: #fcd34d;
+}
+
+.il-seat-guest-item__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.il-seat-guest-item__main strong {
+  display: block;
+  font-size: 0.9rem;
+}
+
+.il-seat-guest-item__main > span {
+  font-size: 0.75rem;
+  color: #666;
+}
+
+.il-seat-guest-item__meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.25rem;
+  margin-top: 0.35rem;
+}
+
+.il-seat-guest-item__meta select {
+  width: 100%;
+  font-size: 0.72rem;
+  padding: 0.2rem;
+}
+
+.il-seat-canvas-wrap {
+  background: #fff;
+  border: 1px solid #e8dfd8;
+  border-radius: 0.65rem;
+  padding: 0.5rem;
+  overflow: auto;
+}
+
+.il-seat-canvas {
+  position: relative;
+  min-width: 720px;
+  min-height: 520px;
+  background:
+    linear-gradient(#f3f0ec 1px, transparent 1px),
+    linear-gradient(90deg, #f3f0ec 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-color: #fcfaf8;
+  border-radius: 0.5rem;
+}
+
+.il-seat-table {
+  border: 2px solid #8b7355;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+.il-seat-table--rect,
+.il-seat-table--head {
+  border-radius: 0.65rem;
+}
+
+.il-seat-table--head {
+  border-color: #6b4f3a;
+  background: rgba(107, 79, 58, 0.08);
+}
+
+.il-seat-table--over {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.25);
+}
+
+.il-seat-table--target {
+  box-shadow: 0 0 0 3px rgba(217, 70, 239, 0.35);
+}
+
+.il-seat-table__inner {
+  text-align: center;
+  pointer-events: none;
+  font-size: 0.78rem;
+  line-height: 1.25;
+}
+
+.il-seat-table__inner strong {
+  display: block;
+  font-size: 0.95rem;
+}
+
+.il-seat-table__warn {
+  display: block;
+  color: #dc2626;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.il-seat-venue {
+  border: 1px dashed #94a3b8;
+  background: rgba(148, 163, 184, 0.12);
+  border-radius: 0.45rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+  font-size: 0.75rem;
+  color: #475569;
+  text-align: center;
+  padding: 0.25rem;
+}
+
+.il-seat-venue--stage {
+  background: rgba(99, 102, 241, 0.12);
+  border-color: #6366f1;
+}
+
+.il-seat-venue--dance {
+  background: rgba(236, 72, 153, 0.1);
+  border-color: #ec4899;
+}
+
+@media (max-width: 960px) {
+  .il-seat-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .il-seat-guest-panel {
+    max-height: 320px;
+  }
+}

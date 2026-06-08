@@ -3,6 +3,7 @@ import AdminPage from "./pages/AdminPage.jsx";
 import EventPage from "./pages/EventPage.jsx";
 import ClientLoginPage from "./pages/ClientLoginPage.jsx";
 import ClientDashboardPage from "./pages/ClientDashboardPage.jsx";
+import IlSeatingPage from "./pages/IlSeatingPage.jsx";
 
 export default function App() {
   return (
@@ -11,6 +12,7 @@ export default function App() {
       <Route path="/event/:eventId" element={<EventPage />} />
       <Route path="/client/login" element={<ClientLoginPage />} />
       <Route path="/client/dashboard/:userId" element={<ClientDashboardPage />} />
+      <Route path="/client/dashboard/:userId/seating" element={<IlSeatingPage />} />
     </Routes>
   );
 }

@@ -21,7 +21,14 @@ const guestSchema = new mongoose.Schema(
       type: String,
       enum: ["excel", "form", "manual", "excel_and_form"],
       default: "manual"
-    }
+    },
+    guestSide: {
+      type: String,
+      enum: ["חתן", "כלה", "משותף", ""],
+      default: ""
+    },
+    guestGroup: { type: String, trim: true, default: "" },
+    seatingTableId: { type: String, trim: true, default: "" }
   },
   { timestamps: true }
 );

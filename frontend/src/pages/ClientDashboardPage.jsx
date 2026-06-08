@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { Check, HelpCircle, RotateCw, Search, Users, X } from "lucide-react";
 import api from "../api";
 import WhatsAppIcon from "../components/WhatsAppIcon";
@@ -437,6 +437,9 @@ export default function ClientDashboardPage() {
             >
               ✨ עריכת הזמנה ותצוגה חיה
             </button>
+            <Link className="us-btn us-btn--primary" to={`/client/dashboard/${userId}/seating`}>
+              🪑 מערכת הושבה
+            </Link>
           </div>
         </header>
 
