@@ -80,6 +80,7 @@ export default function ClientDashboardPage() {
   const [searchInput, setSearchInput] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
   const [selectedGuestIds, setSelectedGuestIds] = useState(() => new Set());
+  const [showBulkWhatsApp, setShowBulkWhatsApp] = useState(false);
   const [paymentCode, setPaymentCode] = useState("");
   const [customWhatsAppMessage, setCustomWhatsAppMessage] = useState("");
   const [whatsappQuota, setWhatsappQuota] = useState(null);
@@ -199,6 +200,16 @@ export default function ClientDashboardPage() {
       }
       return next;
     });
+  };
+
+  const openBulkWhatsApp = () => {
+    if (!selectedCount) return;
+    setBulkWhatsAppResult("");
+    setBulkWhatsAppError("");
+    if (!customWhatsAppMessage && defaultWhatsAppTemplate) {
+      setCustomWhatsAppMessage(defaultWhatsAppTemplate);
+    }
+    setShowBulkWhatsApp(true);
   };
 
   const sendBulkWhatsApp = async (event) => {
@@ -460,77 +471,6 @@ export default function ClientDashboardPage() {
           </div>
         </div>
 
-        <section className="il-whatsapp-bulk-panel">
-          <div className="il-whatsapp-bulk-panel__head">
-            <div>
-              <h2>תפוצת וואטסאפ רחבה</h2>
-              <p>סמנו מוזמנים בטבלה למטה, ערכו את הנוסח ושלחו דרך המערכת (Twilio).</p>
-            </div>
-            {whatsappQuota ? (
-              <div className="il-whatsapp-bulk-panel__quota">
-                <span>מכסה פעילה</span>
-                <strong>
-                  {whatsappQuota.remaining_credits} / {whatsappQuota.total_credits} הודעות
-                </strong>
-              </div>
-            ) : null}
-          </div>
-
-          <form className="il-whatsapp-bulk-panel__form" onSubmit={sendBulkWhatsApp}>
-            <div className="il-whatsapp-bulk-panel__grid">
-              <label className="il-whatsapp-bulk-field" htmlFor="bulk-payment-code">
-                <span>קוד רכישה / מכסה</span>
-                <input
-                  id="bulk-payment-code"
-                  className="us-field-input"
-                  value={paymentCode}
-                  onChange={(event) => setPaymentCode(event.target.value.toUpperCase())}
-                  placeholder="הקוד שהוקצה לכם על ידי המנהל"
-                  required
-                  autoComplete="off"
-                />
-              </label>
-              <div className="il-whatsapp-bulk-field il-whatsapp-bulk-field--summary">
-                <span>נבחרו לשליחה</span>
-                <strong>{selectedCount} מוזמנים</strong>
-              </div>
-            </div>
-
-            <label className="il-whatsapp-bulk-field" htmlFor="bulk-whatsapp-message">
-              <span>נוסח ההודעה (השתמשו ב-[שם] לשם המוזמן)</span>
-              <textarea
-                id="bulk-whatsapp-message"
-                className="us-field-input il-bulk-whatsapp-textarea"
-                rows={9}
-                value={customWhatsAppMessage}
-                onChange={(event) => setCustomWhatsAppMessage(event.target.value)}
-                required
-              />
-            </label>
-
-            {bulkWhatsAppError ? <p className="us-error-message us-error-message--left">{bulkWhatsAppError}</p> : null}
-            {bulkWhatsAppResult ? <p className="il-bulk-whatsapp-success">{bulkWhatsAppResult}</p> : null}
-
-            <div className="il-whatsapp-bulk-panel__actions">
-              <button
-                className="us-btn us-btn--primary il-whatsapp-send-btn"
-                type="submit"
-                disabled={bulkWhatsAppSending || !selectedCount || !guests.length}
-              >
-                {bulkWhatsAppSending ? "שולח…" : `שליחה ל-${selectedCount || 0} מוזמנים`}
-              </button>
-              <button
-                className="us-btn"
-                type="button"
-                onClick={toggleSelectAllFiltered}
-                disabled={!filteredGuests.length}
-              >
-                {allFilteredSelected ? "ביטול בחירת הכל" : "בחירת כל המוזמנים בטבלה"}
-              </button>
-            </div>
-          </form>
-        </section>
-
         <div className="us-toolbar">
           <button
             className="us-btn"
@@ -550,6 +490,14 @@ export default function ClientDashboardPage() {
           </button>
           <button className="us-btn" type="button" onClick={exportGuests}>
             ייצוא לאקסל
+          </button>
+          <button
+            className="us-btn il-bulk-send-btn"
+            type="button"
+            onClick={openBulkWhatsApp}
+            disabled={!selectedCount}
+          >
+            שליחה מהירה לכל ה-{selectedCount}
           </button>
           <button className="us-btn" type="button" onClick={downloadTemplate}>
             הורדת קובץ אקסל לדוגמה
@@ -866,6 +814,67 @@ export default function ClientDashboardPage() {
                 </button>
                 <button className="us-btn" type="button" onClick={() => setShowModal(false)}>
                   ביטול
+                </button>
+              </div>
+            </form>
+          </div>
+        ) : null}
+
+        {showBulkWhatsApp ? (
+          <div className="us-modal-backdrop" role="presentation">
+            <form className="us-modal-card il-bulk-whatsapp-modal" onSubmit={sendBulkWhatsApp}>
+              <h2 className="us-modal-title">תפוצה רחבה</h2>
+              <p className="il-bulk-whatsapp-intro">
+                על מנת לשלוח הודעות אישורי הגעה בתפוצה רחבה יש לרכוש את השירות. פנו למנהל המערכת וספקו קוד.
+                <br />
+                <strong>שימו לב:</strong> המספר נשלח מחברת momoEVENT.
+              </p>
+              {whatsappQuota ? (
+                <p className="il-bulk-whatsapp-quota">
+                  מכסה פעילה: נותרו <strong>{whatsappQuota.remaining_credits}</strong> / {whatsappQuota.total_credits}{" "}
+                  הודעות
+                </p>
+              ) : null}
+              <div className="mt-4 space-y-4">
+                <div>
+                  <label className="us-field-label" htmlFor="bulk-payment-code">
+                    קוד רכישה
+                  </label>
+                  <input
+                    id="bulk-payment-code"
+                    className="us-field-input"
+                    value={paymentCode}
+                    onChange={(event) => setPaymentCode(event.target.value.toUpperCase())}
+                    placeholder="הזינו את הקוד שקיבלתם מהמנהל"
+                    required
+                    autoComplete="off"
+                  />
+                </div>
+                <div>
+                  <label className="us-field-label" htmlFor="bulk-whatsapp-message">
+                    נוסח ההודעה (השתמשו ב-[שם] לשם המוזמן)
+                  </label>
+                  <textarea
+                    id="bulk-whatsapp-message"
+                    className="us-field-input il-bulk-whatsapp-textarea"
+                    rows={9}
+                    value={customWhatsAppMessage}
+                    onChange={(event) => setCustomWhatsAppMessage(event.target.value)}
+                    required
+                  />
+                </div>
+                <p className="il-bulk-whatsapp-selected">
+                  נבחרו לשליחה: <strong>{selectedCount}</strong> מוזמנים
+                </p>
+                {bulkWhatsAppError ? <p className="us-error-message us-error-message--left">{bulkWhatsAppError}</p> : null}
+                {bulkWhatsAppResult ? <p className="il-bulk-whatsapp-success">{bulkWhatsAppResult}</p> : null}
+              </div>
+              <div className="us-toolbar mt-4">
+                <button className="us-btn il-bulk-send-btn" type="submit" disabled={bulkWhatsAppSending || !selectedCount}>
+                  {bulkWhatsAppSending ? "שולח…" : `שליחה ל-${selectedCount} מוזמנים`}
+                </button>
+                <button className="us-btn" type="button" onClick={() => setShowBulkWhatsApp(false)}>
+                  סגירה
                 </button>
               </div>
             </form>
