@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import { Check, HelpCircle, RotateCw, Search, Users, X } from "lucide-react";
 import api from "../api";
 import WhatsAppIcon from "../components/WhatsAppIcon";
-import { buildWhatsAppSendUrl } from "../utils/whatsapp";
+import { buildWhatsAppMessageTemplate, buildWhatsAppSendUrl } from "../utils/whatsapp";
 import { normalizeIsraeliPhone } from "../utils/phoneNormalize";
 import IlInvitationEditor from "../il/components/IlInvitationEditor.jsx";
 import "../us/client-portal.css";
@@ -79,6 +79,13 @@ export default function ClientDashboardPage() {
   const [refreshingGuests, setRefreshingGuests] = useState(false);
   const [searchInput, setSearchInput] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
+  const [selectedGuestIds, setSelectedGuestIds] = useState(() => new Set());
+  const [paymentCode, setPaymentCode] = useState("");
+  const [customWhatsAppMessage, setCustomWhatsAppMessage] = useState("");
+  const [whatsappQuota, setWhatsappQuota] = useState(null);
+  const [bulkWhatsAppSending, setBulkWhatsAppSending] = useState(false);
+  const [bulkWhatsAppResult, setBulkWhatsAppResult] = useState("");
+  const [bulkWhatsAppError, setBulkWhatsAppError] = useState("");
   const fileInputRef = useRef(null);
 
   const publicLink = `${window.location.origin}/event/${userId}`;
@@ -93,11 +100,25 @@ export default function ClientDashboardPage() {
     });
   }, [guests, appliedSearch]);
 
+  const loadWhatsappQuota = async () => {
+    try {
+      const response = await api.get(`/client/${userId}/whatsapp/quota`);
+      const quota = response.data?.quota || null;
+      setWhatsappQuota(quota);
+      if (quota?.code) {
+        setPaymentCode(quota.code);
+      }
+    } catch {
+      setWhatsappQuota(null);
+    }
+  };
+
   const loadGuests = async () => {
     const response = await api.get(`/client/${userId}/guests`);
     setSummary(response.data.summary);
     setGuests(response.data.guests);
     setEventInfo(response.data.event || null);
+    await loadWhatsappQuota();
   };
 
   const refreshGuests = async () => {
@@ -137,6 +158,82 @@ export default function ClientDashboardPage() {
       loadGuests();
     } catch (manualErr) {
       setImportError(manualErr.response?.data?.message || "הוספת מוזמן נכשלה");
+    }
+  };
+
+  const defaultWhatsAppTemplate = useMemo(() => {
+    if (!eventInfo) return "";
+    return buildWhatsAppMessageTemplate({
+      event: eventInfo,
+      eventId: userId,
+      origin: window.location.origin
+    });
+  }, [eventInfo, userId]);
+
+  useEffect(() => {
+    if (defaultWhatsAppTemplate && !customWhatsAppMessage) {
+      setCustomWhatsAppMessage(defaultWhatsAppTemplate);
+    }
+  }, [defaultWhatsAppTemplate, customWhatsAppMessage]);
+
+  const selectedCount = selectedGuestIds.size;
+  const allFilteredSelected =
+    filteredGuests.length > 0 && filteredGuests.every((guest) => selectedGuestIds.has(guest._id));
+
+  const toggleGuestSelection = (guestId) => {
+    setSelectedGuestIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(guestId)) next.delete(guestId);
+      else next.add(guestId);
+      return next;
+    });
+  };
+
+  const toggleSelectAllFiltered = () => {
+    setSelectedGuestIds((prev) => {
+      const next = new Set(prev);
+      if (allFilteredSelected) {
+        filteredGuests.forEach((guest) => next.delete(guest._id));
+      } else {
+        filteredGuests.forEach((guest) => next.add(guest._id));
+      }
+      return next;
+    });
+  };
+
+  const sendBulkWhatsApp = async (event) => {
+    event.preventDefault();
+    if (!selectedCount) {
+      setBulkWhatsAppError("יש לבחור לפחות מוזמן אחד מהטבלה");
+      return;
+    }
+    if (!paymentCode.trim()) {
+      setBulkWhatsAppError("יש להזין קוד רכישה");
+      return;
+    }
+
+    setBulkWhatsAppSending(true);
+    setBulkWhatsAppResult("");
+    setBulkWhatsAppError("");
+    try {
+      const response = await api.post(`/client/${userId}/whatsapp/bulk-send`, {
+        paymentCode: paymentCode.trim(),
+        guestIds: [...selectedGuestIds],
+        customMessage: customWhatsAppMessage.trim() || defaultWhatsAppTemplate
+      });
+      setBulkWhatsAppResult(response.data?.message || "ההודעות נשלחו בהצלחה");
+      setSelectedGuestIds(new Set());
+      if (typeof response.data?.remaining === "number") {
+        setWhatsappQuota((prev) =>
+          prev ? { ...prev, remaining_credits: response.data.remaining } : prev
+        );
+      } else {
+        await loadWhatsappQuota();
+      }
+    } catch (bulkErr) {
+      setBulkWhatsAppError(bulkErr.response?.data?.message || "שליחת ההודעות נכשלה");
+    } finally {
+      setBulkWhatsAppSending(false);
     }
   };
 
@@ -363,6 +460,77 @@ export default function ClientDashboardPage() {
           </div>
         </div>
 
+        <section className="il-whatsapp-bulk-panel">
+          <div className="il-whatsapp-bulk-panel__head">
+            <div>
+              <h2>תפוצת וואטסאפ רחבה</h2>
+              <p>סמנו מוזמנים בטבלה למטה, ערכו את הנוסח ושלחו דרך המערכת (Twilio).</p>
+            </div>
+            {whatsappQuota ? (
+              <div className="il-whatsapp-bulk-panel__quota">
+                <span>מכסה פעילה</span>
+                <strong>
+                  {whatsappQuota.remaining_credits} / {whatsappQuota.total_credits} הודעות
+                </strong>
+              </div>
+            ) : null}
+          </div>
+
+          <form className="il-whatsapp-bulk-panel__form" onSubmit={sendBulkWhatsApp}>
+            <div className="il-whatsapp-bulk-panel__grid">
+              <label className="il-whatsapp-bulk-field" htmlFor="bulk-payment-code">
+                <span>קוד רכישה / מכסה</span>
+                <input
+                  id="bulk-payment-code"
+                  className="us-field-input"
+                  value={paymentCode}
+                  onChange={(event) => setPaymentCode(event.target.value.toUpperCase())}
+                  placeholder="הקוד שהוקצה לכם על ידי המנהל"
+                  required
+                  autoComplete="off"
+                />
+              </label>
+              <div className="il-whatsapp-bulk-field il-whatsapp-bulk-field--summary">
+                <span>נבחרו לשליחה</span>
+                <strong>{selectedCount} מוזמנים</strong>
+              </div>
+            </div>
+
+            <label className="il-whatsapp-bulk-field" htmlFor="bulk-whatsapp-message">
+              <span>נוסח ההודעה (השתמשו ב-[שם] לשם המוזמן)</span>
+              <textarea
+                id="bulk-whatsapp-message"
+                className="us-field-input il-bulk-whatsapp-textarea"
+                rows={9}
+                value={customWhatsAppMessage}
+                onChange={(event) => setCustomWhatsAppMessage(event.target.value)}
+                required
+              />
+            </label>
+
+            {bulkWhatsAppError ? <p className="us-error-message us-error-message--left">{bulkWhatsAppError}</p> : null}
+            {bulkWhatsAppResult ? <p className="il-bulk-whatsapp-success">{bulkWhatsAppResult}</p> : null}
+
+            <div className="il-whatsapp-bulk-panel__actions">
+              <button
+                className="us-btn us-btn--primary il-whatsapp-send-btn"
+                type="submit"
+                disabled={bulkWhatsAppSending || !selectedCount || !guests.length}
+              >
+                {bulkWhatsAppSending ? "שולח…" : `שליחה ל-${selectedCount || 0} מוזמנים`}
+              </button>
+              <button
+                className="us-btn"
+                type="button"
+                onClick={toggleSelectAllFiltered}
+                disabled={!filteredGuests.length}
+              >
+                {allFilteredSelected ? "ביטול בחירת הכל" : "בחירת כל המוזמנים בטבלה"}
+              </button>
+            </div>
+          </form>
+        </section>
+
         <div className="us-toolbar">
           <button
             className="us-btn"
@@ -418,6 +586,15 @@ export default function ClientDashboardPage() {
           <table className="us-guest-table">
             <thead>
               <tr>
+                <th className="il-col-check">
+                  <input
+                    type="checkbox"
+                    aria-label="בחירת כל המוזמנים המוצגים"
+                    checked={allFilteredSelected}
+                    onChange={toggleSelectAllFiltered}
+                    disabled={!filteredGuests.length}
+                  />
+                </th>
                 <th>שם מלא</th>
                 <th>טלפון</th>
                 <th>כמה מגיעים</th>
@@ -431,13 +608,21 @@ export default function ClientDashboardPage() {
             <tbody>
               {filteredGuests.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="us-table-empty">
+                  <td colSpan={9} className="us-table-empty">
                     {appliedSearch ? "לא נמצאו תוצאות לחיפוש" : "אין אורחים עדיין"}
                   </td>
                 </tr>
               ) : (
                 filteredGuests.map((guest) => (
                   <tr key={guest._id} className={getGuestRowClass(guest.status)}>
+                    <td data-label="בחירה" className="il-col-check">
+                      <input
+                        type="checkbox"
+                        aria-label={`בחירת ${guest.fullName}`}
+                        checked={selectedGuestIds.has(guest._id)}
+                        onChange={() => toggleGuestSelection(guest._id)}
+                      />
+                    </td>
                     <td data-label="שם מלא">
                       {editingGuestId === guest._id ? (
                         <input

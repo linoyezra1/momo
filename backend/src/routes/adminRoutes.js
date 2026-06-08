@@ -2,6 +2,7 @@ import express from "express";
 import bcrypt from "bcryptjs";
 import User from "../models/User.js";
 import Guest from "../models/Guest.js";
+import ActivationCode from "../models/ActivationCode.js";
 import { buildClientUrl } from "../utils/clientUrl.js";
 
 const router = express.Router();
@@ -228,6 +229,172 @@ router.patch("/clients/:userId/payment", async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ message: error.message || "Failed to update payment" });
+  }
+});
+
+router.get("/activation-codes", async (req, res) => {
+  try {
+    const codes = await ActivationCode.find().sort({ createdAt: -1 });
+    return res.json({ codes });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to load activation codes", error: error.message });
+  }
+});
+
+router.post("/activation-codes", async (req, res) => {
+  try {
+    const code = String(req.body?.code || "").trim().toUpperCase();
+    const totalCredits = Math.max(1, Number(req.body?.total_credits || req.body?.totalCredits || 0));
+    const note = String(req.body?.note || "").trim();
+    const userId = req.body?.userId || req.body?.redeemedByUserId || null;
+
+    if (!code) {
+      return res.status(400).json({ message: "יש להזין קוד רכישה" });
+    }
+
+    const existing = await ActivationCode.findOne({ code });
+    if (existing) {
+      return res.status(409).json({ message: "קוד זה כבר קיים במערכת" });
+    }
+
+    const activationCode = await ActivationCode.create({
+      code,
+      total_credits: totalCredits,
+      remaining_credits: totalCredits,
+      note,
+      redeemedByUserId: userId || null
+    });
+
+    return res.status(201).json({ message: "קוד רכישה נוצר בהצלחה", code: activationCode });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "Failed to create activation code" });
+  }
+});
+
+router.get("/clients/:userId/whatsapp-quota", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await User.findById(userId).select("_id username");
+    if (!user) {
+      return res.status(404).json({ message: "Client not found" });
+    }
+
+    const codeRecord = await ActivationCode.findOne({
+      redeemedByUserId: userId,
+      isActive: true
+    }).sort({ updatedAt: -1 });
+
+    return res.json({
+      quota: codeRecord
+        ? {
+            codeId: codeRecord._id,
+            code: codeRecord.code,
+            total_credits: codeRecord.total_credits,
+            remaining_credits: codeRecord.remaining_credits,
+            note: codeRecord.note || ""
+          }
+        : null
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "Failed to load client quota" });
+  }
+});
+
+router.post("/clients/:userId/whatsapp-quota", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await User.findById(userId).select("_id username");
+    if (!user) {
+      return res.status(404).json({ message: "Client not found" });
+    }
+
+    const totalCredits = Math.max(1, Number(req.body?.total_credits || req.body?.totalCredits || 0));
+    const requestedCode = String(req.body?.code || "").trim().toUpperCase();
+    const note = String(req.body?.note || "").trim() || `לקוח: ${user.username}`;
+
+    let codeRecord = await ActivationCode.findOne({
+      redeemedByUserId: userId,
+      isActive: true
+    }).sort({ updatedAt: -1 });
+
+    if (codeRecord) {
+      codeRecord.total_credits = totalCredits;
+      codeRecord.remaining_credits = totalCredits;
+      if (note) codeRecord.note = note;
+      await codeRecord.save();
+      return res.json({
+        message: `מכסת הוואטסאפ עודכנה ל-${totalCredits} הודעות`,
+        quota: {
+          codeId: codeRecord._id,
+          code: codeRecord.code,
+          total_credits: codeRecord.total_credits,
+          remaining_credits: codeRecord.remaining_credits,
+          note: codeRecord.note || ""
+        }
+      });
+    }
+
+    const code =
+      requestedCode ||
+      `MOMO-${String(user.username || "CLIENT")
+        .replace(/[^A-Z0-9]/gi, "")
+        .slice(0, 8)
+        .toUpperCase()}-${totalCredits}`;
+
+    const duplicate = await ActivationCode.findOne({ code });
+    if (duplicate) {
+      return res.status(409).json({ message: "קוד זה כבר קיים. הזינו קוד אחר." });
+    }
+
+    codeRecord = await ActivationCode.create({
+      code,
+      total_credits: totalCredits,
+      remaining_credits: totalCredits,
+      note,
+      redeemedByUserId: userId
+    });
+
+    return res.status(201).json({
+      message: `הוקצה קוד ${code} עם ${totalCredits} הודעות`,
+      quota: {
+        codeId: codeRecord._id,
+        code: codeRecord.code,
+        total_credits: codeRecord.total_credits,
+        remaining_credits: codeRecord.remaining_credits,
+        note: codeRecord.note || ""
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "Failed to assign client quota" });
+  }
+});
+
+router.patch("/activation-codes/:codeId", async (req, res) => {
+  try {
+    const { codeId } = req.params;
+    const codeRecord = await ActivationCode.findById(codeId);
+    if (!codeRecord) {
+      return res.status(404).json({ message: "קוד לא נמצא" });
+    }
+
+    if (typeof req.body?.isActive === "boolean") {
+      codeRecord.isActive = req.body.isActive;
+    }
+    if (req.body?.remaining_credits != null && !Number.isNaN(Number(req.body.remaining_credits))) {
+      const nextRemaining = Math.max(0, Number(req.body.remaining_credits));
+      codeRecord.remaining_credits = nextRemaining;
+      if (nextRemaining > codeRecord.total_credits) {
+        codeRecord.total_credits = nextRemaining;
+      }
+    }
+    if (req.body?.note != null) {
+      codeRecord.note = String(req.body.note).trim();
+    }
+
+    await codeRecord.save();
+    return res.json({ message: "קוד עודכן", code: codeRecord });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "Failed to update activation code" });
   }
 });
 

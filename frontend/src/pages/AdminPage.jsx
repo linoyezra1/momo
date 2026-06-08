@@ -100,6 +100,11 @@ export default function AdminPage() {
   const [paymentSaving, setPaymentSaving] = useState(false);
   const [paymentSaved, setPaymentSaved] = useState(false);
   const [copiedField, setCopiedField] = useState("");
+  const [clientQuota, setClientQuota] = useState(null);
+  const [clientQuotaLoading, setClientQuotaLoading] = useState(false);
+  const [clientQuotaError, setClientQuotaError] = useState("");
+  const [clientQuotaSaved, setClientQuotaSaved] = useState(false);
+  const [clientQuotaDraft, setClientQuotaDraft] = useState({ code: "", total_credits: "" });
   const publicEventUrl = toAppUrl(result?.publicEventLink);
   const clientDashboardUrl = toAppUrl(result?.clientDashboardLink);
   const eventDisplayText = buildEventDisplayText(createdEvent);
@@ -166,9 +171,62 @@ ${publicEventUrl}`
     }
   };
 
+  const loadClientQuota = async (userId) => {
+    if (!userId) {
+      setClientQuota(null);
+      return;
+    }
+    setClientQuotaLoading(true);
+    setClientQuotaError("");
+    try {
+      const response = await api.get(`/admin/clients/${userId}/whatsapp-quota`);
+      const quota = response.data?.quota || null;
+      setClientQuota(quota);
+      setClientQuotaDraft({
+        code: quota?.code || "",
+        total_credits: quota?.total_credits ? String(quota.total_credits) : ""
+      });
+    } catch (loadError) {
+      setClientQuota(null);
+      setClientQuotaError(loadError.response?.data?.message || "טעינת מכסת וואטסאפ נכשלה");
+    } finally {
+      setClientQuotaLoading(false);
+    }
+  };
+
+  const assignClientQuota = async (event) => {
+    event.preventDefault();
+    if (!selectedClientId) return;
+    setClientQuotaLoading(true);
+    setClientQuotaError("");
+    setClientQuotaSaved(false);
+    try {
+      const response = await api.post(`/admin/clients/${selectedClientId}/whatsapp-quota`, {
+        code: clientQuotaDraft.code.trim(),
+        total_credits: Number(clientQuotaDraft.total_credits)
+      });
+      const quota = response.data?.quota || null;
+      setClientQuota(quota);
+      setClientQuotaDraft({
+        code: quota?.code || "",
+        total_credits: quota?.total_credits ? String(quota.total_credits) : ""
+      });
+      setClientQuotaSaved(true);
+      window.setTimeout(() => setClientQuotaSaved(false), 2500);
+    } catch (assignError) {
+      setClientQuotaError(assignError.response?.data?.message || "הקצאת מכסה נכשלה");
+    } finally {
+      setClientQuotaLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadClients();
   }, []);
+
+  useEffect(() => {
+    loadClientQuota(selectedClientId);
+  }, [selectedClientId]);
 
   useEffect(() => {
     if (!selectedClient) {
@@ -593,6 +651,61 @@ ${publicEventUrl}`
                       alt="תמונת קאבר"
                     />
                   ) : null}
+
+                  <div className="us-admin-payment-block us-admin-whatsapp-quota-block">
+                    <h3>מכסת וואטסאפ ללקוח (Twilio)</h3>
+                    <p className="us-admin-field-hint">
+                      הקצו קוד ומכסת הודעות ללקוח הנבחר. הקוד יופיע אוטומטית בדשבורד שלו לתפוצה רחבה.
+                    </p>
+                    {clientQuotaLoading ? <p className="us-admin-empty">טוען מכסה…</p> : null}
+                    {clientQuota ? (
+                      <p className="us-admin-quota-status">
+                        <strong>קוד פעיל:</strong> {clientQuota.code} · נותרו{" "}
+                        <strong>{clientQuota.remaining_credits}</strong> / {clientQuota.total_credits} הודעות
+                      </p>
+                    ) : (
+                      <p className="us-admin-field-hint">ללקוח זה עדיין לא הוקצתה מכסת וואטסאפ.</p>
+                    )}
+                    {clientQuotaError ? (
+                      <p className="us-admin-message us-admin-message--error">{clientQuotaError}</p>
+                    ) : null}
+                    <form className="us-admin-payment-fields" onSubmit={assignClientQuota}>
+                      <div className="us-admin-field">
+                        <label className="us-admin-field-label" htmlFor="client-quota-code">
+                          קוד (אופציונלי — ייווצר אוטומטית)
+                        </label>
+                        <input
+                          id="client-quota-code"
+                          className="us-admin-field-input"
+                          value={clientQuotaDraft.code}
+                          onChange={(event) =>
+                            setClientQuotaDraft((prev) => ({ ...prev, code: event.target.value.toUpperCase() }))
+                          }
+                          placeholder="למשל: MOMO-450"
+                        />
+                      </div>
+                      <div className="us-admin-field">
+                        <label className="us-admin-field-label" htmlFor="client-quota-credits">
+                          מכסת הודעות
+                        </label>
+                        <input
+                          id="client-quota-credits"
+                          className="us-admin-field-input"
+                          type="number"
+                          min="1"
+                          value={clientQuotaDraft.total_credits}
+                          onChange={(event) =>
+                            setClientQuotaDraft((prev) => ({ ...prev, total_credits: event.target.value }))
+                          }
+                          placeholder="למשל: 450"
+                          required
+                        />
+                      </div>
+                      <button className="us-admin-btn us-admin-btn--primary" type="submit" disabled={clientQuotaLoading}>
+                        {clientQuotaLoading ? "שומר…" : clientQuotaSaved ? "הוקצה בהצלחה" : clientQuota ? "עדכון מכסה" : "הקצאת מכסה ללקוח"}
+                      </button>
+                    </form>
+                  </div>
 
                   <div className="us-admin-payment-block">
                     <h3>פרטי תשלום (אופציונלי)</h3>

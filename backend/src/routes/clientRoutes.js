@@ -4,6 +4,9 @@ import User from "../models/User.js";
 import Guest from "../models/Guest.js";
 import { normalizePhone, isSelfConfirmedSource } from "../utils/guestPhone.js";
 import { normalizeIlEventUpdatePayload } from "../utils/ilEvent.js";
+import { sendBulkWhatsApp } from "../services/bulkWhatsAppService.js";
+import { getClientBaseUrl } from "../utils/clientUrl.js";
+import ActivationCode from "../models/ActivationCode.js";
 
 const router = express.Router();
 
@@ -350,6 +353,69 @@ router.patch("/:userId/guests/:guestId", async (req, res) => {
     return res.json({ message: "Guest updated", guest });
   } catch (error) {
     return res.status(500).json({ message: "Failed to update guest", error: error.message });
+  }
+});
+
+router.get("/:userId/whatsapp/quota", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await User.findById(userId).select("_id");
+    if (!user) {
+      return res.status(404).json({ message: "Client not found" });
+    }
+
+    const codeRecord = await ActivationCode.findOne({
+      redeemedByUserId: userId,
+      isActive: true
+    }).sort({ updatedAt: -1 });
+
+    return res.json({
+      quota: codeRecord
+        ? {
+            code: codeRecord.code,
+            total_credits: codeRecord.total_credits,
+            remaining_credits: codeRecord.remaining_credits
+          }
+        : null
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to load WhatsApp quota", error: error.message });
+  }
+});
+
+router.post("/:userId/whatsapp/bulk-send", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { paymentCode, guestIds, customMessage } = req.body;
+
+    const user = await User.findById(userId).select("event");
+    if (!user) {
+      return res.status(404).json({ message: "Client not found" });
+    }
+
+    if (!Array.isArray(guestIds) || guestIds.length === 0) {
+      return res.status(400).json({ message: "יש לבחור לפחות מוזמן אחד לשליחה" });
+    }
+
+    const guests = await Guest.find({ userId, _id: { $in: guestIds } });
+    if (guests.length !== guestIds.length) {
+      return res.status(400).json({ message: "חלק מהמוזמנים שנבחרו לא נמצאו ברשימה" });
+    }
+
+    const origin = getClientBaseUrl(req);
+    const result = await sendBulkWhatsApp({
+      paymentCode,
+      guests,
+      customMessage,
+      event: user.event,
+      userId,
+      origin
+    });
+
+    return res.status(result.status).json(result.body);
+  } catch (error) {
+    console.error("Bulk WhatsApp route error:", error);
+    return res.status(500).json({ message: "שגיאה פנימית בשליחת ההודעות, אנא נסה שוב מאוחר יותר." });
   }
 });
 

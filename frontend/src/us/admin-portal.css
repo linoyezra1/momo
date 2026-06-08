@@ -385,6 +385,20 @@
   border-top: 1px solid var(--us-border);
 }
 
+.us-admin-whatsapp-quota-block {
+  border-color: #b7e4c7;
+  background: linear-gradient(180deg, #f6fff9 0%, transparent 100%);
+}
+
+.us-admin-quota-status {
+  margin: 0 0 0.85rem;
+  padding: 0.65rem 0.8rem;
+  border-radius: 0.5rem;
+  background: #e8f9ee;
+  color: #14532d;
+  font-size: 0.9rem;
+}
+
 .us-admin-payment-block h3 {
   margin: 0 0 0.35rem;
   font-size: 0.78rem;
