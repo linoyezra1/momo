@@ -1,0 +1,143 @@
+.il-client-portal {
+  direction: rtl;
+  text-align: right;
+  font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+}
+
+.il-client-portal .us-dashboard-header h1,
+.il-client-portal .us-modal-title,
+.il-client-portal .us-invitation-editor__title {
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+.il-client-portal .us-stat-card,
+.il-client-portal .us-guest-table {
+  text-align: right;
+}
+
+.il-client-portal .us-search-wrap {
+  margin-left: 0;
+  margin-right: auto;
+}
+
+.il-client-portal .us-public-link-box {
+  text-align: right;
+}
+
+.il-client-portal .us-guest-table th,
+.il-client-portal .us-guest-table td {
+  text-align: right;
+}
+
+.il-row-coming {
+  background: rgb(213 126 126 / 9%);
+}
+
+.il-row-not-coming {
+  background: rgb(155 90 90 / 7%);
+}
+
+.il-row-maybe {
+  background: rgb(180 150 90 / 8%);
+}
+
+.il-row-unknown {
+  background: transparent;
+}
+
+.il-client-portal .us-stat-card--coming p {
+  color: var(--us-rose);
+}
+
+.il-client-portal .us-stat-card--not-coming p {
+  color: #9b5a5a;
+}
+
+.il-client-portal .us-stat-card--maybe p {
+  color: #a67c3d;
+}
+
+.il-invitation-editor .us-invitation-editor__form-panel {
+  border-right: none;
+  border-left: 1px solid var(--us-border);
+  padding: 1rem 1.1rem 1.5rem 0.85rem;
+}
+
+.il-invitation-editor .us-editor-field,
+.il-invitation-editor .us-editor-section h3 {
+  text-transform: none;
+  letter-spacing: 0.02em;
+}
+
+.il-invitation-editor .us-invitation-editor__preview-label {
+  text-transform: none;
+  letter-spacing: 0.06em;
+}
+
+.il-invite-preview {
+  pointer-events: none;
+  user-select: none;
+}
+
+.il-invite-preview .invite-page {
+  min-height: auto;
+}
+
+.il-preview-placeholder {
+  display: block;
+  color: var(--us-muted, #8a6f6b);
+  opacity: 0.75;
+  cursor: default;
+}
+
+.il-editor-cover-preview {
+  display: block;
+  max-width: 100%;
+  max-height: 10rem;
+  margin-top: 0.5rem;
+  border-radius: 0.35rem;
+  border: 1px solid var(--us-border);
+}
+
+.il-status-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.il-status-btn {
+  border: 1px solid var(--us-border);
+  border-radius: 0.35rem;
+  background: var(--us-ivory-card);
+  padding: 0.45rem 0.7rem;
+  font-size: 0.78rem;
+  color: var(--us-espresso);
+}
+
+.il-status-btn.is-selected {
+  border-color: var(--us-rose);
+  background: rgb(213 126 126 / 12%);
+  color: var(--us-espresso);
+}
+
+.il-login-card .us-login-title,
+.il-login-card .us-login-subtitle {
+  text-transform: none;
+  letter-spacing: 0.02em;
+}
+
+.il-client-portal .us-error-message--left {
+  text-align: right;
+}
+
+@media (max-width: 900px) {
+  .us-invitation-editor__layout {
+    grid-template-columns: 1fr;
+  }
+
+  .il-invitation-editor .us-invitation-editor__form-panel {
+    border-left: none;
+    border-bottom: 1px solid var(--us-border);
+  }
+}

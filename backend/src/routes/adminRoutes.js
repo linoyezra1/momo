@@ -82,14 +82,10 @@ function validateEvent(normalizedEvent) {
   return "";
 }
 
-function buildClientLinks(user, req) {
-  const userId = user?._id || user;
-  const slug = user?.slug;
+function buildClientLinks(userId, req) {
   return {
     clientDashboardLink: buildClientUrl("/client/login", req),
-    publicEventLink: slug
-      ? buildClientUrl(`/e/${slug}`, req)
-      : buildClientUrl(`/event/${userId}`, req)
+    publicEventLink: buildClientUrl(`/event/${userId}`, req)
   };
 }
 
@@ -106,23 +102,16 @@ function normalizePaymentPayload(rawPayment) {
 
 router.get("/clients", async (req, res) => {
   try {
-    const users = await User.find(
-      {},
-      "username event createdAt payment loginPassword etsyOrderId contactEmail slug market"
-    ).sort({
+    const users = await User.find({}, "username event createdAt payment loginPassword").sort({
       createdAt: -1
     });
     const clients = users.map((user) => {
-      const links = buildClientLinks(user, req);
+      const links = buildClientLinks(user._id, req);
       const payment = normalizePaymentPayload(user.payment || {});
       return {
         userId: user._id,
         username: user.username,
         loginPassword: user.loginPassword || "",
-        contactEmail: user.contactEmail || "",
-        etsyOrderId: user.etsyOrderId || "",
-        slug: user.slug || "",
-        market: user.market || "us",
         event: user.event,
         payment,
         createdAt: user.createdAt,
@@ -163,7 +152,7 @@ router.post("/create-client", async (req, res) => {
       event: normalizedEvent
     });
 
-    const links = buildClientLinks(user, req);
+    const links = buildClientLinks(user._id, req);
 
     return res.status(201).json({
       userId: user._id,
@@ -208,7 +197,7 @@ router.patch("/clients/:userId", async (req, res) => {
     }
 
     await user.save();
-    const links = buildClientLinks(user, req);
+    const links = buildClientLinks(user._id, req);
     return res.json({
       message: "Client updated",
       userId: user._id,

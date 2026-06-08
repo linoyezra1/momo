@@ -2,88 +2,47 @@ import express from "express";
 import bcrypt from "bcryptjs";
 import User from "../models/User.js";
 import Guest from "../models/Guest.js";
-import { normalizeDietaryRestrictions, normalizeEventUpdatePayload } from "../utils/usEvent.js";
-import { formatStoredPhone } from "../utils/usPhone.js";
+import { normalizePhone, isSelfConfirmedSource } from "../utils/guestPhone.js";
+import { normalizeIlEventUpdatePayload } from "../utils/ilEvent.js";
 
 const router = express.Router();
-
-const RSVP_STATUSES = ["Joyfully Accepts", "Regretfully Declines"];
-const DIETARY_OPTIONS = ["None", "Vegetarian", "Vegan", "Gluten-Free", "Nut Allergy"];
-
-function normalizeEmail(email) {
-  return String(email || "").trim().toLowerCase();
-}
-
-function isValidEmail(email) {
-  return email.includes("@") && email.includes(".");
-}
 
 function parseAttendeesCount(raw) {
   if (raw == null || raw === "") return 1;
   const asNumber = Number(raw);
-  if (!Number.isNaN(asNumber) && asNumber >= 0) return asNumber;
+  if (!Number.isNaN(asNumber) && asNumber > 0) return asNumber;
   const match = String(raw).match(/\d+/);
   return match ? Number(match[0]) : 1;
 }
 
-function normalizeStatus(raw) {
-  const status = String(raw || "").trim();
-  if (status === "Joyfully Accepts" || status === "accepts" || status === "yes") {
-    return "Joyfully Accepts";
-  }
-  if (status === "Regretfully Declines" || status === "declines" || status === "no") {
-    return "Regretfully Declines";
-  }
-  return "Joyfully Accepts";
-}
-
 function mapRowToGuest(row) {
-  const fullName = String(
-    row["Guest Name"] ?? row["Full Name"] ?? row["fullName"] ?? row["name"] ?? ""
-  ).trim();
-  const email = normalizeEmail(row["Email"] ?? row["email"] ?? "");
-  const statusRaw = row["RSVP Status"] ?? row["status"] ?? row["Status"] ?? "";
+  const fullName = String(row["שם מלא"] ?? row["fullName"] ?? row["name"] ?? "").trim();
+  const phone = normalizePhone(row["טלפון"] ?? row["phone"] ?? "");
   const amountRaw =
-    row["Guests Attending"] ??
-    row["Number of Guests"] ??
-    row["attendeesCount"] ??
-    row["guests"] ??
-    row["count"];
-  const attendeesCount = Math.max(0, parseAttendeesCount(amountRaw));
-  const dietaryRaw = row["Dietary Restrictions"] ?? row["dietaryRestrictions"] ?? "";
-  const dietaryRestrictions = Array.isArray(dietaryRaw)
-    ? normalizeDietaryRestrictions(dietaryRaw)
-    : normalizeDietaryRestrictions(
-        String(dietaryRaw || "")
-          .split(/[,;|]/)
-          .map((item) => item.trim())
-          .filter(Boolean)
-      );
-  const dietaryNotes = String(row["Dietary Notes"] ?? row["dietaryNotes"] ?? row["Notes"] ?? "").trim();
-  const phone = formatStoredPhone(row["Phone"] ?? row["phone"] ?? row["Phone Number"] ?? "");
-
-  return {
-    fullName,
-    email,
-    phone,
-    attendeesCount,
-    status: normalizeStatus(statusRaw),
-    dietaryRestrictions,
-    dietaryNotes
-  };
+    row["כמות"] ??
+    row["כמות מגיעים"] ??
+    row["כמות אנשים"] ??
+    row["מוזמנים"] ??
+    row["amount"] ??
+    row["count"] ??
+    row["attendeesCount"];
+  const attendeesCount = Math.max(1, parseAttendeesCount(amountRaw));
+  const statusRaw = String(row["סטטוס"] ?? row["status"] ?? row["סטטוס הגעה"] ?? "").trim();
+  let status = "לא ידוע";
+  if (statusRaw === "מגיע" || statusRaw === "לא מגיע" || statusRaw === "אולי") {
+    status = statusRaw;
+  }
+  return { fullName, phone, attendeesCount, status, giftAmount: 0 };
 }
 
 function toGuestDoc(userId, mapped) {
   return {
     userId,
     fullName: mapped.fullName,
-    email: normalizeEmail(mapped.email),
-    phone: formatStoredPhone(mapped.phone),
-    attendeesCount: mapped.status === "Regretfully Declines" ? 0 : Math.max(1, mapped.attendeesCount || 1),
+    phone: normalizePhone(mapped.phone),
+    attendeesCount: mapped.attendeesCount,
+    giftAmount: Math.max(0, Number(mapped.giftAmount || 0)),
     status: mapped.status,
-    dietaryRestrictions:
-      mapped.status === "Joyfully Accepts" ? normalizeDietaryRestrictions(mapped.dietaryRestrictions) : [],
-    dietaryNotes: mapped.status === "Joyfully Accepts" ? mapped.dietaryNotes : "",
     source: "excel"
   };
 }
@@ -91,44 +50,25 @@ function toGuestDoc(userId, mapped) {
 function guestSnapshot(guest) {
   return {
     fullName: guest.fullName,
-    email: guest.email,
-    phone: guest.phone || "",
     attendeesCount: guest.attendeesCount,
+    giftAmount: guest.giftAmount || 0,
     status: guest.status,
-    dietaryRestrictions: guest.dietaryRestrictions || [],
-    dietaryNotes: guest.dietaryNotes || "",
     source: guest.source
   };
 }
 
-function hasDietaryAlert(restrictions) {
-  const list = restrictions || [];
-  return list.length > 0 && !list.every((item) => item === "None");
-}
-
-function buildSummary(guests) {
-  return guests.reduce(
-    (acc, guest) => {
-      acc.totalInvited += 1;
-      if (guest.status === "Joyfully Accepts") {
-        acc.totalAttending += Math.max(0, Number(guest.attendeesCount || 0));
-      } else if (guest.status === "Regretfully Declines") {
-        acc.totalDeclined += 1;
-      }
-      if (hasDietaryAlert(guest.dietaryRestrictions)) {
-        acc.dietaryAlerts += 1;
-      }
-      return acc;
-    },
-    { totalInvited: 0, totalAttending: 0, totalDeclined: 0, dietaryAlerts: 0 }
-  );
+function resolveSourceAfterExcelOverwrite(existingSource) {
+  if (isSelfConfirmedSource(existingSource)) {
+    return "excel_and_form";
+  }
+  return "excel";
 }
 
 router.post("/login", async (req, res) => {
   try {
     const { username, password } = req.body;
     if (!username || !password) {
-      return res.status(400).json({ message: "Email and password are required" });
+      return res.status(400).json({ message: "Username and password are required" });
     }
 
     const user = await User.findOne({ username: username.trim() });
@@ -144,7 +84,6 @@ router.post("/login", async (req, res) => {
     return res.json({
       userId: user._id,
       username: user.username,
-      slug: user.slug,
       event: user.event
     });
   } catch (error) {
@@ -152,44 +91,32 @@ router.post("/login", async (req, res) => {
   }
 });
 
-router.put("/:userId/event", async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: "Client not found" });
-    }
-
-    user.event = normalizeEventUpdatePayload(req.body);
-    await user.save();
-
-    return res.json({
-      message: "Your live wedding invitation has been updated successfully!",
-      event: user.event,
-      slug: user.slug
-    });
-  } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to update invitation" });
-  }
-});
-
 router.get("/:userId/guests", async (req, res) => {
   try {
     const { userId } = req.params;
-    const user = await User.findById(userId).select("event username slug");
+    const user = await User.findById(userId).select("event username");
     if (!user) {
       return res.status(404).json({ message: "Client not found" });
     }
     const guests = await Guest.find({ userId }).sort({ createdAt: -1 });
-    const summary = buildSummary(guests);
 
-    return res.json({
-      summary,
-      guests,
-      event: user.event,
-      username: user.username,
-      slug: user.slug
-    });
+    const summary = guests.reduce(
+      (acc, guest) => {
+        const count = Math.max(0, Number(guest.attendeesCount || 0));
+        acc.totalInvited += count;
+        if (guest.status === "מגיע") {
+          acc.totalComing += count;
+        } else if (guest.status === "לא מגיע") {
+          acc.totalNotComing += count;
+        } else {
+          acc.totalMaybe += count;
+        }
+        return acc;
+      },
+      { totalInvited: 0, totalComing: 0, totalNotComing: 0, totalMaybe: 0 }
+    );
+
+    return res.json({ summary, guests, event: user.event, username: user.username });
   } catch (error) {
     return res.status(500).json({ message: "Failed to load guests", error: error.message });
   }
@@ -198,19 +125,10 @@ router.get("/:userId/guests", async (req, res) => {
 router.post("/:userId/guests/manual", async (req, res) => {
   try {
     const { userId } = req.params;
-    const { fullName, email, phone, attendeesCount, status, dietaryRestrictions, dietaryNotes } = req.body;
+    const { fullName, phone, attendeesCount, status, giftAmount } = req.body;
 
-    if (!fullName || !email || !status) {
-      return res.status(400).json({ message: "Guest name, email, and RSVP status are required" });
-    }
-
-    const normalizedEmail = normalizeEmail(email);
-    if (!isValidEmail(normalizedEmail)) {
-      return res.status(400).json({ message: "A valid email address is required" });
-    }
-
-    if (!RSVP_STATUSES.includes(status)) {
-      return res.status(400).json({ message: "Invalid RSVP status" });
+    if (!fullName || !phone || !status) {
+      return res.status(400).json({ message: "Missing required fields" });
     }
 
     const user = await User.findById(userId).select("_id");
@@ -218,33 +136,43 @@ router.post("/:userId/guests/manual", async (req, res) => {
       return res.status(404).json({ message: "Client not found" });
     }
 
-    const guestData = {
-      fullName: fullName.trim(),
-      email: normalizedEmail,
-      phone: formatStoredPhone(phone),
-      attendeesCount: status === "Regretfully Declines" ? 0 : Math.max(1, Number(attendeesCount || 1)),
-      status,
-      dietaryRestrictions:
-        status === "Joyfully Accepts" ? normalizeDietaryRestrictions(dietaryRestrictions) : [],
-      dietaryNotes: status === "Joyfully Accepts" ? String(dietaryNotes || "").trim() : "",
-      source: "manual"
-    };
+    const normalizedPhone = normalizePhone(phone);
+    if (!normalizedPhone) {
+      return res.status(400).json({ message: "Invalid phone number" });
+    }
 
-    const existing = await Guest.findOne({ userId, email: normalizedEmail });
+    const existing = await Guest.findOne({ userId, phone: normalizedPhone });
     if (existing) {
-      if (existing.source === "form") {
+      if (isSelfConfirmedSource(existing.source)) {
         return res.status(409).json({
-          message: "This guest already submitted an RSVP through your public invitation"
+          message: "מוזמן עם מספר טלפון זה כבר אישר הגעה בעצמו במערכת"
         });
       }
-      const guest = await Guest.findByIdAndUpdate(existing._id, guestData, {
-        new: true,
-        runValidators: true
-      });
+      const guest = await Guest.findByIdAndUpdate(
+        existing._id,
+        {
+          fullName: fullName.trim(),
+          phone: normalizedPhone,
+          attendeesCount: Number(attendeesCount || 1),
+          giftAmount: Math.max(0, Number(giftAmount || 0)),
+          status,
+          source: "manual"
+        },
+        { new: true, runValidators: true }
+      );
       return res.json({ message: "Guest updated", guest });
     }
 
-    const guest = await Guest.create({ userId, ...guestData });
+    const guest = await Guest.create({
+      userId,
+      fullName: fullName.trim(),
+      phone: normalizedPhone,
+      attendeesCount: Number(attendeesCount || 1),
+      giftAmount: Math.max(0, Number(giftAmount || 0)),
+      status,
+      source: "manual"
+    });
+
     return res.status(201).json({ message: "Guest added", guest });
   } catch (error) {
     return res.status(500).json({ message: error.message || "Failed to add guest" });
@@ -267,33 +195,30 @@ router.post("/:userId/guests/import/precheck", async (req, res) => {
 
     const docs = guests
       .map((row) => toGuestDoc(userId, mapRowToGuest(row)))
-      .filter((guest) => guest.fullName && guest.email && isValidEmail(guest.email));
+      .filter((guest) => guest.fullName && guest.phone);
 
     if (docs.length === 0) {
       return res.status(400).json({ message: "No valid guests to import" });
     }
 
-    const emails = [...new Set(docs.map((doc) => doc.email))];
-    const existingGuests = await Guest.find({ userId, email: { $in: emails } });
-    const existingByEmail = new Map(existingGuests.map((guest) => [guest.email, guest]));
+    const phones = [...new Set(docs.map((doc) => doc.phone))];
+    const existingGuests = await Guest.find({ userId, phone: { $in: phones } });
+    const existingByPhone = new Map(existingGuests.map((guest) => [guest.phone, guest]));
 
     const newGuests = [];
     const conflicts = [];
 
     for (const doc of docs) {
-      const existing = existingByEmail.get(doc.email);
+      const existing = existingByPhone.get(doc.phone);
       if (existing) {
         conflicts.push({
           guestId: existing._id,
-          email: doc.email,
+          phone: doc.phone,
           existing: guestSnapshot(existing),
           excel: {
             fullName: doc.fullName,
-            phone: doc.phone || "",
             attendeesCount: doc.attendeesCount,
-            status: doc.status,
-            dietaryRestrictions: doc.dietaryRestrictions,
-            dietaryNotes: doc.dietaryNotes
+            status: doc.status
           }
         });
       } else {
@@ -329,22 +254,19 @@ router.post("/:userId/guests/import", async (req, res) => {
 
     for (const row of guestsToInsert) {
       const doc =
-        row?.email && row?.fullName
+        row?.phone && row?.fullName
           ? {
               userId,
               fullName: String(row.fullName).trim(),
-              email: normalizeEmail(row.email),
-              phone: formatStoredPhone(row.phone),
-              attendeesCount:
-                row.status === "Regretfully Declines" ? 0 : Math.max(1, Number(row.attendeesCount || 1)),
-              status: RSVP_STATUSES.includes(row.status) ? row.status : "Joyfully Accepts",
-              dietaryRestrictions: normalizeDietaryRestrictions(row.dietaryRestrictions),
-              dietaryNotes: String(row.dietaryNotes || "").trim(),
+              phone: normalizePhone(row.phone),
+              attendeesCount: Math.max(1, Number(row.attendeesCount || 1)),
+              giftAmount: Math.max(0, Number(row.giftAmount || 0)),
+              status: row.status || "לא ידוע",
               source: "excel"
             }
           : toGuestDoc(userId, mapRowToGuest(row));
-      if (!doc.fullName || !doc.email || !isValidEmail(doc.email)) continue;
-      const exists = await Guest.findOne({ userId, email: doc.email }).select("_id");
+      if (!doc.fullName || !doc.phone) continue;
+      const exists = await Guest.findOne({ userId, phone: doc.phone }).select("_id");
       if (exists) continue;
       await Guest.create(doc);
       insertedCount += 1;
@@ -355,25 +277,23 @@ router.post("/:userId/guests/import", async (req, res) => {
 
     for (const resolution of resolutionList) {
       if (resolution?.choice !== "use_excel") continue;
-      const email = normalizeEmail(resolution.email);
+      const phone = normalizePhone(resolution.phone);
       const excelRow = resolution.excel || resolution.excelData;
-      if (!email || !excelRow) continue;
+      if (!phone || !excelRow) continue;
 
       const mapped = mapRowToGuest(excelRow);
       const doc = toGuestDoc(userId, mapped);
-      const existing = await Guest.findOne({ userId, email });
+      const existing = await Guest.findOne({ userId, phone });
       if (!existing) continue;
 
       await Guest.findByIdAndUpdate(
         existing._id,
         {
           fullName: doc.fullName,
-          phone: doc.phone || "",
           attendeesCount: doc.attendeesCount,
+          giftAmount: Math.max(0, Number(doc.giftAmount || 0)),
           status: doc.status,
-          dietaryRestrictions: doc.dietaryRestrictions,
-          dietaryNotes: doc.dietaryNotes,
-          source: existing.source === "form" ? "excel_and_form" : "excel"
+          source: resolveSourceAfterExcelOverwrite(existing.source)
         },
         { runValidators: true }
       );
@@ -393,38 +313,27 @@ router.post("/:userId/guests/import", async (req, res) => {
 router.patch("/:userId/guests/:guestId", async (req, res) => {
   try {
     const { userId, guestId } = req.params;
-    const { fullName, phone, attendeesCount, status, dietaryRestrictions, dietaryNotes } = req.body;
+    const { fullName, attendeesCount, status, giftAmount } = req.body;
 
     const update = {};
     if (typeof fullName !== "undefined") {
       const trimmed = String(fullName).trim();
       if (!trimmed) {
-        return res.status(400).json({ message: "Guest name is required" });
+        return res.status(400).json({ message: "שם מלא הוא שדה חובה" });
       }
       update.fullName = trimmed;
     }
     if (typeof attendeesCount !== "undefined") {
       update.attendeesCount = Math.max(0, Number(attendeesCount));
     }
+    if (typeof giftAmount !== "undefined") {
+      update.giftAmount = Math.max(0, Number(giftAmount));
+    }
     if (typeof status !== "undefined") {
-      if (!RSVP_STATUSES.includes(status)) {
-        return res.status(400).json({ message: "Invalid RSVP status" });
+      if (!["מגיע", "לא מגיע", "אולי", "לא ידוע"].includes(status)) {
+        return res.status(400).json({ message: "Invalid status" });
       }
       update.status = status;
-      if (status === "Regretfully Declines") {
-        update.attendeesCount = 0;
-        update.dietaryRestrictions = [];
-        update.dietaryNotes = "";
-      }
-    }
-    if (typeof dietaryRestrictions !== "undefined") {
-      update.dietaryRestrictions = normalizeDietaryRestrictions(dietaryRestrictions);
-    }
-    if (typeof dietaryNotes !== "undefined") {
-      update.dietaryNotes = String(dietaryNotes || "").trim();
-    }
-    if (typeof phone !== "undefined") {
-      update.phone = formatStoredPhone(phone);
     }
     if (!Object.keys(update).length) {
       return res.status(400).json({ message: "No fields to update" });
@@ -444,5 +353,24 @@ router.patch("/:userId/guests/:guestId", async (req, res) => {
   }
 });
 
-export { DIETARY_OPTIONS, RSVP_STATUSES };
+router.put("/:userId/event", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "Client not found" });
+    }
+
+    user.event = normalizeIlEventUpdatePayload(req.body);
+    await user.save();
+
+    return res.json({
+      message: "פרטי ההזמנה עודכנו בהצלחה",
+      event: user.event
+    });
+  } catch (error) {
+    return res.status(400).json({ message: error.message || "שמירת ההזמנה נכשלה" });
+  }
+});
+
 export default router;

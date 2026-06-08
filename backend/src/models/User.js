@@ -1,53 +1,25 @@
 import mongoose from "mongoose";
 
-const timelineItemSchema = new mongoose.Schema(
+const eventSchema = new mongoose.Schema(
   {
-    time: { type: String, required: true, trim: true },
-    title: { type: String, required: true, trim: true }
-  },
-  { _id: false }
-);
-
-const usEventSchema = new mongoose.Schema(
-  {
-    eventType: { type: String, default: "wedding", trim: true },
-    hostNames: { type: String, trim: true, default: "" },
-    introText: { type: String, trim: true, default: "" },
-    celebrationText: { type: String, trim: true, default: "" },
-    eventDateFormatted: { type: String, trim: true, default: "" },
-    eventTime: { type: String, trim: true, default: "" },
-    countdownTargetDate: { type: String, trim: true, default: "" },
-    images: {
-      heroBg: { type: String, default: "/images/floral-bg.png" },
-      countdownBg: { type: String, default: "/images/coral-floral-bg.png" },
-      rsvpBg: { type: String, default: "/images/pink-sprig-bg.png" },
-      timelineBanner: { type: String, default: "" },
-      venueBanner: { type: String, default: "" },
-      accommodationBanner: { type: String, default: "" }
+    eventType: {
+      type: String,
+      enum: ["חתונה", "ברית", "בת מצווה", "אחר"],
+      required: true
     },
-    timeline: { type: [timelineItemSchema], default: [] },
-    venue: {
-      name: { type: String, trim: true, default: "" },
-      description: { type: String, trim: true, default: "" },
-      address: { type: String, trim: true, default: "" },
-      mapsLink: { type: String, trim: true, default: "" }
-    },
-    details: {
-      dressCode: { type: String, trim: true, default: "" },
-      transportation: { type: String, trim: true, default: "" },
-      accommodationTitle: { type: String, trim: true, default: "" },
-      accommodationSubtitle: { type: String, trim: true, default: "" },
-      accommodationBody: { type: String, trim: true, default: "" }
-    },
-    rsvpSettings: {
-      deadlineText: { type: String, trim: true, default: "" },
-      registryLink: { type: String, trim: true, default: "" }
-    },
-    features: {
-      includeTimeline: { type: Boolean, default: false },
-      includeTransportation: { type: Boolean, default: false },
-      includeAccommodation: { type: Boolean, default: false }
-    }
+    groomName: { type: String, trim: true, default: "" },
+    brideName: { type: String, trim: true, default: "" },
+    batMitzvahName: { type: String, trim: true, default: "" },
+    parentName1: { type: String, trim: true, default: "" },
+    parentName2: { type: String, trim: true, default: "" },
+    eventNames: { type: String, trim: true, default: "" },
+    venueName: { type: String, required: true },
+    city: { type: String, required: true },
+    streetAndNumber: { type: String, required: true },
+    eventDate: { type: String, required: true },
+    eventDateHebrew: { type: String, trim: true, default: "" },
+    eventTime: { type: String, required: true },
+    imageDataUrl: { type: String, default: "" }
   },
   { _id: false }
 );
@@ -65,11 +37,7 @@ const userSchema = new mongoose.Schema(
     username: { type: String, required: true, unique: true, trim: true },
     passwordHash: { type: String, required: true },
     loginPassword: { type: String, default: "", trim: true },
-    etsyOrderId: { type: String, required: true, trim: true, index: true },
-    slug: { type: String, required: true, unique: true, trim: true, lowercase: true },
-    contactEmail: { type: String, required: true, trim: true, lowercase: true },
-    market: { type: String, enum: ["us"], default: "us" },
-    event: { type: usEventSchema, required: true },
+    event: { type: eventSchema, required: true },
     payment: { type: paymentSchema, default: () => ({ amountPaid: 0, paymentMethod: "" }) }
   },
   { timestamps: true }
