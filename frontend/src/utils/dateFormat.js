@@ -1,4 +1,4 @@
-function parseIsoDateParts(dateStr) {
+export function parseIsoDateParts(dateStr) {
   const raw = String(dateStr ?? "").trim();
   const isoMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (!isoMatch) return null;
