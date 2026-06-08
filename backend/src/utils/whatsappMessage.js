@@ -1,13 +1,29 @@
-import { formatIsraeliDate, formatIsraeliWeekday } from "./dateFormat.js";
-import { normalizeIsraeliPhone } from "./phoneNormalize.js";
+import { normalizePhone } from "./guestPhone.js";
 
-export function toInternationalWhatsAppPhone(phone) {
-  const domestic = normalizeIsraeliPhone(phone);
-  if (!domestic) return "";
-  if (domestic.startsWith("0")) {
-    return `972${domestic.slice(1)}`;
-  }
-  return domestic;
+function parseIsoDateParts(dateStr) {
+  const raw = String(dateStr ?? "").trim();
+  const isoMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!isoMatch) return null;
+  return {
+    year: Number(isoMatch[1]),
+    month: Number(isoMatch[2]),
+    day: Number(isoMatch[3])
+  };
+}
+
+function formatIsraeliDate(dateStr) {
+  const parts = parseIsoDateParts(dateStr);
+  if (!parts) return String(dateStr ?? "").trim().replace(/-/g, ".");
+  const { year, month, day } = parts;
+  return `${String(day).padStart(2, "0")}.${String(month).padStart(2, "0")}.${year}`;
+}
+
+function formatIsraeliWeekday(dateStr) {
+  const parts = parseIsoDateParts(dateStr);
+  if (!parts) return "";
+  const { year, month, day } = parts;
+  const date = new Date(year, month - 1, day);
+  return date.toLocaleDateString("he-IL", { weekday: "long" });
 }
 
 function resolveEventKind(event) {
@@ -20,9 +36,9 @@ function resolveEventKind(event) {
   return "other";
 }
 
-export function buildGuestWhatsAppMessage({ event, eventId, origin }) {
-  const baseOrigin = origin || (typeof window !== "undefined" ? window.location.origin : "");
-  const publicLink = `${baseOrigin}/event/${eventId}`;
+export function buildGuestWhatsAppMessage({ event, eventId, origin, guestName = "" }) {
+  const baseOrigin = origin || process.env.CLIENT_URL || "";
+  const publicLink = `${baseOrigin.replace(/\/$/, "")}/event/${eventId}`;
   const weekday = formatIsraeliWeekday(event?.eventDate);
   const date = formatIsraeliDate(event?.eventDate);
   const venue = event?.venueName || "";
@@ -32,10 +48,12 @@ export function buildGuestWhatsAppMessage({ event, eventId, origin }) {
   const dateLine = [weekday, date].filter(Boolean).join(" ");
   const kind = resolveEventKind(event);
 
+  let body = "";
+
   if (kind === "wedding") {
     const groom = event?.groomName || "";
     const bride = event?.brideName || "";
-    return `משפחה וחברים יקרים,
+    body = `משפחה וחברים יקרים,
 הנכם מוזמנים לחתונה שלנו! 💍
 
 האירוע יתקיים ב${dateLine}
@@ -46,30 +64,25 @@ ${publicLink}
 
 אוהבים,
 ${groom} ו${bride}`;
-  }
-
-  if (kind === "brit") {
+  } else if (kind === "brit") {
     const parent1 = event?.parentName1 || "";
     const parent2 = event?.parentName2 || "";
     const dateDots = formatIsraeliDate(event?.eventDate);
-    const street = String(event?.streetAndNumber || "").trim();
-    const city = String(event?.city || "").trim();
+    const addressInParens = [street, city].filter(Boolean).join(", ");
     const time = event?.eventTime ? String(event.eventTime).trim() : "";
     const weekdaySuffix = weekday ? ` ב${weekday}` : "";
-    const addressInParens = [street, city].filter(Boolean).join(", ");
     const locationLine = venue
       ? addressInParens
         ? `${venue} (${addressInParens})`
         : venue
       : addressInParens;
-
     const detailLines = [
       dateDots ? `🗓️ תאריך: ${dateDots}` : "",
       locationLine ? `📍 מיקום: ${locationLine}` : "",
       time ? `⏰ שעה: בשעה ${time}` : ""
     ].filter(Boolean);
 
-    return `משפחה וחברים יקרים,
+    body = `משפחה וחברים יקרים,
 שמחים להזמינכם לחגוג עמנו את ברית המילה של בננו שתתקיים${weekdaySuffix}! 👶
 
 ${detailLines.join("\n")}
@@ -79,23 +92,18 @@ ${publicLink}
 
 אוהבים,
 ${parent1} ו${parent2}`;
-  }
-
-  if (kind === "bat_mitzvah") {
+  } else if (kind === "bat_mitzvah") {
     const bat = event?.batMitzvahName || "";
     const parent1 = event?.parentName1 || "";
     const parent2 = event?.parentName2 || "";
-    const street = String(event?.streetAndNumber || "").trim();
-    const city = String(event?.city || "").trim();
     const address = [street, city].filter(Boolean).join(", ");
     const time = event?.eventTime ? String(event.eventTime).trim() : "";
-    const weekdaySuffix = weekday ? `${weekday}` : "";
     const loveLine = `באהבה, ${bat}, ${parent1}${parent2 ? ` ו${parent2}` : ""}`;
 
-    return `משפחה וחברים יקרים,
+    body = `משפחה וחברים יקרים,
 אנו נרגשים להזמינכם לחגיגת בת המצווה של בתנו ${bat}! 🌸
 
-האירוע יתקיים ב${weekdaySuffix} ${date}
+האירוע יתקיים ב${weekday} ${date}
 בשעה ${time}
 באולמי ${venue}, בכתובת ${address} 🎈
 
@@ -104,10 +112,9 @@ ${loveLine}
 
 לפרטים נוספים ואישור הגעה בקישור המצורף:
 ${publicLink}`;
-  }
-
-  const owners = event?.eventNames || "";
-  return `משפחה וחברים יקרים,
+  } else {
+    const owners = event?.eventNames || "";
+    body = `משפחה וחברים יקרים,
 הנכם מוזמנים לאירוע שלנו!
 
 האירוע יתקיים ב${dateLine}
@@ -118,11 +125,12 @@ ${publicLink}
 
 אוהבים,
 ${owners}`;
-}
+  }
 
-export function buildWhatsAppMessageTemplate({ event, eventId, origin }) {
-  const base = buildGuestWhatsAppMessage({ event, eventId, origin });
-  return `שלום [שם],\n\n${base}`;
+  if (guestName) {
+    return `שלום ${guestName},\n\n${body}`;
+  }
+  return body;
 }
 
 export function personalizeWhatsAppMessage(template, guestName) {
@@ -133,9 +141,6 @@ export function personalizeWhatsAppMessage(template, guestName) {
   return String(template).replace(/\[שם\]/g, name);
 }
 
-export function buildWhatsAppSendUrl({ phone, event, eventId, origin }) {
-  const intlPhone = toInternationalWhatsAppPhone(phone);
-  if (!intlPhone) return "";
-  const message = buildGuestWhatsAppMessage({ event, eventId, origin });
-  return `https://api.whatsapp.com/send?phone=${intlPhone}&text=${encodeURIComponent(message)}`;
+export function isValidGuestPhone(phone) {
+  return Boolean(normalizePhone(phone));
 }
