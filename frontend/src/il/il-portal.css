@@ -58,14 +58,33 @@
   color: #a67c3d;
 }
 
-.il-invitation-editor .us-invitation-editor__form-panel {
+.il-invitation-editor__layout {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.il-invitation-editor__form-panel {
+  position: relative;
+  z-index: 5;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   border-right: none;
   border-left: 1px solid var(--us-border);
   padding: 1rem 1.1rem 1.5rem 0.85rem;
+  background: #fffefb;
 }
 
-.il-invitation-editor .us-editor-field,
-.il-invitation-editor .us-editor-section h3 {
+.il-invitation-editor__preview-panel {
+  position: relative;
+  z-index: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.il-editor-section h3,
+.il-editor-label {
   text-transform: none;
   letter-spacing: 0.02em;
 }
@@ -75,13 +94,97 @@
   letter-spacing: 0.06em;
 }
 
-.il-invite-preview {
+.il-editor-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 0.85rem;
+}
+
+.il-editor-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--us-espresso);
+}
+
+.il-editor-input,
+.il-editor-select,
+.il-editor-file {
+  width: 100%;
+  border: 1px solid var(--us-border);
+  border-radius: 0.4rem;
+  background: #fff;
+  padding: 0.62rem 0.75rem;
+  font-size: 0.95rem;
+  color: var(--us-text);
+  caret-color: var(--us-espresso);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.il-editor-input::placeholder {
+  color: var(--us-muted);
+  opacity: 0.85;
+}
+
+.il-editor-input:focus,
+.il-editor-select:focus,
+.il-editor-file:focus {
+  outline: none;
+  border-color: var(--us-rose);
+  box-shadow: 0 0 0 3px var(--us-focus-ring);
+}
+
+.il-editor-select {
+  cursor: pointer;
+  appearance: auto;
+}
+
+.il-editor-file {
+  padding: 0.5rem 0.65rem;
+  font-size: 0.85rem;
+  background: var(--us-ivory);
+}
+
+.il-editor-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.il-invite-preview.invite-page {
+  position: relative;
+  min-height: 28rem;
+  height: auto;
+  overflow: hidden;
+  isolation: isolate;
   pointer-events: none;
   user-select: none;
 }
 
-.il-invite-preview .invite-page {
-  min-height: auto;
+.il-preview-bg-gif,
+.il-preview-bg-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.il-preview-bg-gif {
+  object-fit: cover;
+  object-position: center;
+  z-index: 0;
+}
+
+.il-preview-bg-overlay {
+  background: rgb(255 255 255 / 78%);
+  backdrop-filter: blur(1px);
+  z-index: 0;
+}
+
+.il-invite-preview .invite-shell {
+  position: relative;
+  z-index: 1;
 }
 
 .il-preview-placeholder {
@@ -132,11 +235,11 @@
 }
 
 @media (max-width: 900px) {
-  .us-invitation-editor__layout {
+  .il-editor-grid-2 {
     grid-template-columns: 1fr;
   }
 
-  .il-invitation-editor .us-invitation-editor__form-panel {
+  .il-invitation-editor__form-panel {
     border-left: none;
     border-bottom: 1px solid var(--us-border);
   }

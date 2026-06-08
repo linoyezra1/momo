@@ -25,8 +25,8 @@ function getPageBackgroundGif(event) {
 function InvitePageBackdrop({ backgroundSrc }) {
   return (
     <>
-      <img className="invite-bg-gif" src={backgroundSrc} alt="" aria-hidden="true" />
-      <div className="invite-bg-overlay" />
+      <img className="il-preview-bg-gif" src={backgroundSrc} alt="" aria-hidden="true" />
+      <div className="il-preview-bg-overlay" aria-hidden="true" />
     </>
   );
 }

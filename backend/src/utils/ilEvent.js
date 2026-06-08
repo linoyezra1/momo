@@ -43,6 +43,7 @@ export function normalizeIlEventUpdatePayload(body) {
     if (!payload.groomName || !payload.brideName) {
       throw new Error("יש למלא שם חתן ושם כלה");
     }
+    payload.eventNames = `${payload.groomName} & ${payload.brideName}`;
   } else if (eventType === "ברית") {
     payload.parentName1 = cleanText(body?.parentName1);
     payload.parentName2 = cleanText(body?.parentName2);
@@ -50,6 +51,7 @@ export function normalizeIlEventUpdatePayload(body) {
     if (!payload.parentName1 || !payload.parentName2) {
       throw new Error("יש למלא שמות הורים");
     }
+    payload.eventNames = `${payload.parentName1} ו${payload.parentName2}`;
   } else if (eventType === "בת מצווה") {
     payload.batMitzvahName = cleanText(body?.batMitzvahName);
     payload.parentName1 = cleanText(body?.parentName1);
@@ -57,6 +59,7 @@ export function normalizeIlEventUpdatePayload(body) {
     if (!payload.batMitzvahName || !payload.parentName1) {
       throw new Error("יש למלא שם כלת המצווה ושם הורה");
     }
+    payload.eventNames = payload.batMitzvahName;
   } else {
     payload.eventNames = cleanText(body?.eventNames);
     if (!payload.eventNames) {

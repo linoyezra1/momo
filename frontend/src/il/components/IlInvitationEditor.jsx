@@ -8,6 +8,7 @@ import {
   formToEventUpdatePayload
 } from "../../utils/ilEventPreview.js";
 import IlInvitationPreview from "./IlInvitationPreview.jsx";
+import IlEditorField, { ilEditorInputClass, ilEditorSelectClass } from "./IlEditorField.jsx";
 import "../../us/client-portal.css";
 import "../il-portal.css";
 
@@ -19,6 +20,10 @@ export default function IlInvitationEditor({ userId, eventInfo, onClose, onSaved
   const [toast, setToast] = useState("");
 
   const previewEvent = useMemo(() => eventFormToPreviewPayload(form), [form]);
+
+  useEffect(() => {
+    setForm(eventInfoToForm(eventInfo));
+  }, [eventInfo]);
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
@@ -83,122 +88,214 @@ export default function IlInvitationEditor({ userId, eventInfo, onClose, onSaved
         </button>
       </div>
 
-      <div className="us-invitation-editor__layout min-h-0 flex-1 overflow-hidden">
-        <div className="us-invitation-editor__form-panel h-full min-h-0 overflow-y-auto overscroll-y-contain pl-2 lg:h-[calc(100vh-8.5rem)] lg:max-h-[calc(100vh-8.5rem)]">
-          <section className="us-editor-section">
+      <div className="us-invitation-editor__layout il-invitation-editor__layout">
+        <div className="us-invitation-editor__form-panel il-invitation-editor__form-panel">
+          <section className="us-editor-section il-editor-section">
             <h3>פרטי האירוע</h3>
-            <label className="us-editor-field">
-              סוג אירוע
-              <select name="eventType" value={form.eventType} onChange={onChange}>
+            <IlEditorField label="סוג אירוע" htmlFor="il-eventType">
+              <select
+                id="il-eventType"
+                className={ilEditorSelectClass}
+                name="eventType"
+                value={form.eventType}
+                onChange={onChange}
+              >
                 {EVENT_TYPE_OPTIONS.map((option) => (
                   <option key={option} value={option}>
                     {option}
                   </option>
                 ))}
               </select>
-            </label>
+            </IlEditorField>
 
             {form.eventType === "חתונה" ? (
               <>
-                <label className="us-editor-field">
-                  שם החתן
-                  <input name="groomName" value={form.groomName} onChange={onChange} placeholder="ישראל" />
-                </label>
-                <label className="us-editor-field">
-                  שם הכלה
-                  <input name="brideName" value={form.brideName} onChange={onChange} placeholder="ישראלה" />
-                </label>
+                <IlEditorField label="שם החתן" htmlFor="il-groomName">
+                  <input
+                    id="il-groomName"
+                    className={ilEditorInputClass}
+                    name="groomName"
+                    value={form.groomName}
+                    onChange={onChange}
+                    placeholder="ישראל"
+                    autoComplete="off"
+                  />
+                </IlEditorField>
+                <IlEditorField label="שם הכלה" htmlFor="il-brideName">
+                  <input
+                    id="il-brideName"
+                    className={ilEditorInputClass}
+                    name="brideName"
+                    value={form.brideName}
+                    onChange={onChange}
+                    placeholder="ישראלה"
+                    autoComplete="off"
+                  />
+                </IlEditorField>
               </>
             ) : null}
 
             {form.eventType === "ברית" ? (
               <>
-                <label className="us-editor-field">
-                  שם הורה 1
-                  <input name="parentName1" value={form.parentName1} onChange={onChange} />
-                </label>
-                <label className="us-editor-field">
-                  שם הורה 2
-                  <input name="parentName2" value={form.parentName2} onChange={onChange} />
-                </label>
-                <label className="us-editor-field">
-                  תאריך עברי (אופציונלי)
+                <IlEditorField label="שם הורה 1" htmlFor="il-parentName1-brit">
                   <input
+                    id="il-parentName1-brit"
+                    className={ilEditorInputClass}
+                    name="parentName1"
+                    value={form.parentName1}
+                    onChange={onChange}
+                    autoComplete="off"
+                  />
+                </IlEditorField>
+                <IlEditorField label="שם הורה 2" htmlFor="il-parentName2-brit">
+                  <input
+                    id="il-parentName2-brit"
+                    className={ilEditorInputClass}
+                    name="parentName2"
+                    value={form.parentName2}
+                    onChange={onChange}
+                    autoComplete="off"
+                  />
+                </IlEditorField>
+                <IlEditorField label="תאריך עברי (אופציונלי)" htmlFor="il-eventDateHebrew">
+                  <input
+                    id="il-eventDateHebrew"
+                    className={ilEditorInputClass}
                     name="eventDateHebrew"
                     value={form.eventDateHebrew}
                     onChange={onChange}
                     placeholder='למשל: כ״ג באייר תשפ״ו'
+                    autoComplete="off"
                   />
-                </label>
+                </IlEditorField>
               </>
             ) : null}
 
             {form.eventType === "בת מצווה" ? (
               <>
-                <label className="us-editor-field">
-                  שם כלת המצווה
-                  <input name="batMitzvahName" value={form.batMitzvahName} onChange={onChange} />
-                </label>
-                <label className="us-editor-field">
-                  שם הורה 1
-                  <input name="parentName1" value={form.parentName1} onChange={onChange} />
-                </label>
-                <label className="us-editor-field">
-                  שם הורה 2 (אופציונלי)
-                  <input name="parentName2" value={form.parentName2} onChange={onChange} />
-                </label>
+                <IlEditorField label="שם כלת המצווה" htmlFor="il-batMitzvahName">
+                  <input
+                    id="il-batMitzvahName"
+                    className={ilEditorInputClass}
+                    name="batMitzvahName"
+                    value={form.batMitzvahName}
+                    onChange={onChange}
+                    autoComplete="off"
+                  />
+                </IlEditorField>
+                <IlEditorField label="שם הורה 1" htmlFor="il-parentName1-bm">
+                  <input
+                    id="il-parentName1-bm"
+                    className={ilEditorInputClass}
+                    name="parentName1"
+                    value={form.parentName1}
+                    onChange={onChange}
+                    autoComplete="off"
+                  />
+                </IlEditorField>
+                <IlEditorField label="שם הורה 2 (אופציונלי)" htmlFor="il-parentName2-bm">
+                  <input
+                    id="il-parentName2-bm"
+                    className={ilEditorInputClass}
+                    name="parentName2"
+                    value={form.parentName2}
+                    onChange={onChange}
+                    autoComplete="off"
+                  />
+                </IlEditorField>
               </>
             ) : null}
 
             {form.eventType === "אחר" ? (
-              <label className="us-editor-field">
-                שמות / כותרת האירוע
-                <input name="eventNames" value={form.eventNames} onChange={onChange} />
-              </label>
+              <IlEditorField label="שמות / כותרת האירוע" htmlFor="il-eventNames">
+                <input
+                  id="il-eventNames"
+                  className={ilEditorInputClass}
+                  name="eventNames"
+                  value={form.eventNames}
+                  onChange={onChange}
+                  autoComplete="off"
+                />
+              </IlEditorField>
             ) : null}
           </section>
 
-          <section className="us-editor-section">
+          <section className="us-editor-section il-editor-section">
             <h3>מיקום וזמן</h3>
-            <label className="us-editor-field">
-              שם המתחם
-              <input name="venueName" value={form.venueName} onChange={onChange} />
-            </label>
-            <label className="us-editor-field">
-              עיר
-              <input name="city" value={form.city} onChange={onChange} />
-            </label>
-            <label className="us-editor-field">
-              רחוב ומספר
-              <input name="streetAndNumber" value={form.streetAndNumber} onChange={onChange} />
-            </label>
-            <div className="us-editor-grid-2">
-              <label className="us-editor-field">
-                תאריך
-                <input type="date" name="eventDate" value={form.eventDate} onChange={onChange} />
-              </label>
-              <label className="us-editor-field">
-                שעה
-                <input type="time" name="eventTime" value={form.eventTime} onChange={onChange} />
-              </label>
+            <IlEditorField label="שם המתחם" htmlFor="il-venueName">
+              <input
+                id="il-venueName"
+                className={ilEditorInputClass}
+                name="venueName"
+                value={form.venueName}
+                onChange={onChange}
+                autoComplete="off"
+              />
+            </IlEditorField>
+            <IlEditorField label="עיר" htmlFor="il-city">
+              <input
+                id="il-city"
+                className={ilEditorInputClass}
+                name="city"
+                value={form.city}
+                onChange={onChange}
+                autoComplete="off"
+              />
+            </IlEditorField>
+            <IlEditorField label="רחוב ומספר" htmlFor="il-streetAndNumber">
+              <input
+                id="il-streetAndNumber"
+                className={ilEditorInputClass}
+                name="streetAndNumber"
+                value={form.streetAndNumber}
+                onChange={onChange}
+                autoComplete="off"
+              />
+            </IlEditorField>
+            <div className="il-editor-grid-2">
+              <IlEditorField label="תאריך" htmlFor="il-eventDate">
+                <input
+                  id="il-eventDate"
+                  className={ilEditorInputClass}
+                  type="date"
+                  name="eventDate"
+                  value={form.eventDate}
+                  onChange={onChange}
+                />
+              </IlEditorField>
+              <IlEditorField label="שעה" htmlFor="il-eventTime">
+                <input
+                  id="il-eventTime"
+                  className={ilEditorInputClass}
+                  type="time"
+                  name="eventTime"
+                  value={form.eventTime}
+                  onChange={onChange}
+                />
+              </IlEditorField>
             </div>
           </section>
 
-          <section className="us-editor-section">
+          <section className="us-editor-section il-editor-section">
             <h3>תמונת קאבר</h3>
-            <label className="us-editor-field">
-              תמונת אירוע
-              <input type="file" accept="image/*" onChange={onImageChange} />
-            </label>
+            <IlEditorField label="תמונת אירוע" htmlFor="il-eventImage">
+              <input
+                id="il-eventImage"
+                className="il-editor-file"
+                type="file"
+                accept="image/*"
+                onChange={onImageChange}
+              />
+            </IlEditorField>
             {form.imageDataUrl ? (
               <img className="il-editor-cover-preview" src={form.imageDataUrl} alt="תצוגה מקדימה" />
             ) : null}
           </section>
         </div>
 
-        <div className="us-invitation-editor__preview-panel sticky top-0 flex h-full min-h-0 flex-col self-start lg:max-h-[calc(100vh-8.5rem)]">
-          <p className="us-invitation-editor__preview-label shrink-0">תצוגה חיה</p>
-          <div className="us-invitation-editor__preview-frame min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
+        <div className="us-invitation-editor__preview-panel il-invitation-editor__preview-panel">
+          <p className="us-invitation-editor__preview-label">תצוגה חיה</p>
+          <div className="us-invitation-editor__preview-frame">
             <div className="us-invitation-editor__preview-scale">
               <IlInvitationPreview event={previewEvent} />
             </div>
