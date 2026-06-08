@@ -205,16 +205,60 @@
   font-weight: 500;
 }
 
-.il-bulk-send-btn {
-  background: #d946ef;
-  border: 1px solid #c026d3;
+.il-bulk-whatsapp-alert {
+  padding: 0.85rem 1rem;
+  border-radius: 0.55rem;
+  border: 1px solid #f5b8b8;
+  background: #fff5f5;
+  color: #9b1c1c;
+}
+
+.il-bulk-whatsapp-alert strong {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.92rem;
+}
+
+.il-bulk-whatsapp-alert p {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+.il-bulk-whatsapp-success-box {
+  padding: 0.75rem 1rem;
+  border-radius: 0.55rem;
+  border: 1px solid #b7e4c7;
+  background: #f0fdf4;
+}
+
+.il-bulk-whatsapp-success-box p {
+  margin: 0;
+  color: #1f6b3f;
+  font-weight: 500;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.il-seating-nav-btn {
   color: #ffffff;
+}
+
+.il-seating-nav-btn:hover {
+  color: #ffffff;
+}
+
+.il-bulk-send-btn {
+  background: #d4af37;
+  border: 1px solid #b8962e;
+  color: #000000;
   font-weight: 700;
 }
 
 .il-bulk-send-btn:hover:not(:disabled) {
-  background: #c026d3;
-  border-color: #a21caf;
+  background: #c9a227;
+  border-color: #a88820;
+  color: #000000;
 }
 
 .il-bulk-send-btn:disabled {

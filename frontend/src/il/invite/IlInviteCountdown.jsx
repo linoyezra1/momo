@@ -34,7 +34,7 @@ export default function IlInviteCountdown({ event }) {
   return (
     <section className="il-invite-countdown" aria-label="ספירה לאחור לאירוע">
       <p className="il-invite-countdown__title">עד החתונה</p>
-      <div className="il-invite-countdown__row">
+      <div className="il-invite-countdown__row" aria-label="ימים, שעות, דקות ושניות">
         {units.map((unit, index) => (
           <Fragment key={unit.label}>
             {index > 0 ? (

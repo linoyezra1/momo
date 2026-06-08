@@ -8,7 +8,7 @@ import { buildClientUrl } from "../utils/clientUrl.js";
 const router = express.Router();
 
 function normalizeEventPayload(rawEvent) {
-  const eventType = String(rawEvent?.eventType || "").trim();
+  const eventType = String(rawEvent?.eventType || "").trim() || "חתונה";
   const groomName = String(rawEvent?.groomName || "").trim();
   const brideName = String(rawEvent?.brideName || "").trim();
   const batMitzvahName = String(rawEvent?.batMitzvahName || "").trim();
@@ -60,24 +60,10 @@ function normalizeEventPayload(rawEvent) {
 }
 
 function validateEvent(normalizedEvent) {
-  if (!normalizedEvent.eventType || !normalizedEvent.venueName || !normalizedEvent.city || !normalizedEvent.streetAndNumber || !normalizedEvent.eventDate || !normalizedEvent.eventTime) {
-    return "Missing required event fields";
-  }
-
   if (normalizedEvent.eventType === "חתונה") {
     if (!normalizedEvent.groomName || !normalizedEvent.brideName) {
-      return "Missing required wedding names";
+      return "יש למלא שם חתן ושם כלה";
     }
-  } else if (normalizedEvent.eventType === "ברית") {
-    if (!normalizedEvent.parentName1 || !normalizedEvent.parentName2) {
-      return "Missing required brit names";
-    }
-  } else if (normalizedEvent.eventType === "בת מצווה") {
-    if (!normalizedEvent.batMitzvahName || !normalizedEvent.parentName1) {
-      return "Missing required bat mitzvah names";
-    }
-  } else if (!normalizedEvent.eventNames) {
-    return "Missing required event names";
   }
 
   return "";
@@ -130,8 +116,8 @@ router.post("/create-client", async (req, res) => {
   try {
     const { username, password, event } = req.body;
 
-    if (!username || !password || !event) {
-      return res.status(400).json({ message: "Missing required fields" });
+    if (!username?.trim() || !password?.trim() || !event) {
+      return res.status(400).json({ message: "יש למלא שם משתמש וסיסמה" });
     }
     const normalizedEvent = normalizeEventPayload(event);
     const eventValidationError = validateEvent(normalizedEvent);

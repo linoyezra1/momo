@@ -303,7 +303,13 @@ export default function IlSeatingPage() {
         <button className="us-btn" type="button" onClick={exportSeatingExcel}>
           ייצוא Excel לאולם
         </button>
-        <button className="us-btn il-bulk-send-btn" type="button" onClick={sendTableMessages}>
+        <button
+          className="us-btn il-seating-wa-btn"
+          type="button"
+          onClick={sendTableMessages}
+          disabled
+          title="המערכת בהרצה — שליחת וואטסאפ אינה זמינה בשלב זה"
+        >
           שליחת מספר שולחן בוואטסאפ
         </button>
       </div>

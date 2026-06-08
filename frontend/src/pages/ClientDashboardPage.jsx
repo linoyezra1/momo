@@ -203,7 +203,6 @@ export default function ClientDashboardPage() {
   };
 
   const openBulkWhatsApp = () => {
-    if (!selectedCount) return;
     setBulkWhatsAppResult("");
     setBulkWhatsAppError("");
     if (!customWhatsAppMessage && defaultWhatsAppTemplate) {
@@ -232,8 +231,18 @@ export default function ClientDashboardPage() {
         guestIds: [...selectedGuestIds],
         customMessage: customWhatsAppMessage.trim() || defaultWhatsAppTemplate
       });
+
+      if (response.data?.success === false) {
+        setBulkWhatsAppResult("");
+        setBulkWhatsAppError(response.data?.message || "שליחת ההודעות נכשלה");
+        return;
+      }
+
+      setBulkWhatsAppError("");
       setBulkWhatsAppResult(response.data?.message || "ההודעות נשלחו בהצלחה");
-      setSelectedGuestIds(new Set());
+      if (!response.data?.partial) {
+        setSelectedGuestIds(new Set());
+      }
       if (typeof response.data?.remaining === "number") {
         setWhatsappQuota((prev) =>
           prev ? { ...prev, remaining_credits: response.data.remaining } : prev
@@ -242,7 +251,10 @@ export default function ClientDashboardPage() {
         await loadWhatsappQuota();
       }
     } catch (bulkErr) {
-      setBulkWhatsAppError(bulkErr.response?.data?.message || "שליחת ההודעות נכשלה");
+      setBulkWhatsAppResult("");
+      setBulkWhatsAppError(
+        bulkErr.response?.data?.message || "שליחת ההודעה נכשלה, נא לוודא שמספר המערכת מוגדר כראוי"
+      );
     } finally {
       setBulkWhatsAppSending(false);
     }
@@ -437,7 +449,7 @@ export default function ClientDashboardPage() {
             >
               ✨ עריכת הזמנה ותצוגה חיה
             </button>
-            <Link className="us-btn us-btn--primary" to={`/client/dashboard/${userId}/seating`}>
+            <Link className="us-btn us-btn--primary il-seating-nav-btn" to={`/client/dashboard/${userId}/seating`}>
               🪑 מערכת הושבה
             </Link>
           </div>
@@ -494,13 +506,8 @@ export default function ClientDashboardPage() {
           <button className="us-btn" type="button" onClick={exportGuests}>
             ייצוא לאקסל
           </button>
-          <button
-            className="us-btn il-bulk-send-btn"
-            type="button"
-            onClick={openBulkWhatsApp}
-            disabled={!selectedCount}
-          >
-            שליחה מהירה לכל ה-{selectedCount}
+          <button className="us-btn il-bulk-send-btn" type="button" onClick={openBulkWhatsApp}>
+            {selectedCount > 0 ? `שלח ווצאפ ל-${selectedCount} מוזמנים` : "שלח ווצאפ בתפוצה רחבה"}
           </button>
           <button className="us-btn" type="button" onClick={downloadTemplate}>
             הורדת קובץ אקסל לדוגמה
@@ -869,8 +876,17 @@ export default function ClientDashboardPage() {
                 <p className="il-bulk-whatsapp-selected">
                   נבחרו לשליחה: <strong>{selectedCount}</strong> מוזמנים
                 </p>
-                {bulkWhatsAppError ? <p className="us-error-message us-error-message--left">{bulkWhatsAppError}</p> : null}
-                {bulkWhatsAppResult ? <p className="il-bulk-whatsapp-success">{bulkWhatsAppResult}</p> : null}
+                {bulkWhatsAppError ? (
+                  <div className="il-bulk-whatsapp-alert" role="alert">
+                    <strong>שליחה נכשלה</strong>
+                    <p>{bulkWhatsAppError}</p>
+                  </div>
+                ) : null}
+                {bulkWhatsAppResult ? (
+                  <div className="il-bulk-whatsapp-success-box" role="status">
+                    <p>{bulkWhatsAppResult}</p>
+                  </div>
+                ) : null}
               </div>
               <div className="us-toolbar mt-4">
                 <button className="us-btn il-bulk-send-btn" type="submit" disabled={bulkWhatsAppSending || !selectedCount}>

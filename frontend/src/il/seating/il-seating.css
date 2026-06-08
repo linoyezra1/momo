@@ -91,6 +91,18 @@
   color: #8a6d1d;
 }
 
+.il-seating-wa-btn {
+  background: #e8e8e8;
+  border-color: #c8c8c8;
+  color: #6b6b6b;
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.il-seating-wa-btn:disabled {
+  opacity: 0.65;
+}
+
 .il-seat-toolbar {
   display: flex;
   flex-wrap: wrap;

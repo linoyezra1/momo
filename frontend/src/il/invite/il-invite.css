@@ -1,5 +1,13 @@
 @import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Heebo:wght@300;400;500;600;700&display=swap");
 
+@font-face {
+  font-family: "Saturday";
+  src: url("../../../Saturday.otf") format("opentype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --il-ink: #1a1a1a;
   --il-ink-soft: #4a4a4a;
@@ -99,9 +107,12 @@
 
 .il-invite-date {
   margin: 0 0 0.35rem;
-  font-size: 1.05rem;
-  font-weight: 500;
-  letter-spacing: 0.04em;
+  font-family: "Saturday", "Cormorant Garamond", Georgia, serif;
+  font-size: clamp(2.75rem, 15vw, 4.25rem);
+  font-weight: normal;
+  line-height: 1.05;
+  letter-spacing: 0.02em;
+  color: var(--il-ink);
 }
 
 .il-invite-weekday {
@@ -142,28 +153,19 @@
 }
 
 .il-timeline__icon-box {
-  position: relative;
   display: grid;
   place-items: center;
-  width: 3.25rem;
-  height: 3.25rem;
-  color: #000000;
+  width: 3.5rem;
+  height: 3.5rem;
 }
 
-.il-timeline__gif {
-  position: absolute;
-  inset: 0;
+.il-timeline__img {
   width: 100%;
   height: 100%;
+  max-width: 3.25rem;
+  max-height: 3.25rem;
   object-fit: contain;
-  pointer-events: none;
-}
-
-.il-timeline__svg {
-  position: relative;
-  z-index: 1;
-  width: 2.75rem;
-  height: 2.75rem;
+  display: block;
 }
 
 .il-invite-timeline__label {
@@ -334,10 +336,12 @@
 
 .il-invite-countdown__row {
   display: flex;
+  flex-direction: row-reverse;
   justify-content: center;
   align-items: flex-start;
   flex-wrap: wrap;
   gap: 0.15rem 0.1rem;
+  direction: ltr;
 }
 
 .il-invite-countdown__unit {

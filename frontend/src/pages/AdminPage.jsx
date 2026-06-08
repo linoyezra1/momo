@@ -305,6 +305,20 @@ ${publicEventUrl}`
     setResult(null);
     setCreatedEvent(null);
     setCopyDone(false);
+
+    if (!form.username.trim()) {
+      setError("יש למלא שם משתמש");
+      return;
+    }
+    if (wizardMode === "create" && !form.password.trim()) {
+      setError("יש למלא סיסמה");
+      return;
+    }
+    if (form.eventType === "חתונה" && (!form.groomName.trim() || !form.brideName.trim())) {
+      setError("יש למלא שם חתן ושם כלה");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -782,7 +796,7 @@ ${publicEventUrl}`
               </div>
               <div className="us-admin-field">
                 <label className="us-admin-field-label" htmlFor="username">
-                  שם משתמש
+                  שם משתמש <span className="us-admin-required">*</span>
                 </label>
                 <input
                   id="username"
@@ -795,7 +809,8 @@ ${publicEventUrl}`
               </div>
               <div className="us-admin-field">
                 <label className="us-admin-field-label" htmlFor="password">
-                  סיסמה {wizardMode === "edit" ? "(השאירו ריק לשמירת הסיסמה הקיימת)" : ""}
+                  סיסמה {wizardMode === "create" ? <span className="us-admin-required">*</span> : null}{" "}
+                  {wizardMode === "edit" ? "(השאירו ריק לשמירת הסיסמה הקיימת)" : ""}
                 </label>
                 <input
                   id="password"
@@ -827,7 +842,7 @@ ${publicEventUrl}`
                 <>
                   <div className="us-admin-field">
                     <label className="us-admin-field-label" htmlFor="groomName">
-                      שם החתן
+                      שם החתן <span className="us-admin-required">*</span>
                     </label>
                     <input
                       id="groomName"
@@ -840,7 +855,7 @@ ${publicEventUrl}`
                   </div>
                   <div className="us-admin-field">
                     <label className="us-admin-field-label" htmlFor="brideName">
-                      שם הכלה
+                      שם הכלה <span className="us-admin-required">*</span>
                     </label>
                     <input
                       id="brideName"
@@ -864,7 +879,6 @@ ${publicEventUrl}`
                       name="parentName1"
                       value={form.parentName1}
                       onChange={onChange}
-                      required
                     />
                   </div>
                   <div className="us-admin-field">
@@ -877,7 +891,6 @@ ${publicEventUrl}`
                       name="parentName2"
                       value={form.parentName2}
                       onChange={onChange}
-                      required
                     />
                   </div>
                 </>
@@ -893,7 +906,6 @@ ${publicEventUrl}`
                       name="batMitzvahName"
                       value={form.batMitzvahName}
                       onChange={onChange}
-                      required
                     />
                   </div>
                   <div className="us-admin-field">
@@ -906,7 +918,6 @@ ${publicEventUrl}`
                       name="parentName1"
                       value={form.parentName1}
                       onChange={onChange}
-                      required
                     />
                   </div>
                   <div className="us-admin-field">
@@ -934,14 +945,13 @@ ${publicEventUrl}`
                   name="venueName"
                   value={form.venueName}
                   onChange={onChange}
-                  required
                 />
               </div>
               <div className="us-admin-field">
                 <label className="us-admin-field-label" htmlFor="city">
                   עיר
                 </label>
-                <input id="city" className="us-admin-field-input" name="city" value={form.city} onChange={onChange} required />
+                <input id="city" className="us-admin-field-input" name="city" value={form.city} onChange={onChange} />
               </div>
               <div className="us-admin-field">
                 <label className="us-admin-field-label" htmlFor="streetAndNumber">
@@ -953,7 +963,6 @@ ${publicEventUrl}`
                   name="streetAndNumber"
                   value={form.streetAndNumber}
                   onChange={onChange}
-                  required
                 />
               </div>
               <div className="us-admin-field">
@@ -967,7 +976,6 @@ ${publicEventUrl}`
                   name="eventDate"
                   value={form.eventDate}
                   onChange={onChange}
-                  required
                 />
               </div>
               {form.eventType === "ברית" ? (
@@ -997,7 +1005,6 @@ ${publicEventUrl}`
                   name="eventTime"
                   value={form.eventTime}
                   onChange={onChange}
-                  required
                 />
               </div>
               <div className="us-admin-field">
