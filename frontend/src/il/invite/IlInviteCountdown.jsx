@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import IlAnimateIn from "./IlAnimateIn.jsx";
+import { Fragment, useEffect, useState } from "react";
 import { getCountdownTarget } from "./ilInviteUtils.js";
 
 function getRemaining(targetDate) {
@@ -33,16 +32,23 @@ export default function IlInviteCountdown({ event }) {
   ];
 
   return (
-    <IlAnimateIn className="il-invite-countdown" delay={120}>
-      <p className="il-invite-countdown__eyebrow">עד החתונה נשארו</p>
-      <div className="il-invite-countdown__grid">
+    <section className="il-invite-countdown" aria-label="ספירה לאחור לאירוע">
+      <p className="il-invite-countdown__title">עד החתונה</p>
+      <div className="il-invite-countdown__row">
         {units.map((unit, index) => (
-          <div key={unit.label} className="il-invite-countdown__unit" style={{ animationDelay: `${index * 90}ms` }}>
-            <span className="il-invite-countdown__value">{String(unit.value).padStart(2, "0")}</span>
-            <span className="il-invite-countdown__label">{unit.label}</span>
-          </div>
+          <Fragment key={unit.label}>
+            {index > 0 ? (
+              <span className="il-invite-countdown__sep" aria-hidden="true">
+                :
+              </span>
+            ) : null}
+            <div className="il-invite-countdown__unit">
+              <span className="il-invite-countdown__value">{String(unit.value).padStart(2, "0")}</span>
+              <span className="il-invite-countdown__label">{unit.label}</span>
+            </div>
+          </Fragment>
         ))}
       </div>
-    </IlAnimateIn>
+    </section>
   );
 }

@@ -1,5 +1,8 @@
 const EVENT_TYPES = ["חתונה", "ברית", "בת מצווה", "אחר"];
 
+export const DEFAULT_WELCOME_TEXT =
+  "שמחים ונרגשים להזמינכם לחגוג עמנו את היום המרגש בחיינו";
+
 function cleanText(value) {
   return String(value ?? "").trim();
 }
@@ -20,6 +23,8 @@ export function eventInfoToForm(event) {
     eventDate: source.eventDate || "",
     eventDateHebrew: source.eventDateHebrew || "",
     eventTime: source.eventTime || "",
+    receptionTime: source.receptionTime || "",
+    welcomeText: source.welcomeText || DEFAULT_WELCOME_TEXT,
     imageDataUrl: source.imageDataUrl || ""
   };
 }
@@ -39,6 +44,8 @@ export function formToEventUpdatePayload(form) {
     eventDate: form.eventDate,
     eventDateHebrew: form.eventDateHebrew,
     eventTime: form.eventTime,
+    receptionTime: form.receptionTime,
+    welcomeText: form.welcomeText,
     imageDataUrl: form.imageDataUrl
   };
 }
@@ -58,6 +65,8 @@ export function eventFormToPreviewPayload(form) {
     eventDate: cleanText(form.eventDate),
     eventDateHebrew: cleanText(form.eventDateHebrew),
     eventTime: cleanText(form.eventTime),
+    receptionTime: cleanText(form.receptionTime),
+    welcomeText: cleanText(form.welcomeText) || DEFAULT_WELCOME_TEXT,
     imageDataUrl: cleanText(form.imageDataUrl)
   };
 }

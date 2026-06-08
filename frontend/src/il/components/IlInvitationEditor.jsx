@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import api from "../../api.js";
 import {
+  DEFAULT_WELCOME_TEXT,
   eventFormToPreviewPayload,
   eventInfoToForm,
   formToEventUpdatePayload
@@ -130,6 +131,17 @@ export default function IlInvitationEditor({ userId, eventInfo, onClose, onSaved
                     onChange={onChange}
                     placeholder="ישראלה"
                     autoComplete="off"
+                  />
+                </IlEditorField>
+                <IlEditorField label="טקסט פתיחה" htmlFor="il-welcomeText">
+                  <textarea
+                    id="il-welcomeText"
+                    className={ilEditorInputClass}
+                    name="welcomeText"
+                    value={form.welcomeText}
+                    onChange={onChange}
+                    rows={3}
+                    placeholder={DEFAULT_WELCOME_TEXT}
                   />
                 </IlEditorField>
               </>
@@ -263,7 +275,32 @@ export default function IlInvitationEditor({ userId, eventInfo, onClose, onSaved
                   onChange={onChange}
                 />
               </IlEditorField>
-              <IlEditorField label="שעה" htmlFor="il-eventTime">
+              {form.eventType === "חתונה" ? (
+                <IlEditorField label="שעת קבלת פנים" htmlFor="il-receptionTime">
+                  <input
+                    id="il-receptionTime"
+                    className={ilEditorInputClass}
+                    type="time"
+                    name="receptionTime"
+                    value={form.receptionTime}
+                    onChange={onChange}
+                  />
+                </IlEditorField>
+              ) : (
+                <IlEditorField label="שעה" htmlFor="il-eventTime">
+                  <input
+                    id="il-eventTime"
+                    className={ilEditorInputClass}
+                    type="time"
+                    name="eventTime"
+                    value={form.eventTime}
+                    onChange={onChange}
+                  />
+                </IlEditorField>
+              )}
+            </div>
+            {form.eventType === "חתונה" ? (
+              <IlEditorField label="שעת חופה וקידושין" htmlFor="il-eventTime">
                 <input
                   id="il-eventTime"
                   className={ilEditorInputClass}
@@ -273,7 +310,7 @@ export default function IlInvitationEditor({ userId, eventInfo, onClose, onSaved
                   onChange={onChange}
                 />
               </IlEditorField>
-            </div>
+            ) : null}
           </section>
 
           <section className="us-editor-section il-editor-section">

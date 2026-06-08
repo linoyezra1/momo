@@ -34,6 +34,8 @@ export function normalizeIlEventUpdatePayload(body) {
     eventDate,
     eventDateHebrew: "",
     eventTime,
+    receptionTime: cleanText(body?.receptionTime),
+    welcomeText: cleanText(body?.welcomeText),
     imageDataUrl: cleanText(body?.imageDataUrl)
   };
 

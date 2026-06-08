@@ -19,6 +19,8 @@ const eventSchema = new mongoose.Schema(
     eventDate: { type: String, required: true },
     eventDateHebrew: { type: String, trim: true, default: "" },
     eventTime: { type: String, required: true },
+    receptionTime: { type: String, trim: true, default: "" },
+    welcomeText: { type: String, trim: true, default: "" },
     imageDataUrl: { type: String, default: "" }
   },
   { _id: false }
