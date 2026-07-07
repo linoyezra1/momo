@@ -42,19 +42,19 @@ export default function UsCountdown({ event }) {
       <p className="font-script text-5xl text-card md:text-6xl">the</p>
       <h2 className="mt-1 font-serif text-3xl uppercase tracking-[0.3em] text-card md:text-4xl">Countdown</h2>
       <p className="mx-auto mt-4 max-w-md font-sans text-xs uppercase tracking-[0.25em] text-card/90">
-        To our forever begins
+        Until we say I do
       </p>
 
-      <div className="mx-auto mt-12 grid max-w-2xl grid-cols-4 gap-3 md:gap-6">
+      <div className="mx-auto mt-12 grid max-w-2xl grid-cols-2 gap-4 sm:grid-cols-4 md:gap-6">
         {units.map((unit) => (
           <div
             key={unit.label}
-            className="flex flex-col items-center rounded-sm border border-card/30 bg-card/15 px-2 py-6 backdrop-blur-sm md:py-8"
+            className="flex min-w-[4.5rem] flex-col items-center gap-2 rounded-sm border border-card/30 bg-card/15 px-3 py-6 backdrop-blur-sm md:py-8"
           >
-            <span className="font-serif text-4xl font-light text-card md:text-6xl">
-              {String(unit.value).padStart(2, "0")}
+            <span className="block font-serif text-4xl font-light leading-none text-card md:text-6xl">
+              {unit.value}
             </span>
-            <span className="mt-2 font-sans text-[0.6rem] uppercase tracking-[0.25em] text-card/90 md:text-xs">
+            <span className="block font-sans text-[0.65rem] uppercase tracking-[0.18em] text-card/90 md:text-xs">
               {unit.label}
             </span>
           </div>

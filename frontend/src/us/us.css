@@ -195,7 +195,7 @@
   min-height: 5rem;
 }
 
-.us-hero-date-col--month {
+.us-hero-date-col--weekday {
   justify-content: center;
   text-align: center;
 }
@@ -241,26 +241,4 @@
   .us-hero-date-col--day {
     padding-inline: 0.85rem;
   }
-}
-
-.us-rsvp-modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgb(0 0 0 / 45%);
-  padding: 1.5rem;
-}
-
-.us-rsvp-modal {
-  max-height: 90vh;
-  overflow-y: auto;
-  width: 100%;
-  max-width: 32rem;
-  border-radius: 0.25rem;
-  border: 1px solid var(--border);
-  background: var(--card);
-  padding: 2rem;
 }

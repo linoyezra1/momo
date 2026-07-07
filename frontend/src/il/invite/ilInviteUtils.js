@@ -1,5 +1,5 @@
 import { DEFAULT_WELCOME_TEXT } from "../../utils/ilEventPreview.js";
-import { formatIsraeliDate, formatIsraeliWeekday, parseIsoDateParts } from "../../utils/dateFormat";
+import { formatIsraeliDate, formatIsraeliWeekdayLine, parseIsoDateParts } from "../../utils/dateFormat";
 
 export function getCountdownTarget(event) {
   const parts = parseIsoDateParts(event?.eventDate);
@@ -50,7 +50,7 @@ export function getFullDateText(event) {
 
 export function getWeekdayLine(event) {
   if (!event?.eventDate) return "—";
-  return `יום ${formatIsraeliWeekday(event.eventDate)}`;
+  return formatIsraeliWeekdayLine(event.eventDate) || "—";
 }
 
 function subtractMinutesFromTime(timeStr, minutesToSubtract) {
@@ -71,15 +71,13 @@ export function getParallelTimeline(event) {
       key: "reception",
       label: "קבלת פנים",
       time: receptionTime,
-      gifSrc: "/images/il-invite/timeline-cocktail.gif",
-      icon: "cocktail"
+      icon: "reception"
     },
     {
       key: "ceremony",
       label: "חופה וקידושין",
       time: ceremonyTime,
-      gifSrc: "/images/il-invite/timeline-rings.gif",
-      icon: "rings"
+      icon: "ceremony"
     }
   ];
 }

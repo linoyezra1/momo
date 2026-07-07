@@ -1,11 +1,23 @@
 import ActivationCode from "../models/ActivationCode.js";
 import {
-  getTwilioWhatsAppTemplateSid,
   isTwilioConfigured,
   sendTwilioWhatsAppMessage,
   toTwilioWhatsAppAddress
 } from "../utils/twilioWhatsApp.js";
-import { buildGuestWhatsAppMessage, personalizeWhatsAppMessage } from "../utils/whatsappMessage.js";
+import {
+  buildPublicEventLink,
+  buildWhatsAppEditableTemplate,
+  buildWhatsAppTemplateDefaults,
+  parseWhatsAppTemplateMessage
+} from "../utils/whatsappMessage.js";
+
+function getTwilioContentSid() {
+  const contentSid = String(process.env.TWILIO_CONTENT_SID || "").trim();
+  if (!contentSid) {
+    throw new Error("TWILIO_CONTENT_SID is not configured on the server");
+  }
+  return contentSid;
+}
 
 function normalizePaymentCode(rawCode) {
   return String(rawCode || "").trim().toUpperCase();
@@ -75,36 +87,7 @@ async function releaseCredits(codeId, count) {
   }
 }
 
-function buildPublicEventLink({ eventId, origin }) {
-  const baseOrigin = String(origin || process.env.CLIENT_URL || "").replace(/\/$/, "");
-  return `${baseOrigin}/event/${eventId}`;
-}
-
-function extractTemplateParts({ fullMessage, guestName, rsvpLink }) {
-  const withoutGreeting = String(fullMessage || "")
-    .replace(/\r\n/g, "\n")
-    .replace(/^\s*שלום[^\n]*\n?/u, "")
-    .trim();
-
-  const normalizedLines = withoutGreeting
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  const isLinkLine = (line) => line === rsvpLink || /^https?:\/\//i.test(line) || line.includes("/event/");
-  const firstLinkIndex = normalizedLines.findIndex(isLinkLine);
-
-  const bodyLines = (firstLinkIndex >= 0 ? normalizedLines.slice(0, firstLinkIndex) : normalizedLines).filter(
-    (line) => !line.includes("לפרטים ואישור הגעה")
-  );
-  const footerLines = firstLinkIndex >= 0 ? normalizedLines.slice(firstLinkIndex + 1) : [];
-
-  const middleBody = personalizeWhatsAppMessage(bodyLines.join("\n").trim(), guestName).trim();
-  const footerText = personalizeWhatsAppMessage(footerLines.join("\n").trim(), guestName).trim();
-  return { middleBody, footerText };
-}
-
-async function sendToInvitee({ invitee, templateBodyText, eventId, origin, contentSid }) {
+async function sendToInvitee({ invitee, templateBodyText, event, eventId, origin, contentSid, defaults }) {
   const to = toTwilioWhatsAppAddress(invitee.phone);
   if (!to) {
     return {
@@ -116,19 +99,21 @@ async function sendToInvitee({ invitee, templateBodyText, eventId, origin, conte
 
   try {
     const rsvpLink = buildPublicEventLink({ eventId, origin });
-    const { middleBody, footerText } = extractTemplateParts({
-      fullMessage: templateBodyText,
+    const parts = parseWhatsAppTemplateMessage({
+      message: templateBodyText,
       guestName: invitee.name,
-      rsvpLink
+      rsvpLink,
+      defaults
     });
     await sendTwilioWhatsAppMessage({
       to,
       contentSid,
       contentVariables: {
         1: invitee.name,
-        2: middleBody,
-        3: rsvpLink,
-        4: footerText || ""
+        2: parts.intro,
+        3: parts.eventDetails,
+        4: parts.rsvpLink,
+        5: parts.signature || ""
       }
     });
     return { ok: true, invitee };
@@ -195,22 +180,29 @@ export async function sendBulkWhatsApp({
     }
 
     const reservedRecord = reservation.codeRecord;
-    const defaultMessage = buildGuestWhatsAppMessage({
+    const defaults = buildWhatsAppTemplateDefaults({
+      event,
+      eventId: userId,
+      origin
+    });
+    const defaultMessage = buildWhatsAppEditableTemplate({
       event,
       eventId: userId,
       origin
     });
     const templateBodyText = String(customMessage || "").trim() || defaultMessage;
-    const contentSid = getTwilioWhatsAppTemplateSid();
+    const contentSid = getTwilioContentSid();
 
     const results = await Promise.all(
       invitees.map((invitee) =>
         sendToInvitee({
           invitee,
           templateBodyText,
+          event,
           eventId: userId,
           origin,
-          contentSid
+          contentSid,
+          defaults
         })
       )
     );

@@ -1,6 +1,8 @@
+import { formatUsInvitationTime } from "../../utils/usInvitationCopy.js";
+
 function parseEventDate(event) {
   const formatted = String(event.event_date_formatted || "").trim();
-  const time = String(event.event_time || "").trim();
+  const time = formatUsInvitationTime(event.event_time);
 
   if (!formatted) {
     return { month: "", day: "", weekday: "", time };
@@ -15,7 +17,7 @@ function parseEventDate(event) {
     month: month.toUpperCase(),
     day,
     weekday: weekdayPart.toUpperCase(),
-    time: time.toUpperCase()
+    time
   };
 }
 
@@ -23,7 +25,8 @@ export default function UsHero({ event }) {
   const hostNames = String(event.host_names || "").trim() || "Bride & Groom";
   const introText = String(event.intro_text || "").trim() || "Together with their families";
   const celebrationText =
-    String(event.celebration_text || "").trim() || "Invite you to their wedding celebration";
+    String(event.celebration_text || "").trim() ||
+    "request the pleasure of your company as they celebrate their marriage";
 
   const [first, second] = hostNames
     .split("&")
@@ -39,28 +42,13 @@ export default function UsHero({ event }) {
       aria-label="Wedding invitation hero"
     >
       <div className="us-hero-content">
-        <p className="us-animate-in us-animate-delay-1 us-hero-logo flex items-center justify-center font-script text-6xl leading-none text-primary sm:text-7xl md:text-8xl">
-          we
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={1.5}
-            className="mx-1 h-12 w-12 text-primary sm:h-14 sm:w-14 md:h-16 md:w-16"
-            aria-hidden="true"
-          >
-            <path d="M12 20s-7-4.35-9.5-8.5C1 8.5 2.5 5 6 5c2 0 3.2 1.2 4 2.5C10.8 6.2 12 5 14 5c3.5 0 5 3.5 3.5 6.5C17 15.65 12 20 12 20Z" />
-          </svg>
-          do
-        </p>
+        <div className="us-animate-in us-animate-delay-1 us-hero-divider" aria-hidden="true" />
 
-        <div className="us-animate-in us-animate-delay-2 us-hero-divider" aria-hidden="true" />
-
-        <p className="us-animate-in us-animate-delay-3 us-hero-intro font-sans text-[0.65rem] uppercase tracking-[0.35em] text-muted-foreground sm:text-xs">
+        <p className="us-animate-in us-animate-delay-2 us-hero-intro font-sans text-[0.65rem] uppercase tracking-[0.35em] text-muted-foreground sm:text-xs">
           {introText}
         </p>
 
-        <div className="us-animate-in us-animate-delay-4 us-hero-names flex w-full flex-wrap items-center justify-center gap-x-4 gap-y-2">
+        <div className="us-animate-in us-animate-delay-3 us-hero-names flex w-full flex-wrap items-center justify-center gap-x-4 gap-y-2">
           {first ? (
             <h1 className="font-serif text-4xl font-medium tracking-wide text-foreground sm:text-5xl md:text-7xl">
               {first.toUpperCase()}
@@ -76,20 +64,20 @@ export default function UsHero({ event }) {
           ) : null}
         </div>
 
-        <p className="us-animate-in us-animate-delay-5 us-hero-celebration font-sans text-[0.65rem] uppercase leading-relaxed tracking-[0.3em] text-muted-foreground sm:text-xs">
+        <p className="us-animate-in us-animate-delay-4 us-hero-celebration font-sans text-[0.65rem] uppercase leading-relaxed tracking-[0.3em] text-muted-foreground sm:text-xs">
           {celebrationText}
         </p>
 
         {month || day || weekday || time ? (
           <div
-            className="us-animate-in us-animate-delay-6 us-hero-date-grid font-serif text-foreground"
+            className="us-animate-in us-animate-delay-5 us-hero-date-grid font-serif text-foreground"
             aria-label={`${weekday} ${month} ${day}${time ? `, ${time}` : ""}`}
           >
-            <div className="us-hero-date-col us-hero-date-col--month">
-              {month ? (
-                <span className="font-sans text-[0.68rem] font-medium uppercase tracking-[0.28em] text-muted-foreground sm:text-sm">
-                  {month}
-                </span>
+            <div className="us-hero-date-col us-hero-date-col--weekday">
+              {weekday ? (
+                <p className="font-sans text-[0.68rem] font-medium uppercase tracking-[0.28em] text-muted-foreground sm:text-sm">
+                  {weekday}
+                </p>
               ) : null}
             </div>
 
@@ -98,13 +86,13 @@ export default function UsHero({ event }) {
             </div>
 
             <div className="us-hero-date-col us-hero-date-col--meta">
-              {weekday ? (
+              {month ? (
                 <p className="font-sans text-[0.62rem] font-medium uppercase tracking-[0.22em] text-muted-foreground sm:text-xs sm:tracking-[0.25em]">
-                  {weekday}
+                  {month}
                 </p>
               ) : null}
               {time ? (
-                <p className="mt-1.5 font-sans text-[0.62rem] font-medium uppercase tracking-[0.2em] text-muted-foreground sm:mt-2 sm:text-xs sm:tracking-[0.22em]">
+                <p className="mt-1.5 font-sans text-[0.62rem] font-normal normal-case tracking-[0.06em] text-muted-foreground sm:mt-2 sm:text-xs">
                   {time}
                 </p>
               ) : null}

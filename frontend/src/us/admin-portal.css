@@ -357,6 +357,11 @@
   color: var(--us-espresso);
 }
 
+.us-admin-required {
+  color: var(--us-rose);
+  font-weight: 700;
+}
+
 .us-admin-field-input {
   width: 100%;
   border: none;

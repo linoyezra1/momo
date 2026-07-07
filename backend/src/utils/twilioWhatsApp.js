@@ -37,8 +37,20 @@ export function toTwilioWhatsAppAddress(phone) {
   return `whatsapp:+${digits}`;
 }
 
-export async function sendTwilioWhatsAppMessage({ to, body }) {
+export async function sendTwilioWhatsAppMessage({ to, body, contentSid, contentVariables }) {
   const client = getTwilioClient();
   const from = getTwilioWhatsAppFrom();
+  if (contentSid) {
+    const serializedVariables =
+      typeof contentVariables === "string"
+        ? contentVariables
+        : JSON.stringify(contentVariables || {});
+    return client.messages.create({
+      from,
+      to,
+      contentSid,
+      contentVariables: serializedVariables
+    });
+  }
   return client.messages.create({ body, from, to });
 }

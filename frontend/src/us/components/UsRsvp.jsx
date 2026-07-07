@@ -133,10 +133,6 @@ export default function UsRsvp({ event, slug, previewMode = false }) {
               {deadlineText}
             </p>
           ) : null}
-          <p className="mt-6 font-sans text-sm leading-relaxed text-muted-foreground">
-            Ready to party? Let us know you&apos;re in!
-          </p>
-
           {submitted ? (
             <div className="mt-12 rounded-sm border border-border bg-card/95 px-8 py-12 shadow-sm backdrop-blur-[1px]">
               <p className="font-script text-4xl text-primary">Thank you!</p>
@@ -157,7 +153,7 @@ export default function UsRsvp({ event, slug, previewMode = false }) {
 
           {registryLink ? (
             <div className="mt-12 flex flex-col items-center gap-3">
-              <p className="font-sans text-xs uppercase tracking-[0.25em] text-muted-foreground">Help us celebrate</p>
+              <p className="font-sans text-xs uppercase tracking-[0.25em] text-muted-foreground">Registry</p>
               <a
                 href={registryLink}
                 target="_blank"

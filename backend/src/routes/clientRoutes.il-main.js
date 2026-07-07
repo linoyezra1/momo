@@ -1,12 +1,8 @@
-import express from "express";
+﻿import express from "express";
 import bcrypt from "bcryptjs";
 import User from "../models/User.js";
 import Guest from "../models/Guest.js";
 import { normalizePhone, isSelfConfirmedSource } from "../utils/guestPhone.js";
-import { normalizeIlEventUpdatePayload } from "../utils/ilEvent.js";
-import { sendBulkWhatsApp } from "../services/bulkWhatsAppService.js";
-import { getClientBaseUrl } from "../utils/clientUrl.js";
-import ActivationCode from "../models/ActivationCode.js";
 
 const router = express.Router();
 
@@ -19,20 +15,20 @@ function parseAttendeesCount(raw) {
 }
 
 function mapRowToGuest(row) {
-  const fullName = String(row["שם מלא"] ?? row["fullName"] ?? row["name"] ?? "").trim();
-  const phone = normalizePhone(row["טלפון"] ?? row["phone"] ?? "");
+  const fullName = String(row["╫⌐╫¥ ╫₧╫£╫נ"] ?? row["fullName"] ?? row["name"] ?? "").trim();
+  const phone = normalizePhone(row["╫ר╫£╫ñ╫ץ╫ƒ"] ?? row["phone"] ?? "");
   const amountRaw =
-    row["כמות"] ??
-    row["כמות מגיעים"] ??
-    row["כמות אנשים"] ??
-    row["מוזמנים"] ??
+    row["╫¢╫₧╫ץ╫¬"] ??
+    row["╫¢╫₧╫ץ╫¬ ╫₧╫ע╫ש╫ó╫ש╫¥"] ??
+    row["╫¢╫₧╫ץ╫¬ ╫נ╫á╫⌐╫ש╫¥"] ??
+    row["╫₧╫ץ╫צ╫₧╫á╫ש╫¥"] ??
     row["amount"] ??
     row["count"] ??
     row["attendeesCount"];
   const attendeesCount = Math.max(1, parseAttendeesCount(amountRaw));
-  const statusRaw = String(row["סטטוס"] ?? row["status"] ?? row["סטטוס הגעה"] ?? "").trim();
-  let status = "לא ידוע";
-  if (statusRaw === "מגיע" || statusRaw === "לא מגיע" || statusRaw === "אולי") {
+  const statusRaw = String(row["╫í╫ר╫ר╫ץ╫í"] ?? row["status"] ?? row["╫í╫ר╫ר╫ץ╫í ╫פ╫ע╫ó╫פ"] ?? "").trim();
+  let status = "╫£╫נ ╫ש╫ף╫ץ╫ó";
+  if (statusRaw === "╫₧╫ע╫ש╫ó" || statusRaw === "╫£╫נ ╫₧╫ע╫ש╫ó" || statusRaw === "╫נ╫ץ╫£╫ש") {
     status = statusRaw;
   }
   return { fullName, phone, attendeesCount, status, giftAmount: 0 };
@@ -107,9 +103,9 @@ router.get("/:userId/guests", async (req, res) => {
       (acc, guest) => {
         const count = Math.max(0, Number(guest.attendeesCount || 0));
         acc.totalInvited += count;
-        if (guest.status === "מגיע") {
+        if (guest.status === "╫₧╫ע╫ש╫ó") {
           acc.totalComing += count;
-        } else if (guest.status === "לא מגיע") {
+        } else if (guest.status === "╫£╫נ ╫₧╫ע╫ש╫ó") {
           acc.totalNotComing += count;
         } else {
           acc.totalMaybe += count;
@@ -148,7 +144,7 @@ router.post("/:userId/guests/manual", async (req, res) => {
     if (existing) {
       if (isSelfConfirmedSource(existing.source)) {
         return res.status(409).json({
-          message: "מוזמן עם מספר טלפון זה כבר אישר הגעה בעצמו במערכת"
+          message: "╫₧╫ץ╫צ╫₧╫ƒ ╫ó╫¥ ╫₧╫í╫ñ╫¿ ╫ר╫£╫ñ╫ץ╫ƒ ╫צ╫פ ╫¢╫ס╫¿ ╫נ╫ש╫⌐╫¿ ╫פ╫ע╫ó╫פ ╫ס╫ó╫ª╫₧╫ץ ╫ס╫₧╫ó╫¿╫¢╫¬"
         });
       }
       const guest = await Guest.findByIdAndUpdate(
@@ -264,7 +260,7 @@ router.post("/:userId/guests/import", async (req, res) => {
               phone: normalizePhone(row.phone),
               attendeesCount: Math.max(1, Number(row.attendeesCount || 1)),
               giftAmount: Math.max(0, Number(row.giftAmount || 0)),
-              status: row.status || "לא ידוע",
+              status: row.status || "╫£╫נ ╫ש╫ף╫ץ╫ó",
               source: "excel"
             }
           : toGuestDoc(userId, mapRowToGuest(row));
@@ -322,7 +318,7 @@ router.patch("/:userId/guests/:guestId", async (req, res) => {
     if (typeof fullName !== "undefined") {
       const trimmed = String(fullName).trim();
       if (!trimmed) {
-        return res.status(400).json({ message: "שם מלא הוא שדה חובה" });
+        return res.status(400).json({ message: "╫⌐╫¥ ╫₧╫£╫נ ╫פ╫ץ╫נ ╫⌐╫ף╫פ ╫ק╫ץ╫ס╫פ" });
       }
       update.fullName = trimmed;
     }
@@ -332,20 +328,8 @@ router.patch("/:userId/guests/:guestId", async (req, res) => {
     if (typeof giftAmount !== "undefined") {
       update.giftAmount = Math.max(0, Number(giftAmount));
     }
-    if (typeof req.body.guestSide !== "undefined") {
-      const side = String(req.body.guestSide || "").trim();
-      if (["חתן", "כלה", "משותף", ""].includes(side)) {
-        update.guestSide = side;
-      }
-    }
-    if (typeof req.body.guestGroup !== "undefined") {
-      update.guestGroup = String(req.body.guestGroup || "").trim();
-    }
-    if (typeof req.body.seatingTableId !== "undefined") {
-      update.seatingTableId = String(req.body.seatingTableId || "").trim();
-    }
     if (typeof status !== "undefined") {
-      if (!["מגיע", "לא מגיע", "אולי", "לא ידוע"].includes(status)) {
+      if (!["╫₧╫ע╫ש╫ó", "╫£╫נ ╫₧╫ע╫ש╫ó", "╫נ╫ץ╫£╫ש", "╫£╫נ ╫ש╫ף╫ץ╫ó"].includes(status)) {
         return res.status(400).json({ message: "Invalid status" });
       }
       update.status = status;
@@ -365,92 +349,6 @@ router.patch("/:userId/guests/:guestId", async (req, res) => {
     return res.json({ message: "Guest updated", guest });
   } catch (error) {
     return res.status(500).json({ message: "Failed to update guest", error: error.message });
-  }
-});
-
-router.get("/:userId/whatsapp/quota", async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const user = await User.findById(userId).select("_id");
-    if (!user) {
-      return res.status(404).json({ message: "Client not found" });
-    }
-
-    const codeRecord = await ActivationCode.findOne({
-      redeemedByUserId: userId,
-      isActive: true
-    }).sort({ updatedAt: -1 });
-
-    return res.json({
-      quota: codeRecord
-        ? {
-            code: codeRecord.code,
-            total_credits: codeRecord.total_credits,
-            remaining_credits: codeRecord.remaining_credits
-          }
-        : null
-    });
-  } catch (error) {
-    return res.status(500).json({ message: "Failed to load WhatsApp quota", error: error.message });
-  }
-});
-
-router.post("/:userId/whatsapp/bulk-send", async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const { paymentCode, guestIds, customMessage } = req.body;
-
-    const user = await User.findById(userId).select("event");
-    if (!user) {
-      return res.status(404).json({ message: "Client not found" });
-    }
-
-    if (!Array.isArray(guestIds) || guestIds.length === 0) {
-      return res.status(400).json({ message: "יש לבחור לפחות מוזמן אחד לשליחה" });
-    }
-
-    const guests = await Guest.find({ userId, _id: { $in: guestIds } });
-    if (guests.length !== guestIds.length) {
-      return res.status(400).json({ message: "חלק מהמוזמנים שנבחרו לא נמצאו ברשימה" });
-    }
-
-    const origin = getClientBaseUrl(req);
-    const result = await sendBulkWhatsApp({
-      paymentCode,
-      guests,
-      customMessage,
-      event: user.event,
-      userId,
-      origin
-    });
-
-    return res.status(result.status).json(result.body);
-  } catch (error) {
-    console.error("Bulk WhatsApp route error:", error?.message || error);
-    return res.status(500).json({
-      success: false,
-      message: "שגיאה פנימית בשליחת ההודעות, אנא נסה שוב מאוחר יותר."
-    });
-  }
-});
-
-router.put("/:userId/event", async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: "Client not found" });
-    }
-
-    user.event = normalizeIlEventUpdatePayload(req.body);
-    await user.save();
-
-    return res.json({
-      message: "פרטי ההזמנה עודכנו בהצלחה",
-      event: user.event
-    });
-  } catch (error) {
-    return res.status(400).json({ message: error.message || "שמירת ההזמנה נכשלה" });
   }
 });
 

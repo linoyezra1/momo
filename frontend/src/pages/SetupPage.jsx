@@ -11,7 +11,7 @@ const initialForm = {
   slug: "",
   hostNames: "",
   introText: "Together with their families",
-  celebrationText: "Invite you to their wedding celebration",
+  celebrationText: "request the pleasure of your company as they celebrate their marriage",
   eventDateFormatted: "",
   eventTime: "",
   countdownTargetDate: "",

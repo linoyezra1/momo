@@ -30,6 +30,14 @@ export function formatIsraeliWeekday(dateStr) {
   return date.toLocaleDateString("he-IL", { weekday: "long" });
 }
 
+/** "יום חמישי" — בלי כפילות של המילה "יום" */
+export function formatIsraeliWeekdayLine(dateStr) {
+  const weekday = formatIsraeliWeekday(dateStr);
+  if (!weekday) return "";
+  if (weekday.startsWith("יום ")) return weekday;
+  return `יום ${weekday}`;
+}
+
 /** תאריך עברי — מחושב מהתאריך הלועזי; ריק אם אין תאריך תקין */
 export function formatHebrewCalendarDate(dateStr) {
   const parts = parseIsoDateParts(dateStr);

@@ -862,7 +862,7 @@ export default function ClientDashboardPage() {
                 </div>
                 <div>
                   <label className="us-field-label" htmlFor="bulk-whatsapp-message">
-                    נוסח ההודעה (השתמשו ב-[שם] לשם המוזמן)
+                    נוסח ההודעה (השתמשו ב-[שם] לשם המוזמן · פרטי האירוע והקישור יוזרקו למשתני התבנית)
                   </label>
                   <textarea
                     id="bulk-whatsapp-message"

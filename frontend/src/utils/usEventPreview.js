@@ -110,7 +110,9 @@ export function eventFormToPublicPayload(form, slug, eventId) {
     event_type: "wedding",
     host_names: form.hostNames?.trim() || "Bride & Groom",
     intro_text: form.introText?.trim() || "Together with their families",
-    celebration_text: form.celebrationText?.trim() || "Invite you to their wedding celebration",
+    celebration_text:
+      form.celebrationText?.trim() ||
+      "request the pleasure of your company as they celebrate their marriage",
     event_date_formatted: form.eventDateFormatted || "",
     event_time: form.eventTime || "",
     countdown_target_date: datetimeLocalToIso(form.countdownTargetDate),

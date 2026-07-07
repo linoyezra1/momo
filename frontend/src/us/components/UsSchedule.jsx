@@ -1,3 +1,5 @@
+import { formatUsTimelineTime } from "../../utils/usInvitationCopy.js";
+
 export default function UsSchedule({ event }) {
   const timeline = event.timeline || [];
   if (!timeline.length) {
@@ -14,7 +16,9 @@ export default function UsSchedule({ event }) {
         <ul className="mt-14 flex flex-col gap-10 rounded-sm border border-border bg-card/95 px-8 py-10 shadow-sm backdrop-blur-[1px]">
           {timeline.map((item, index) => (
             <li key={`${item.time}-${item.title}`} className="flex flex-col items-center">
-              <span className="font-serif text-2xl font-light tracking-wide text-primary">{item.time}</span>
+              <span className="font-serif text-2xl font-light tracking-wide text-primary">
+                {formatUsTimelineTime(item.time)}
+              </span>
               <span className="mt-2 font-sans text-xs uppercase tracking-[0.3em] text-muted-foreground">
                 {item.title}
               </span>

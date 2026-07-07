@@ -1,5 +1,7 @@
 import { normalizePhone } from "./guestPhone.js";
 
+const RSVP_PROMPT = "נשמח אם תוכלו לאשר הגעתכם בקישור המצורף:";
+
 function parseIsoDateParts(dateStr) {
   const raw = String(dateStr ?? "").trim();
   const isoMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -36,9 +38,13 @@ function resolveEventKind(event) {
   return "other";
 }
 
-export function buildGuestWhatsAppMessage({ event, eventId, origin, guestName = "" }) {
-  const baseOrigin = origin || process.env.CLIENT_URL || "";
-  const publicLink = `${baseOrigin.replace(/\/$/, "")}/event/${eventId}`;
+export function buildPublicEventLink({ eventId, origin }) {
+  const baseOrigin = String(origin || process.env.CLIENT_URL || "").replace(/\/$/, "");
+  return `${baseOrigin}/event/${eventId}`;
+}
+
+export function buildWhatsAppTemplateDefaults({ event, eventId, origin }) {
+  const publicLink = buildPublicEventLink({ eventId, origin });
   const weekday = formatIsraeliWeekday(event?.eventDate);
   const date = formatIsraeliDate(event?.eventDate);
   const venue = event?.venueName || "";
@@ -48,23 +54,18 @@ export function buildGuestWhatsAppMessage({ event, eventId, origin, guestName = 
   const dateLine = [weekday, date].filter(Boolean).join(" ");
   const kind = resolveEventKind(event);
 
-  let body = "";
-
   if (kind === "wedding") {
     const groom = event?.groomName || "";
     const bride = event?.brideName || "";
-    body = `משפחה וחברים יקרים,
-הנכם מוזמנים לחתונה שלנו! 💍
+    return {
+      intro: `משפחה וחברים יקרים,\nהנכם מוזמנים לחתונה שלנו! 💍`,
+      eventDetails: [dateLine, venueLine ? `ב${venueLine} 🥂` : ""].filter(Boolean).join("\n"),
+      rsvpLink: publicLink,
+      signature: groom || bride ? `אוהבים,\n${groom} ו${bride}`.trim() : ""
+    };
+  }
 
-האירוע יתקיים ב${dateLine}
-ב${venueLine} 🥂
-
-נשמח אם תוכלו לאשר הגעתכם בקישור המצורף:
-${publicLink}
-
-אוהבים,
-${groom} ו${bride}`;
-  } else if (kind === "brit") {
+  if (kind === "brit") {
     const parent1 = event?.parentName1 || "";
     const parent2 = event?.parentName2 || "";
     const dateDots = formatIsraeliDate(event?.eventDate);
@@ -82,17 +83,15 @@ ${groom} ו${bride}`;
       time ? `⏰ שעה: בשעה ${time}` : ""
     ].filter(Boolean);
 
-    body = `משפחה וחברים יקרים,
-שמחים להזמינכם לחגוג עמנו את ברית המילה של בננו שתתקיים${weekdaySuffix}! 👶
+    return {
+      intro: `משפחה וחברים יקרים,\nשמחים להזמינכם לחגוג עמנו את ברית המילה של בננו שתתקיים${weekdaySuffix}! 👶`,
+      eventDetails: detailLines.join("\n"),
+      rsvpLink: publicLink,
+      signature: parent1 || parent2 ? `אוהבים,\n${parent1} ו${parent2}`.trim() : ""
+    };
+  }
 
-${detailLines.join("\n")}
-
-נשמח אם תוכלו לאשר הגעתכם בקישור המצורף:
-${publicLink}
-
-אוהבים,
-${parent1} ו${parent2}`;
-  } else if (kind === "bat_mitzvah") {
+  if (kind === "bat_mitzvah") {
     const bat = event?.batMitzvahName || "";
     const parent1 = event?.parentName1 || "";
     const parent2 = event?.parentName2 || "";
@@ -100,43 +99,146 @@ ${parent1} ו${parent2}`;
     const time = event?.eventTime ? String(event.eventTime).trim() : "";
     const loveLine = `באהבה, ${bat}, ${parent1}${parent2 ? ` ו${parent2}` : ""}`;
 
-    body = `משפחה וחברים יקרים,
-אנו נרגשים להזמינכם לחגיגת בת המצווה של בתנו ${bat}! 🌸
+    return {
+      intro: `משפחה וחברים יקרים,\nאנו נרגשים להזמינכם לחגיגת בת המצווה של בתנו ${bat}! 🌸`,
+      eventDetails: [
+        weekday && date ? `${weekday} ${date}` : dateLine,
+        time ? `בשעה ${time}` : "",
+        venue ? `באולמי ${venue}${address ? `, בכתובת ${address}` : ""} 🎈` : address
+      ]
+        .filter(Boolean)
+        .join("\n"),
+      rsvpLink: publicLink,
+      signature: loveLine
+    };
+  }
 
-האירוע יתקיים ב${weekday} ${date}
-בשעה ${time}
-באולמי ${venue}, בכתובת ${address} 🎈
+  const owners = event?.eventNames || "";
+  return {
+    intro: "משפחה וחברים יקרים,\nהנכם מוזמנים לאירוע שלנו!",
+    eventDetails: [dateLine, venueLine].filter(Boolean).join("\n"),
+    rsvpLink: publicLink,
+    signature: owners ? `אוהבים,\n${owners}` : ""
+  };
+}
 
-נשמח לראותכם בין אורחינו!
-${loveLine}
+export function buildWhatsAppEditableTemplate({ event, eventId, origin }) {
+  const { intro, eventDetails, rsvpLink, signature } = buildWhatsAppTemplateDefaults({
+    event,
+    eventId,
+    origin
+  });
 
-לפרטים נוספים ואישור הגעה בקישור המצורף:
-${publicLink}`;
+  const sections = [
+    "שלום [שם],",
+    "",
+    intro,
+    "",
+    `האירוע יתקיים ב${eventDetails}`,
+    "",
+    RSVP_PROMPT,
+    rsvpLink
+  ];
+
+  if (signature) {
+    sections.push("", signature);
+  }
+
+  return sections.join("\n");
+}
+
+function isLinkLine(line, rsvpLink) {
+  const value = String(line || "").trim();
+  if (!value) return false;
+  if (value === rsvpLink) return true;
+  if (/^https?:\/\//i.test(value)) return true;
+  if (value.includes("/event/")) return true;
+  if (value === "[קישור]") return true;
+  return false;
+}
+
+export function parseWhatsAppTemplateMessage({ message, guestName, rsvpLink, defaults }) {
+  const fallback = defaults || {
+    intro: "",
+    eventDetails: "",
+    rsvpLink,
+    signature: ""
+  };
+
+  let text = String(message || "")
+    .replace(/\r\n/g, "\n")
+    .trim();
+
+  text = text.replace(/^\s*שלום\s+(\[שם\]|[^\n,]+)\s*,?\s*\n?/u, "").trim();
+
+  const eventMarker = "האירוע יתקיים ב";
+  const eventIndex = text.indexOf(eventMarker);
+
+  let intro = fallback.intro;
+  let eventDetails = fallback.eventDetails;
+  let link = fallback.rsvpLink || rsvpLink;
+  let signature = fallback.signature;
+
+  if (eventIndex >= 0) {
+    intro = text.slice(0, eventIndex).trim() || fallback.intro;
+    text = text.slice(eventIndex + eventMarker.length).trim();
   } else {
-    const owners = event?.eventNames || "";
-    body = `משפחה וחברים יקרים,
-הנכם מוזמנים לאירוע שלנו!
-
-האירוע יתקיים ב${dateLine}
-ב${venueLine}
-
-נשמח אם תוכלו לאשר הגעתכם בקישור המצורף:
-${publicLink}
-
-אוהבים,
-${owners}`;
+    intro = text || fallback.intro;
+    text = "";
   }
 
-  if (guestName) {
-    return `שלום ${guestName},\n\n${body}`;
+  const rsvpIndex = text.indexOf(RSVP_PROMPT);
+  if (rsvpIndex >= 0) {
+    eventDetails = text.slice(0, rsvpIndex).trim() || fallback.eventDetails;
+    text = text.slice(rsvpIndex + RSVP_PROMPT.length).trim();
+  } else if (text) {
+    const lines = text.split("\n").map((line) => line.trim());
+    const linkLineIndex = lines.findIndex((line) => isLinkLine(line, rsvpLink));
+    if (linkLineIndex >= 0) {
+      eventDetails = lines.slice(0, linkLineIndex).join("\n").trim() || fallback.eventDetails;
+      text = lines.slice(linkLineIndex).join("\n");
+    } else {
+      eventDetails = text.trim() || fallback.eventDetails;
+      text = "";
+    }
   }
-  return body;
+
+  if (text) {
+    const lines = text
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+    const linkLineIndex = lines.findIndex((line) => isLinkLine(line, rsvpLink));
+    if (linkLineIndex >= 0) {
+      link = lines[linkLineIndex] === "[קישור]" ? rsvpLink : lines[linkLineIndex];
+      signature = lines.slice(linkLineIndex + 1).join("\n").trim();
+    } else if (lines.length) {
+      signature = lines.join("\n").trim();
+    }
+  }
+
+  intro = personalizeWhatsAppMessage(intro, guestName).trim();
+  signature = personalizeWhatsAppMessage(signature, guestName).trim();
+
+  return {
+    intro: intro || fallback.intro,
+    eventDetails: eventDetails || fallback.eventDetails,
+    rsvpLink: link || rsvpLink,
+    signature: signature || ""
+  };
+}
+
+/** @deprecated Use buildWhatsAppEditableTemplate for bulk/template flows */
+export function buildGuestWhatsAppMessage({ event, eventId, origin, guestName = "" }) {
+  const editable = buildWhatsAppEditableTemplate({ event, eventId, origin });
+  if (!guestName) return editable.replace("שלום [שם],", "").trim();
+  return editable.replace("[שם]", guestName);
 }
 
 export function personalizeWhatsAppMessage(template, guestName) {
   const name = String(guestName || "").trim();
   if (!template || !template.includes("[שם]")) {
-    return name ? `שלום ${name},\n\n${template}` : template;
+    return template;
   }
   return String(template).replace(/\[שם\]/g, name);
 }

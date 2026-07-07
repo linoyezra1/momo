@@ -9,6 +9,7 @@ import {
   isGuestEligibleForSeating
 } from "../utils/seatingAssign.js";
 import { sendTwilioWhatsAppMessage, toTwilioWhatsAppAddress, isTwilioConfigured } from "../utils/twilioWhatsApp.js";
+import { mapTwilioErrorMessage } from "../services/bulkWhatsAppService.js";
 
 const router = express.Router();
 
@@ -226,6 +227,8 @@ router.post("/:userId/seating/send-table-messages", async (req, res) => {
     }
 
     let sent = 0;
+    let lastError = null;
+
     for (const guest of guests) {
       const table = tableById.get(guest.seatingTableId);
       const tableLabel = table?.label || guest.seatingTableId;
@@ -233,17 +236,39 @@ router.post("/:userId/seating/send-table-messages", async (req, res) => {
       const body = `היי ${firstName}, שמחים שבאתם! מספר השולחן שלכם הוא ${tableLabel}. נתראה באירוע! — momoEVENT`;
       const to = toTwilioWhatsAppAddress(guest.phone);
       if (!to) continue;
-      await sendTwilioWhatsAppMessage({ to, body });
-      sent += 1;
+
+      try {
+        await sendTwilioWhatsAppMessage({ to, body });
+        sent += 1;
+      } catch (sendError) {
+        lastError = sendError;
+        console.error(
+          `[Twilio] Table message failed for ${guest.fullName}:`,
+          sendError?.code || "",
+          sendError?.message || sendError
+        );
+      }
+    }
+
+    if (sent === 0) {
+      return res.status(lastError ? 400 : 500).json({
+        success: false,
+        message: lastError ? mapTwilioErrorMessage(lastError) : "לא נשלחה אף הודעה"
+      });
     }
 
     return res.json({
+      success: true,
       message: `נשלחו ${sent} הודעות עם מספר שולחן`,
       sentCount: sent,
       paymentCodeUsed: Boolean(paymentCode)
     });
   } catch (error) {
-    return res.status(500).json({ message: error.message || "Failed to send table messages" });
+    console.error("[Twilio] send-table-messages error:", error?.message || error);
+    return res.status(500).json({
+      success: false,
+      message: mapTwilioErrorMessage(error) || "Failed to send table messages"
+    });
   }
 });
 

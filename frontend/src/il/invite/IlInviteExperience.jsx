@@ -140,7 +140,7 @@ export default function IlInviteExperience({
             <section className="il-invite-timeline" aria-label="לוח זמנים">
               {timeline.map((item) => (
                 <div key={item.key} className="il-invite-timeline__col">
-                  <IlTimelineIcon name={item.icon} gifSrc={item.gifSrc} />
+                  <IlTimelineIcon name={item.icon} />
                   <p className="il-invite-timeline__label">{item.label}</p>
                   <p className="il-invite-timeline__time">{item.time}</p>
                 </div>
