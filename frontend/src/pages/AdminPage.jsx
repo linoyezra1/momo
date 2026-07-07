@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Copy, Pencil, Trash2, X } from "lucide-react";
 import api from "../api";
+import { clearAdminToken } from "../utils/adminAuth";
 import { buildClientOnboardingMessage } from "../utils/clientOnboardingMessage";
 import { formatIsraeliDate } from "../utils/dateFormat";
 import "../us/admin-portal.css";
@@ -81,6 +83,7 @@ function formatCreatedAt(value) {
 }
 
 export default function AdminPage() {
+  const navigate = useNavigate();
   const [form, setForm] = useState(initialForm);
   const [clients, setClients] = useState([]);
   const [selectedClientId, setSelectedClientId] = useState("");
@@ -448,6 +451,11 @@ ${publicEventUrl}`
   const selectedPublicUrl = selectedClient ? toAppUrl(selectedClient.publicEventLink) : "";
   const selectedDashboardUrl = selectedClient ? toAppUrl(selectedClient.clientDashboardLink) : "";
 
+  const logoutAdmin = () => {
+    clearAdminToken();
+    navigate("/admin/login", { replace: true });
+  };
+
   return (
     <div className="us-admin-portal us-admin-shell" dir="rtl">
       <div className="us-admin-container">
@@ -459,6 +467,9 @@ ${publicEventUrl}`
         <div className="us-admin-toolbar">
           <button className="us-admin-btn us-admin-btn--primary" type="button" onClick={openCreateWizard}>
             לקוח חדש
+          </button>
+          <button className="us-admin-btn" type="button" onClick={logoutAdmin}>
+            התנתקות
           </button>
         </div>
 

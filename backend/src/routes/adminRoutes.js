@@ -4,8 +4,45 @@ import User from "../models/User.js";
 import Guest from "../models/Guest.js";
 import ActivationCode from "../models/ActivationCode.js";
 import { buildClientUrl } from "../utils/clientUrl.js";
+import {
+  requireAdmin,
+  signAdminToken,
+  validateAdminCredentials,
+  verifyAdminToken
+} from "../middleware/adminAuth.js";
 
 const router = express.Router();
+
+router.post("/login", (req, res) => {
+  const username = String(req.body?.username || "").trim();
+  const password = String(req.body?.password || "");
+
+  const validation = validateAdminCredentials(username, password);
+  if (validation.reason === "not_configured") {
+    return res.status(503).json({ message: "התחברות מנהל לא מוגדרת בשרת" });
+  }
+  if (!validation.ok) {
+    return res.status(401).json({ message: "שם משתמש או סיסמה שגויים" });
+  }
+
+  try {
+    const token = signAdminToken();
+    return res.json({ token });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "Failed to create admin session" });
+  }
+});
+
+router.get("/session", (req, res) => {
+  const authHeader = String(req.headers.authorization || "");
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+  if (!verifyAdminToken(token)) {
+    return res.status(401).json({ authenticated: false });
+  }
+  return res.json({ authenticated: true });
+});
+
+router.use(requireAdmin);
 
 function normalizeEventPayload(rawEvent) {
   const eventType = String(rawEvent?.eventType || "").trim() || "חתונה";
