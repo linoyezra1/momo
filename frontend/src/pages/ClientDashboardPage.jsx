@@ -3,10 +3,9 @@ import { Link, useParams } from "react-router-dom";
 import { Check, Clock, HelpCircle, RotateCw, Search, Users, X } from "lucide-react";
 import api from "../api";
 import WhatsAppIcon from "../components/WhatsAppIcon";
-import { buildWhatsAppSendUrl } from "../utils/whatsapp";
+import { buildWhatsAppMessageTemplate, buildWhatsAppSendUrl } from "../utils/whatsapp";
 import { normalizeIsraeliPhone } from "../utils/phoneNormalize";
 import IlInvitationEditor from "../il/components/IlInvitationEditor.jsx";
-import IlBulkWhatsAppModal from "../components/IlBulkWhatsAppModal.jsx";
 import "../us/client-portal.css";
 import "../il/il-portal.css";
 
@@ -123,7 +122,11 @@ export default function ClientDashboardPage() {
   const [selectedGuestIds, setSelectedGuestIds] = useState(() => new Set());
   const [showBulkWhatsApp, setShowBulkWhatsApp] = useState(false);
   const [paymentCode, setPaymentCode] = useState("");
+  const [customWhatsAppMessage, setCustomWhatsAppMessage] = useState("");
   const [whatsappQuota, setWhatsappQuota] = useState(null);
+  const [bulkWhatsAppSending, setBulkWhatsAppSending] = useState(false);
+  const [bulkWhatsAppResult, setBulkWhatsAppResult] = useState("");
+  const [bulkWhatsAppError, setBulkWhatsAppError] = useState("");
   const fileInputRef = useRef(null);
 
   const publicLink = `${window.location.origin}/event/${userId}`;
@@ -214,6 +217,21 @@ export default function ClientDashboardPage() {
     }
   };
 
+  const defaultWhatsAppTemplate = useMemo(() => {
+    if (!eventInfo) return "";
+    return buildWhatsAppMessageTemplate({
+      event: eventInfo,
+      eventId: userId,
+      origin: window.location.origin
+    });
+  }, [eventInfo, userId]);
+
+  useEffect(() => {
+    if (defaultWhatsAppTemplate && !customWhatsAppMessage) {
+      setCustomWhatsAppMessage(defaultWhatsAppTemplate);
+    }
+  }, [defaultWhatsAppTemplate, customWhatsAppMessage]);
+
   const selectedCount = selectedGuestIds.size;
   const allFilteredSelected =
     filteredGuests.length > 0 && filteredGuests.every((guest) => selectedGuestIds.has(guest._id));
@@ -251,6 +269,55 @@ export default function ClientDashboardPage() {
       await loadWhatsappQuota();
     }
     await loadGuests();
+  };
+
+  const openBulkWhatsApp = () => {
+    setBulkWhatsAppResult("");
+    setBulkWhatsAppError("");
+    if (!customWhatsAppMessage && defaultWhatsAppTemplate) {
+      setCustomWhatsAppMessage(defaultWhatsAppTemplate);
+    }
+    setShowBulkWhatsApp(true);
+  };
+
+  const sendBulkWhatsApp = async (event) => {
+    event.preventDefault();
+    if (!selectedCount) {
+      setBulkWhatsAppError("יש לבחור לפחות מוזמן אחד מהטבלה");
+      return;
+    }
+    if (!paymentCode.trim()) {
+      setBulkWhatsAppError("יש להזין קוד רכישה");
+      return;
+    }
+
+    setBulkWhatsAppSending(true);
+    setBulkWhatsAppResult("");
+    setBulkWhatsAppError("");
+    try {
+      const response = await api.post(`/client/${userId}/whatsapp/bulk-send`, {
+        paymentCode: paymentCode.trim(),
+        guestIds: [...selectedGuestIds],
+        customMessage: customWhatsAppMessage.trim() || defaultWhatsAppTemplate
+      });
+
+      if (response.data?.success === false) {
+        setBulkWhatsAppResult("");
+        setBulkWhatsAppError(response.data?.message || "שליחת ההודעות נכשלה");
+        return;
+      }
+
+      setBulkWhatsAppError("");
+      setBulkWhatsAppResult(response.data?.message || "ההודעות נשלחו בהצלחה");
+      await onBulkWhatsAppSuccess(response.data);
+    } catch (bulkErr) {
+      setBulkWhatsAppResult("");
+      setBulkWhatsAppError(
+        bulkErr.response?.data?.message || "שליחת ההודעה נכשלה, נא לוודא שמספר המערכת מוגדר כראוי"
+      );
+    } finally {
+      setBulkWhatsAppSending(false);
+    }
   };
 
   const getWhatsappLink = useCallback(
@@ -503,7 +570,7 @@ export default function ClientDashboardPage() {
           <button
             className="us-btn il-bulk-send-btn"
             type="button"
-            onClick={() => setShowBulkWhatsApp(true)}
+            onClick={openBulkWhatsApp}
             disabled={!selectedCount}
           >
             שלח ווצאפ בתפוצה רחבה
@@ -875,16 +942,73 @@ export default function ClientDashboardPage() {
         ) : null}
 
         {showBulkWhatsApp ? (
-          <IlBulkWhatsAppModal
-            userId={userId}
-            eventInfo={eventInfo}
-            guests={guests}
-            selectedGuestIds={selectedGuestIds}
-            whatsappQuota={whatsappQuota}
-            initialPaymentCode={paymentCode}
-            onClose={() => setShowBulkWhatsApp(false)}
-            onSuccess={onBulkWhatsAppSuccess}
-          />
+          <div className="us-modal-backdrop" role="presentation">
+            <form className="us-modal-card il-bulk-whatsapp-modal" onSubmit={sendBulkWhatsApp}>
+              <h2 className="us-modal-title">תפוצה רחבה — WhatsApp</h2>
+              <p className="il-bulk-whatsapp-intro">
+                על מנת לשלוח הודעות אישורי הגעה בתפוצה רחבה יש לרכוש את השירות. פנו למנהל המערכת וספקו קוד.
+                <br />
+                <strong>שימו לב:</strong> המספר נשלח מחברת momoEVENT.
+              </p>
+              {whatsappQuota ? (
+                <p className="il-bulk-whatsapp-quota">
+                  מכסה פעילה: נותרו <strong>{whatsappQuota.remaining_credits}</strong> /{" "}
+                  {whatsappQuota.total_credits} הודעות
+                </p>
+              ) : null}
+              <div className="mt-4 space-y-4">
+                <div>
+                  <label className="us-field-label" htmlFor="bulk-payment-code">
+                    קוד רכישה
+                  </label>
+                  <input
+                    id="bulk-payment-code"
+                    className="us-field-input"
+                    value={paymentCode}
+                    onChange={(event) => setPaymentCode(event.target.value.toUpperCase())}
+                    placeholder="הזינו את הקוד שקיבלתם מהמנהל"
+                    required
+                    autoComplete="off"
+                  />
+                </div>
+                <div>
+                  <label className="us-field-label" htmlFor="bulk-whatsapp-message">
+                    נוסח ההודעה (השתמשו ב-[שם] לשם המוזמן)
+                  </label>
+                  <textarea
+                    id="bulk-whatsapp-message"
+                    className="us-field-input il-bulk-whatsapp-textarea"
+                    rows={9}
+                    value={customWhatsAppMessage}
+                    onChange={(event) => setCustomWhatsAppMessage(event.target.value)}
+                    required
+                  />
+                </div>
+                <p className="il-bulk-whatsapp-selected">
+                  נבחרו לשליחה: <strong>{selectedCount}</strong> מוזמנים
+                </p>
+                {bulkWhatsAppError ? (
+                  <div className="il-bulk-whatsapp-alert" role="alert">
+                    <strong>שליחה נכשלה</strong>
+                    <p>{bulkWhatsAppError}</p>
+                  </div>
+                ) : null}
+                {bulkWhatsAppResult ? (
+                  <div className="il-bulk-whatsapp-success-box" role="status">
+                    <p>{bulkWhatsAppResult}</p>
+                  </div>
+                ) : null}
+              </div>
+              <div className="us-toolbar mt-4">
+                <button className="us-btn il-bulk-send-btn" type="submit" disabled={bulkWhatsAppSending || !selectedCount}>
+                  {bulkWhatsAppSending ? "שולח…" : `שליחה ל-${selectedCount} מוזמנים`}
+                </button>
+                <button className="us-btn" type="button" onClick={() => setShowBulkWhatsApp(false)}>
+                  סגירה
+                </button>
+              </div>
+            </form>
+          </div>
         ) : null}
 
         {selectedCount > 0 ? (
@@ -896,7 +1020,7 @@ export default function ClientDashboardPage() {
               <button
                 className="us-btn il-bulk-send-btn"
                 type="button"
-                onClick={() => setShowBulkWhatsApp(true)}
+                onClick={openBulkWhatsApp}
               >
                 שלח הודעה ל-{selectedCount} מוזמנים מסומנים
               </button>
