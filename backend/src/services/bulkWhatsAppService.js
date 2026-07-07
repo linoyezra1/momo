@@ -1,5 +1,6 @@
 import ActivationCode from "../models/ActivationCode.js";
 import {
+  buildTwilioContentVariables,
   isTwilioConfigured,
   sendTwilioWhatsAppMessage,
   toTwilioWhatsAppAddress
@@ -105,16 +106,17 @@ async function sendToInvitee({ invitee, templateBodyText, event, eventId, origin
       rsvpLink,
       defaults
     });
+    const contentVariables = buildTwilioContentVariables({
+      guestName: invitee.name,
+      customOpeningText: parts.intro,
+      eventDateTimeLocation: parts.eventDetails,
+      rsvpLink: parts.rsvpLink,
+      closingSignOff: parts.signature ?? ""
+    });
     await sendTwilioWhatsAppMessage({
       to,
       contentSid,
-      contentVariables: {
-        1: invitee.name,
-        2: parts.intro,
-        3: parts.eventDetails,
-        4: parts.rsvpLink,
-        5: parts.signature || ""
-      }
+      contentVariables
     });
     return { ok: true, invitee };
   } catch (error) {

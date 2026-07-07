@@ -37,14 +37,34 @@ export function toTwilioWhatsAppAddress(phone) {
   return `whatsapp:+${digits}`;
 }
 
+function toContentVariableString(value) {
+  if (value == null) return "";
+  return String(value);
+}
+
+/** Twilio Content API requires string keys ("1"…"5") and a JSON-stringified payload. */
+export function buildTwilioContentVariables({
+  guestName,
+  customOpeningText,
+  eventDateTimeLocation,
+  rsvpLink,
+  closingSignOff
+}) {
+  return JSON.stringify({
+    "1": toContentVariableString(guestName),
+    "2": toContentVariableString(customOpeningText),
+    "3": toContentVariableString(eventDateTimeLocation),
+    "4": toContentVariableString(rsvpLink),
+    "5": toContentVariableString(closingSignOff)
+  });
+}
+
 export async function sendTwilioWhatsAppMessage({ to, body, contentSid, contentVariables }) {
   const client = getTwilioClient();
   const from = getTwilioWhatsAppFrom();
   if (contentSid) {
     const serializedVariables =
-      typeof contentVariables === "string"
-        ? contentVariables
-        : JSON.stringify(contentVariables || {});
+      typeof contentVariables === "string" ? contentVariables : buildTwilioContentVariables(contentVariables || {});
     return client.messages.create({
       from,
       to,
