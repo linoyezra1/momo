@@ -3,14 +3,11 @@ import {
   buildTwilioContentVariables,
   fetchTwilioContentTemplate,
   isTwilioConfigured,
+  sanitizeWhatsAppTemplateVariable,
   sendTwilioWhatsAppMessage,
   toTwilioWhatsAppAddress
 } from "../utils/twilioWhatsApp.js";
-import {
-  buildPublicEventLink,
-  buildWhatsAppEditableTemplate,
-  buildWhatsAppTemplateDefaults
-} from "../utils/whatsappMessage.js";
+import { buildPublicEventLink } from "../utils/whatsappMessage.js";
 
 function getTwilioContentSid() {
   const contentSid = String(
@@ -49,6 +46,18 @@ export function mapTwilioErrorMessage(error) {
     return "שליחת ההודעה נכשלה: משתני התבנית אינם תואמים ל-TWILIO_CONTENT_SID. ודאו שה-SID מתחיל ב-HX ושהתבנית כוללת את אותם משתנים (1-5).";
   }
   return error?.message || "שליחת ההודעה נכשלה, אנא נסה שוב מאוחר יותר";
+}
+
+function normalizeUserTemplateVariables(rawVars) {
+  const get = (key) => rawVars?.[key] ?? rawVars?.[Number(key)] ?? "";
+  return {
+    "2": sanitizeWhatsAppTemplateVariable(
+      get("2"),
+      "משפחה וחברים יקרים, הנכם מוזמנים לאירוע שלנו"
+    ),
+    "3": sanitizeWhatsAppTemplateVariable(get("3"), "פרטי האירוע יתעדכנו בקרוב"),
+    "5": sanitizeWhatsAppTemplateVariable(get("5"), "נתראה בשמחה")
+  };
 }
 
 async function findValidCodeRecord(paymentCode) {
@@ -98,61 +107,7 @@ async function releaseCredits(codeId, count) {
   }
 }
 
-function resolveInviteeTemplateFields({ invitee, defaults, eventId, origin, templateBodyText }) {
-  const rsvpLink = buildPublicEventLink({ eventId, origin }) || String(defaults?.rsvpLink || "").trim();
-  const guestName = String(invitee.name || "אורח/ת יקר/ה").trim();
-
-  let customOpeningText = String(
-    defaults?.intro || "משפחה וחברים יקרים,\nהנכם מוזמנים לחתונה שלנו! 💍"
-  ).trim();
-  let eventDateTimeLocation = String(defaults?.eventDetails || "פרטי האירוע יתעדכנו בקרוב").trim();
-  let closingSignOff = String(defaults?.signature ?? "").trim();
-
-  const customText = String(templateBodyText || "")
-    .replace(/\r\n/g, "\n")
-    .replace(/^\s*שלום\s+(\[שם\]|[^\n,]+)\s*,?\s*\n?/u, "")
-    .trim();
-
-  if (customText) {
-    const eventMarker = "האירוע יתקיים ב";
-    const eventIndex = customText.indexOf(eventMarker);
-    if (eventIndex >= 0) {
-      const introFromCustom = customText.slice(0, eventIndex).trim();
-      if (introFromCustom) customOpeningText = introFromCustom;
-
-      let afterEvent = customText.slice(eventIndex + eventMarker.length).trim();
-      const rsvpPrompt = "נשמח אם תוכלו לאשר הגעתכם בקישור המצורף:";
-      const rsvpIndex = afterEvent.indexOf(rsvpPrompt);
-      if (rsvpIndex >= 0) {
-        const detailsFromCustom = afterEvent.slice(0, rsvpIndex).trim();
-        if (detailsFromCustom) eventDateTimeLocation = detailsFromCustom;
-        afterEvent = afterEvent.slice(rsvpIndex + rsvpPrompt.length).trim();
-      }
-
-      const linkLines = afterEvent
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(Boolean);
-      const linkIndex = linkLines.findIndex(
-        (line) => line === rsvpLink || /^https?:\/\//i.test(line) || line.includes("/event/")
-      );
-      if (linkIndex >= 0) {
-        const signatureFromCustom = linkLines.slice(linkIndex + 1).join("\n").trim();
-        if (signatureFromCustom) closingSignOff = signatureFromCustom;
-      }
-    }
-  }
-
-  return {
-    guestName,
-    customOpeningText,
-    eventDateTimeLocation,
-    rsvpLink,
-    closingSignOff
-  };
-}
-
-async function sendToInvitee({ invitee, templateBodyText, eventId, origin, contentSid, defaults, templateKeys }) {
+async function sendToInvitee({ invitee, userTemplateVars, eventId, origin, contentSid, templateKeys }) {
   const to = toTwilioWhatsAppAddress(invitee.phone);
   if (!to) {
     return {
@@ -163,25 +118,18 @@ async function sendToInvitee({ invitee, templateBodyText, eventId, origin, conte
   }
 
   try {
-    const fields = resolveInviteeTemplateFields({
-      invitee,
-      defaults,
-      eventId,
-      origin,
-      templateBodyText
-    });
-
-    if (!fields.rsvpLink) {
+    const rsvpLink = buildPublicEventLink({ eventId, origin });
+    if (!rsvpLink) {
       throw new Error("RSVP link is missing");
     }
 
     const contentVariables = buildTwilioContentVariables(
       {
-        guestName: fields.guestName,
-        customOpeningText: fields.customOpeningText,
-        eventDateTimeLocation: fields.eventDateTimeLocation,
-        rsvpLink: fields.rsvpLink,
-        closingSignOff: fields.closingSignOff
+        guestName: invitee.name,
+        customOpeningText: userTemplateVars["2"],
+        eventDateTimeLocation: userTemplateVars["3"],
+        rsvpLink,
+        closingSignOff: userTemplateVars["5"]
       },
       templateKeys
     );
@@ -198,34 +146,17 @@ async function sendToInvitee({ invitee, templateBodyText, eventId, origin, conte
       error?.code || "",
       error?.message || error
     );
-    try {
-      const debugFields = resolveInviteeTemplateFields({
-        invitee,
-        defaults,
-        eventId,
-        origin,
-        templateBodyText
-      });
-      console.error(
-        "[Twilio] template keys:",
-        templateKeys?.join(", ") || "unknown"
-      );
-      console.error(
-        "[Twilio] contentVariables payload:",
-        buildTwilioContentVariables(
-          {
-            guestName: debugFields.guestName,
-            customOpeningText: debugFields.customOpeningText,
-            eventDateTimeLocation: debugFields.eventDateTimeLocation,
-            rsvpLink: debugFields.rsvpLink,
-            closingSignOff: debugFields.closingSignOff
-          },
-          templateKeys
-        )
-      );
-    } catch {
-      /* ignore debug logging errors */
-    }
+    console.error("[Twilio] template keys:", templateKeys?.join(", ") || "unknown");
+    console.error("[Twilio] contentVariables payload:", buildTwilioContentVariables(
+      {
+        guestName: invitee.name,
+        customOpeningText: userTemplateVars["2"],
+        eventDateTimeLocation: userTemplateVars["3"],
+        rsvpLink: buildPublicEventLink({ eventId, origin }),
+        closingSignOff: userTemplateVars["5"]
+      },
+      templateKeys
+    ));
     return { ok: false, invitee, error };
   }
 }
@@ -233,8 +164,7 @@ async function sendToInvitee({ invitee, templateBodyText, eventId, origin, conte
 export async function sendBulkWhatsApp({
   paymentCode,
   guests,
-  customMessage,
-  event,
+  templateVariables,
   userId,
   origin
 }) {
@@ -251,6 +181,14 @@ export async function sendBulkWhatsApp({
 
     if (!Array.isArray(guests) || guests.length === 0) {
       return { status: 400, body: { success: false, message: "יש לבחור לפחות מוזמן אחד לשליחה" } };
+    }
+
+    const userTemplateVars = normalizeUserTemplateVariables(templateVariables);
+    if (!userTemplateVars["2"] || !userTemplateVars["3"]) {
+      return {
+        status: 400,
+        body: { success: false, message: "יש למלא את משתני התבנית (פתיחה ופרטי אירוע)" }
+      };
     }
 
     const { codeRecord, error: codeError } = await findValidCodeRecord(paymentCode);
@@ -283,17 +221,6 @@ export async function sendBulkWhatsApp({
     }
 
     const reservedRecord = reservation.codeRecord;
-    const defaults = buildWhatsAppTemplateDefaults({
-      event,
-      eventId: userId,
-      origin
-    });
-    const defaultMessage = buildWhatsAppEditableTemplate({
-      event,
-      eventId: userId,
-      origin
-    });
-    const templateBodyText = String(customMessage || "").trim() || defaultMessage;
     const contentSid = getTwilioContentSid();
     let templateKeys = ["1", "2", "3", "4", "5"];
     try {
@@ -313,11 +240,10 @@ export async function sendBulkWhatsApp({
       invitees.map((invitee) =>
         sendToInvitee({
           invitee,
-          templateBodyText,
+          userTemplateVars,
           eventId: userId,
           origin,
           contentSid,
-          defaults,
           templateKeys
         })
       )

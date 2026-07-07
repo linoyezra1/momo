@@ -26,7 +26,7 @@ function buildPublicEventLink({ eventId, origin }) {
   return `${String(baseOrigin).replace(/\/$/, "")}/event/${eventId}`;
 }
 
-function buildWhatsAppTemplateDefaults({ event, eventId, origin }) {
+export function buildWhatsAppTemplateDefaults({ event, eventId, origin }) {
   const publicLink = buildPublicEventLink({ eventId, origin });
   const weekday = formatIsraeliWeekday(event?.eventDate);
   const date = formatIsraeliDate(event?.eventDate);

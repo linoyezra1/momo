@@ -398,7 +398,7 @@ router.get("/:userId/whatsapp/quota", async (req, res) => {
 router.post("/:userId/whatsapp/bulk-send", async (req, res) => {
   try {
     const { userId } = req.params;
-    const { paymentCode, guestIds, customMessage } = req.body;
+    const { paymentCode, guestIds, templateVariables } = req.body;
 
     const user = await User.findById(userId).select("event");
     if (!user) {
@@ -418,8 +418,7 @@ router.post("/:userId/whatsapp/bulk-send", async (req, res) => {
     const result = await sendBulkWhatsApp({
       paymentCode,
       guests,
-      customMessage,
-      event: user.event,
+      templateVariables,
       userId,
       origin
     });
