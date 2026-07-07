@@ -137,7 +137,7 @@ function resolveInviteeTemplateFields({ invitee, defaults, eventId, origin, temp
     customOpeningText,
     eventDateTimeLocation,
     rsvpLink,
-    closingSignOff: closingSignOff || " "
+    closingSignOff
   };
 }
 
@@ -184,6 +184,24 @@ async function sendToInvitee({ invitee, templateBodyText, eventId, origin, conte
       error?.code || "",
       error?.message || error
     );
+    try {
+      const debugFields = resolveInviteeTemplateFields({
+        invitee,
+        defaults,
+        eventId,
+        origin,
+        templateBodyText
+      });
+      console.error("[Twilio] contentVariables payload:", buildTwilioContentVariables({
+        guestName: debugFields.guestName,
+        customOpeningText: debugFields.customOpeningText,
+        eventDateTimeLocation: debugFields.eventDateTimeLocation,
+        rsvpLink: debugFields.rsvpLink,
+        closingSignOff: debugFields.closingSignOff
+      }));
+    } catch {
+      /* ignore debug logging errors */
+    }
     return { ok: false, invitee, error };
   }
 }

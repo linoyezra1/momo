@@ -42,6 +42,26 @@ function toContentVariableString(value) {
   return String(value);
 }
 
+/**
+ * WhatsApp-approved templates reject newlines, tabs, 5+ spaces, and empty values in variables.
+ * @see https://www.twilio.com/docs/api/errors/21656
+ */
+export function sanitizeWhatsAppTemplateVariable(value, fallback = "-") {
+  let text = toContentVariableString(value)
+    .replace(/\r\n/g, "\n")
+    .replace(/[\n\r\t]+/g, " ")
+    .replace(/\p{Extended_Pictographic}/gu, "")
+    .replace(/ {2,}/g, " ")
+    .trim();
+
+  if (!text) {
+    if (fallback === "") return "";
+    text = String(fallback).trim();
+  }
+
+  return text || (fallback === "" ? "" : "-");
+}
+
 /** Twilio Content API requires string keys ("1"…"5") and a JSON-stringified payload. */
 export function buildTwilioContentVariables({
   guestName,
@@ -50,13 +70,22 @@ export function buildTwilioContentVariables({
   rsvpLink,
   closingSignOff
 }) {
-  return JSON.stringify({
-    "1": toContentVariableString(guestName),
-    "2": toContentVariableString(customOpeningText),
-    "3": toContentVariableString(eventDateTimeLocation),
-    "4": toContentVariableString(rsvpLink),
-    "5": toContentVariableString(closingSignOff)
-  });
+  const variables = {
+    "1": sanitizeWhatsAppTemplateVariable(guestName, "אורח/ת יקר/ה"),
+    "2": sanitizeWhatsAppTemplateVariable(
+      customOpeningText,
+      "משפחה וחברים יקרים, הנכם מוזמנים לאירוע שלנו"
+    ),
+    "3": sanitizeWhatsAppTemplateVariable(eventDateTimeLocation, "פרטי האירוע יתעדכנו בקרוב"),
+    "4": sanitizeWhatsAppTemplateVariable(rsvpLink, "https://momoevent.up.railway.app")
+  };
+
+  const signature = sanitizeWhatsAppTemplateVariable(closingSignOff, "");
+  if (signature && signature !== "-") {
+    variables["5"] = signature;
+  }
+
+  return JSON.stringify(variables);
 }
 
 export async function sendTwilioWhatsAppMessage({ to, body, contentSid, contentVariables }) {
