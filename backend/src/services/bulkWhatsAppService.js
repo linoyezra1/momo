@@ -8,8 +8,7 @@ import {
 import {
   buildPublicEventLink,
   buildWhatsAppEditableTemplate,
-  buildWhatsAppTemplateDefaults,
-  parseWhatsAppTemplateMessage
+  buildWhatsAppTemplateDefaults
 } from "../utils/whatsappMessage.js";
 
 function getTwilioContentSid() {
@@ -88,7 +87,61 @@ async function releaseCredits(codeId, count) {
   }
 }
 
-async function sendToInvitee({ invitee, templateBodyText, event, eventId, origin, contentSid, defaults }) {
+function resolveInviteeTemplateFields({ invitee, defaults, eventId, origin, templateBodyText }) {
+  const rsvpLink = buildPublicEventLink({ eventId, origin }) || String(defaults?.rsvpLink || "").trim();
+  const guestName = String(invitee.name || "אורח/ת יקר/ה").trim();
+
+  let customOpeningText = String(
+    defaults?.intro || "משפחה וחברים יקרים,\nהנכם מוזמנים לחתונה שלנו! 💍"
+  ).trim();
+  let eventDateTimeLocation = String(defaults?.eventDetails || "פרטי האירוע יתעדכנו בקרוב").trim();
+  let closingSignOff = String(defaults?.signature ?? "").trim();
+
+  const customText = String(templateBodyText || "")
+    .replace(/\r\n/g, "\n")
+    .replace(/^\s*שלום\s+(\[שם\]|[^\n,]+)\s*,?\s*\n?/u, "")
+    .trim();
+
+  if (customText) {
+    const eventMarker = "האירוע יתקיים ב";
+    const eventIndex = customText.indexOf(eventMarker);
+    if (eventIndex >= 0) {
+      const introFromCustom = customText.slice(0, eventIndex).trim();
+      if (introFromCustom) customOpeningText = introFromCustom;
+
+      let afterEvent = customText.slice(eventIndex + eventMarker.length).trim();
+      const rsvpPrompt = "נשמח אם תוכלו לאשר הגעתכם בקישור המצורף:";
+      const rsvpIndex = afterEvent.indexOf(rsvpPrompt);
+      if (rsvpIndex >= 0) {
+        const detailsFromCustom = afterEvent.slice(0, rsvpIndex).trim();
+        if (detailsFromCustom) eventDateTimeLocation = detailsFromCustom;
+        afterEvent = afterEvent.slice(rsvpIndex + rsvpPrompt.length).trim();
+      }
+
+      const linkLines = afterEvent
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean);
+      const linkIndex = linkLines.findIndex(
+        (line) => line === rsvpLink || /^https?:\/\//i.test(line) || line.includes("/event/")
+      );
+      if (linkIndex >= 0) {
+        const signatureFromCustom = linkLines.slice(linkIndex + 1).join("\n").trim();
+        if (signatureFromCustom) closingSignOff = signatureFromCustom;
+      }
+    }
+  }
+
+  return {
+    guestName,
+    customOpeningText,
+    eventDateTimeLocation,
+    rsvpLink,
+    closingSignOff: closingSignOff || " "
+  };
+}
+
+async function sendToInvitee({ invitee, templateBodyText, eventId, origin, contentSid, defaults }) {
   const to = toTwilioWhatsAppAddress(invitee.phone);
   if (!to) {
     return {
@@ -99,20 +152,26 @@ async function sendToInvitee({ invitee, templateBodyText, event, eventId, origin
   }
 
   try {
-    const rsvpLink = buildPublicEventLink({ eventId, origin });
-    const parts = parseWhatsAppTemplateMessage({
-      message: templateBodyText,
-      guestName: invitee.name,
-      rsvpLink,
-      defaults
+    const fields = resolveInviteeTemplateFields({
+      invitee,
+      defaults,
+      eventId,
+      origin,
+      templateBodyText
     });
+
+    if (!fields.rsvpLink) {
+      throw new Error("RSVP link is missing");
+    }
+
     const contentVariables = buildTwilioContentVariables({
-      guestName: invitee.name,
-      customOpeningText: parts.intro,
-      eventDateTimeLocation: parts.eventDetails,
-      rsvpLink: parts.rsvpLink,
-      closingSignOff: parts.signature ?? ""
+      guestName: fields.guestName,
+      customOpeningText: fields.customOpeningText,
+      eventDateTimeLocation: fields.eventDateTimeLocation,
+      rsvpLink: fields.rsvpLink,
+      closingSignOff: fields.closingSignOff
     });
+
     await sendTwilioWhatsAppMessage({
       to,
       contentSid,
@@ -200,7 +259,6 @@ export async function sendBulkWhatsApp({
         sendToInvitee({
           invitee,
           templateBodyText,
-          event,
           eventId: userId,
           origin,
           contentSid,
