@@ -182,6 +182,144 @@
   text-align: center;
 }
 
+.il-guest-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.85rem 1.25rem;
+  margin: 1rem 0 0.75rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--us-border);
+  border-radius: 0.65rem;
+  background: var(--us-ivory-card);
+}
+
+.il-guest-filter-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.il-guest-filter-label {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: #444;
+  white-space: nowrap;
+}
+
+.il-status-filter-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.il-status-filter-tab {
+  border: 1px solid var(--us-border);
+  border-radius: 999px;
+  background: #fff;
+  padding: 0.35rem 0.8rem;
+  font-size: 0.82rem;
+  color: #555;
+  cursor: pointer;
+}
+
+.il-status-filter-tab.is-active {
+  background: #1f2937;
+  border-color: #1f2937;
+  color: #fff;
+  font-weight: 600;
+}
+
+.il-reminder-filter-select {
+  min-width: 11rem;
+  padding: 0.4rem 0.65rem;
+  font-size: 0.86rem;
+}
+
+.il-guest-filter-summary {
+  margin: 0;
+  margin-right: auto;
+  font-size: 0.84rem;
+  color: #666;
+}
+
+.il-reminder-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.il-reminder-badge--pending {
+  color: #6b7280;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+}
+
+.il-reminder-badge--round1 {
+  color: #1d4ed8;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+}
+
+.il-reminder-badge--round2 {
+  color: #9a3412;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+}
+
+.il-bulk-action-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 1.25rem;
+  transform: translateX(-50%);
+  z-index: 40;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  width: min(96vw, 42rem);
+  padding: 0.85rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid #b8962e;
+  background: #fffdf5;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.14);
+}
+
+.il-bulk-action-bar-text {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #333;
+}
+
+.il-bulk-action-bar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-right: auto;
+}
+
+@media (max-width: 640px) {
+  .il-bulk-action-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .il-bulk-action-bar-actions {
+    width: 100%;
+    margin-right: 0;
+  }
+
+  .il-bulk-action-bar-actions .us-btn {
+    width: 100%;
+  }
+}
+
 .il-col-check input[type="checkbox"] {
   width: 1rem;
   height: 1rem;

@@ -1,4 +1,5 @@
 import ActivationCode from "../models/ActivationCode.js";
+import Guest from "../models/Guest.js";
 import {
   buildTwilioContentVariables,
   fetchTwilioContentTemplate,
@@ -255,6 +256,19 @@ export async function sendBulkWhatsApp({
 
     if (failedCount > 0) {
       await releaseCredits(reservedRecord._id, failedCount);
+    }
+
+    if (sentCount > 0) {
+      const sentGuestIds = sentResults
+        .map((result) => result.invitee?.guestId)
+        .filter(Boolean);
+      if (sentGuestIds.length) {
+        try {
+          await Guest.updateMany({ _id: { $in: sentGuestIds } }, { $inc: { reminderRound: 1 } });
+        } catch (roundError) {
+          console.error("[Twilio] Failed to increment reminderRound:", roundError?.message || roundError);
+        }
+      }
     }
 
     if (sentCount === 0) {

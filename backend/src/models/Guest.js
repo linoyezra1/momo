@@ -28,7 +28,8 @@ const guestSchema = new mongoose.Schema(
       default: ""
     },
     guestGroup: { type: String, trim: true, default: "" },
-    seatingTableId: { type: String, trim: true, default: "" }
+    seatingTableId: { type: String, trim: true, default: "" },
+    reminderRound: { type: Number, min: 0, default: 0 }
   },
   { timestamps: true }
 );

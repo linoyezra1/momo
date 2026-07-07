@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Check, HelpCircle, RotateCw, Search, Users, X } from "lucide-react";
+import { Check, Clock, HelpCircle, RotateCw, Search, Users, X } from "lucide-react";
 import api from "../api";
 import WhatsAppIcon from "../components/WhatsAppIcon";
 import { buildWhatsAppSendUrl } from "../utils/whatsapp";
@@ -25,6 +25,20 @@ const STATUS_OPTIONS = [
   { value: "לא ידוע", label: "לא ידוע" }
 ];
 
+const STATUS_FILTER_OPTIONS = [
+  { value: "all", label: "הכל" },
+  { value: "מגיע", label: "מגיע" },
+  { value: "לא מגיע", label: "לא מגיע" },
+  { value: "אולי", label: "אולי" }
+];
+
+const REMINDER_FILTER_OPTIONS = [
+  { value: "all", label: "כל סבבי השליחה" },
+  { value: "0", label: "טרם נשלחו" },
+  { value: "1", label: "סבב 1 בלבד" },
+  { value: "2+", label: "סבב 2 ומעלה" }
+];
+
 function parseAttendeesCount(raw) {
   if (raw == null || raw === "") return 1;
   const asNumber = Number(raw);
@@ -38,6 +52,30 @@ function getGuestRowClass(status) {
   if (status === "לא מגיע") return "il-row-not-coming";
   if (status === "אולי") return "il-row-maybe";
   return "il-row-unknown";
+}
+
+function getReminderRound(guest) {
+  return Number(guest?.reminderRound) || 0;
+}
+
+function ReminderRoundBadge({ round }) {
+  if (round <= 0) {
+    return (
+      <span className="il-reminder-badge il-reminder-badge--pending">
+        <Clock size={14} aria-hidden="true" />
+        טרם נשלח
+      </span>
+    );
+  }
+
+  const badgeClass =
+    round === 1 ? "il-reminder-badge--round1" : "il-reminder-badge--round2";
+
+  return (
+    <span className={`il-reminder-badge ${badgeClass}`}>
+      סבב {round} נשלח
+    </span>
+  );
 }
 
 function getOwnerGreeting(event) {
@@ -80,6 +118,8 @@ export default function ClientDashboardPage() {
   const [refreshingGuests, setRefreshingGuests] = useState(false);
   const [searchInput, setSearchInput] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [reminderRoundFilter, setReminderRoundFilter] = useState("all");
   const [selectedGuestIds, setSelectedGuestIds] = useState(() => new Set());
   const [showBulkWhatsApp, setShowBulkWhatsApp] = useState(false);
   const [paymentCode, setPaymentCode] = useState("");
@@ -89,14 +129,29 @@ export default function ClientDashboardPage() {
   const publicLink = `${window.location.origin}/event/${userId}`;
 
   const filteredGuests = useMemo(() => {
+    let list = guests;
+
+    if (statusFilter !== "all") {
+      list = list.filter((guest) => guest.status === statusFilter);
+    }
+
+    if (reminderRoundFilter === "0") {
+      list = list.filter((guest) => getReminderRound(guest) === 0);
+    } else if (reminderRoundFilter === "1") {
+      list = list.filter((guest) => getReminderRound(guest) === 1);
+    } else if (reminderRoundFilter === "2+") {
+      list = list.filter((guest) => getReminderRound(guest) >= 2);
+    }
+
     const query = appliedSearch.trim().toLowerCase();
-    if (!query) return guests;
-    return guests.filter((guest) => {
+    if (!query) return list;
+
+    return list.filter((guest) => {
       const fullName = String(guest.fullName || "").toLowerCase();
       const phone = String(guest.phone || "");
       return fullName.includes(query) || phone.includes(query);
     });
-  }, [guests, appliedSearch]);
+  }, [guests, appliedSearch, statusFilter, reminderRoundFilter]);
 
   const loadWhatsappQuota = async () => {
     try {
@@ -195,6 +250,7 @@ export default function ClientDashboardPage() {
     } else {
       await loadWhatsappQuota();
     }
+    await loadGuests();
   };
 
   const getWhatsappLink = useCallback(
@@ -291,6 +347,7 @@ export default function ClientDashboardPage() {
         "סטטוס הגעה": guest.status,
         "כמות מגיעים": guest.attendeesCount,
         "סכום מתנה": guest.giftAmount || 0,
+        "סבב שליחה": getReminderRound(guest),
         מקור: sourceLabel(guest.source)
       }));
       const worksheet = XLSX.utils.json_to_sheet(rows);
@@ -443,8 +500,13 @@ export default function ClientDashboardPage() {
           <button className="us-btn" type="button" onClick={exportGuests}>
             ייצוא לאקסל
           </button>
-          <button className="us-btn il-bulk-send-btn" type="button" onClick={() => setShowBulkWhatsApp(true)}>
-            {selectedCount > 0 ? `שלח ווצאפ ל-${selectedCount} מוזמנים` : "שלח ווצאפ בתפוצה רחבה"}
+          <button
+            className="us-btn il-bulk-send-btn"
+            type="button"
+            onClick={() => setShowBulkWhatsApp(true)}
+            disabled={!selectedCount}
+          >
+            שלח ווצאפ בתפוצה רחבה
           </button>
           <button className="us-btn" type="button" onClick={downloadTemplate}>
             הורדת קובץ אקסל לדוגמה
@@ -477,6 +539,45 @@ export default function ClientDashboardPage() {
         </div>
         {importError ? <p className="us-error-message us-error-message--left">{importError}</p> : null}
 
+        <div className="il-guest-filters">
+          <div className="il-guest-filter-group" role="group" aria-label="סינון לפי סטטוס הגעה">
+            <span className="il-guest-filter-label">סטטוס הגעה:</span>
+            <div className="il-status-filter-tabs">
+              {STATUS_FILTER_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={`il-status-filter-tab${statusFilter === option.value ? " is-active" : ""}`}
+                  onClick={() => setStatusFilter(option.value)}
+                  aria-pressed={statusFilter === option.value}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="il-guest-filter-group">
+            <label className="il-guest-filter-label" htmlFor="reminder-round-filter">
+              סטטוס שליחה:
+            </label>
+            <select
+              id="reminder-round-filter"
+              className="us-field-input il-reminder-filter-select"
+              value={reminderRoundFilter}
+              onChange={(event) => setReminderRoundFilter(event.target.value)}
+            >
+              {REMINDER_FILTER_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <p className="il-guest-filter-summary">
+            מוצגים <strong>{filteredGuests.length}</strong> מתוך {guests.length} מוזמנים
+          </p>
+        </div>
+
         <div className="us-table-wrap">
           <table className="us-guest-table">
             <thead>
@@ -495,6 +596,7 @@ export default function ClientDashboardPage() {
                 <th>כמה מגיעים</th>
                 <th>סכום מתנה</th>
                 <th>סטטוס</th>
+                <th>סבב שליחה</th>
                 <th>מקור</th>
                 <th>וואטסאפ</th>
                 <th>עריכה</th>
@@ -503,8 +605,10 @@ export default function ClientDashboardPage() {
             <tbody>
               {filteredGuests.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="us-table-empty">
-                    {appliedSearch ? "לא נמצאו תוצאות לחיפוש" : "אין אורחים עדיין"}
+                  <td colSpan={10} className="us-table-empty">
+                    {appliedSearch || statusFilter !== "all" || reminderRoundFilter !== "all"
+                      ? "לא נמצאו תוצאות לסינון הנוכחי"
+                      : "אין אורחים עדיין"}
                   </td>
                 </tr>
               ) : (
@@ -582,6 +686,9 @@ export default function ClientDashboardPage() {
                       ) : (
                         guest.status
                       )}
+                    </td>
+                    <td data-label="סבב שליחה">
+                      <ReminderRoundBadge round={getReminderRound(guest)} />
                     </td>
                     <td data-label="מקור">
                       <span>{sourceLabel(guest.source)}</span>
@@ -778,6 +885,26 @@ export default function ClientDashboardPage() {
             onClose={() => setShowBulkWhatsApp(false)}
             onSuccess={onBulkWhatsAppSuccess}
           />
+        ) : null}
+
+        {selectedCount > 0 ? (
+          <div className="il-bulk-action-bar" role="region" aria-label="פעולות קבוצתיות">
+            <p className="il-bulk-action-bar-text">
+              נבחרו <strong>{selectedCount}</strong> מוזמנים
+            </p>
+            <div className="il-bulk-action-bar-actions">
+              <button
+                className="us-btn il-bulk-send-btn"
+                type="button"
+                onClick={() => setShowBulkWhatsApp(true)}
+              >
+                שלח הודעה ל-{selectedCount} מוזמנים מסומנים
+              </button>
+              <button className="us-btn" type="button" onClick={() => setSelectedGuestIds(new Set())}>
+                ביטול בחירה
+              </button>
+            </div>
+          </div>
         ) : null}
 
         {showInvitationEditor && eventInfo ? (
