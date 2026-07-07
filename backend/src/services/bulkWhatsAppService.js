@@ -1,6 +1,7 @@
 import ActivationCode from "../models/ActivationCode.js";
 import {
   buildTwilioContentVariables,
+  fetchTwilioContentTemplate,
   isTwilioConfigured,
   sendTwilioWhatsAppMessage,
   toTwilioWhatsAppAddress
@@ -12,9 +13,16 @@ import {
 } from "../utils/whatsappMessage.js";
 
 function getTwilioContentSid() {
-  const contentSid = String(process.env.TWILIO_CONTENT_SID || "").trim();
+  const contentSid = String(
+    process.env.TWILIO_CONTENT_SID || process.env.TWILIO_WHATSAPP_TEMPLATE_SID || ""
+  ).trim();
   if (!contentSid) {
     throw new Error("TWILIO_CONTENT_SID is not configured on the server");
+  }
+  if (!contentSid.startsWith("HX")) {
+    throw new Error(
+      `TWILIO_CONTENT_SID must be a Content Template SID starting with HX (got: ${contentSid.slice(0, 6)}...)`
+    );
   }
   return contentSid;
 }
@@ -36,6 +44,9 @@ function isTwilioFromAddressError(error) {
 export function mapTwilioErrorMessage(error) {
   if (isTwilioFromAddressError(error)) {
     return "שליחת ההודעה נכשלה, נא לוודא שמספר המערכת מוגדר כראוי";
+  }
+  if (Number(error?.code) === 21656) {
+    return "שליחת ההודעה נכשלה: משתני התבנית אינם תואמים ל-TWILIO_CONTENT_SID. ודאו שה-SID מתחיל ב-HX ושהתבנית כוללת את אותם משתנים (1-5).";
   }
   return error?.message || "שליחת ההודעה נכשלה, אנא נסה שוב מאוחר יותר";
 }
@@ -141,7 +152,7 @@ function resolveInviteeTemplateFields({ invitee, defaults, eventId, origin, temp
   };
 }
 
-async function sendToInvitee({ invitee, templateBodyText, eventId, origin, contentSid, defaults }) {
+async function sendToInvitee({ invitee, templateBodyText, eventId, origin, contentSid, defaults, templateKeys }) {
   const to = toTwilioWhatsAppAddress(invitee.phone);
   if (!to) {
     return {
@@ -164,13 +175,16 @@ async function sendToInvitee({ invitee, templateBodyText, eventId, origin, conte
       throw new Error("RSVP link is missing");
     }
 
-    const contentVariables = buildTwilioContentVariables({
-      guestName: fields.guestName,
-      customOpeningText: fields.customOpeningText,
-      eventDateTimeLocation: fields.eventDateTimeLocation,
-      rsvpLink: fields.rsvpLink,
-      closingSignOff: fields.closingSignOff
-    });
+    const contentVariables = buildTwilioContentVariables(
+      {
+        guestName: fields.guestName,
+        customOpeningText: fields.customOpeningText,
+        eventDateTimeLocation: fields.eventDateTimeLocation,
+        rsvpLink: fields.rsvpLink,
+        closingSignOff: fields.closingSignOff
+      },
+      templateKeys
+    );
 
     await sendTwilioWhatsAppMessage({
       to,
@@ -192,13 +206,23 @@ async function sendToInvitee({ invitee, templateBodyText, eventId, origin, conte
         origin,
         templateBodyText
       });
-      console.error("[Twilio] contentVariables payload:", buildTwilioContentVariables({
-        guestName: debugFields.guestName,
-        customOpeningText: debugFields.customOpeningText,
-        eventDateTimeLocation: debugFields.eventDateTimeLocation,
-        rsvpLink: debugFields.rsvpLink,
-        closingSignOff: debugFields.closingSignOff
-      }));
+      console.error(
+        "[Twilio] template keys:",
+        templateKeys?.join(", ") || "unknown"
+      );
+      console.error(
+        "[Twilio] contentVariables payload:",
+        buildTwilioContentVariables(
+          {
+            guestName: debugFields.guestName,
+            customOpeningText: debugFields.customOpeningText,
+            eventDateTimeLocation: debugFields.eventDateTimeLocation,
+            rsvpLink: debugFields.rsvpLink,
+            closingSignOff: debugFields.closingSignOff
+          },
+          templateKeys
+        )
+      );
     } catch {
       /* ignore debug logging errors */
     }
@@ -271,6 +295,19 @@ export async function sendBulkWhatsApp({
     });
     const templateBodyText = String(customMessage || "").trim() || defaultMessage;
     const contentSid = getTwilioContentSid();
+    let templateKeys = ["1", "2", "3", "4", "5"];
+    try {
+      const templateMeta = await fetchTwilioContentTemplate(contentSid);
+      templateKeys = templateMeta.variableKeys;
+      console.log(
+        `[Twilio] Using template "${templateMeta.friendlyName}" (${contentSid}) variables: ${templateKeys.join(", ")}`
+      );
+    } catch (templateError) {
+      console.warn(
+        "[Twilio] Could not fetch content template metadata, using default keys 1-5:",
+        templateError?.message || templateError
+      );
+    }
 
     const results = await Promise.all(
       invitees.map((invitee) =>
@@ -280,7 +317,8 @@ export async function sendBulkWhatsApp({
           eventId: userId,
           origin,
           contentSid,
-          defaults
+          defaults,
+          templateKeys
         })
       )
     );

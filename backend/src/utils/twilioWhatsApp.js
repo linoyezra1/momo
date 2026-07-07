@@ -48,9 +48,11 @@ function toContentVariableString(value) {
  */
 export function sanitizeWhatsAppTemplateVariable(value, fallback = "-") {
   let text = toContentVariableString(value)
+    .replace(/[\u200E\u200F\u202A-\u202E]/g, "")
     .replace(/\r\n/g, "\n")
     .replace(/[\n\r\t]+/g, " ")
     .replace(/\p{Extended_Pictographic}/gu, "")
+    .replace(/!+$/u, "")
     .replace(/ {2,}/g, " ")
     .trim();
 
@@ -62,27 +64,73 @@ export function sanitizeWhatsAppTemplateVariable(value, fallback = "-") {
   return text || (fallback === "" ? "" : "-");
 }
 
-/** Twilio Content API requires string keys ("1"…"5") and a JSON-stringified payload. */
-export function buildTwilioContentVariables({
-  guestName,
-  customOpeningText,
-  eventDateTimeLocation,
-  rsvpLink,
-  closingSignOff
-}) {
-  const variables = {
-    "1": sanitizeWhatsAppTemplateVariable(guestName, "אורח/ת יקר/ה"),
-    "2": sanitizeWhatsAppTemplateVariable(
-      customOpeningText,
-      "משפחה וחברים יקרים, הנכם מוזמנים לאירוע שלנו"
-    ),
-    "3": sanitizeWhatsAppTemplateVariable(eventDateTimeLocation, "פרטי האירוע יתעדכנו בקרוב"),
-    "4": sanitizeWhatsAppTemplateVariable(rsvpLink, "https://momoevent.up.railway.app")
+const TEMPLATE_VALUE_FALLBACKS = {
+  "1": "אורח/ת יקר/ה",
+  "2": "משפחה וחברים יקרים, הנכם מוזמנים לאירוע שלנו",
+  "3": "פרטי האירוע יתעדכנו בקרוב",
+  "4": "https://momoevent.up.railway.app",
+  "5": "נתראה בשמחה"
+};
+
+function extractContentVariableKeys(content) {
+  const keys = new Set(Object.keys(content?.variables || {}));
+  for (const typeDef of Object.values(content?.types || {})) {
+    if (typeof typeDef?.body === "string") {
+      for (const match of typeDef.body.matchAll(/\{\{(\d+)\}\}/g)) {
+        keys.add(match[1]);
+      }
+    }
+  }
+  return [...keys].sort((a, b) => Number(a) - Number(b));
+}
+
+export async function fetchTwilioContentTemplate(contentSid) {
+  const client = getTwilioClient();
+  const sid = String(contentSid || "").trim();
+  if (!sid.startsWith("HX")) {
+    throw new Error(`Content SID must start with HX, received: ${sid.slice(0, 8)}...`);
+  }
+
+  const content = await client.content.v1.contents(sid).fetch();
+  const variableKeys = extractContentVariableKeys(content);
+  if (!variableKeys.length) {
+    throw new Error(`Content template ${sid} has no variable definitions`);
+  }
+
+  return {
+    sid: content.sid,
+    friendlyName: content.friendly_name,
+    variableKeys,
+    defaultVariables: content.variables || {},
+    contentTypes: Object.keys(content.types || {})
+  };
+}
+
+/** Twilio Content API requires string keys ("1"…"N") and a JSON-stringified payload. */
+export function buildTwilioContentVariables(
+  {
+    guestName,
+    customOpeningText,
+    eventDateTimeLocation,
+    rsvpLink,
+    closingSignOff
+  },
+  templateKeys = ["1", "2", "3", "4", "5"]
+) {
+  const mappedValues = {
+    "1": guestName,
+    "2": customOpeningText,
+    "3": eventDateTimeLocation,
+    "4": rsvpLink,
+    "5": closingSignOff
   };
 
-  const signature = sanitizeWhatsAppTemplateVariable(closingSignOff, "");
-  if (signature && signature !== "-") {
-    variables["5"] = signature;
+  const variables = {};
+  for (const key of templateKeys) {
+    variables[key] = sanitizeWhatsAppTemplateVariable(
+      mappedValues[key],
+      TEMPLATE_VALUE_FALLBACKS[key] || "-"
+    );
   }
 
   return JSON.stringify(variables);
