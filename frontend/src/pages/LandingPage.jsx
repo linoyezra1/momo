@@ -1,32 +1,36 @@
 import { Link } from "react-router-dom";
-import { BarChart3, Gift, MessageCircle, Sparkles, Users } from "lucide-react";
+import { ArrowLeft, BarChart3, Gift, MessageCircle, Sparkles, Users } from "lucide-react";
 import "../landing.css";
+
+const WHATSAPP_LINK =
+  import.meta.env.VITE_MARKETING_WHATSAPP_URL ||
+  "https://api.whatsapp.com/send?text=" + encodeURIComponent("ωμεν, ΰωξη μχαμ τψθιν ςμ momoEVENT");
 
 const FEATURES = [
   {
     icon: Sparkles,
-    title: "Χ”Χ–ΧΧ Χ” Χ“Χ™Χ’Χ™ΧΧΧ™Χª ΧΧΆΧ•Χ¦Χ‘Χª",
-    text: "Χ™Χ¦Χ™Χ¨Χª Χ”Χ–ΧΧ Χ” ΧΧ”ΧΧΧª ΧΆΧ ΧΧ¤Χ©Χ¨Χ•Χª ΧΆΧ¨Χ™Χ›Χ” ΧΆΧ¦ΧΧΧ™Χª Χ©Χ Χ¤Χ¨ΧΧ™ Χ”ΧΧ™Χ¨Χ•ΧΆ, Χ”ΧªΧΧ¨Χ™Χ›Χ™Χ Χ•Χ”ΧΧ™Χ§Χ•Χ Χ‘Χ›Χ Χ¨Χ’ΧΆ."
+    title: "δζξπδ γιβιθμιϊ ξςεφαϊ",
+    text: "ιφιψϊ δζξπδ ξδξξϊ ςν ΰτωψεϊ ςψιλδ ςφξΰιϊ ωμ τψθι δΰιψες, δϊΰψιλιν εδξιχεν αλμ ψβς."
   },
   {
     icon: BarChart3,
-    title: "ΧΧ™Χ©Χ•Χ¨Χ™ Χ”Χ’ΧΆΧ” Χ‘Χ–ΧΧ ΧΧΧª",
-    text: "ΧΧΆΧ§Χ‘ ΧΧ•Χ ΧΧ™Χ™Χ ΧΧΧ ΧΆΧ Χ΅ΧΧΧ•Χ΅ ΧΧ’Χ™ΧΆΧ™Χ / ΧΧ ΧΧ’Χ™ΧΆΧ™Χ / ΧΧ•ΧΧ™ Χ”ΧΧªΧΆΧ“Χ›Χ ΧΧ¦ΧΧ›Χ Χ‘ΧΧ΅Χ Χ‘Χ©Χ Χ™Χ•Χª ΧΧΧª."
+    title: "ΰιωεψι δβςδ αζξο ΰξϊ",
+    text: "ξςχα ΰεπμιιο ξμΰ ςν ρθθερ ξβιςιν / μΰ ξβιςιν / ΰεμι δξϊςγλο ΰφμλν αξρκ αωπιεϊ ΰξϊ."
   },
   {
     icon: Users,
-    title: "Χ Χ™Χ”Χ•Χ Χ¨Χ©Χ™ΧΧ•Χª Χ—Χ›Χ",
-    text: "Χ™Χ™Χ‘Χ•Χ Χ§Χ Χ•ΧΧ”Χ™Χ¨ ΧΧ§Χ•Χ‘Χ¥ Excel, ΧΧ¤Χ©Χ¨Χ•Χª ΧΧ”Χ•Χ΅Χ¤Χ” Χ™Χ“Χ Χ™Χª Χ•ΧΧ Χ’Χ Χ•Χ ΧΧ•ΧΧ•ΧΧΧ™ ΧΧΧ Χ™ΧΆΧª Χ›Χ¤Χ™ΧΧ•Χ™Χ•Χª ΧΧ¤Χ™ ΧΧ΅Χ¤Χ¨ ΧΧΧ¤Χ•Χ."
+    title: "πιδεμ ψωιξεϊ ηλν",
+    text: "ιιαεΰ χμ εξδιψ ξχεαυ Excel, ΰτωψεϊ μδερτδ ιγπιϊ εξπβπεο ΰεθεξθι μξπιςϊ λτιμειεϊ μτι ξρτψ θμτεο."
   },
   {
     icon: Gift,
-    title: "ΧΧΆΧ§Χ‘ ΧªΧ©ΧΧ•ΧΧ™Χ Χ•ΧΧªΧ Χ•Χª",
-    text: "Χ¨Χ™Χ©Χ•Χ Χ•ΧΧΆΧ§Χ‘ ΧΧ΅Χ•Χ“Χ¨ ΧΧ—Χ¨ Χ”ΧΧªΧ Χ•Χª Χ•Χ”Χ›Χ΅Χ¤Χ™Χ Χ©Χ§Χ™Χ‘ΧΧªΧ Χ‘ΧΧ™Χ¨Χ•ΧΆ, Χ›Χ“Χ™ Χ©Χ©Χ•Χ Χ“Χ‘Χ¨ ΧΧ Χ™ΧΧ ΧΧΧ™Χ‘Χ•Χ“."
+    title: "ξςχα ϊωμεξιν εξϊπεϊ",
+    text: "ψιωεν εξςχα ξρεγψ ΰηψ δξϊπεϊ εδλρτιν ωχιαμϊν αΰιψες, λγι ωωεν γαψ μΰ ιμκ μΰιαεγ."
   },
   {
     icon: MessageCircle,
-    title: "Χ©ΧΧ™Χ—Χ” Χ‘Χ•Χ•ΧΧΧ΅ΧΧ¤ ΧΧΧ Χ”Χ’Χ‘ΧΧ”",
-    text: "Χ¤Χ™Χ¦'Χ¨ Χ™Χ™Χ—Χ•Χ“Χ™ ΧΧ©ΧΧ™Χ—Χª Χ”Χ–ΧΧ Χ•Χª Χ•ΧªΧ–Χ›Χ•Χ¨Χ•Χª Χ™Χ©Χ™Χ¨Χ•Χª ΧΧ”ΧΧ΅Χ¤Χ¨ Χ”ΧΧ™Χ©Χ™ Χ©ΧΧ›Χ ΧΧΧ Χ”Χ’Χ‘ΧΧª Χ›ΧΧ•Χª."
+    title: "ωμιηδ αεεΰθρΰτ μμΰ δβαμδ",
+    text: "τιφ'ψ ιιηεγι μωμιηϊ δζξπεϊ εϊζλεψεϊ ιωιψεϊ ξδξρτψ δΰιωι ωμλν μμΰ δβαμϊ λξεϊ."
   }
 ];
 
@@ -34,44 +38,56 @@ export default function LandingPage() {
   return (
     <div className="landing-page" dir="rtl" lang="he">
       <header className="landing-hero">
+        <div className="landing-glow landing-glow--one" aria-hidden="true" />
+        <div className="landing-glow landing-glow--two" aria-hidden="true" />
+
         <div className="landing-hero-inner">
           <div className="landing-logo-wrap" aria-hidden="true">
             <div className="landing-logo-circle">
               <img className="landing-logo-image" src="/logo-momo.png" alt="" />
               <span className="landing-logo-text">momoEVENT</span>
               <span className="landing-logo-confetti" aria-hidden="true">
-                π‰
+                ??
               </span>
             </div>
           </div>
 
+          <p className="landing-eyebrow">RSVP & Event Guest Management</p>
           <h1 className="landing-title">
-            momoEVENT β€“ ΧΧΆΧ¨Χ›Χª ΧΧ™Χ©Χ•Χ¨Χ™ Χ”Χ’ΧΆΧ” Χ•Χ”Χ–ΧΧ Χ•Χª Χ“Χ™Χ’Χ™ΧΧΧ™Χ•Χª Χ—Χ›ΧΧ•Χª ΧΧΧ™Χ¨Χ•ΧΆΧ™Χ π
+            momoEVENT – ξςψλϊ ΰιωεψι δβςδ εδζξπεϊ γιβιθμιεϊ ηλξεϊ μΰιψεςιν ??
           </h1>
           <p className="landing-subtitle">
-            ΧΆΧ•Χ©Χ™Χ ΧΧ›Χ Χ΅Χ“Χ¨ Χ‘ΧΧ•Χ–ΧΧ Χ™Χ Χ‘Χ§ΧΧ•Χª Χ•Χ‘ΧΧ™ Χ›ΧΧ‘Χ™ Χ¨ΧΧ©. ΧΧ©ΧΧΧ™Χ Χ¨Χ§ ΧΆΧ ΧΧ” Χ©Χ¦Χ¨Χ™Χ›Χ™Χ β€“ Χ©Χ§Χ ΧΧ—Χ“ Χ‘ΧΧ‘Χ“ ΧΧ¨Χ©Χ•ΧΧ”,
-            Χ•ΧΧªΧ Χ§Χ•Χ‘ΧΆΧ™Χ ΧΧª Χ”Χ›ΧΧ•Χª!
+            ςεωιν μλν ργψ αξεζξπιν αχμεϊ εαμι λΰαι ψΰω. ξωμξιν ψχ ςμ ξδ ωφψιλιν – ωχμ ΰηγ αμαγ μψωεξδ,
+            εΰϊν χεαςιν ΰϊ δλξεϊ!
           </p>
-          <Link className="landing-cta" to="/client/login">
-            Χ Χ΅Χ• ΧΧª Χ”ΧΧΆΧ¨Χ›Χª Χ‘Χ—Χ™Χ Χ (ΧΧΧ ΧΆΧΧ•Χª)
-          </Link>
+
+          <div className="landing-cta-row">
+            <Link className="landing-cta landing-cta--primary" to="/client/login">
+              πρε ΰϊ δξςψλϊ αηιπν (μμΰ ςμεϊ)
+              <ArrowLeft size={18} aria-hidden="true" />
+            </Link>
+            <a className="landing-cta landing-cta--whatsapp" href={WHATSAPP_LINK} target="_blank" rel="noreferrer">
+              γαψε ΰιϊπε αεεΰθρΰτ
+              <MessageCircle size={18} aria-hidden="true" />
+            </a>
+          </div>
         </div>
       </header>
 
       <section className="landing-section landing-about">
         <div className="landing-section-inner">
-          <h2 className="landing-section-title">ΧΧ™ ΧΧ Χ—Χ Χ• Χ•ΧΧ” ΧΧ Χ—Χ Χ• Χ Χ•ΧªΧ Χ™Χ?</h2>
+          <h2 className="landing-section-title">ξι ΰπηπε εξδ ΰπηπε πεϊπιν?</h2>
           <p className="landing-about-text">
-            momoEVENT Χ”Χ™Χ ΧΧΆΧ¨Χ›Χª ΧΧ›Χ Χ•ΧΧ•Χ’Χ™Χª ΧΧªΧ§Χ“ΧΧª ΧΧ Χ™Χ”Χ•Χ ΧΧ•Χ–ΧΧ Χ™Χ ΧΧΧ™Χ¨Χ•ΧΆΧ™Χ β€” Χ—ΧªΧ•Χ Χ•Χª, Χ‘Χ¨/Χ‘Χª ΧΧ¦Χ•Χ•Χ”, Χ‘Χ¨Χ™ΧªΧ•Χª
-            Χ•ΧΆΧ•Χ“. Χ”Χ™Χ ΧΧΧ¤Χ©Χ¨Χª ΧΧ‘ΧΆΧΧ™ Χ”ΧΧ™Χ¨Χ•ΧΆ ΧΧ©ΧΧ•Χ Χ‘Χ”Χ›Χ ΧΧ”Χ Χ™Χ™Χ“ ΧΧ• Χ”ΧΧ—Χ©Χ‘, Χ‘Χ¨Χ•Χ’ΧΆ Χ•Χ‘Χ‘Χ™ΧΧ—Χ•Χ: Χ¨Χ©Χ™ΧΧ•Χª ΧΧ•Χ–ΧΧ Χ™Χ,
-            Χ”Χ–ΧΧ Χ” Χ“Χ™Χ’Χ™ΧΧΧ™Χª, ΧΧ™Χ©Χ•Χ¨Χ™ Χ”Χ’ΧΆΧ”, ΧªΧ–Χ›Χ•Χ¨Χ•Χª Χ•ΧΧΆΧ§Χ‘ ΧΧªΧ Χ•Χª β€” Χ”Χ›Χ Χ‘ΧΧ§Χ•Χ ΧΧ—Χ“.
+            momoEVENT διΰ ξςψλϊ θλπεμεβιϊ ξϊχγξϊ μπιδεμ ξεζξπιν μΰιψεςιν — ηϊεπεϊ, αψ/αϊ ξφεεδ, αψιϊεϊ
+            εςεγ. διΰ ξΰτωψϊ μαςμι δΰιψες μωμεθ αδλμ ξδπιιγ ΰε δξηωα, αψεβς εααιθηεο: ψωιξεϊ ξεζξπιν,
+            δζξπδ γιβιθμιϊ, ΰιωεψι δβςδ, ϊζλεψεϊ εξςχα ξϊπεϊ — δλμ αξχεν ΰηγ.
           </p>
         </div>
       </section>
 
       <section className="landing-section landing-features">
         <div className="landing-section-inner">
-          <h2 className="landing-section-title">ΧΧ™ΧΧ• Χ¤Χ™Χ¦&apos;Χ¨Χ™Χ ΧΧ—Χ›Χ™Χ ΧΧ›Χ Χ‘ΧΧΆΧ¨Χ›Χª?</h2>
+          <h2 className="landing-section-title">ΰιμε τιφ&apos;ψιν ξηλιν μλν αξςψλϊ?</h2>
           <div className="landing-features-grid">
             {FEATURES.map((feature) => {
               const Icon = feature.icon;
@@ -90,10 +106,15 @@ export default function LandingPage() {
       </section>
 
       <footer className="landing-footer">
-        <p>momoEVENT Β· ΧΧΆΧ¨Χ›Χª ΧΧ™Χ©Χ•Χ¨Χ™ Χ”Χ’ΧΆΧ” Χ•Χ”Χ–ΧΧ Χ•Χª Χ“Χ™Χ’Χ™ΧΧΧ™Χ•Χª</p>
-        <Link className="landing-footer-link" to="/client/login">
-          Χ›Χ Χ™Χ΅Χª ΧΧ§Χ•Χ—Χ•Χª
-        </Link>
+        <p>momoEVENT · ξςψλϊ ΰιωεψι δβςδ εδζξπεϊ γιβιθμιεϊ</p>
+        <div className="landing-footer-links">
+          <Link className="landing-footer-link" to="/client/login">
+            λπιρϊ μχεηεϊ
+          </Link>
+          <a className="landing-footer-link" href={WHATSAPP_LINK} target="_blank" rel="noreferrer">
+            εεΰθρΰτ ιωιψ
+          </a>
+        </div>
       </footer>
     </div>
   );
