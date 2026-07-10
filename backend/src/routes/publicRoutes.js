@@ -49,6 +49,7 @@ router.post("/event/:eventId/rsvp", async (req, res) => {
           phone: normalizedPhone,
           attendeesCount: Math.max(0, Number(attendeesCount || 1)),
           status,
+          confirmationMethod: "web",
           source: resolveSourceAfterSelfRsvp(existing)
         },
         { new: true, runValidators: true }
@@ -62,6 +63,7 @@ router.post("/event/:eventId/rsvp", async (req, res) => {
       phone: normalizedPhone,
       attendeesCount: Math.max(0, Number(attendeesCount || 1)),
       status,
+      confirmationMethod: "web",
       source: "form"
     });
 

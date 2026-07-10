@@ -21,6 +21,7 @@ const initialRsvp = {
 
 function attendeesCountForStatus(status, currentCount) {
   if (status === "מגיע") return Math.max(1, Number(currentCount) || 1);
+  if (status === "אולי") return Math.max(1, Number(currentCount) || 1);
   if (status === "לא מגיע") return 0;
   return currentCount;
 }
@@ -62,6 +63,8 @@ export default function IlInviteExperience({
   const timeline = isWedding ? getParallelTimeline(event) : [];
   const showCountdown = previewMode || rsvpStarted || Boolean(message);
   const isAttending = form.status === "מגיע";
+  const isMaybe = form.status === "אולי";
+  const showAttendeeStepper = isAttending;
 
   function onChange(changeEvent) {
     const { name, value } = changeEvent.target;
@@ -169,6 +172,14 @@ export default function IlInviteExperience({
                     </button>
                     <button
                       type="button"
+                      className="il-invite-rsvp__btn il-invite-rsvp__btn--maybe"
+                      onClick={() => onChooseStatus("אולי")}
+                      disabled={previewMode}
+                    >
+                      אולי / עדיין לא יודע
+                    </button>
+                    <button
+                      type="button"
                       className="il-invite-rsvp__btn il-invite-rsvp__btn--no"
                       onClick={() => onChooseStatus("לא מגיע")}
                       disabled={previewMode}
@@ -182,6 +193,28 @@ export default function IlInviteExperience({
                     onSubmit={previewMode ? (e) => e.preventDefault() : onSubmit}
                     noValidate
                   >
+                    <p className="il-invite-rsvp__choice">
+                      בחרתם:{" "}
+                      <strong>
+                        {form.status === "מגיע"
+                          ? "מגיע"
+                          : form.status === "אולי"
+                            ? "אולי"
+                            : "לא מגיע"}
+                      </strong>
+                      {!previewMode ? (
+                        <button
+                          type="button"
+                          className="il-invite-rsvp__change"
+                          onClick={() => {
+                            setRsvpStarted(false);
+                            setError("");
+                          }}
+                        >
+                          שינוי
+                        </button>
+                      ) : null}
+                    </p>
                     <label className="il-invite-field" htmlFor="il-rsvp-fullName">
                       <span className="il-invite-field__label">שם מלא</span>
                       <input
@@ -213,7 +246,7 @@ export default function IlInviteExperience({
                       />
                     </label>
 
-                    {isAttending ? (
+                    {showAttendeeStepper ? (
                       <div className="il-invite-field">
                         <span className="il-invite-field__label">כמה מגיעים?</span>
                         <div className="il-invite-stepper">
@@ -247,6 +280,10 @@ export default function IlInviteExperience({
                           </button>
                         </div>
                       </div>
+                    ) : isMaybe ? (
+                      <p className="il-invite-rsvp__maybe-note">
+                        אפשר לעדכן את מספר המגיעים מאוחר יותר דרך בעלי האירוע.
+                      </p>
                     ) : null}
 
                     {error ? <p className="il-invite-rsvp__error">{error}</p> : null}

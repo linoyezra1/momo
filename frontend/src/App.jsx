@@ -1,6 +1,10 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import AdminProtectedRoute from "./components/AdminProtectedRoute.jsx";
+import AgentProtectedRoute from "./components/AgentProtectedRoute.jsx";
 import AdminLoginPage from "./pages/AdminLoginPage.jsx";
+import AgentClientsPage from "./pages/AgentClientsPage.jsx";
+import AgentLoginPage from "./pages/AgentLoginPage.jsx";
+import AgentWorkspacePage from "./pages/AgentWorkspacePage.jsx";
 import AdminPage from "./pages/AdminPage.jsx";
 import LandingPage from "./pages/LandingPage.jsx";
 import EventPage from "./pages/EventPage.jsx";
@@ -19,6 +23,23 @@ export default function App() {
           <AdminProtectedRoute>
             <AdminPage />
           </AdminProtectedRoute>
+        }
+      />
+      <Route path="/agent/login" element={<AgentLoginPage />} />
+      <Route
+        path="/agent"
+        element={
+          <AgentProtectedRoute>
+            <AgentClientsPage />
+          </AgentProtectedRoute>
+        }
+      />
+      <Route
+        path="/agent/workspace/:userId"
+        element={
+          <AgentProtectedRoute>
+            <AgentWorkspacePage />
+          </AgentProtectedRoute>
         }
       />
       <Route path="/event/:eventId" element={<EventPage />} />

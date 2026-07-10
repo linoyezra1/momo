@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, Fragment } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Check, Clock, HelpCircle, RotateCw, Search, Users, X } from "lucide-react";
+import { Check, ChevronDown, Clock, HelpCircle, RotateCw, Search, Users, X } from "lucide-react";
 import api from "../api";
 import WhatsAppIcon from "../components/WhatsAppIcon";
 import { buildWhatsAppMessageTemplate, buildWhatsAppSendUrl } from "../utils/whatsapp";
@@ -77,6 +77,24 @@ function ReminderRoundBadge({ round }) {
   );
 }
 
+function hasPhoneRsvpRecord(guest) {
+  return guest?.confirmationMethod === "phone" && Boolean(guest?.callTimestamp);
+}
+
+function formatCallStatusLabel(callStatus) {
+  if (callStatus === "answered") return "ענה";
+  if (callStatus === "no_answer") return "לא ענה";
+  return "—";
+}
+
+function formatCallTimestamp(value) {
+  if (!value) return "—";
+  return new Date(value).toLocaleString("he-IL", {
+    dateStyle: "short",
+    timeStyle: "short"
+  });
+}
+
 function getOwnerGreeting(event) {
   if (!event) return "שלום";
   if (event.eventType === "חתונה") {
@@ -120,6 +138,7 @@ export default function ClientDashboardPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [reminderRoundFilter, setReminderRoundFilter] = useState("all");
   const [selectedGuestIds, setSelectedGuestIds] = useState(() => new Set());
+  const [expandedGuestDetailIds, setExpandedGuestDetailIds] = useState(() => new Set());
   const [showBulkWhatsApp, setShowBulkWhatsApp] = useState(false);
   const [paymentCode, setPaymentCode] = useState("");
   const [customWhatsAppMessage, setCustomWhatsAppMessage] = useState("");
@@ -253,6 +272,15 @@ export default function ClientDashboardPage() {
       } else {
         filteredGuests.forEach((guest) => next.add(guest._id));
       }
+      return next;
+    });
+  };
+
+  const toggleGuestDetails = (guestId) => {
+    setExpandedGuestDetailIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(guestId)) next.delete(guestId);
+      else next.add(guestId);
       return next;
     });
   };
@@ -658,6 +686,7 @@ export default function ClientDashboardPage() {
                     disabled={!filteredGuests.length}
                   />
                 </th>
+                <th className="il-col-expand" aria-label="פרטים" />
                 <th>שם מלא</th>
                 <th>טלפון</th>
                 <th>כמה מגיעים</th>
@@ -672,23 +701,40 @@ export default function ClientDashboardPage() {
             <tbody>
               {filteredGuests.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="us-table-empty">
+                  <td colSpan={11} className="us-table-empty">
                     {appliedSearch || statusFilter !== "all" || reminderRoundFilter !== "all"
                       ? "לא נמצאו תוצאות לסינון הנוכחי"
                       : "אין אורחים עדיין"}
                   </td>
                 </tr>
               ) : (
-                filteredGuests.map((guest) => (
-                  <tr key={guest._id} className={getGuestRowClass(guest.status)}>
-                    <td data-label="בחירה" className="il-col-check">
-                      <input
-                        type="checkbox"
-                        aria-label={`בחירת ${guest.fullName}`}
-                        checked={selectedGuestIds.has(guest._id)}
-                        onChange={() => toggleGuestSelection(guest._id)}
-                      />
-                    </td>
+                filteredGuests.map((guest) => {
+                  const isDetailExpanded = expandedGuestDetailIds.has(guest._id);
+                  const showPhoneDetails = hasPhoneRsvpRecord(guest);
+                  return (
+                    <Fragment key={guest._id}>
+                      <tr className={getGuestRowClass(guest.status)}>
+                        <td data-label="בחירה" className="il-col-check">
+                          <input
+                            type="checkbox"
+                            aria-label={`בחירת ${guest.fullName}`}
+                            checked={selectedGuestIds.has(guest._id)}
+                            onChange={() => toggleGuestSelection(guest._id)}
+                          />
+                        </td>
+                        <td data-label="פרטים" className="il-col-expand">
+                          {showPhoneDetails ? (
+                            <button
+                              type="button"
+                              className={`il-row-expand-btn${isDetailExpanded ? " is-open" : ""}`}
+                              onClick={() => toggleGuestDetails(guest._id)}
+                              aria-expanded={isDetailExpanded}
+                              aria-label={`פרטי אישור טלפוני עבור ${guest.fullName}`}
+                            >
+                              <ChevronDown size={16} aria-hidden="true" />
+                            </button>
+                          ) : null}
+                        </td>
                     <td data-label="שם מלא">
                       {editingGuestId === guest._id ? (
                         <input
@@ -783,8 +829,23 @@ export default function ClientDashboardPage() {
                         </button>
                       )}
                     </td>
-                  </tr>
-                ))
+                      </tr>
+                      {showPhoneDetails && isDetailExpanded ? (
+                        <tr className="il-guest-detail-row">
+                          <td colSpan={11}>
+                            <div className="il-phone-rsvp-summary">
+                              <strong>אישור הגעה טלפוני</strong>
+                              <span>סבב: {guest.currentCallRound || "—"}</span>
+                              <span>סטטוס שיחה: {formatCallStatusLabel(guest.callStatus)}</span>
+                              <span>הערות נציג: {guest.agentNotes?.trim() || "—"}</span>
+                              <span>תאריך: {formatCallTimestamp(guest.callTimestamp)}</span>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : null}
+                    </Fragment>
+                  );
+                })
               )}
             </tbody>
           </table>

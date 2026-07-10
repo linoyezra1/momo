@@ -29,7 +29,16 @@ const guestSchema = new mongoose.Schema(
     },
     guestGroup: { type: String, trim: true, default: "" },
     seatingTableId: { type: String, trim: true, default: "" },
-    reminderRound: { type: Number, min: 0, default: 0 }
+    reminderRound: { type: Number, min: 0, default: 0 },
+    confirmationMethod: {
+      type: String,
+      enum: ["whatsapp", "phone", "web"],
+      default: "web"
+    },
+    currentCallRound: { type: Number, enum: [1, 2], default: null },
+    callStatus: { type: String, enum: ["answered", "no_answer"], default: null },
+    agentNotes: { type: String, trim: true, default: "" },
+    callTimestamp: { type: Date, default: null }
   },
   { timestamps: true }
 );
