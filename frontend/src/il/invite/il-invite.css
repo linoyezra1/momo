@@ -285,18 +285,6 @@
   cursor: pointer;
 }
 
-.il-invite-rsvp__maybe-note {
-  margin: 0;
-  padding: 0.65rem 0.85rem;
-  border-radius: 0.55rem;
-  background: rgb(213 126 126 / 8%);
-  border: 1px solid rgb(213 126 126 / 18%);
-  font-size: 0.84rem;
-  line-height: 1.55;
-  color: var(--il-ink-soft);
-  text-align: center;
-}
-
 .il-invite-field {
   display: flex;
   flex-direction: column;

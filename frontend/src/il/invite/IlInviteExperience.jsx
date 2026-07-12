@@ -63,7 +63,6 @@ export default function IlInviteExperience({
   const timeline = isWedding ? getParallelTimeline(event) : [];
   const showCountdown = previewMode || rsvpStarted || Boolean(message);
   const isAttending = form.status === "מגיע";
-  const isMaybe = form.status === "אולי";
   const showAttendeeStepper = isAttending;
 
   function onChange(changeEvent) {
@@ -280,10 +279,6 @@ export default function IlInviteExperience({
                           </button>
                         </div>
                       </div>
-                    ) : isMaybe ? (
-                      <p className="il-invite-rsvp__maybe-note">
-                        אפשר לעדכן את מספר המגיעים מאוחר יותר דרך בעלי האירוע.
-                      </p>
                     ) : null}
 
                     {error ? <p className="il-invite-rsvp__error">{error}</p> : null}

@@ -1,11 +1,14 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import AdminProtectedRoute from "./components/AdminProtectedRoute.jsx";
 import AgentProtectedRoute from "./components/AgentProtectedRoute.jsx";
+import EventManagerProtectedRoute from "./components/EventManagerProtectedRoute.jsx";
 import AdminLoginPage from "./pages/AdminLoginPage.jsx";
 import AgentClientsPage from "./pages/AgentClientsPage.jsx";
 import AgentLoginPage from "./pages/AgentLoginPage.jsx";
 import AgentWorkspacePage from "./pages/AgentWorkspacePage.jsx";
 import AdminPage from "./pages/AdminPage.jsx";
+import EventManagerLoginPage from "./pages/EventManagerLoginPage.jsx";
+import EventManagerPage from "./pages/EventManagerPage.jsx";
 import LandingPage from "./pages/LandingPage.jsx";
 import EventPage from "./pages/EventPage.jsx";
 import ClientLoginPage from "./pages/ClientLoginPage.jsx";
@@ -23,6 +26,15 @@ export default function App() {
           <AdminProtectedRoute>
             <AdminPage />
           </AdminProtectedRoute>
+        }
+      />
+      <Route path="/manager/login" element={<EventManagerLoginPage />} />
+      <Route
+        path="/manager"
+        element={
+          <EventManagerProtectedRoute>
+            <EventManagerPage />
+          </EventManagerProtectedRoute>
         }
       />
       <Route path="/agent/login" element={<AgentLoginPage />} />

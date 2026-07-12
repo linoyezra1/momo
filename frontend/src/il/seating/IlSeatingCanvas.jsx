@@ -1,12 +1,37 @@
 import { Rnd } from "react-rnd";
 import { VENUE_ELEMENT_LABELS } from "./seatingConstants.js";
-import { getTableOccupancy } from "./ilSeatingUtils.js";
+import { countGuestSeats, getTableOccupancy } from "./ilSeatingUtils.js";
 
 function tableClass(shape, isOver, isDropTarget) {
   const parts = ["il-seat-table", `il-seat-table--${shape}`];
   if (isOver) parts.push("il-seat-table--over");
   if (isDropTarget) parts.push("il-seat-table--target");
   return parts.join(" ");
+}
+
+function ChairRing({ capacity, occupied }) {
+  const seats = Math.max(1, Number(capacity) || 1);
+  const taken = Math.max(0, Math.min(seats, Number(occupied) || 0));
+  const radius = 42;
+
+  return (
+    <div className="il-seat-chairs" aria-hidden="true">
+      {Array.from({ length: seats }, (_, index) => {
+        const angle = (Math.PI * 2 * index) / seats - Math.PI / 2;
+        const x = 50 + radius * Math.cos(angle);
+        const y = 50 + radius * Math.sin(angle);
+        const isTaken = index < taken;
+        return (
+          <span
+            key={index}
+            className={`il-seat-chair ${isTaken ? "il-seat-chair--taken" : "il-seat-chair--free"}`}
+            style={{ left: `${x}%`, top: `${y}%` }}
+            title={isTaken ? "תפוס" : "פנוי"}
+          />
+        );
+      })}
+    </div>
+  );
 }
 
 export default function IlSeatingCanvas({
@@ -17,7 +42,8 @@ export default function IlSeatingCanvas({
   activeTableId,
   onLayoutChange,
   onSelectTable,
-  onDropGuestsOnTable
+  onDropGuestsOnTable,
+  canvasRef
 }) {
   const warningByTable = new Map(warnings.map((warning) => [warning.tableId, warning]));
 
@@ -37,7 +63,7 @@ export default function IlSeatingCanvas({
 
   return (
     <div className="il-seat-canvas-wrap">
-      <div className="il-seat-canvas" dir="ltr">
+      <div className="il-seat-canvas" dir="ltr" ref={canvasRef} id="il-seating-canvas-export">
         {venueElements.map((element) => (
           <Rnd
             key={element.elementId}
@@ -63,11 +89,12 @@ export default function IlSeatingCanvas({
           const seats = getTableOccupancy(guests, table.tableId);
           const warning = warningByTable.get(table.tableId);
           const isOver = seats > table.capacity;
+          const tableGuests = guests.filter((guest) => guest.seatingTableId === table.tableId);
 
           return (
             <Rnd
               key={table.tableId}
-              size={{ width: table.width, height: table.height }}
+              size={{ width: Math.max(table.width, 110), height: Math.max(table.height, 110) }}
               position={{ x: table.x, y: table.y }}
               bounds="parent"
               onDragStop={(_e, data) => updateTable(table.tableId, { x: data.x, y: data.y })}
@@ -94,11 +121,21 @@ export default function IlSeatingCanvas({
                 }
               }}
             >
+              <ChairRing capacity={table.capacity} occupied={seats} />
               <div className="il-seat-table__inner">
                 <strong>{table.label}</strong>
                 <span>
                   {seats}/{table.capacity}
                 </span>
+                {tableGuests.length ? (
+                  <em className="il-seat-table__names">
+                    {tableGuests
+                      .slice(0, 2)
+                      .map((guest) => `${guest.fullName} (${countGuestSeats(guest)})`)
+                      .join(" · ")}
+                    {tableGuests.length > 2 ? "…" : ""}
+                  </em>
+                ) : null}
                 {warning ? <em className="il-seat-table__warn">{warning.type === "overfill" ? "!" : "…"}</em> : null}
               </div>
             </Rnd>

@@ -173,7 +173,8 @@ router.post("/create-client", async (req, res) => {
       username: username.trim(),
       passwordHash,
       loginPassword: String(password),
-      event: normalizedEvent
+      event: normalizedEvent,
+      managedBy: "admin"
     });
 
     const links = buildClientLinks(user._id, req);

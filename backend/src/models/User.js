@@ -40,7 +40,13 @@ const userSchema = new mongoose.Schema(
     passwordHash: { type: String, required: true },
     loginPassword: { type: String, default: "", trim: true },
     event: { type: eventSchema, required: true },
-    payment: { type: paymentSchema, default: () => ({ amountPaid: 0, paymentMethod: "" }) }
+    payment: { type: paymentSchema, default: () => ({ amountPaid: 0, paymentMethod: "" }) },
+    managedBy: {
+      type: String,
+      enum: ["admin", "eventManager"],
+      default: "admin",
+      index: true
+    }
   },
   { timestamps: true }
 );
