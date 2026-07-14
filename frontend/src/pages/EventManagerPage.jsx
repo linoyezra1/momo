@@ -9,6 +9,7 @@ import "../us/admin-portal.css";
 const initialForm = {
   username: "",
   password: "",
+  contactPhone: "",
   eventType: "חתונה",
   groomName: "",
   brideName: "",
@@ -45,6 +46,7 @@ export default function EventManagerPage() {
   const [loadingClients, setLoadingClients] = useState(false);
   const [error, setError] = useState("");
   const [clientsError, setClientsError] = useState("");
+  const [welcomeNotice, setWelcomeNotice] = useState("");
 
   const selectedClient = useMemo(
     () => clients.find((client) => String(client.userId) === String(selectedClientId)) || null,
@@ -87,6 +89,7 @@ export default function EventManagerPage() {
     setForm({
       username: client.username || "",
       password: "",
+      contactPhone: client.contactPhone || "",
       eventType: event.eventType || "חתונה",
       groomName: event.groomName || "",
       brideName: event.brideName || "",
@@ -113,6 +116,7 @@ export default function EventManagerPage() {
       const payload = {
         username: form.username,
         password: form.password,
+        contactPhone: form.contactPhone,
         event: {
           eventType: form.eventType,
           groomName: form.groomName,
@@ -135,10 +139,20 @@ export default function EventManagerPage() {
         const response = await api.patch(`/manager/clients/${editingClientId}`, payload);
         setResult(response.data);
         setSelectedClientId(editingClientId);
+        setWelcomeNotice("");
       } else {
         const response = await api.post("/manager/create-client", payload);
         setResult(response.data);
         setSelectedClientId(response.data.userId);
+        if (response.data?.welcomeWhatsApp?.sent) {
+          setWelcomeNotice("הודעת וואטסאפ עם פרטי הגישה נשלחה לכלה");
+        } else if (response.data?.welcomeWhatsApp?.reason === "twilio_not_configured") {
+          setWelcomeNotice("החשבון נוצר, אך Twilio לא מוגדר — הודעת הוואטסאפ לא נשלחה");
+        } else if (response.data?.welcomeWhatsApp?.reason === "invalid_phone") {
+          setWelcomeNotice("החשבון נוצר, אך מספר הטלפון לא תקין לשליחת וואטסאפ");
+        } else {
+          setWelcomeNotice("החשבון נוצר, אך שליחת הודעת הוואטסאפ נכשלה");
+        }
       }
       setShowCreateWizard(false);
       await loadClients();
@@ -187,6 +201,7 @@ export default function EventManagerPage() {
       </header>
 
       {clientsError ? <p className="us-admin-message us-admin-message--error">{clientsError}</p> : null}
+      {welcomeNotice ? <p className="us-admin-message">{welcomeNotice}</p> : null}
 
       <div className="us-admin-layout">
         <div className="us-admin-card">
@@ -244,6 +259,7 @@ export default function EventManagerPage() {
                   משתמש: {selectedClient.username} · סיסמה:{" "}
                   {selectedClient.loginPassword || result?.credentials?.password || "—"}
                 </p>
+                <p>טלפון כלה: {selectedClient.contactPhone || "—"}</p>
                 <p>
                   תאריך: {formatIsraeliDate(selectedClient.event?.eventDate) || "—"} · שעה:{" "}
                   {selectedClient.event?.eventTime || "—"}
@@ -298,6 +314,19 @@ export default function EventManagerPage() {
                   type="text"
                   value={form.password}
                   onChange={(e) => onFormChange("password", e.target.value)}
+                  required={wizardMode === "create"}
+                />
+              </div>
+              <div className="us-admin-field">
+                <label className="us-admin-field-label">
+                  טלפון הכלה (איש קשר) {wizardMode === "create" ? "*" : ""}
+                </label>
+                <input
+                  className="us-admin-field-input"
+                  type="tel"
+                  value={form.contactPhone}
+                  onChange={(e) => onFormChange("contactPhone", e.target.value)}
+                  placeholder="05XXXXXXXX"
                   required={wizardMode === "create"}
                 />
               </div>

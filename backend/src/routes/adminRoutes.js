@@ -10,6 +10,10 @@ import {
   validateAdminCredentials,
   verifyAdminToken
 } from "../middleware/adminAuth.js";
+import {
+  getAdminWelcomeDisplayName,
+  sendEventManagerWelcomeWhatsApp
+} from "../services/eventManagerWelcomeWhatsApp.js";
 
 const router = express.Router();
 
@@ -126,7 +130,7 @@ function normalizePaymentPayload(rawPayment) {
 
 router.get("/clients", async (req, res) => {
   try {
-    const users = await User.find({}, "username event createdAt payment loginPassword").sort({
+    const users = await User.find({}, "username event createdAt payment loginPassword contactPhone").sort({
       createdAt: -1
     });
     const clients = users.map((user) => {
@@ -136,6 +140,7 @@ router.get("/clients", async (req, res) => {
         userId: user._id,
         username: user.username,
         loginPassword: user.loginPassword || "",
+        contactPhone: user.contactPhone || "",
         event: user.event,
         payment,
         createdAt: user.createdAt,
@@ -151,7 +156,7 @@ router.get("/clients", async (req, res) => {
 
 router.post("/create-client", async (req, res) => {
   try {
-    const { username, password, event } = req.body;
+    const { username, password, event, contactPhone } = req.body;
 
     if (!username?.trim() || !password?.trim() || !event) {
       return res.status(400).json({ message: "יש למלא שם משתמש וסיסמה" });
@@ -162,27 +167,48 @@ router.post("/create-client", async (req, res) => {
       return res.status(400).json({ message: eventValidationError });
     }
 
+    const phone = String(contactPhone || req.body?.bridePhone || "").trim();
+    if (!phone) {
+      return res.status(400).json({ message: "יש להזין מספר טלפון של הכלה (איש קשר)" });
+    }
+
     const existing = await User.findOne({ username: username.trim() });
     if (existing) {
       return res.status(409).json({ message: "Username already exists" });
     }
 
-    const passwordHash = await bcrypt.hash(password, 10);
+    const plainPassword = String(password);
+    const passwordHash = await bcrypt.hash(plainPassword, 10);
 
     const user = await User.create({
       username: username.trim(),
       passwordHash,
-      loginPassword: String(password),
+      loginPassword: plainPassword,
+      contactPhone: phone,
       event: normalizedEvent,
       managedBy: "admin"
     });
 
     const links = buildClientLinks(user._id, req);
 
+    const welcomeWhatsApp = await sendEventManagerWelcomeWhatsApp({
+      contactPhone: phone,
+      brideName: normalizedEvent.brideName || normalizedEvent.eventNames,
+      username: user.username,
+      password: plainPassword,
+      dashboardUrl: links.clientDashboardLink,
+      invitationUrl: links.publicEventLink,
+      managerName: getAdminWelcomeDisplayName()
+    });
+
     return res.status(201).json({
       userId: user._id,
       ...links,
-      credentials: { username, password }
+      credentials: { username: user.username, password: plainPassword },
+      welcomeWhatsApp: {
+        sent: Boolean(welcomeWhatsApp.sent),
+        reason: welcomeWhatsApp.reason || null
+      }
     });
   } catch (error) {
     return res.status(500).json({ message: "Failed to create client", error: error.message });
@@ -192,7 +218,7 @@ router.post("/create-client", async (req, res) => {
 router.patch("/clients/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
-    const { username, password, event } = req.body;
+    const { username, password, event, contactPhone } = req.body;
 
     const user = await User.findById(userId);
     if (!user) {
@@ -212,6 +238,10 @@ router.patch("/clients/:userId", async (req, res) => {
       user.loginPassword = String(password);
     }
 
+    if (contactPhone != null || req.body?.bridePhone != null) {
+      user.contactPhone = String(contactPhone || req.body?.bridePhone || "").trim();
+    }
+
     if (event) {
       const normalizedEvent = normalizeEventPayload(event);
       const eventValidationError = validateEvent(normalizedEvent);
@@ -228,6 +258,7 @@ router.patch("/clients/:userId", async (req, res) => {
       userId: user._id,
       username: user.username,
       loginPassword: user.loginPassword || "",
+      contactPhone: user.contactPhone || "",
       ...links
     });
   } catch (error) {

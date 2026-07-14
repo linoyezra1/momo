@@ -10,6 +10,7 @@ import "../us/admin-portal.css";
 const initialForm = {
   username: "",
   password: "",
+  contactPhone: "",
   eventType: "חתונה",
   groomName: "",
   brideName: "",
@@ -108,6 +109,7 @@ export default function AdminPage() {
   const [clientQuotaError, setClientQuotaError] = useState("");
   const [clientQuotaSaved, setClientQuotaSaved] = useState(false);
   const [clientQuotaDraft, setClientQuotaDraft] = useState({ code: "", total_credits: "" });
+  const [welcomeNotice, setWelcomeNotice] = useState("");
   const publicEventUrl = toAppUrl(result?.publicEventLink);
   const clientDashboardUrl = toAppUrl(result?.clientDashboardLink);
   const eventDisplayText = buildEventDisplayText(createdEvent);
@@ -321,12 +323,17 @@ ${publicEventUrl}`
       setError("יש למלא שם חתן ושם כלה");
       return;
     }
+    if (wizardMode === "create" && !form.contactPhone.trim()) {
+      setError("יש להזין מספר טלפון של הכלה (איש קשר)");
+      return;
+    }
 
     setLoading(true);
 
     try {
       const payload = {
         username: form.username,
+        contactPhone: form.contactPhone,
         event: {
           eventType: form.eventType,
           groomName: form.eventType === "חתונה" ? form.groomName : "",
@@ -353,6 +360,19 @@ ${publicEventUrl}`
       setResult(response.data);
       setCreatedEvent(payload.event);
       setSelectedClientId(response.data.userId);
+      if (wizardMode === "create") {
+        if (response.data?.welcomeWhatsApp?.sent) {
+          setWelcomeNotice("הודעת וואטסאפ עם פרטי הגישה נשלחה לכלה");
+        } else if (response.data?.welcomeWhatsApp?.reason === "twilio_not_configured") {
+          setWelcomeNotice("החשבון נוצר, אך Twilio לא מוגדר — הודעת הוואטסאפ לא נשלחה");
+        } else if (response.data?.welcomeWhatsApp?.reason === "invalid_phone") {
+          setWelcomeNotice("החשבון נוצר, אך מספר הטלפון לא תקין לשליחת וואטסאפ");
+        } else {
+          setWelcomeNotice("החשבון נוצר, אך שליחת הודעת הוואטסאפ נכשלה");
+        }
+      } else {
+        setWelcomeNotice("");
+      }
       setForm(initialForm);
       setShowCreateWizard(false);
       setWizardMode("create");
@@ -402,6 +422,7 @@ ${publicEventUrl}`
     setForm({
       username: client.username || "",
       password: "",
+      contactPhone: client.contactPhone || "",
       eventType: client.event?.eventType || "חתונה",
       groomName: client.event?.groomName || "",
       brideName: client.event?.brideName || "",
@@ -833,6 +854,21 @@ ${publicEventUrl}`
                   required={wizardMode === "create"}
                 />
               </div>
+              <div className="us-admin-field">
+                <label className="us-admin-field-label" htmlFor="contactPhone">
+                  טלפון הכלה (איש קשר) {wizardMode === "create" ? <span className="us-admin-required">*</span> : null}
+                </label>
+                <input
+                  id="contactPhone"
+                  className="us-admin-field-input"
+                  name="contactPhone"
+                  type="tel"
+                  value={form.contactPhone}
+                  onChange={onChange}
+                  placeholder="05XXXXXXXX"
+                  required={wizardMode === "create"}
+                />
+              </div>
 
               <hr className="us-admin-divider" />
 
@@ -1042,6 +1078,7 @@ ${publicEventUrl}`
           <div className="us-admin-card us-admin-result-card">
             <h2 className="us-admin-card-title">🎉 יופי, הכול מוכן! 🎉</h2>
             <div className="us-admin-card-body">
+              {welcomeNotice ? <p className="us-admin-message">{welcomeNotice}</p> : null}
               <div className="us-admin-detail-grid">
                 <div className="us-admin-detail-item">
                   <span className="us-admin-detail-label">שם משתמש</span>
