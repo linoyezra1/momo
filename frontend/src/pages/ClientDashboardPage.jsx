@@ -5,6 +5,7 @@ import api from "../api";
 import WhatsAppIcon from "../components/WhatsAppIcon";
 import { buildWhatsAppMessageTemplate, buildWhatsAppSendUrl } from "../utils/whatsapp";
 import { normalizeIsraeliPhone } from "../utils/phoneNormalize";
+import { formatFailedRowLabel, mergeFailedRows, parseExcelGuestRows } from "../utils/guestExcelImport";
 import IlInvitationEditor from "../il/components/IlInvitationEditor.jsx";
 import "../us/client-portal.css";
 import "../il/il-portal.css";
@@ -119,6 +120,8 @@ export default function ClientDashboardPage() {
   const [importSubmitting, setImportSubmitting] = useState(false);
   const [importChecking, setImportChecking] = useState(false);
   const [pendingNewGuests, setPendingNewGuests] = useState([]);
+  const [pendingImportMeta, setPendingImportMeta] = useState({ totalCount: 0, failedRows: [] });
+  const [importSummary, setImportSummary] = useState(null);
   const [guests, setGuests] = useState([]);
   const [eventInfo, setEventInfo] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -366,24 +369,21 @@ export default function ClientDashboardPage() {
     return "ידני";
   };
 
-  const mapRowToGuest = (row) => {
-    const fullName = String(row["שם מלא"] ?? row["fullName"] ?? row["name"] ?? "").trim();
-    const phone = normalizeIsraeliPhone(row["טלפון"] ?? row["phone"] ?? "");
-    const amountRaw =
-      row["כמות"] ??
-      row["כמות מגיעים"] ??
-      row["כמות אנשים"] ??
-      row["מוזמנים"] ??
-      row["amount"] ??
-      row["count"] ??
-      row["attendeesCount"];
-    const attendeesCount = Math.max(1, parseAttendeesCount(amountRaw));
-    return { fullName, phone, attendeesCount, status: "לא ידוע" };
-  };
-
-  const finalizeImport = async (newGuests, resolutions) => {
-    await api.post(`/client/${userId}/guests/import`, { newGuests, resolutions });
+  const finalizeImport = async (newGuests, resolutions, meta = {}) => {
+    const response = await api.post(`/client/${userId}/guests/import`, {
+      newGuests,
+      resolutions,
+      totalCount: meta.totalCount,
+      failedRows: meta.failedRows || []
+    });
     await loadGuests();
+    const data = response.data || {};
+    setImportSummary({
+      uploadedCount: Number(data.uploadedCount || 0),
+      totalCount: Number(data.totalCount || meta.totalCount || 0),
+      failedRows: mergeFailedRows(meta.failedRows || [], data.failedRows || [])
+    });
+    return data;
   };
 
   const onImportFile = async (event) => {
@@ -391,6 +391,7 @@ export default function ClientDashboardPage() {
     if (!file) return;
 
     setImportError("");
+    setImportSummary(null);
     setImportChecking(true);
     try {
       const XLSX = await import("xlsx");
@@ -402,16 +403,32 @@ export default function ClientDashboardPage() {
       }
       const firstSheetName = workbook.SheetNames[0];
       const rows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheetName], { defval: "", raw: false });
-      const guestsToImport = rows.map(mapRowToGuest).filter((row) => row.fullName && row.phone);
-      if (!guestsToImport.length) {
+      const { totalCount, validGuests, failedRows } = parseExcelGuestRows(rows);
+
+      if (!totalCount) {
         setImportError("לא נמצאו שורות תקינות. ודאו שיש עמודות: שם מלא, טלפון, וכמות (אופציונלי).");
         return;
       }
 
-      const precheck = await api.post(`/client/${userId}/guests/import/precheck`, { guests: guestsToImport });
+      if (!validGuests.length) {
+        setImportSummary({
+          uploadedCount: 0,
+          totalCount,
+          failedRows
+        });
+        return;
+      }
+
+      const precheck = await api.post(`/client/${userId}/guests/import/precheck`, { guests: validGuests });
       const conflicts = precheck.data?.conflicts || [];
       const newGuests = precheck.data?.newGuests || [];
+      const precheckFailed = mergeFailedRows(failedRows, precheck.data?.failedRows || []);
+      const importMeta = {
+        totalCount: Number(precheck.data?.totalCount || totalCount),
+        failedRows: precheckFailed
+      };
       setPendingNewGuests(newGuests);
+      setPendingImportMeta(importMeta);
 
       if (conflicts.length > 0) {
         const defaults = {};
@@ -424,7 +441,7 @@ export default function ClientDashboardPage() {
         return;
       }
 
-      await finalizeImport(newGuests, []);
+      await finalizeImport(newGuests, [], importMeta);
     } catch (importErr) {
       const serverMessage = importErr.response?.data?.message || importErr.response?.data?.error;
       setImportError(serverMessage || "העלאת קובץ האקסל נכשלה. בדקו את הפורמט ונסו שוב.");
@@ -487,6 +504,7 @@ export default function ClientDashboardPage() {
     setImportConflicts([]);
     setConflictChoices({});
     setPendingNewGuests([]);
+    setPendingImportMeta({ totalCount: 0, failedRows: [] });
   };
 
   const applyConflictResolutions = async () => {
@@ -496,9 +514,10 @@ export default function ClientDashboardPage() {
       const resolutions = importConflicts.map((item) => ({
         phone: item.phone,
         choice: conflictChoices[item.phone] || "keep_existing",
+        rowNumber: item.rowNumber,
         excel: item.excel
       }));
-      await finalizeImport(pendingNewGuests, resolutions);
+      await finalizeImport(pendingNewGuests, resolutions, pendingImportMeta);
       closeConflictModal();
     } catch (resolveErr) {
       setImportError(resolveErr.response?.data?.message || "שמירת הייבוא נכשלה");
@@ -865,6 +884,7 @@ export default function ClientDashboardPage() {
                   <div key={item.phone} className="us-conflict-card">
                     <p className="us-dashboard-emphasis text-sm" dir="ltr">
                       {item.phone}
+                      {item.rowNumber ? ` · שורה ${item.rowNumber}` : ""}
                     </p>
                     <div className="mt-2 grid gap-2 text-sm md:grid-cols-2">
                       <div>
@@ -905,6 +925,40 @@ export default function ClientDashboardPage() {
                 </button>
                 <button className="us-btn" type="button" onClick={closeConflictModal}>
                   ביטול
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {importSummary ? (
+          <div className="us-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="import-summary-title">
+            <div className="us-modal-card us-import-summary-card">
+              <h2 className="us-modal-title" id="import-summary-title">
+                העלאת הקובץ הושלמה!
+              </h2>
+              <p className="us-import-summary-text">
+                סך הכל הועלו בהצלחה:{" "}
+                <strong>
+                  {importSummary.uploadedCount} מתוך {importSummary.totalCount}
+                </strong>{" "}
+                מוזמנים.
+              </p>
+              {importSummary.failedRows?.length ? (
+                <div className="us-import-failed">
+                  <p className="us-import-failed__title">השורות הבאות לא עלו למערכת:</p>
+                  <ul className="us-import-failed__list">
+                    {importSummary.failedRows.map((item, index) => (
+                      <li key={`${item.rowNumber}-${item.reason}-${index}`}>{formatFailedRowLabel(item)}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <p className="us-import-summary-ok">כל השורות התקינות נשמרו בהצלחה.</p>
+              )}
+              <div className="us-toolbar mt-4">
+                <button className="us-btn us-btn--primary" type="button" onClick={() => setImportSummary(null)}>
+                  סגור
                 </button>
               </div>
             </div>

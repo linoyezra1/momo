@@ -1,0 +1,114 @@
+import { normalizeIsraeliPhone } from "./phoneNormalize.js";
+
+function parseAttendeesCount(raw) {
+  if (raw == null || raw === "") return 1;
+  const asNumber = Number(raw);
+  if (!Number.isNaN(asNumber) && asNumber > 0) return asNumber;
+  const match = String(raw).match(/\d+/);
+  return match ? Number(match[0]) : 1;
+}
+
+export function isValidIsraeliMobilePhone(phone) {
+  const normalized = normalizeIsraeliPhone(phone);
+  return /^05\d{8}$/.test(normalized);
+}
+
+export function makeFailedRow(rowNumber, name, reason) {
+  return {
+    rowNumber: Number(rowNumber) || null,
+    name: String(name || "").trim(),
+    reason: String(reason || "שגיאה לא ידועה")
+  };
+}
+
+/**
+ * Parse sheet rows (objects from xlsx sheet_to_json) into valid guests + failedRows.
+ * Excel row numbers assume a header on row 1 → data starts at row 2.
+ */
+export function parseExcelGuestRows(rows) {
+  const failedRows = [];
+  const validGuests = [];
+  const seenPhones = new Map();
+  let totalCount = 0;
+
+  (Array.isArray(rows) ? rows : []).forEach((row, index) => {
+    const rowNumber = index + 2;
+    const fullName = String(row["שם מלא"] ?? row.fullName ?? row.name ?? "").trim();
+    const rawPhoneValue = row["טלפון"] ?? row.phone ?? "";
+    const rawPhone = String(rawPhoneValue ?? "").trim();
+    const phone = normalizeIsraeliPhone(rawPhoneValue);
+    const amountRaw =
+      row["כמות"] ??
+      row["כמות מגיעים"] ??
+      row["כמות אנשים"] ??
+      row["מוזמנים"] ??
+      row.amount ??
+      row.count ??
+      row.attendeesCount;
+    const hasAmount = String(amountRaw ?? "").trim() !== "";
+    const hasAnyContent = Boolean(fullName || rawPhone || hasAmount);
+
+    if (!hasAnyContent) return;
+
+    totalCount += 1;
+
+    if (!fullName) {
+      failedRows.push(makeFailedRow(rowNumber, "", "שם חסר בקובץ"));
+      return;
+    }
+
+    if (!rawPhone) {
+      failedRows.push(makeFailedRow(rowNumber, fullName, "מספר טלפון חסר בקובץ"));
+      return;
+    }
+
+    if (!isValidIsraeliMobilePhone(phone)) {
+      failedRows.push(makeFailedRow(rowNumber, fullName, "מספר טלפון לא תקין"));
+      return;
+    }
+
+    if (seenPhones.has(phone)) {
+      failedRows.push(
+        makeFailedRow(
+          rowNumber,
+          fullName,
+          `מספר טלפון כבר מופיע בקובץ (כפילות עם שורה ${seenPhones.get(phone)})`
+        )
+      );
+      return;
+    }
+
+    seenPhones.set(phone, rowNumber);
+    validGuests.push({
+      fullName,
+      phone,
+      attendeesCount: Math.max(1, parseAttendeesCount(amountRaw)),
+      status: "לא ידוע",
+      rowNumber
+    });
+  });
+
+  failedRows.sort((a, b) => (a.rowNumber || 0) - (b.rowNumber || 0));
+  return { totalCount, validGuests, failedRows };
+}
+
+export function mergeFailedRows(...lists) {
+  const merged = [];
+  const seen = new Set();
+  for (const list of lists) {
+    for (const item of list || []) {
+      const key = `${item.rowNumber}|${item.name}|${item.reason}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      merged.push(makeFailedRow(item.rowNumber, item.name, item.reason));
+    }
+  }
+  merged.sort((a, b) => (a.rowNumber || 0) - (b.rowNumber || 0));
+  return merged;
+}
+
+export function formatFailedRowLabel(item) {
+  const rowPart = item.rowNumber ? `שורה ${item.rowNumber}` : "שורה לא ידועה";
+  const namePart = item.name ? ` (${item.name})` : "";
+  return `${rowPart}${namePart}: ${item.reason}`;
+}

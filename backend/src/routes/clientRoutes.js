@@ -3,6 +3,12 @@ import bcrypt from "bcryptjs";
 import User from "../models/User.js";
 import Guest from "../models/Guest.js";
 import { normalizePhone, isSelfConfirmedSource } from "../utils/guestPhone.js";
+import {
+  extractGuestFieldsFromRow,
+  makeFailedRow,
+  processImportGuestBatch,
+  validateImportGuestRow
+} from "../utils/guestImport.js";
 import { normalizeIlEventUpdatePayload } from "../utils/ilEvent.js";
 import { sendBulkWhatsApp } from "../services/bulkWhatsAppService.js";
 import { getClientBaseUrl } from "../utils/clientUrl.js";
@@ -10,32 +16,16 @@ import ActivationCode from "../models/ActivationCode.js";
 
 const router = express.Router();
 
-function parseAttendeesCount(raw) {
-  if (raw == null || raw === "") return 1;
-  const asNumber = Number(raw);
-  if (!Number.isNaN(asNumber) && asNumber > 0) return asNumber;
-  const match = String(raw).match(/\d+/);
-  return match ? Number(match[0]) : 1;
-}
-
 function mapRowToGuest(row) {
-  const fullName = String(row["שם מלא"] ?? row["fullName"] ?? row["name"] ?? "").trim();
-  const phone = normalizePhone(row["טלפון"] ?? row["phone"] ?? "");
-  const amountRaw =
-    row["כמות"] ??
-    row["כמות מגיעים"] ??
-    row["כמות אנשים"] ??
-    row["מוזמנים"] ??
-    row["amount"] ??
-    row["count"] ??
-    row["attendeesCount"];
-  const attendeesCount = Math.max(1, parseAttendeesCount(amountRaw));
-  const statusRaw = String(row["סטטוס"] ?? row["status"] ?? row["סטטוס הגעה"] ?? "").trim();
-  let status = "לא ידוע";
-  if (statusRaw === "מגיע" || statusRaw === "לא מגיע" || statusRaw === "אולי") {
-    status = statusRaw;
-  }
-  return { fullName, phone, attendeesCount, status, giftAmount: 0 };
+  const fields = extractGuestFieldsFromRow(row);
+  return {
+    fullName: fields.fullName,
+    phone: fields.phone,
+    attendeesCount: fields.attendeesCount,
+    status: fields.status,
+    giftAmount: 0,
+    rowNumber: row?.rowNumber ?? row?.excelRowNumber ?? null
+  };
 }
 
 function toGuestDoc(userId, mapped) {
@@ -46,7 +36,8 @@ function toGuestDoc(userId, mapped) {
     attendeesCount: mapped.attendeesCount,
     giftAmount: Math.max(0, Number(mapped.giftAmount || 0)),
     status: mapped.status,
-    source: "excel"
+    source: "excel",
+    rowNumber: mapped.rowNumber ?? null
   };
 }
 
@@ -196,32 +187,53 @@ router.post("/:userId/guests/import/precheck", async (req, res) => {
       return res.status(404).json({ message: "Client not found" });
     }
 
-    const docs = guests
-      .map((row) => toGuestDoc(userId, mapRowToGuest(row)))
-      .filter((guest) => guest.fullName && guest.phone);
+    const { totalCount, validGuests, failedRows } = processImportGuestBatch(guests);
 
-    if (docs.length === 0) {
-      return res.status(400).json({ message: "No valid guests to import" });
+    if (totalCount === 0) {
+      return res.status(400).json({
+        message: "No valid guests to import",
+        success: false,
+        uploadedCount: 0,
+        totalCount: 0,
+        failedRows: []
+      });
     }
 
-    const phones = [...new Set(docs.map((doc) => doc.phone))];
+    if (validGuests.length === 0) {
+      return res.json({
+        message: "Precheck completed — no valid rows",
+        success: true,
+        totalCount,
+        totalRows: 0,
+        conflictCount: 0,
+        newCount: 0,
+        conflicts: [],
+        newGuests: [],
+        failedRows
+      });
+    }
+
+    const phones = [...new Set(validGuests.map((guest) => guest.phone))];
     const existingGuests = await Guest.find({ userId, phone: { $in: phones } });
     const existingByPhone = new Map(existingGuests.map((guest) => [guest.phone, guest]));
 
     const newGuests = [];
     const conflicts = [];
 
-    for (const doc of docs) {
-      const existing = existingByPhone.get(doc.phone);
+    for (const guest of validGuests) {
+      const existing = existingByPhone.get(guest.phone);
+      const doc = toGuestDoc(userId, guest);
       if (existing) {
         conflicts.push({
           guestId: existing._id,
           phone: doc.phone,
+          rowNumber: guest.rowNumber,
           existing: guestSnapshot(existing),
           excel: {
             fullName: doc.fullName,
             attendeesCount: doc.attendeesCount,
-            status: doc.status
+            status: doc.status,
+            rowNumber: guest.rowNumber
           }
         });
       } else {
@@ -231,11 +243,14 @@ router.post("/:userId/guests/import/precheck", async (req, res) => {
 
     return res.json({
       message: "Precheck completed",
-      totalRows: docs.length,
+      success: true,
+      totalCount,
+      totalRows: validGuests.length,
       conflictCount: conflicts.length,
       newCount: newGuests.length,
       conflicts,
-      newGuests
+      newGuests,
+      failedRows
     });
   } catch (error) {
     return res.status(500).json({ message: error.message || "Failed to precheck import" });
@@ -245,68 +260,160 @@ router.post("/:userId/guests/import/precheck", async (req, res) => {
 router.post("/:userId/guests/import", async (req, res) => {
   try {
     const { userId } = req.params;
-    const { newGuests, resolutions } = req.body;
+    const { newGuests, resolutions, totalCount: clientTotalCount, failedRows: clientFailedRows } = req.body;
 
     const user = await User.findById(userId).select("_id");
     if (!user) {
       return res.status(404).json({ message: "Client not found" });
     }
 
+    const failedRows = Array.isArray(clientFailedRows)
+      ? clientFailedRows.map((item) =>
+          makeFailedRow(item.rowNumber, item.name, item.reason)
+        )
+      : [];
+
     let insertedCount = 0;
     const guestsToInsert = Array.isArray(newGuests) ? newGuests : [];
+    const seenInsertPhones = new Set();
 
     for (const row of guestsToInsert) {
-      const doc =
-        row?.phone && row?.fullName
-          ? {
-              userId,
-              fullName: String(row.fullName).trim(),
-              phone: normalizePhone(row.phone),
-              attendeesCount: Math.max(1, Number(row.attendeesCount || 1)),
-              giftAmount: Math.max(0, Number(row.giftAmount || 0)),
-              status: row.status || "לא ידוע",
-              source: "excel"
-            }
-          : toGuestDoc(userId, mapRowToGuest(row));
-      if (!doc.fullName || !doc.phone) continue;
-      const exists = await Guest.findOne({ userId, phone: doc.phone }).select("_id");
-      if (exists) continue;
-      await Guest.create(doc);
-      insertedCount += 1;
+      const rowNumber = row?.rowNumber ?? row?.excelRowNumber ?? null;
+      let doc;
+      if (row?.phone && row?.fullName) {
+        doc = {
+          userId,
+          fullName: String(row.fullName).trim(),
+          phone: normalizePhone(row.phone),
+          attendeesCount: Math.max(1, Number(row.attendeesCount || 1)),
+          giftAmount: Math.max(0, Number(row.giftAmount || 0)),
+          status: row.status || "לא ידוע",
+          source: "excel"
+        };
+      } else {
+        const validated = validateImportGuestRow(row, rowNumber);
+        if (validated.empty) continue;
+        if (validated.fail) {
+          failedRows.push(validated.fail);
+          continue;
+        }
+        doc = toGuestDoc(userId, validated.guest);
+      }
+
+      if (!doc.fullName) {
+        failedRows.push(makeFailedRow(rowNumber, "", "שם חסר בקובץ"));
+        continue;
+      }
+      if (!doc.phone || !/^05\d{8}$/.test(doc.phone)) {
+        failedRows.push(makeFailedRow(rowNumber, doc.fullName, "מספר טלפון לא תקין"));
+        continue;
+      }
+      if (seenInsertPhones.has(doc.phone)) {
+        failedRows.push(
+          makeFailedRow(rowNumber, doc.fullName, "מספר טלפון כבר קיים במערכת (כפילות)")
+        );
+        continue;
+      }
+
+      const exists = await Guest.findOne({ userId, phone: doc.phone }).select("_id fullName");
+      if (exists) {
+        failedRows.push(
+          makeFailedRow(rowNumber, doc.fullName, "מספר טלפון כבר קיים במערכת (כפילות)")
+        );
+        continue;
+      }
+
+      try {
+        await Guest.create(doc);
+        seenInsertPhones.add(doc.phone);
+        insertedCount += 1;
+      } catch (createError) {
+        failedRows.push(
+          makeFailedRow(rowNumber, doc.fullName, createError.message || "שמירת הרשומה נכשלה")
+        );
+      }
     }
 
     let updatedCount = 0;
+    let keptExistingCount = 0;
     const resolutionList = Array.isArray(resolutions) ? resolutions : [];
 
     for (const resolution of resolutionList) {
+      if (resolution?.choice === "keep_existing") {
+        keptExistingCount += 1;
+        continue;
+      }
       if (resolution?.choice !== "use_excel") continue;
       const phone = normalizePhone(resolution.phone);
       const excelRow = resolution.excel || resolution.excelData;
-      if (!phone || !excelRow) continue;
+      const rowNumber = excelRow?.rowNumber ?? resolution.rowNumber ?? null;
+      if (!phone || !excelRow) {
+        failedRows.push(makeFailedRow(rowNumber, "", "חסרים פרטי עדכון מהאקסל"));
+        continue;
+      }
 
-      const mapped = mapRowToGuest(excelRow);
-      const doc = toGuestDoc(userId, mapped);
-      const existing = await Guest.findOne({ userId, phone });
-      if (!existing) continue;
-
-      await Guest.findByIdAndUpdate(
-        existing._id,
+      const validated = validateImportGuestRow(
         {
-          fullName: doc.fullName,
-          attendeesCount: doc.attendeesCount,
-          giftAmount: Math.max(0, Number(doc.giftAmount || 0)),
-          status: doc.status,
-          source: resolveSourceAfterExcelOverwrite(existing.source)
+          fullName: excelRow.fullName,
+          phone: excelRow.phone || phone,
+          attendeesCount: excelRow.attendeesCount,
+          status: excelRow.status,
+          rowNumber
         },
-        { runValidators: true }
+        rowNumber
       );
-      updatedCount += 1;
+
+      if (validated.fail) {
+        failedRows.push(validated.fail);
+        continue;
+      }
+
+      const doc = toGuestDoc(userId, validated.guest || mapRowToGuest(excelRow));
+      const existing = await Guest.findOne({ userId, phone });
+      if (!existing) {
+        failedRows.push(
+          makeFailedRow(rowNumber, doc.fullName, "לא נמצאה רשומה קיימת לעדכון")
+        );
+        continue;
+      }
+
+      try {
+        await Guest.findByIdAndUpdate(
+          existing._id,
+          {
+            fullName: doc.fullName,
+            attendeesCount: doc.attendeesCount,
+            giftAmount: Math.max(0, Number(doc.giftAmount || 0)),
+            status: doc.status,
+            source: resolveSourceAfterExcelOverwrite(existing.source)
+          },
+          { runValidators: true }
+        );
+        updatedCount += 1;
+      } catch (updateError) {
+        failedRows.push(
+          makeFailedRow(rowNumber, doc.fullName, updateError.message || "עדכון הרשומה נכשל")
+        );
+      }
     }
 
+    const uploadedCount = insertedCount + updatedCount + keptExistingCount;
+    const totalCount =
+      Number(clientTotalCount) > 0
+        ? Number(clientTotalCount)
+        : uploadedCount + failedRows.length;
+
+    failedRows.sort((a, b) => (a.rowNumber || 0) - (b.rowNumber || 0));
+
     return res.status(201).json({
+      success: true,
       message: "Guests import saved",
+      uploadedCount,
       insertedCount,
-      updatedCount
+      updatedCount,
+      keptExistingCount,
+      totalCount,
+      failedRows
     });
   } catch (error) {
     return res.status(500).json({ message: error.message || "Failed to import guests" });
