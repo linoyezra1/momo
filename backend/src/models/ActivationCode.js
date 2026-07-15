@@ -11,13 +11,20 @@ const activationCodeSchema = new mongoose.Schema(
     },
     total_credits: { type: Number, required: true, min: 1 },
     remaining_credits: { type: Number, required: true, min: 0 },
-    isActive: { type: Boolean, default: true },
+    isActive: { type: Boolean, default: true, index: true },
     expiresAt: { type: Date, default: null },
     note: { type: String, trim: true, default: "" },
-    redeemedByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null }
+    redeemedByUserId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+      index: true
+    }
   },
   { timestamps: true }
 );
+
+activationCodeSchema.index({ redeemedByUserId: 1, isActive: 1, createdAt: -1 });
 
 activationCodeSchema.pre("validate", function normalizeCredits(next) {
   if (this.isNew && (this.remaining_credits == null || this.remaining_credits === undefined)) {

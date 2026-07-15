@@ -13,6 +13,14 @@ export function isValidIsraeliMobilePhone(phone) {
   return /^05\d{8}$/.test(normalized);
 }
 
+export function hasUsablePhoneDigits(phone) {
+  const digits = String(phone || "").replace(/\D/g, "");
+  return digits.length >= 7;
+}
+
+export const NON_ISRAELI_PHONE_WARNING =
+  "מספר הטלפון אינו ישראלי — עלה למערכת, אנא ודאו שאין טעות ושהמספר תקין";
+
 export function makeFailedRow(rowNumber, name, reason) {
   return {
     rowNumber: Number(rowNumber) || null,
@@ -22,11 +30,12 @@ export function makeFailedRow(rowNumber, name, reason) {
 }
 
 /**
- * Parse sheet rows (objects from xlsx sheet_to_json) into valid guests + failedRows.
- * Excel row numbers assume a header on row 1 → data starts at row 2.
+ * Parse sheet rows into valid guests + failedRows + warningRows.
+ * Non-Israeli phones are imported with a warning (not rejected).
  */
 export function parseExcelGuestRows(rows) {
   const failedRows = [];
+  const warningRows = [];
   const validGuests = [];
   const seenPhones = new Map();
   let totalCount = 0;
@@ -62,26 +71,32 @@ export function parseExcelGuestRows(rows) {
       return;
     }
 
-    if (!isValidIsraeliMobilePhone(phone)) {
-      failedRows.push(makeFailedRow(rowNumber, fullName, "מספר טלפון לא תקין"));
+    if (!hasUsablePhoneDigits(rawPhone)) {
+      failedRows.push(makeFailedRow(rowNumber, fullName, "מספר טלפון לא ניתן לזיהוי"));
       return;
     }
 
-    if (seenPhones.has(phone)) {
+    const storedPhone = phone || rawPhone.replace(/\D/g, "");
+
+    if (seenPhones.has(storedPhone)) {
       failedRows.push(
         makeFailedRow(
           rowNumber,
           fullName,
-          `מספר טלפון כבר מופיע בקובץ (כפילות עם שורה ${seenPhones.get(phone)})`
+          `מספר טלפון כבר מופיע בקובץ (כפילות עם שורה ${seenPhones.get(storedPhone)})`
         )
       );
       return;
     }
 
-    seenPhones.set(phone, rowNumber);
+    if (!isValidIsraeliMobilePhone(storedPhone)) {
+      warningRows.push(makeFailedRow(rowNumber, fullName, NON_ISRAELI_PHONE_WARNING));
+    }
+
+    seenPhones.set(storedPhone, rowNumber);
     validGuests.push({
       fullName,
-      phone,
+      phone: storedPhone,
       attendeesCount: Math.max(1, parseAttendeesCount(amountRaw)),
       status: "לא ידוע",
       rowNumber
@@ -89,7 +104,8 @@ export function parseExcelGuestRows(rows) {
   });
 
   failedRows.sort((a, b) => (a.rowNumber || 0) - (b.rowNumber || 0));
-  return { totalCount, validGuests, failedRows };
+  warningRows.sort((a, b) => (a.rowNumber || 0) - (b.rowNumber || 0));
+  return { totalCount, validGuests, failedRows, warningRows };
 }
 
 export function mergeFailedRows(...lists) {

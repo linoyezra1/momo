@@ -120,7 +120,7 @@ export default function ClientDashboardPage() {
   const [importSubmitting, setImportSubmitting] = useState(false);
   const [importChecking, setImportChecking] = useState(false);
   const [pendingNewGuests, setPendingNewGuests] = useState([]);
-  const [pendingImportMeta, setPendingImportMeta] = useState({ totalCount: 0, failedRows: [] });
+  const [pendingImportMeta, setPendingImportMeta] = useState({ totalCount: 0, failedRows: [], warningRows: [] });
   const [importSummary, setImportSummary] = useState(null);
   const [guests, setGuests] = useState([]);
   const [eventInfo, setEventInfo] = useState(null);
@@ -374,14 +374,16 @@ export default function ClientDashboardPage() {
       newGuests,
       resolutions,
       totalCount: meta.totalCount,
-      failedRows: meta.failedRows || []
+      failedRows: meta.failedRows || [],
+      warningRows: meta.warningRows || []
     });
     await loadGuests();
     const data = response.data || {};
     setImportSummary({
       uploadedCount: Number(data.uploadedCount || 0),
       totalCount: Number(data.totalCount || meta.totalCount || 0),
-      failedRows: mergeFailedRows(meta.failedRows || [], data.failedRows || [])
+      failedRows: mergeFailedRows(meta.failedRows || [], data.failedRows || []),
+      warningRows: mergeFailedRows(meta.warningRows || [], data.warningRows || [])
     });
     return data;
   };
@@ -403,7 +405,7 @@ export default function ClientDashboardPage() {
       }
       const firstSheetName = workbook.SheetNames[0];
       const rows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheetName], { defval: "", raw: false });
-      const { totalCount, validGuests, failedRows } = parseExcelGuestRows(rows);
+      const { totalCount, validGuests, failedRows, warningRows } = parseExcelGuestRows(rows);
 
       if (!totalCount) {
         setImportError("לא נמצאו שורות תקינות. ודאו שיש עמודות: שם מלא, טלפון, וכמות (אופציונלי).");
@@ -414,7 +416,8 @@ export default function ClientDashboardPage() {
         setImportSummary({
           uploadedCount: 0,
           totalCount,
-          failedRows
+          failedRows,
+          warningRows
         });
         return;
       }
@@ -423,9 +426,11 @@ export default function ClientDashboardPage() {
       const conflicts = precheck.data?.conflicts || [];
       const newGuests = precheck.data?.newGuests || [];
       const precheckFailed = mergeFailedRows(failedRows, precheck.data?.failedRows || []);
+      const precheckWarnings = mergeFailedRows(warningRows, precheck.data?.warningRows || []);
       const importMeta = {
         totalCount: Number(precheck.data?.totalCount || totalCount),
-        failedRows: precheckFailed
+        failedRows: precheckFailed,
+        warningRows: precheckWarnings
       };
       setPendingNewGuests(newGuests);
       setPendingImportMeta(importMeta);
@@ -504,7 +509,7 @@ export default function ClientDashboardPage() {
     setImportConflicts([]);
     setConflictChoices({});
     setPendingNewGuests([]);
-    setPendingImportMeta({ totalCount: 0, failedRows: [] });
+    setPendingImportMeta({ totalCount: 0, failedRows: [], warningRows: [] });
   };
 
   const applyConflictResolutions = async () => {
@@ -949,13 +954,23 @@ export default function ClientDashboardPage() {
                   <p className="us-import-failed__title">השורות הבאות לא עלו למערכת:</p>
                   <ul className="us-import-failed__list">
                     {importSummary.failedRows.map((item, index) => (
-                      <li key={`${item.rowNumber}-${item.reason}-${index}`}>{formatFailedRowLabel(item)}</li>
+                      <li key={`fail-${item.rowNumber}-${item.reason}-${index}`}>{formatFailedRowLabel(item)}</li>
                     ))}
                   </ul>
                 </div>
               ) : (
                 <p className="us-import-summary-ok">כל השורות התקינות נשמרו בהצלחה.</p>
               )}
+              {importSummary.warningRows?.length ? (
+                <div className="us-import-warnings">
+                  <p className="us-import-warnings__title">שימו לב — השורות הבאות עלו, אך כדאי לוודא את המספר:</p>
+                  <ul className="us-import-warnings__list">
+                    {importSummary.warningRows.map((item, index) => (
+                      <li key={`warn-${item.rowNumber}-${item.reason}-${index}`}>{formatFailedRowLabel(item)}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
               <div className="us-toolbar mt-4">
                 <button className="us-btn us-btn--primary" type="button" onClick={() => setImportSummary(null)}>
                   סגור

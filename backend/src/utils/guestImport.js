@@ -14,6 +14,15 @@ export function isValidIsraeliMobilePhone(phone) {
   return /^05\d{8}$/.test(normalized);
 }
 
+/** Any usable phone for import — keep international numbers too. */
+export function hasUsablePhoneDigits(phone) {
+  const digits = String(phone || "").replace(/\D/g, "");
+  return digits.length >= 7;
+}
+
+export const NON_ISRAELI_PHONE_WARNING =
+  "מספר הטלפון אינו ישראלי — עלה למערכת, אנא ודאו שאין טעות ושהמספר תקין";
+
 export function extractGuestFieldsFromRow(row = {}) {
   const fullName = String(row["שם מלא"] ?? row.fullName ?? row.name ?? "").trim();
   const rawPhone = String(row["טלפון"] ?? row.phone ?? "").trim();
@@ -43,9 +52,13 @@ export function makeFailedRow(rowNumber, name, reason) {
   };
 }
 
+export function makeWarningRow(rowNumber, name, reason) {
+  return makeFailedRow(rowNumber, name, reason);
+}
+
 /**
- * Validate one Excel/API guest row. Returns { empty }, { fail }, or { guest }.
- * `rowNumber` should be the Excel sheet row (usually index+2 with header).
+ * Validate one Excel/API guest row. Returns { empty }, { fail }, or { guest, warning? }.
+ * Non-Israeli phones are ACCEPTED with a warning — they still import.
  */
 export function validateImportGuestRow(row, rowNumber) {
   const fields = extractGuestFieldsFromRow(row);
@@ -71,30 +84,38 @@ export function validateImportGuestRow(row, rowNumber) {
     };
   }
 
-  if (!isValidIsraeliMobilePhone(fields.phone)) {
+  if (!hasUsablePhoneDigits(fields.rawPhone || fields.phone)) {
     return {
-      fail: makeFailedRow(rowNumber, fields.fullName, "מספר טלפון לא תקין")
+      fail: makeFailedRow(rowNumber, fields.fullName, "מספר טלפון לא ניתן לזיהוי")
     };
   }
 
-  return {
-    guest: {
-      fullName: fields.fullName,
-      phone: fields.phone,
-      attendeesCount: fields.attendeesCount,
-      status: fields.status,
-      giftAmount: 0,
-      rowNumber: Number(rowNumber) || null
-    }
+  const guest = {
+    fullName: fields.fullName,
+    phone: fields.phone || String(fields.rawPhone).replace(/\D/g, ""),
+    attendeesCount: fields.attendeesCount,
+    status: fields.status,
+    giftAmount: 0,
+    rowNumber: Number(rowNumber) || null
   };
+
+  if (!isValidIsraeliMobilePhone(guest.phone)) {
+    return {
+      guest,
+      warning: makeWarningRow(rowNumber, fields.fullName, NON_ISRAELI_PHONE_WARNING)
+    };
+  }
+
+  return { guest };
 }
 
 /**
- * Map incoming guest payloads (already mapped or raw Excel columns) and collect failures.
- * Detects duplicate phones within the same batch (first occurrence wins).
+ * Map incoming guest payloads and collect failures + soft warnings.
+ * Non-Israeli numbers are imported with a warning.
  */
 export function processImportGuestBatch(rows) {
   const failedRows = [];
+  const warningRows = [];
   const validGuests = [];
   const seenPhones = new Map();
   let totalCount = 0;
@@ -124,8 +145,9 @@ export function processImportGuestBatch(rows) {
     }
 
     seenPhones.set(guest.phone, rowNumber);
+    if (result.warning) warningRows.push(result.warning);
     validGuests.push(guest);
   });
 
-  return { totalCount, validGuests, failedRows };
+  return { totalCount, validGuests, failedRows, warningRows };
 }

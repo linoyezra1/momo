@@ -5,7 +5,11 @@ import Guest from "../models/Guest.js";
 import { normalizePhone, isSelfConfirmedSource } from "../utils/guestPhone.js";
 import {
   extractGuestFieldsFromRow,
+  hasUsablePhoneDigits,
+  isValidIsraeliMobilePhone,
   makeFailedRow,
+  makeWarningRow,
+  NON_ISRAELI_PHONE_WARNING,
   processImportGuestBatch,
   validateImportGuestRow
 } from "../utils/guestImport.js";
@@ -187,7 +191,7 @@ router.post("/:userId/guests/import/precheck", async (req, res) => {
       return res.status(404).json({ message: "Client not found" });
     }
 
-    const { totalCount, validGuests, failedRows } = processImportGuestBatch(guests);
+    const { totalCount, validGuests, failedRows, warningRows } = processImportGuestBatch(guests);
 
     if (totalCount === 0) {
       return res.status(400).json({
@@ -195,7 +199,8 @@ router.post("/:userId/guests/import/precheck", async (req, res) => {
         success: false,
         uploadedCount: 0,
         totalCount: 0,
-        failedRows: []
+        failedRows: [],
+        warningRows: []
       });
     }
 
@@ -209,7 +214,8 @@ router.post("/:userId/guests/import/precheck", async (req, res) => {
         newCount: 0,
         conflicts: [],
         newGuests: [],
-        failedRows
+        failedRows,
+        warningRows
       });
     }
 
@@ -250,7 +256,8 @@ router.post("/:userId/guests/import/precheck", async (req, res) => {
       newCount: newGuests.length,
       conflicts,
       newGuests,
-      failedRows
+      failedRows,
+      warningRows
     });
   } catch (error) {
     return res.status(500).json({ message: error.message || "Failed to precheck import" });
@@ -260,7 +267,8 @@ router.post("/:userId/guests/import/precheck", async (req, res) => {
 router.post("/:userId/guests/import", async (req, res) => {
   try {
     const { userId } = req.params;
-    const { newGuests, resolutions, totalCount: clientTotalCount, failedRows: clientFailedRows } = req.body;
+    const { newGuests, resolutions, totalCount: clientTotalCount, failedRows: clientFailedRows, warningRows: clientWarningRows } =
+      req.body;
 
     const user = await User.findById(userId).select("_id");
     if (!user) {
@@ -268,9 +276,10 @@ router.post("/:userId/guests/import", async (req, res) => {
     }
 
     const failedRows = Array.isArray(clientFailedRows)
-      ? clientFailedRows.map((item) =>
-          makeFailedRow(item.rowNumber, item.name, item.reason)
-        )
+      ? clientFailedRows.map((item) => makeFailedRow(item.rowNumber, item.name, item.reason))
+      : [];
+    const warningRows = Array.isArray(clientWarningRows)
+      ? clientWarningRows.map((item) => makeWarningRow(item.rowNumber, item.name, item.reason))
       : [];
 
     let insertedCount = 0;
@@ -281,10 +290,11 @@ router.post("/:userId/guests/import", async (req, res) => {
       const rowNumber = row?.rowNumber ?? row?.excelRowNumber ?? null;
       let doc;
       if (row?.phone && row?.fullName) {
+        const normalized = normalizePhone(row.phone);
         doc = {
           userId,
           fullName: String(row.fullName).trim(),
-          phone: normalizePhone(row.phone),
+          phone: normalized || String(row.phone).replace(/\D/g, ""),
           attendeesCount: Math.max(1, Number(row.attendeesCount || 1)),
           giftAmount: Math.max(0, Number(row.giftAmount || 0)),
           status: row.status || "לא ידוע",
@@ -297,6 +307,7 @@ router.post("/:userId/guests/import", async (req, res) => {
           failedRows.push(validated.fail);
           continue;
         }
+        if (validated.warning) warningRows.push(validated.warning);
         doc = toGuestDoc(userId, validated.guest);
       }
 
@@ -304,9 +315,12 @@ router.post("/:userId/guests/import", async (req, res) => {
         failedRows.push(makeFailedRow(rowNumber, "", "שם חסר בקובץ"));
         continue;
       }
-      if (!doc.phone || !/^05\d{8}$/.test(doc.phone)) {
-        failedRows.push(makeFailedRow(rowNumber, doc.fullName, "מספר טלפון לא תקין"));
+      if (!doc.phone || !hasUsablePhoneDigits(doc.phone)) {
+        failedRows.push(makeFailedRow(rowNumber, doc.fullName, "מספר טלפון לא ניתן לזיהוי"));
         continue;
+      }
+      if (!isValidIsraeliMobilePhone(doc.phone)) {
+        warningRows.push(makeWarningRow(rowNumber, doc.fullName, NON_ISRAELI_PHONE_WARNING));
       }
       if (seenInsertPhones.has(doc.phone)) {
         failedRows.push(
@@ -404,6 +418,17 @@ router.post("/:userId/guests/import", async (req, res) => {
         : uploadedCount + failedRows.length;
 
     failedRows.sort((a, b) => (a.rowNumber || 0) - (b.rowNumber || 0));
+    warningRows.sort((a, b) => (a.rowNumber || 0) - (b.rowNumber || 0));
+
+    // Deduplicate soft warnings by row+reason
+    const uniqueWarnings = [];
+    const seenWarnings = new Set();
+    for (const item of warningRows) {
+      const key = `${item.rowNumber}|${item.name}|${item.reason}`;
+      if (seenWarnings.has(key)) continue;
+      seenWarnings.add(key);
+      uniqueWarnings.push(item);
+    }
 
     return res.status(201).json({
       success: true,
@@ -413,7 +438,8 @@ router.post("/:userId/guests/import", async (req, res) => {
       updatedCount,
       keptExistingCount,
       totalCount,
-      failedRows
+      failedRows,
+      warningRows: uniqueWarnings
     });
   } catch (error) {
     return res.status(500).json({ message: error.message || "Failed to import guests" });
@@ -485,8 +511,9 @@ router.get("/:userId/whatsapp/quota", async (req, res) => {
 
     const codeRecord = await ActivationCode.findOne({
       redeemedByUserId: userId,
-      isActive: true
-    }).sort({ updatedAt: -1 });
+      isActive: true,
+      remaining_credits: { $gt: 0 }
+    }).sort({ createdAt: -1 });
 
     return res.json({
       quota: codeRecord
