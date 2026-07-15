@@ -1,5 +1,6 @@
 import { formatIsraeliDate, formatIsraeliWeekday } from "./dateFormat.js";
 import { normalizeIsraeliPhone } from "./phoneNormalize.js";
+import { resolveInviteCopyDefaults } from "./whatsappInviteCopy.js";
 
 const RSVP_PROMPT = "נשמח אם תוכלו לאשר הגעתכם בקישור המצורף:";
 
@@ -106,58 +107,64 @@ export function buildWhatsAppTemplateDefaults({ event, eventId, origin }) {
 }
 
 export function buildGuestWhatsAppMessage({ event, eventId, origin }) {
-  const { intro, eventDetails, rsvpLink, signature } = buildWhatsAppTemplateDefaults({
+  const { rsvpLink } = buildWhatsAppTemplateDefaults({
     event,
     eventId,
     origin
   });
+  const { welcomeParagraph, eventDetailsParagraph, closingParagraph } =
+    resolveInviteCopyDefaults(event);
 
-  const sections = [
-    intro,
+  return [
+    "✨ 🥂 ✨",
+    `שלום אורח/ת יקר/ה,`,
     "",
-    `האירוע יתקיים ב${eventDetails}`,
+    welcomeParagraph,
+    "",
+    `האירוע יתקיים ב${eventDetailsParagraph}`,
     "",
     RSVP_PROMPT,
-    rsvpLink
-  ];
-
-  if (signature) {
-    sections.push("", signature);
-  }
-
-  return sections.join("\n");
+    rsvpLink,
+    "",
+    closingParagraph,
+    "✨ 🎉 ✨"
+  ].join("\n");
 }
 
 export function buildWhatsAppMessageTemplate({ event, eventId, origin }) {
-  const { intro, eventDetails, rsvpLink, signature } = buildWhatsAppTemplateDefaults({
+  const { rsvpLink } = buildWhatsAppTemplateDefaults({
     event,
     eventId,
     origin
   });
+  const { welcomeParagraph, eventDetailsParagraph, closingParagraph } =
+    resolveInviteCopyDefaults(event);
 
-  const sections = [
-    "שלום [שם],",
+  return [
+    "✨ 🥂 ✨",
+    "שלום [שם האורח],",
     "",
-    intro,
+    welcomeParagraph,
     "",
-    `האירוע יתקיים ב${eventDetails}`,
+    `האירוע יתקיים ב${eventDetailsParagraph}`,
     "",
     RSVP_PROMPT,
-    rsvpLink
-  ];
-
-  if (signature) {
-    sections.push("", signature);
-  }
-
-  return sections.join("\n");
+    rsvpLink,
+    "",
+    closingParagraph,
+    "✨ 🎉 ✨"
+  ].join("\n");
 }
 export function personalizeWhatsAppMessage(template, guestName) {
   const name = String(guestName || "").trim();
-  if (!template || !template.includes("[שם]")) {
-    return name ? `שלום ${name},\n\n${template}` : template;
+  if (!template) return template;
+  if (template.includes("[שם האורח]")) {
+    return String(template).replace(/\[שם האורח\]/g, name || "אורח/ת יקר/ה");
   }
-  return String(template).replace(/\[שם\]/g, name);
+  if (template.includes("[שם]")) {
+    return String(template).replace(/\[שם\]/g, name || "אורח/ת יקר/ה");
+  }
+  return name ? `שלום ${name},\n\n${template}` : template;
 }
 
 export function buildWhatsAppSendUrl({ phone, event, eventId, origin }) {

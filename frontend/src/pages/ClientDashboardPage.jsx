@@ -3,10 +3,12 @@ import { Link, useParams } from "react-router-dom";
 import { Check, ChevronDown, Clock, HelpCircle, RotateCw, Search, Users, X } from "lucide-react";
 import api from "../api";
 import WhatsAppIcon from "../components/WhatsAppIcon";
-import { buildWhatsAppMessageTemplate, buildWhatsAppSendUrl } from "../utils/whatsapp";
+import { buildWhatsAppSendUrl } from "../utils/whatsapp";
+import { resolveInviteCopyDefaults } from "../utils/whatsappInviteCopy";
 import { normalizeIsraeliPhone } from "../utils/phoneNormalize";
 import { formatFailedRowLabel, mergeFailedRows, parseExcelGuestRows } from "../utils/guestExcelImport";
 import IlInvitationEditor from "../il/components/IlInvitationEditor.jsx";
+import IlWhatsAppInviteEditor from "../il/components/IlWhatsAppInviteEditor.jsx";
 import "../us/client-portal.css";
 import "../il/il-portal.css";
 
@@ -144,13 +146,20 @@ export default function ClientDashboardPage() {
   const [expandedGuestDetailIds, setExpandedGuestDetailIds] = useState(() => new Set());
   const [showBulkWhatsApp, setShowBulkWhatsApp] = useState(false);
   const [paymentCode, setPaymentCode] = useState("");
-  const [customWhatsAppMessage, setCustomWhatsAppMessage] = useState("");
+  const [inviteCopy, setInviteCopy] = useState({
+    welcomeParagraph: "",
+    eventDetailsParagraph: "",
+    closingParagraph: ""
+  });
+  const [inviteCopySaveState, setInviteCopySaveState] = useState("");
   const [whatsappQuota, setWhatsappQuota] = useState(null);
   const [whatsappQuotas, setWhatsappQuotas] = useState([]);
   const [bulkWhatsAppSending, setBulkWhatsAppSending] = useState(false);
   const [bulkWhatsAppResult, setBulkWhatsAppResult] = useState("");
   const [bulkWhatsAppError, setBulkWhatsAppError] = useState("");
   const fileInputRef = useRef(null);
+  const inviteCopySaveTimerRef = useRef(null);
+  const inviteCopyHydratedRef = useRef(false);
 
   const publicLink = `${window.location.origin}/event/${userId}`;
 
@@ -243,20 +252,62 @@ export default function ClientDashboardPage() {
     }
   };
 
-  const defaultWhatsAppTemplate = useMemo(() => {
-    if (!eventInfo) return "";
-    return buildWhatsAppMessageTemplate({
-      event: eventInfo,
-      eventId: userId,
-      origin: window.location.origin
-    });
-  }, [eventInfo, userId]);
+  const hydrateInviteCopy = useCallback((event) => {
+    setInviteCopy(resolveInviteCopyDefaults(event || {}));
+    inviteCopyHydratedRef.current = true;
+  }, []);
 
   useEffect(() => {
-    if (defaultWhatsAppTemplate && !customWhatsAppMessage) {
-      setCustomWhatsAppMessage(defaultWhatsAppTemplate);
-    }
-  }, [defaultWhatsAppTemplate, customWhatsAppMessage]);
+    if (!eventInfo || inviteCopyHydratedRef.current) return;
+    hydrateInviteCopy(eventInfo);
+  }, [eventInfo, hydrateInviteCopy]);
+
+  useEffect(() => {
+    return () => {
+      if (inviteCopySaveTimerRef.current) {
+        clearTimeout(inviteCopySaveTimerRef.current);
+      }
+    };
+  }, []);
+
+  const persistInviteCopy = useCallback(
+    async (nextCopy) => {
+      try {
+        setInviteCopySaveState("saving");
+        const response = await api.patch(`/client/${userId}/whatsapp-invite-copy`, nextCopy);
+        const saved = response.data?.event || nextCopy;
+        setEventInfo((prev) =>
+          prev
+            ? {
+                ...prev,
+                welcomeParagraph: saved.welcomeParagraph ?? nextCopy.welcomeParagraph,
+                eventDetailsParagraph:
+                  saved.eventDetailsParagraph ?? nextCopy.eventDetailsParagraph,
+                closingParagraph: saved.closingParagraph ?? nextCopy.closingParagraph
+              }
+            : prev
+        );
+        setInviteCopySaveState("saved");
+      } catch {
+        setInviteCopySaveState("error");
+      }
+    },
+    [userId]
+  );
+
+  const onInviteCopyChange = useCallback(
+    (nextCopy) => {
+      setInviteCopy(nextCopy);
+      setInviteCopySaveState("");
+      if (inviteCopySaveTimerRef.current) {
+        clearTimeout(inviteCopySaveTimerRef.current);
+      }
+      inviteCopySaveTimerRef.current = setTimeout(() => {
+        persistInviteCopy(nextCopy);
+      }, 700);
+    },
+    [persistInviteCopy]
+  );
 
   const selectedCount = selectedGuestIds.size;
   const allFilteredSelected =
@@ -309,9 +360,6 @@ export default function ClientDashboardPage() {
   const openBulkWhatsApp = () => {
     setBulkWhatsAppResult("");
     setBulkWhatsAppError("");
-    if (!customWhatsAppMessage && defaultWhatsAppTemplate) {
-      setCustomWhatsAppMessage(defaultWhatsAppTemplate);
-    }
     setShowBulkWhatsApp(true);
   };
 
@@ -326,14 +374,19 @@ export default function ClientDashboardPage() {
       return;
     }
 
+    if (inviteCopySaveTimerRef.current) {
+      clearTimeout(inviteCopySaveTimerRef.current);
+      inviteCopySaveTimerRef.current = null;
+    }
+    await persistInviteCopy(inviteCopy);
+
     setBulkWhatsAppSending(true);
     setBulkWhatsAppResult("");
     setBulkWhatsAppError("");
     try {
       const response = await api.post(`/client/${userId}/whatsapp/bulk-send`, {
         paymentCode: paymentCode.trim(),
-        guestIds: [...selectedGuestIds],
-        customMessage: customWhatsAppMessage.trim() || defaultWhatsAppTemplate
+        guestIds: [...selectedGuestIds]
       });
 
       if (response.data?.success === false) {
@@ -1133,16 +1186,25 @@ export default function ClientDashboardPage() {
                   )}
                 </div>
                 <div>
-                  <label className="us-field-label" htmlFor="bulk-whatsapp-message">
-                    נוסח ההודעה (השתמשו ב-[שם] לשם המוזמן)
-                  </label>
-                  <textarea
-                    id="bulk-whatsapp-message"
-                    className="us-field-input il-bulk-whatsapp-textarea"
-                    rows={9}
-                    value={customWhatsAppMessage}
-                    onChange={(event) => setCustomWhatsAppMessage(event.target.value)}
-                    required
+                  <div className="il-bulk-whatsapp-editor-head">
+                    <label className="us-field-label" htmlFor="wa-welcome-paragraph">
+                      עריכת הודעת ההזמנה
+                    </label>
+                    {inviteCopySaveState === "saving" ? (
+                      <span className="il-bulk-whatsapp-save-hint">שומר…</span>
+                    ) : null}
+                    {inviteCopySaveState === "saved" ? (
+                      <span className="il-bulk-whatsapp-save-hint is-saved">נשמר</span>
+                    ) : null}
+                    {inviteCopySaveState === "error" ? (
+                      <span className="il-bulk-whatsapp-save-hint is-error">שמירה נכשלה</span>
+                    ) : null}
+                  </div>
+                  <IlWhatsAppInviteEditor
+                    eventId={userId}
+                    origin={window.location.origin}
+                    value={inviteCopy}
+                    onChange={onInviteCopyChange}
                   />
                 </div>
                 <p className="il-bulk-whatsapp-selected">

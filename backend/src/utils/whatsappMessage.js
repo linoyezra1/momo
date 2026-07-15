@@ -13,7 +13,7 @@ function parseIsoDateParts(dateStr) {
   };
 }
 
-function formatIsraeliDate(dateStr) {
+export function formatIsraeliDate(dateStr) {
   const parts = parseIsoDateParts(dateStr);
   if (!parts) return String(dateStr ?? "").trim().replace(/-/g, ".");
   const { year, month, day } = parts;

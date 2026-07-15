@@ -378,7 +378,32 @@
 }
 
 .il-bulk-whatsapp-modal {
-  max-width: 36rem;
+  max-width: 28rem;
+}
+
+.il-bulk-whatsapp-editor-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.il-bulk-whatsapp-editor-head .us-field-label {
+  margin: 0;
+}
+
+.il-bulk-whatsapp-save-hint {
+  font-size: 0.78rem;
+  color: #6b7280;
+}
+
+.il-bulk-whatsapp-save-hint.is-saved {
+  color: #1f6b3f;
+}
+
+.il-bulk-whatsapp-save-hint.is-error {
+  color: #9b1c1c;
 }
 
 .il-bulk-whatsapp-textarea {

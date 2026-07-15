@@ -21,7 +21,11 @@ const eventSchema = new mongoose.Schema(
     eventTime: { type: String, trim: true, default: "" },
     receptionTime: { type: String, trim: true, default: "" },
     welcomeText: { type: String, trim: true, default: "" },
-    imageDataUrl: { type: String, default: "" }
+    imageDataUrl: { type: String, default: "" },
+    /** WhatsApp approved-template editable segments ({{2}}, {{3}}, {{5}}) */
+    welcomeParagraph: { type: String, trim: true, default: "" },
+    eventDetailsParagraph: { type: String, trim: true, default: "" },
+    closingParagraph: { type: String, trim: true, default: "" }
   },
   { _id: false }
 );

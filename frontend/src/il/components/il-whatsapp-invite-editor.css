@@ -1,0 +1,205 @@
+.il-wa-phone {
+  --il-wa-bubble: #dcf8c6;
+  --il-wa-bubble-ink: #111b21;
+  --il-wa-locked: #5a6a72;
+  --il-wa-chat-bg: #ece5dd;
+  --il-wa-focus: rgba(18, 140, 126, 0.45);
+  margin-top: 0.35rem;
+}
+
+.il-wa-phone-chrome {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.85rem;
+  border-radius: 0.85rem 0.85rem 0 0;
+  background: #075e54;
+  color: #f7f7f7;
+}
+
+.il-wa-phone-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: #25d366;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+}
+
+.il-wa-phone-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.il-wa-chat {
+  padding: 1rem 0.75rem 1.15rem;
+  background:
+    linear-gradient(180deg, rgba(236, 229, 221, 0.92), rgba(236, 229, 221, 0.98)),
+    repeating-linear-gradient(
+      -18deg,
+      transparent,
+      transparent 11px,
+      rgba(0, 0, 0, 0.015) 11px,
+      rgba(0, 0, 0, 0.015) 12px
+    );
+  border-radius: 0 0 0.85rem 0.85rem;
+  border: 1px solid #d8d0c6;
+  border-top: none;
+  min-height: 12rem;
+}
+
+.il-wa-bubble {
+  position: relative;
+  max-width: 100%;
+  margin-inline-start: auto;
+  padding: 0.55rem 0.7rem 1.35rem;
+  background: var(--il-wa-bubble);
+  color: var(--il-wa-bubble-ink);
+  border-radius: 0.55rem 0.15rem 0.55rem 0.55rem;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.08);
+  font-size: 0.92rem;
+  line-height: 1.55;
+  font-family: "Segoe UI", "Heebo", "Assistant", sans-serif;
+}
+
+.il-wa-bubble::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  inset-inline-end: -0.35rem;
+  width: 0.55rem;
+  height: 0.7rem;
+  background: var(--il-wa-bubble);
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+
+.il-wa-locked {
+  margin: 0.15rem 0;
+  color: var(--il-wa-locked);
+  user-select: none;
+}
+
+.il-wa-emoji-row {
+  text-align: center;
+  letter-spacing: 0.12em;
+  color: #4a5560;
+}
+
+.il-wa-token {
+  opacity: 0.85;
+  border-bottom: 1px dashed rgba(90, 106, 114, 0.45);
+}
+
+.il-wa-link {
+  direction: ltr;
+  unicode-bidi: plaintext;
+  word-break: break-all;
+  font-size: 0.84rem;
+  color: #027eb5;
+  opacity: 0.85;
+}
+
+.il-wa-bubble-field {
+  display: block;
+  width: 100%;
+  margin: 0.35rem 0;
+  padding: 0.2rem 0.25rem;
+  border: 1px solid transparent;
+  border-radius: 0.35rem;
+  background: rgba(255, 255, 255, 0.28);
+  color: var(--il-wa-bubble-ink);
+  font: inherit;
+  line-height: 1.55;
+  resize: none;
+  overflow: hidden;
+  outline: none;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.il-wa-bubble-field::placeholder {
+  color: #8a9aa3;
+  opacity: 1;
+}
+
+.il-wa-bubble-field:hover {
+  background: rgba(255, 255, 255, 0.42);
+}
+
+.il-wa-bubble-field:focus {
+  border-color: var(--il-wa-focus);
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 0 0 2px rgba(18, 140, 126, 0.12);
+}
+
+.il-wa-inline-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.25rem 0.35rem;
+  margin: 0.25rem 0;
+}
+
+.il-wa-inline-row .il-wa-locked {
+  margin: 0.35rem 0 0;
+  flex: 0 0 auto;
+}
+
+.il-wa-inline-row .il-wa-bubble-field {
+  flex: 1 1 12rem;
+  min-width: 12rem;
+  margin: 0;
+}
+
+.il-wa-meta {
+  position: absolute;
+  inset-inline-start: 0.65rem;
+  bottom: 0.28rem;
+  display: flex;
+  align-items: center;
+  gap: 0.28rem;
+  font-size: 0.68rem;
+  color: #667781;
+}
+
+.il-wa-ticks {
+  color: #53bdeb;
+  font-size: 0.78rem;
+  letter-spacing: -0.06em;
+  line-height: 1;
+}
+
+.il-wa-hint {
+  margin: 0.55rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: #6b7280;
+}
+
+.il-wa-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 640px) {
+  .il-wa-chat {
+    padding: 0.85rem 0.55rem 1rem;
+  }
+
+  .il-wa-bubble {
+    font-size: 0.88rem;
+  }
+
+  .il-wa-inline-row .il-wa-bubble-field {
+    min-width: 100%;
+  }
+}

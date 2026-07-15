@@ -536,7 +536,7 @@ router.get("/:userId/whatsapp/quota", async (req, res) => {
 router.post("/:userId/whatsapp/bulk-send", async (req, res) => {
   try {
     const { userId } = req.params;
-    const { paymentCode, guestIds, customMessage } = req.body;
+    const { paymentCode, guestIds } = req.body;
 
     const user = await User.findById(userId).select("event");
     if (!user) {
@@ -556,7 +556,6 @@ router.post("/:userId/whatsapp/bulk-send", async (req, res) => {
     const result = await sendBulkWhatsApp({
       paymentCode,
       guests,
-      customMessage,
       event: user.event,
       userId,
       origin
@@ -572,6 +571,44 @@ router.post("/:userId/whatsapp/bulk-send", async (req, res) => {
   }
 });
 
+router.patch("/:userId/whatsapp-invite-copy", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "Client not found" });
+    }
+
+    if (!user.event) {
+      user.event = {};
+    }
+
+    if (Object.prototype.hasOwnProperty.call(req.body || {}, "welcomeParagraph")) {
+      user.event.welcomeParagraph = String(req.body.welcomeParagraph ?? "").trim();
+    }
+    if (Object.prototype.hasOwnProperty.call(req.body || {}, "eventDetailsParagraph")) {
+      user.event.eventDetailsParagraph = String(req.body.eventDetailsParagraph ?? "").trim();
+    }
+    if (Object.prototype.hasOwnProperty.call(req.body || {}, "closingParagraph")) {
+      user.event.closingParagraph = String(req.body.closingParagraph ?? "").trim();
+    }
+
+    user.markModified("event");
+    await user.save();
+
+    return res.json({
+      message: "נוסח הוואטסאפ נשמר",
+      event: {
+        welcomeParagraph: user.event.welcomeParagraph || "",
+        eventDetailsParagraph: user.event.eventDetailsParagraph || "",
+        closingParagraph: user.event.closingParagraph || ""
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "שמירת נוסח הוואטסאפ נכשלה", error: error.message });
+  }
+});
+
 router.put("/:userId/event", async (req, res) => {
   try {
     const { userId } = req.params;
@@ -580,7 +617,14 @@ router.put("/:userId/event", async (req, res) => {
       return res.status(404).json({ message: "Client not found" });
     }
 
-    user.event = normalizeIlEventUpdatePayload(req.body);
+    const previous = user.event?.toObject ? user.event.toObject() : { ...(user.event || {}) };
+    const next = normalizeIlEventUpdatePayload(req.body);
+    user.event = {
+      ...next,
+      welcomeParagraph: previous.welcomeParagraph || "",
+      eventDetailsParagraph: previous.eventDetailsParagraph || "",
+      closingParagraph: previous.closingParagraph || ""
+    };
     await user.save();
 
     return res.json({
