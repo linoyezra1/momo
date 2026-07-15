@@ -146,6 +146,7 @@ export default function ClientDashboardPage() {
   const [paymentCode, setPaymentCode] = useState("");
   const [customWhatsAppMessage, setCustomWhatsAppMessage] = useState("");
   const [whatsappQuota, setWhatsappQuota] = useState(null);
+  const [whatsappQuotas, setWhatsappQuotas] = useState([]);
   const [bulkWhatsAppSending, setBulkWhatsAppSending] = useState(false);
   const [bulkWhatsAppResult, setBulkWhatsAppResult] = useState("");
   const [bulkWhatsAppError, setBulkWhatsAppError] = useState("");
@@ -182,12 +183,15 @@ export default function ClientDashboardPage() {
     try {
       const response = await api.get(`/client/${userId}/whatsapp/quota`);
       const quota = response.data?.quota || null;
+      const quotas = Array.isArray(response.data?.quotas) ? response.data.quotas : [];
       setWhatsappQuota(quota);
+      setWhatsappQuotas(quotas);
       if (quota?.code) {
         setPaymentCode(quota.code);
       }
     } catch {
       setWhatsappQuota(null);
+      setWhatsappQuotas([]);
     }
   };
 
@@ -1080,7 +1084,18 @@ export default function ClientDashboardPage() {
                 <br />
                 <strong>שימו לב:</strong> המספר נשלח מחברת momoEVENT.
               </p>
-              {whatsappQuota ? (
+              {whatsappQuotas.length ? (
+                <div className="il-bulk-whatsapp-quota">
+                  <p style={{ margin: "0 0 0.45rem" }}>קופונים זמינים ללקוח זה:</p>
+                  <ul style={{ margin: 0, paddingInlineStart: "1.1rem" }}>
+                    {whatsappQuotas.map((item) => (
+                      <li key={item.code}>
+                        <strong>{item.code}</strong> · נותרו {item.remaining_credits} / {item.total_credits}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : whatsappQuota ? (
                 <p className="il-bulk-whatsapp-quota">
                   מכסה פעילה: נותרו <strong>{whatsappQuota.remaining_credits}</strong> /{" "}
                   {whatsappQuota.total_credits} הודעות
@@ -1091,15 +1106,31 @@ export default function ClientDashboardPage() {
                   <label className="us-field-label" htmlFor="bulk-payment-code">
                     קוד רכישה
                   </label>
-                  <input
-                    id="bulk-payment-code"
-                    className="us-field-input"
-                    value={paymentCode}
-                    onChange={(event) => setPaymentCode(event.target.value.toUpperCase())}
-                    placeholder="הזינו את הקוד שקיבלתם מהמנהל"
-                    required
-                    autoComplete="off"
-                  />
+                  {whatsappQuotas.length > 1 ? (
+                    <select
+                      id="bulk-payment-code"
+                      className="us-field-input"
+                      value={paymentCode}
+                      onChange={(event) => setPaymentCode(event.target.value.toUpperCase())}
+                      required
+                    >
+                      {whatsappQuotas.map((item) => (
+                        <option key={item.code} value={item.code}>
+                          {item.code} ({item.remaining_credits}/{item.total_credits})
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      id="bulk-payment-code"
+                      className="us-field-input"
+                      value={paymentCode}
+                      onChange={(event) => setPaymentCode(event.target.value.toUpperCase())}
+                      placeholder="הזינו את הקוד שקיבלתם מהמנהל"
+                      required
+                      autoComplete="off"
+                    />
+                  )}
                 </div>
                 <div>
                   <label className="us-field-label" htmlFor="bulk-whatsapp-message">

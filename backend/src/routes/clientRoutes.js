@@ -509,20 +509,24 @@ router.get("/:userId/whatsapp/quota", async (req, res) => {
       return res.status(404).json({ message: "Client not found" });
     }
 
-    const codeRecord = await ActivationCode.findOne({
+    const codes = await ActivationCode.find({
       redeemedByUserId: userId,
-      isActive: true,
-      remaining_credits: { $gt: 0 }
-    }).sort({ createdAt: -1 });
+      isActive: true
+    })
+      .sort({ createdAt: -1 })
+      .select("code total_credits remaining_credits createdAt");
+
+    const quotas = codes.map((item) => ({
+      code: item.code,
+      total_credits: item.total_credits,
+      remaining_credits: item.remaining_credits,
+      createdAt: item.createdAt
+    }));
+    const usable = quotas.filter((item) => item.remaining_credits > 0);
 
     return res.json({
-      quota: codeRecord
-        ? {
-            code: codeRecord.code,
-            total_credits: codeRecord.total_credits,
-            remaining_credits: codeRecord.remaining_credits
-          }
-        : null
+      quota: usable[0] || quotas[0] || null,
+      quotas
     });
   } catch (error) {
     return res.status(500).json({ message: "Failed to load WhatsApp quota", error: error.message });

@@ -334,38 +334,29 @@ router.get("/clients/:userId/whatsapp-quota", async (req, res) => {
       return res.status(404).json({ message: "Client not found" });
     }
 
-    const codeRecord = await ActivationCode.findOne({
-      redeemedByUserId: userId,
-      isActive: true,
-      remaining_credits: { $gt: 0 }
-    }).sort({ createdAt: -1 });
-
-    const history = await ActivationCode.find({ redeemedByUserId: userId })
+    const allCoupons = await ActivationCode.find({ redeemedByUserId: userId })
       .sort({ createdAt: -1 })
-      .select("code total_credits remaining_credits isActive note createdAt updatedAt")
-      .limit(20);
+      .select("code total_credits remaining_credits isActive note createdAt updatedAt");
+
+    const mapCoupon = (item) => ({
+      codeId: item._id,
+      code: item.code,
+      total_credits: item.total_credits,
+      remaining_credits: item.remaining_credits,
+      isActive: item.isActive,
+      note: item.note || "",
+      createdAt: item.createdAt
+    });
+
+    const quotas = allCoupons.filter((item) => item.isActive).map(mapCoupon);
+    const usable = quotas.filter((item) => item.remaining_credits > 0);
+    // Backward-compatible single "quota" = newest usable (or newest active)
+    const codeRecord = usable[0] || quotas[0] || null;
 
     return res.json({
-      quota: codeRecord
-        ? {
-            codeId: codeRecord._id,
-            code: codeRecord.code,
-            total_credits: codeRecord.total_credits,
-            remaining_credits: codeRecord.remaining_credits,
-            note: codeRecord.note || "",
-            isActive: codeRecord.isActive,
-            createdAt: codeRecord.createdAt
-          }
-        : null,
-      history: history.map((item) => ({
-        codeId: item._id,
-        code: item.code,
-        total_credits: item.total_credits,
-        remaining_credits: item.remaining_credits,
-        isActive: item.isActive,
-        note: item.note || "",
-        createdAt: item.createdAt
-      }))
+      quota: codeRecord,
+      quotas,
+      history: allCoupons.map(mapCoupon)
     });
   } catch (error) {
     return res.status(500).json({ message: error.message || "Failed to load client quota" });
@@ -400,12 +391,14 @@ router.post("/clients/:userId/whatsapp-quota", async (req, res) => {
 
     let code = requestedCode || buildUniqueCouponCode(user.username, totalCredits);
 
-    // Ensure uniqueness; never mutate an existing coupon document.
+    // Never update an existing coupon — only create a brand-new document.
     for (let attempt = 0; attempt < 5; attempt += 1) {
-      const duplicate = await ActivationCode.findOne({ code }).select("_id");
+      const duplicate = await ActivationCode.findOne({ code }).select("_id code");
       if (!duplicate) break;
       if (requestedCode) {
-        return res.status(409).json({ message: "קוד זה כבר קיים. הזינו קוד אחר." });
+        return res.status(409).json({
+          message: `הקוד ${requestedCode} כבר קיים במערכת. בחרו שם קוד אחר ליצירת קופון חדש.`
+        });
       }
       code = buildUniqueCouponCode(user.username, totalCredits);
     }
@@ -415,12 +408,8 @@ router.post("/clients/:userId/whatsapp-quota", async (req, res) => {
       return res.status(409).json({ message: "לא ניתן ליצור קוד ייחודי. נסו שוב." });
     }
 
-    // Archive previous active coupons for this client — keep history, don't overwrite.
-    await ActivationCode.updateMany(
-      { redeemedByUserId: userId, isActive: true },
-      { $set: { isActive: false } }
-    );
-
+    // IMPORTANT: do NOT deactivate / overwrite previous coupons.
+    // A client may hold multiple independent active coupons (e.g. code X and code Y).
     const codeRecord = await ActivationCode.create({
       code,
       total_credits: totalCredits,
@@ -430,21 +419,31 @@ router.post("/clients/:userId/whatsapp-quota", async (req, res) => {
       redeemedByUserId: userId
     });
 
+    const allCoupons = await ActivationCode.find({ redeemedByUserId: userId })
+      .sort({ createdAt: -1 })
+      .select("code total_credits remaining_credits isActive note createdAt");
+
+    const mapCoupon = (item) => ({
+      codeId: item._id,
+      code: item.code,
+      total_credits: item.total_credits,
+      remaining_credits: item.remaining_credits,
+      isActive: item.isActive,
+      note: item.note || "",
+      createdAt: item.createdAt
+    });
+
     return res.status(201).json({
-      message: `נוצר קופון חדש ${code} עם ${totalCredits} הודעות`,
-      quota: {
-        codeId: codeRecord._id,
-        code: codeRecord.code,
-        total_credits: codeRecord.total_credits,
-        remaining_credits: codeRecord.remaining_credits,
-        note: codeRecord.note || "",
-        isActive: codeRecord.isActive,
-        createdAt: codeRecord.createdAt
-      }
+      message: `נוצר קופון חדש ${code} עם ${totalCredits} הודעות (בנוסף לקופונים הקיימים של הלקוח)`,
+      quota: mapCoupon(codeRecord),
+      quotas: allCoupons.filter((item) => item.isActive).map(mapCoupon),
+      history: allCoupons.map(mapCoupon)
     });
   } catch (error) {
     if (error?.code === 11000) {
-      return res.status(409).json({ message: "קוד זה כבר קיים. הזינו קוד אחר." });
+      return res.status(409).json({
+        message: "קוד זה כבר קיים במערכת. בחרו שם קוד אחר ליצירת קופון חדש."
+      });
     }
     return res.status(500).json({ message: error.message || "Failed to assign client quota" });
   }

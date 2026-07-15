@@ -105,10 +105,12 @@ export default function AdminPage() {
   const [paymentSaved, setPaymentSaved] = useState(false);
   const [copiedField, setCopiedField] = useState("");
   const [clientQuota, setClientQuota] = useState(null);
+  const [clientQuotas, setClientQuotas] = useState([]);
   const [clientQuotaLoading, setClientQuotaLoading] = useState(false);
   const [clientQuotaError, setClientQuotaError] = useState("");
   const [clientQuotaSaved, setClientQuotaSaved] = useState(false);
   const [clientQuotaDraft, setClientQuotaDraft] = useState({ code: "", total_credits: "" });
+  const [clientQuotaMessage, setClientQuotaMessage] = useState("");
   const [welcomeNotice, setWelcomeNotice] = useState("");
   const publicEventUrl = toAppUrl(result?.publicEventLink);
   const clientDashboardUrl = toAppUrl(result?.clientDashboardLink);
@@ -179,6 +181,7 @@ ${publicEventUrl}`
   const loadClientQuota = async (userId) => {
     if (!userId) {
       setClientQuota(null);
+      setClientQuotas([]);
       return;
     }
     setClientQuotaLoading(true);
@@ -186,15 +189,16 @@ ${publicEventUrl}`
     try {
       const response = await api.get(`/admin/clients/${userId}/whatsapp-quota`);
       const quota = response.data?.quota || null;
+      const quotas = response.data?.quotas || response.data?.history || [];
       setClientQuota(quota);
-      // Always leave code empty so generating a coupon creates a NEW unique code
-      // instead of colliding with / overwriting history.
+      setClientQuotas(Array.isArray(quotas) ? quotas : []);
       setClientQuotaDraft({
         code: "",
         total_credits: ""
       });
     } catch (loadError) {
       setClientQuota(null);
+      setClientQuotas([]);
       setClientQuotaError(loadError.response?.data?.message || "טעינת מכסת וואטסאפ נכשלה");
     } finally {
       setClientQuotaLoading(false);
@@ -207,19 +211,26 @@ ${publicEventUrl}`
     setClientQuotaLoading(true);
     setClientQuotaError("");
     setClientQuotaSaved(false);
+    setClientQuotaMessage("");
     try {
       const response = await api.post(`/admin/clients/${selectedClientId}/whatsapp-quota`, {
         code: clientQuotaDraft.code.trim(),
         total_credits: Number(clientQuotaDraft.total_credits)
       });
       const quota = response.data?.quota || null;
+      const quotas = response.data?.quotas || response.data?.history || [];
       setClientQuota(quota);
+      setClientQuotas(Array.isArray(quotas) ? quotas : []);
       setClientQuotaDraft({
         code: "",
         total_credits: ""
       });
+      setClientQuotaMessage(response.data?.message || "קופון חדש נוצר");
       setClientQuotaSaved(true);
-      window.setTimeout(() => setClientQuotaSaved(false), 2500);
+      window.setTimeout(() => {
+        setClientQuotaSaved(false);
+        setClientQuotaMessage("");
+      }, 3500);
     } catch (assignError) {
       setClientQuotaError(assignError.response?.data?.message || "הקצאת מכסה נכשלה");
     } finally {
@@ -703,25 +714,32 @@ ${publicEventUrl}`
                   <div className="us-admin-payment-block us-admin-whatsapp-quota-block">
                     <h3>מכסת וואטסאפ ללקוח (Twilio)</h3>
                     <p className="us-admin-field-hint">
-                      יצירת קופון תמיד יוצרת רשומה חדשה במערכת (לא דורסת קופון ישן). קופונים קודמים נשמרים בהיסטוריה
-                      ומסומנים כלא פעילים.
+                      אפשר להקצות ללקוח כמה קופונים שונים במקביל (למשל קוד X עם 100 הודעות וקוד Y עם 50).
+                      כל הקצאה יוצרת קופון חדש — בלי לדרוס קופונים קיימים.
                     </p>
                     {clientQuotaLoading ? <p className="us-admin-empty">טוען מכסה…</p> : null}
-                    {clientQuota ? (
-                      <p className="us-admin-quota-status">
-                        <strong>קוד פעיל:</strong> {clientQuota.code} · נותרו{" "}
-                        <strong>{clientQuota.remaining_credits}</strong> / {clientQuota.total_credits} הודעות
-                      </p>
+                    {clientQuotas.length ? (
+                      <ul className="us-admin-coupon-list">
+                        {clientQuotas.map((item) => (
+                          <li key={item.codeId || item.code} className={!item.isActive ? "is-inactive" : ""}>
+                            <strong>{item.code}</strong>
+                            {" · "}
+                            נותרו <strong>{item.remaining_credits}</strong> / {item.total_credits}
+                            {!item.isActive ? " · לא פעיל" : item.remaining_credits <= 0 ? " · מוצה" : " · פעיל"}
+                          </li>
+                        ))}
+                      </ul>
                     ) : (
-                      <p className="us-admin-field-hint">ללקוח זה אין כרגע קופון פעיל עם יתרה.</p>
+                      <p className="us-admin-field-hint">ללקוח זה עדיין אין קופונים.</p>
                     )}
+                    {clientQuotaMessage ? <p className="us-admin-message">{clientQuotaMessage}</p> : null}
                     {clientQuotaError ? (
                       <p className="us-admin-message us-admin-message--error">{clientQuotaError}</p>
                     ) : null}
                     <form className="us-admin-payment-fields" onSubmit={assignClientQuota}>
                       <div className="us-admin-field">
                         <label className="us-admin-field-label" htmlFor="client-quota-code">
-                          קוד חדש (אופציונלי — ייווצר אוטומטית)
+                          שם קוד חדש (חובה שיהיה שונה מקופונים קיימים)
                         </label>
                         <input
                           id="client-quota-code"
@@ -730,7 +748,7 @@ ${publicEventUrl}`
                           onChange={(event) =>
                             setClientQuotaDraft((prev) => ({ ...prev, code: event.target.value.toUpperCase() }))
                           }
-                          placeholder="למשל: MOMO-450"
+                          placeholder="למשל: MOMO-Y50"
                         />
                       </div>
                       <div className="us-admin-field">
@@ -746,12 +764,12 @@ ${publicEventUrl}`
                           onChange={(event) =>
                             setClientQuotaDraft((prev) => ({ ...prev, total_credits: event.target.value }))
                           }
-                          placeholder="למשל: 450"
+                          placeholder="למשל: 50"
                           required
                         />
                       </div>
                       <button className="us-admin-btn us-admin-btn--primary" type="submit" disabled={clientQuotaLoading}>
-                        {clientQuotaLoading ? "שומר…" : clientQuotaSaved ? "קופון חדש נוצר" : "יצירת קופון חדש ללקוח"}
+                        {clientQuotaLoading ? "שומר…" : clientQuotaSaved ? "קופון חדש נוסף" : "הוספת קופון נוסף ללקוח"}
                       </button>
                     </form>
                   </div>
