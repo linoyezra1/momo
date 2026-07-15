@@ -131,10 +131,14 @@ export default function ClientDashboardPage() {
   const [editingGuestId, setEditingGuestId] = useState("");
   const [editingValues, setEditingValues] = useState({
     fullName: "",
+    phone: "",
     status: "מגיע",
     attendeesCount: 1,
     giftAmount: 0
   });
+  const [editError, setEditError] = useState("");
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [deletingGuests, setDeletingGuests] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [showInvitationEditor, setShowInvitationEditor] = useState(false);
   const [refreshingGuests, setRefreshingGuests] = useState(false);
@@ -542,19 +546,85 @@ export default function ClientDashboardPage() {
   };
 
   const startEdit = (guest) => {
+    setEditError("");
     setEditingGuestId(guest._id);
     setEditingValues({
       fullName: guest.fullName || "",
+      phone: guest.phone || "",
       status: guest.status,
       attendeesCount: guest.attendeesCount,
       giftAmount: guest.giftAmount || 0
     });
   };
 
-  const saveEdit = async (guestId) => {
-    await api.patch(`/client/${userId}/guests/${guestId}`, editingValues);
+  const cancelEdit = () => {
     setEditingGuestId("");
-    await loadGuests();
+    setEditError("");
+  };
+
+  const saveEdit = async (guestId) => {
+    setEditError("");
+    try {
+      await api.patch(`/client/${userId}/guests/${guestId}`, {
+        ...editingValues,
+        phone: normalizeIsraeliPhone(editingValues.phone)
+      });
+      setEditingGuestId("");
+      await loadGuests();
+    } catch (saveErr) {
+      setEditError(saveErr.response?.data?.message || "שמירת העריכה נכשלה");
+    }
+  };
+
+  const requestDeleteGuest = (guest) => {
+    setDeleteConfirm({
+      mode: "single",
+      guestIds: [guest._id],
+      label: guest.fullName || "המוזמן"
+    });
+  };
+
+  const requestBulkDelete = () => {
+    if (!selectedCount) return;
+    setDeleteConfirm({
+      mode: "bulk",
+      guestIds: [...selectedGuestIds],
+      label: `${selectedCount} מוזמנים`
+    });
+  };
+
+  const closeDeleteConfirm = () => {
+    if (deletingGuests) return;
+    setDeleteConfirm(null);
+  };
+
+  const confirmDeleteGuests = async () => {
+    if (!deleteConfirm?.guestIds?.length) return;
+    setDeletingGuests(true);
+    try {
+      if (deleteConfirm.mode === "single") {
+        await api.delete(`/client/${userId}/guests/${deleteConfirm.guestIds[0]}`);
+      } else {
+        await api.post(`/client/${userId}/guests/bulk-delete`, {
+          guestIds: deleteConfirm.guestIds
+        });
+      }
+      setSelectedGuestIds((prev) => {
+        const next = new Set(prev);
+        deleteConfirm.guestIds.forEach((id) => next.delete(id));
+        return next;
+      });
+      if (editingGuestId && deleteConfirm.guestIds.includes(editingGuestId)) {
+        setEditingGuestId("");
+      }
+      setDeleteConfirm(null);
+      await loadGuests();
+    } catch (deleteErr) {
+      setImportError(deleteErr.response?.data?.message || "מחיקת המוזמנים נכשלה");
+      setDeleteConfirm(null);
+    } finally {
+      setDeletingGuests(false);
+    }
   };
 
   const setConflictChoice = (phone, choice) => {
@@ -776,7 +846,7 @@ export default function ClientDashboardPage() {
                 <th>סבב שליחה</th>
                 <th>מקור</th>
                 <th>וואטסאפ</th>
-                <th>עריכה</th>
+                <th>פעולות</th>
               </tr>
             </thead>
             <tbody>
@@ -832,7 +902,20 @@ export default function ClientDashboardPage() {
                       )}
                     </td>
                     <td data-label="טלפון" dir="ltr">
-                      {guest.phone}
+                      {editingGuestId === guest._id ? (
+                        <input
+                          className="us-inline-input"
+                          type="tel"
+                          inputMode="tel"
+                          value={editingValues.phone}
+                          onChange={(event) =>
+                            setEditingValues((prev) => ({ ...prev, phone: event.target.value }))
+                          }
+                          required
+                        />
+                      ) : (
+                        guest.phone
+                      )}
                     </td>
                     <td data-label="כמה מגיעים">
                       {editingGuestId === guest._id ? (
@@ -899,16 +982,39 @@ export default function ClientDashboardPage() {
                         <WhatsAppIcon size={20} />
                       </a>
                     </td>
-                    <td data-label="עריכה">
-                      {editingGuestId === guest._id ? (
-                        <button className="us-btn us-btn--primary" type="button" onClick={() => saveEdit(guest._id)}>
-                          שמירה
-                        </button>
-                      ) : (
-                        <button className="us-btn" type="button" onClick={() => startEdit(guest)}>
-                          עריכה
-                        </button>
-                      )}
+                    <td data-label="פעולות">
+                      <div className="il-guest-actions">
+                        {editingGuestId === guest._id ? (
+                          <>
+                            <button
+                              className="us-btn us-btn--primary"
+                              type="button"
+                              onClick={() => saveEdit(guest._id)}
+                            >
+                              שמירה
+                            </button>
+                            <button className="us-btn" type="button" onClick={cancelEdit}>
+                              ביטול
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button className="us-btn" type="button" onClick={() => startEdit(guest)}>
+                              עריכה
+                            </button>
+                            <button
+                              className="us-btn il-btn-danger"
+                              type="button"
+                              onClick={() => requestDeleteGuest(guest)}
+                            >
+                              מחיקה
+                            </button>
+                          </>
+                        )}
+                      </div>
+                      {editingGuestId === guest._id && editError ? (
+                        <p className="il-inline-edit-error">{editError}</p>
+                      ) : null}
                     </td>
                       </tr>
                       {showPhoneDetails && isDetailExpanded ? (
@@ -1247,9 +1353,49 @@ export default function ClientDashboardPage() {
               >
                 שלח הודעה ל-{selectedCount} מוזמנים מסומנים
               </button>
+              <button
+                className="us-btn il-btn-danger"
+                type="button"
+                onClick={requestBulkDelete}
+              >
+                מחק {selectedCount} מוזמנים
+              </button>
               <button className="us-btn" type="button" onClick={() => setSelectedGuestIds(new Set())}>
                 ביטול בחירה
               </button>
+            </div>
+          </div>
+        ) : null}
+
+        {deleteConfirm ? (
+          <div className="us-modal-backdrop" role="presentation">
+            <div className="us-modal-card" role="alertdialog" aria-modal="true" aria-labelledby="delete-guests-title">
+              <h2 id="delete-guests-title" className="us-modal-title">
+                אישור מחיקה
+              </h2>
+              <p className="us-login-subtitle us-login-subtitle--left">
+                {deleteConfirm.mode === "single"
+                  ? `למחוק את המוזמן "${deleteConfirm.label}"? לא ניתן לבטל פעולה זו.`
+                  : `למחוק ${deleteConfirm.label} שנבחרו? לא ניתן לבטל פעולה זו.`}
+              </p>
+              <div className="us-toolbar mt-4">
+                <button
+                  className="us-btn il-btn-danger"
+                  type="button"
+                  disabled={deletingGuests}
+                  onClick={confirmDeleteGuests}
+                >
+                  {deletingGuests ? "מוחק…" : "מחיקה"}
+                </button>
+                <button
+                  className="us-btn"
+                  type="button"
+                  disabled={deletingGuests}
+                  onClick={closeDeleteConfirm}
+                >
+                  ביטול
+                </button>
+              </div>
             </div>
           </div>
         ) : null}

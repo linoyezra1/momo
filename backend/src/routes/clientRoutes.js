@@ -449,7 +449,7 @@ router.post("/:userId/guests/import", async (req, res) => {
 router.patch("/:userId/guests/:guestId", async (req, res) => {
   try {
     const { userId, guestId } = req.params;
-    const { fullName, attendeesCount, status, giftAmount } = req.body;
+    const { fullName, attendeesCount, status, giftAmount, phone } = req.body;
 
     const update = {};
     if (typeof fullName !== "undefined") {
@@ -458,6 +458,21 @@ router.patch("/:userId/guests/:guestId", async (req, res) => {
         return res.status(400).json({ message: "שם מלא הוא שדה חובה" });
       }
       update.fullName = trimmed;
+    }
+    if (typeof phone !== "undefined") {
+      const normalizedPhone = normalizePhone(phone);
+      if (!normalizedPhone) {
+        return res.status(400).json({ message: "מספר טלפון לא תקין" });
+      }
+      const duplicate = await Guest.findOne({
+        userId,
+        phone: normalizedPhone,
+        _id: { $ne: guestId }
+      }).select("_id");
+      if (duplicate) {
+        return res.status(400).json({ message: "מספר הטלפון כבר קיים ברשימת המוזמנים" });
+      }
+      update.phone = normalizedPhone;
     }
     if (typeof attendeesCount !== "undefined") {
       update.attendeesCount = Math.max(0, Number(attendeesCount));
@@ -498,6 +513,37 @@ router.patch("/:userId/guests/:guestId", async (req, res) => {
     return res.json({ message: "Guest updated", guest });
   } catch (error) {
     return res.status(500).json({ message: "Failed to update guest", error: error.message });
+  }
+});
+
+router.delete("/:userId/guests/:guestId", async (req, res) => {
+  try {
+    const { userId, guestId } = req.params;
+    const guest = await Guest.findOneAndDelete({ _id: guestId, userId });
+    if (!guest) {
+      return res.status(404).json({ message: "המוזמן לא נמצא" });
+    }
+    return res.json({ message: "המוזמן נמחק", deletedCount: 1, guestId });
+  } catch (error) {
+    return res.status(500).json({ message: "מחיקת המוזמן נכשלה", error: error.message });
+  }
+});
+
+router.post("/:userId/guests/bulk-delete", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const guestIds = Array.isArray(req.body?.guestIds) ? req.body.guestIds : [];
+    if (!guestIds.length) {
+      return res.status(400).json({ message: "יש לבחור לפחות מוזמן אחד למחיקה" });
+    }
+
+    const result = await Guest.deleteMany({ userId, _id: { $in: guestIds } });
+    return res.json({
+      message: `נמחקו ${result.deletedCount} מוזמנים`,
+      deletedCount: result.deletedCount
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "מחיקה מרובה נכשלה", error: error.message });
   }
 });
 
