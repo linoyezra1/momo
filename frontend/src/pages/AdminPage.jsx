@@ -179,6 +179,10 @@ export default function AdminPage() {
   const [clientQuotaDraft, setClientQuotaDraft] = useState({ code: "", total_credits: "" });
   const [clientQuotaMessage, setClientQuotaMessage] = useState("");
   const [welcomeNotice, setWelcomeNotice] = useState("");
+  const [leads, setLeads] = useState([]);
+  const [leadsLoading, setLeadsLoading] = useState(false);
+  const [leadsError, setLeadsError] = useState("");
+  const [leadsNewCount, setLeadsNewCount] = useState(0);
   const publicEventUrl = toAppUrl(result?.publicEventLink);
   const clientDashboardUrl = toAppUrl(result?.clientDashboardLink);
   const eventDisplayText = buildEventDisplayText(createdEvent);
@@ -250,6 +254,37 @@ ${publicEventUrl}`
     }
   };
 
+  const loadLeads = async () => {
+    setLeadsLoading(true);
+    setLeadsError("");
+    try {
+      const response = await api.get("/admin/leads");
+      setLeads(response.data?.leads || []);
+      setLeadsNewCount(Number(response.data?.newCount) || 0);
+    } catch (loadError) {
+      setLeadsError(loadError.response?.data?.message || "טעינת פניות נכשלה");
+    } finally {
+      setLeadsLoading(false);
+    }
+  };
+
+  const updateLeadStatus = async (leadId, status) => {
+    try {
+      const response = await api.patch(`/admin/leads/${leadId}`, { status });
+      const updated = response.data?.lead;
+      if (!updated) return;
+      setLeads((prev) => {
+        const next = prev.map((lead) =>
+          String(lead.id) === String(updated.id) ? { ...lead, ...updated } : lead
+        );
+        setLeadsNewCount(next.filter((lead) => lead.status === "new").length);
+        return next;
+      });
+    } catch (updateError) {
+      setLeadsError(updateError.response?.data?.message || "עדכון סטטוס נכשל");
+    }
+  };
+
   const loadClientQuota = async (userId) => {
     if (!userId) {
       setClientQuota(null);
@@ -312,6 +347,7 @@ ${publicEventUrl}`
 
   useEffect(() => {
     loadClients();
+    loadLeads();
   }, []);
 
   useEffect(() => {
@@ -604,7 +640,62 @@ ${publicEventUrl}`
             <h3>לקוחות פעילים</h3>
             <p>{clients.length}</p>
           </div>
+          <div className="us-admin-stat-card">
+            <h3>פניות חדשות</h3>
+            <p>{leadsNewCount}</p>
+          </div>
         </div>
+
+        <section className="us-admin-card" style={{ marginBottom: "1.25rem" }}>
+          <div className="us-admin-toolbar" style={{ marginBottom: "0.75rem" }}>
+            <h2 className="us-admin-card-title" style={{ margin: 0 }}>
+              פניות מדף הנחיתה
+            </h2>
+            <button className="us-admin-btn" type="button" onClick={loadLeads} disabled={leadsLoading}>
+              {leadsLoading ? "מרענן…" : "רענון"}
+            </button>
+          </div>
+          <div className="us-admin-card-body">
+            {leadsError ? <p className="us-admin-message us-admin-message--error">{leadsError}</p> : null}
+            {leadsLoading && !leads.length ? <p className="us-admin-empty">טוען פניות…</p> : null}
+            {!leadsLoading && !leads.length ? <p className="us-admin-empty">אין פניות עדיין</p> : null}
+            {leads.length ? (
+              <div className="us-admin-leads-list">
+                {leads.map((lead) => (
+                  <article key={lead.id} className="us-admin-lead-card">
+                    <div className="us-admin-lead-head">
+                      <strong>{lead.fullName}</strong>
+                      <span dir="ltr">{lead.phone}</span>
+                    </div>
+                    <div className="us-admin-lead-meta">
+                      <span>
+                        התקבל:{" "}
+                        {lead.createdAt
+                          ? new Date(lead.createdAt).toLocaleString("he-IL")
+                          : "—"}
+                      </span>
+                      <span>תאריך אירוע: {lead.eventDate || "לא צוין"}</span>
+                    </div>
+                    {lead.message ? <p className="us-admin-lead-message">{lead.message}</p> : null}
+                    <div className="us-admin-lead-actions">
+                      <label>
+                        סטטוס
+                        <select
+                          value={lead.status || "new"}
+                          onChange={(event) => updateLeadStatus(lead.id, event.target.value)}
+                        >
+                          <option value="new">חדש</option>
+                          <option value="contacted">טופל</option>
+                          <option value="closed">נסגר</option>
+                        </select>
+                      </label>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        </section>
 
         <section className="us-admin-layout">
           <div className="us-admin-card">

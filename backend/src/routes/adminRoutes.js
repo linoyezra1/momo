@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import User from "../models/User.js";
 import Guest from "../models/Guest.js";
 import ActivationCode from "../models/ActivationCode.js";
+import Lead from "../models/Lead.js";
 import { buildClientUrl } from "../utils/clientUrl.js";
 import {
   requireAdmin,
@@ -646,6 +647,62 @@ router.delete("/clients/:userId", async (req, res) => {
     return res.json({ message: "Client deleted" });
   } catch (error) {
     return res.status(500).json({ message: error.message || "Failed to delete client" });
+  }
+});
+
+router.get("/leads", async (_req, res) => {
+  try {
+    const leads = await Lead.find().sort({ createdAt: -1 }).limit(200).lean();
+    return res.json({
+      leads: leads.map((lead) => ({
+        id: lead._id,
+        fullName: lead.fullName,
+        phone: lead.phone,
+        eventDate: lead.eventDate || "",
+        message: lead.message || "",
+        status: lead.status || "new",
+        source: lead.source || "landing",
+        createdAt: lead.createdAt
+      })),
+      newCount: leads.filter((lead) => lead.status === "new").length
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "Failed to load leads" });
+  }
+});
+
+router.patch("/leads/:leadId", async (req, res) => {
+  try {
+    const { leadId } = req.params;
+    const status = String(req.body?.status || "").trim();
+    if (!["new", "contacted", "closed"].includes(status)) {
+      return res.status(400).json({ message: "סטטוס לא תקין" });
+    }
+
+    const lead = await Lead.findByIdAndUpdate(
+      leadId,
+      { status },
+      { new: true, runValidators: true }
+    );
+    if (!lead) {
+      return res.status(404).json({ message: "הפנייה לא נמצאה" });
+    }
+
+    return res.json({
+      message: "סטטוס עודכן",
+      lead: {
+        id: lead._id,
+        fullName: lead.fullName,
+        phone: lead.phone,
+        eventDate: lead.eventDate || "",
+        message: lead.message || "",
+        status: lead.status,
+        source: lead.source || "landing",
+        createdAt: lead.createdAt
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "Failed to update lead" });
   }
 });
 

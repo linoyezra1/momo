@@ -1,6 +1,7 @@
 import express from "express";
 import User from "../models/User.js";
 import Guest from "../models/Guest.js";
+import Lead from "../models/Lead.js";
 import { normalizePhone, resolveSourceAfterSelfRsvp } from "../utils/guestPhone.js";
 
 const router = express.Router();
@@ -17,6 +18,42 @@ router.get("/event/:eventId", async (req, res) => {
     return res.json({ eventId, event: user.event });
   } catch (error) {
     return res.status(500).json({ message: "Failed to fetch event", error: error.message });
+  }
+});
+
+router.post("/leads", async (req, res) => {
+  try {
+    const fullName = String(req.body?.fullName || "").trim();
+    const phoneRaw = String(req.body?.phone || "").trim();
+    const eventDate = String(req.body?.eventDate || "").trim();
+    const message = String(req.body?.message || "").trim();
+
+    if (!fullName) {
+      return res.status(400).json({ message: "שם מלא הוא שדה חובה" });
+    }
+    if (!phoneRaw) {
+      return res.status(400).json({ message: "מספר טלפון הוא שדה חובה" });
+    }
+
+    const normalizedPhone = normalizePhone(phoneRaw) || phoneRaw.replace(/\s+/g, "");
+    if (normalizedPhone.length < 9) {
+      return res.status(400).json({ message: "מספר טלפון לא תקין" });
+    }
+
+    const lead = await Lead.create({
+      fullName,
+      phone: normalizedPhone,
+      eventDate,
+      message,
+      source: "landing"
+    });
+
+    return res.status(201).json({
+      message: "הודעתכם התקבלה בהצלחה",
+      leadId: lead._id
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "שמירת הפנייה נכשלה" });
   }
 });
 

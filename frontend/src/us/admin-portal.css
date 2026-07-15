@@ -684,3 +684,59 @@
 .us-admin-login-footer a:hover {
   color: var(--us-rose);
 }
+
+.us-admin-leads-list {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.us-admin-lead-card {
+  padding: 0.95rem 1rem;
+  border: 1px solid var(--us-border);
+  border-radius: 0.65rem;
+  background: #fff;
+}
+
+.us-admin-lead-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 1rem;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.45rem;
+}
+
+.us-admin-lead-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  font-size: 0.84rem;
+  color: var(--us-muted);
+}
+
+.us-admin-lead-message {
+  margin: 0.65rem 0 0;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--us-espresso);
+}
+
+.us-admin-lead-actions {
+  margin-top: 0.75rem;
+}
+
+.us-admin-lead-actions label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.us-admin-lead-actions select {
+  font: inherit;
+  padding: 0.35rem 0.55rem;
+  border-radius: 0.4rem;
+  border: 1px solid var(--us-border);
+  background: #fff;
+}
