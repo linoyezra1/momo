@@ -1,7 +1,7 @@
 import { formatIsraeliDate } from "../utils/whatsappMessage.js";
 
 export const DEFAULT_WELCOME_PARAGRAPH =
-  "אנו נרגשים מאוד להזמין אתכם לחגוג איתנו את יום נישואינו ומצפים לראותכם בין אורחינו!";
+  "משפחה וחברים יקרים, הנכם מוזמנים לחתונה שלנו!";
 
 export function buildDefaultEventDetailsParagraph(event = {}) {
   const date = formatIsraeliDate(event?.eventDate);

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, Fragment } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Check, ChevronDown, Clock, HelpCircle, RotateCw, Search, Users, X } from "lucide-react";
+import { Check, ChevronDown, Clock, HelpCircle, Pencil, RotateCw, Search, Trash2, Users, X } from "lucide-react";
 import api from "../api";
 import WhatsAppIcon from "../components/WhatsAppIcon";
 import { buildWhatsAppSendUrl } from "../utils/whatsapp";
@@ -999,15 +999,23 @@ export default function ClientDashboardPage() {
                           </>
                         ) : (
                           <>
-                            <button className="us-btn" type="button" onClick={() => startEdit(guest)}>
-                              עריכה
+                            <button
+                              className="il-icon-btn"
+                              type="button"
+                              onClick={() => startEdit(guest)}
+                              aria-label={`עריכת ${guest.fullName}`}
+                              title="עריכה"
+                            >
+                              <Pencil size={18} aria-hidden="true" />
                             </button>
                             <button
-                              className="us-btn il-btn-danger"
+                              className="il-icon-btn il-icon-btn--danger"
                               type="button"
                               onClick={() => requestDeleteGuest(guest)}
+                              aria-label={`מחיקת ${guest.fullName}`}
+                              title="מחיקה"
                             >
-                              מחיקה
+                              <Trash2 size={18} aria-hidden="true" />
                             </button>
                           </>
                         )}

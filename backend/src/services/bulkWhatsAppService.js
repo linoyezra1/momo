@@ -106,7 +106,7 @@ function resolveInviteeTemplateFields({ invitee, defaults, eventId, origin, para
   const customOpeningText =
     String(paragraphs?.welcomeParagraph || "").trim() ||
     String(defaults?.intro || "").trim() ||
-    "אנו נרגשים מאוד להזמין אתכם לחגוג איתנו את יום נישואינו ומצפים לראותכם בין אורחינו!";
+    "משפחה וחברים יקרים, הנכם מוזמנים לחתונה שלנו!";
 
   const eventDateTimeLocation =
     String(paragraphs?.eventDetailsParagraph || "").trim() ||

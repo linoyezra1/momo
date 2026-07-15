@@ -1,7 +1,7 @@
 import { formatIsraeliDate } from "./dateFormat.js";
 
 export const DEFAULT_WELCOME_PARAGRAPH =
-  "אנו נרגשים מאוד להזמין אתכם לחגוג איתנו את יום נישואינו ומצפים לראותכם בין אורחינו!";
+  "משפחה וחברים יקרים, הנכם מוזמנים לחתונה שלנו!";
 
 export const DEFAULT_WELCOME_PLACEHOLDER = "הקלידו כאן פתיחה אישית...";
 export const DEFAULT_EVENT_DETAILS_PLACEHOLDER = "הקלידו כאן תאריך ואולם...";

@@ -534,6 +534,42 @@
   align-items: center;
 }
 
+.il-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  padding: 0;
+  border: 1px solid var(--us-border, #e5e0d8);
+  border-radius: 0.4rem;
+  background: #fff;
+  color: #4b5563;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.il-icon-btn:hover {
+  background: #f8f5f0;
+  border-color: #cfc6ba;
+  color: #1f2937;
+}
+
+.il-icon-btn--danger {
+  color: #9b1c1c;
+  border-color: #f5b8b8;
+  background: #fff5f5;
+}
+
+.il-icon-btn--danger:hover {
+  background: #fee2e2;
+  border-color: #ef9a9a;
+  color: #7f1d1d;
+}
+
 .il-btn-danger {
   background: #fff5f5;
   border: 1px solid #f5b8b8;
