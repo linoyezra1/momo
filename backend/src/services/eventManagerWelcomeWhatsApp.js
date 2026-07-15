@@ -57,14 +57,22 @@ export async function sendEventManagerWelcomeWhatsApp({
   password,
   dashboardUrl,
   invitationUrl,
-  managerName
+  managerName,
+  userId,
+  senderLabel
 }) {
   if (!isTwilioConfigured()) {
+    console.error(
+      `ERROR: שליחת וואטסאפ נכשלה למספר ${contactPhone || "לא ידוע"} מאת משתמש ${senderLabel || username || userId || "לא ידוע"}. סיבה: Twilio לא מוגדר בשרת`
+    );
     return { sent: false, reason: "twilio_not_configured" };
   }
 
   const to = toTwilioWhatsAppAddress(contactPhone);
   if (!to) {
+    console.error(
+      `ERROR: שליחת וואטסאפ נכשלה למספר ${contactPhone || "לא ידוע"} מאת משתמש ${senderLabel || username || userId || "לא ידוע"}. סיבה: מספר טלפון לא תקין`
+    );
     return { sent: false, reason: "invalid_phone" };
   }
 
@@ -78,18 +86,21 @@ export async function sendEventManagerWelcomeWhatsApp({
   });
 
   try {
-    const result = await sendTwilioWhatsAppMessage({ to, body });
+    const result = await sendTwilioWhatsAppMessage({
+      to,
+      body,
+      userId,
+      username,
+      senderLabel: senderLabel || username,
+      recipientPhone: contactPhone
+    });
     return {
       sent: true,
       sid: result?.sid || "",
       to
     };
   } catch (error) {
-    console.error(
-      "[Twilio] Event manager welcome WhatsApp failed:",
-      error?.code || "",
-      error?.message || error
-    );
+    // ERROR already logged inside sendTwilioWhatsAppMessage
     return {
       sent: false,
       reason: "send_failed",

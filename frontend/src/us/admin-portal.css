@@ -395,6 +395,52 @@
   background: linear-gradient(180deg, #f6fff9 0%, transparent 100%);
 }
 
+.us-admin-deal-block {
+  border-color: #d4c4b0;
+  background: linear-gradient(180deg, #fffaf4 0%, transparent 100%);
+}
+
+.us-admin-deal-features {
+  margin: 0 0 0.85rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--us-border);
+  border-radius: 0.5rem;
+  background: #fff;
+}
+
+.us-admin-deal-features legend {
+  padding: 0 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--us-espresso);
+}
+
+.us-admin-deal-features__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11.5rem, 1fr));
+  gap: 0.45rem 0.75rem;
+}
+
+.us-admin-deal-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  font-size: 0.86rem;
+  color: var(--us-espresso);
+  cursor: pointer;
+}
+
+.us-admin-deal-check input {
+  margin-top: 0.15rem;
+  accent-color: #8b7355;
+}
+
+.us-admin-deal-notes {
+  resize: vertical;
+  min-height: 5.5rem;
+  font-family: inherit;
+}
+
 .us-admin-quota-status {
   margin: 0 0 0.85rem;
   padding: 0.65rem 0.8rem;

@@ -7,6 +7,71 @@ import { buildClientOnboardingMessage } from "../utils/clientOnboardingMessage";
 import { formatIsraeliDate } from "../utils/dateFormat";
 import "../us/admin-portal.css";
 
+const PACKAGE_TYPE_OPTIONS = [
+  { value: "custom", label: "התאמה אישית" },
+  { value: "digital", label: "דיגיטל" },
+  { value: "vip_2_rounds", label: "VIP — 2 סבבים" },
+  { value: "vip_4_rounds", label: "VIP — 4 סבבים" }
+];
+
+const DEAL_PAYMENT_METHOD_OPTIONS = [
+  { value: "bit", label: "ביט" },
+  { value: "paybox", label: "פייבוקס" },
+  { value: "bank_transfer", label: "העברה בנקאית" },
+  { value: "cash", label: "מזומן" },
+  { value: "other", label: "אחר" }
+];
+
+const FEATURE_CHECKBOXES = [
+  { key: "whatsappRound1", label: "וואטסאפ — סבב 1" },
+  { key: "whatsappRound2", label: "וואטסאפ — סבב 2" },
+  { key: "phoneCallsRound1", label: "שיחות טלפון — סבב 1" },
+  { key: "phoneCallsRound2", label: "שיחות טלפון — סבב 2" },
+  { key: "phoneCallsRound3", label: "שיחות טלפון — סבב 3" },
+  { key: "phoneCallsRound4", label: "שיחות טלפון — סבב 4" },
+  { key: "eventDayReminder", label: "תזכורת ביום האירוע" },
+  { key: "eventDayTableNumber", label: "שליחת מספר שולחן ביום האירוע" },
+  { key: "thankYouMessage", label: "הודעת תודה" }
+];
+
+function defaultDealDraft() {
+  return {
+    packageType: "custom",
+    includedFeatures: {
+      whatsappRound1: true,
+      whatsappRound2: false,
+      phoneCallsRound1: false,
+      phoneCallsRound2: false,
+      phoneCallsRound3: false,
+      phoneCallsRound4: false,
+      eventDayReminder: true,
+      eventDayTableNumber: true,
+      thankYouMessage: true
+    },
+    marketingSource: "",
+    paymentAmount: "",
+    paymentMethod: "other",
+    adminNotes: ""
+  };
+}
+
+function dealDraftFromClient(client) {
+  const deal = client?.deal || {};
+  const features = { ...defaultDealDraft().includedFeatures, ...(deal.includedFeatures || {}) };
+  const amount =
+    deal.paymentAmount != null && deal.paymentAmount !== ""
+      ? deal.paymentAmount
+      : client?.payment?.amountPaid;
+  return {
+    packageType: deal.packageType || "custom",
+    includedFeatures: features,
+    marketingSource: deal.marketingSource || "",
+    paymentAmount: amount === 0 || amount == null ? "" : String(amount),
+    paymentMethod: deal.paymentMethod || "other",
+    adminNotes: deal.adminNotes || ""
+  };
+}
+
 const initialForm = {
   username: "",
   password: "",
@@ -69,7 +134,9 @@ function buildClientSubline(client) {
   const parts = [];
   if (client?.etsyOrderId) parts.push(`אטסי #${client.etsyOrderId}`);
   if (client?.contactEmail) parts.push(client.contactEmail);
-  if (Number(client?.payment?.amountPaid) > 0) {
+  if (Number(client?.deal?.paymentAmount) > 0) {
+    parts.push(`₪${Number(client.deal.paymentAmount).toLocaleString("he-IL")}`);
+  } else if (Number(client?.payment?.amountPaid) > 0) {
     parts.push(`₪${Number(client.payment.amountPaid).toLocaleString("he-IL")}`);
   }
   return parts.join(" · ") || client?.username || "";
@@ -100,9 +167,9 @@ export default function AdminPage() {
   const [error, setError] = useState("");
   const [clientsError, setClientsError] = useState("");
   const [totalRevenue, setTotalRevenue] = useState(0);
-  const [paymentDraft, setPaymentDraft] = useState({ amountPaid: "", paymentMethod: "" });
-  const [paymentSaving, setPaymentSaving] = useState(false);
-  const [paymentSaved, setPaymentSaved] = useState(false);
+  const [dealDraft, setDealDraft] = useState(defaultDealDraft);
+  const [dealSaving, setDealSaving] = useState(false);
+  const [dealSaved, setDealSaved] = useState(false);
   const [copiedField, setCopiedField] = useState("");
   const [clientQuota, setClientQuota] = useState(null);
   const [clientQuotas, setClientQuotas] = useState([]);
@@ -137,7 +204,12 @@ ${publicEventUrl}`
   }, [result, selectedClient]);
 
   const totalRevenueFromClients = useMemo(
-    () => clients.reduce((sum, client) => sum + (Number(client.payment?.amountPaid) || 0), 0),
+    () =>
+      clients.reduce((sum, client) => {
+        const fromDeal = Number(client.deal?.paymentAmount);
+        const fromPayment = Number(client.payment?.amountPaid) || 0;
+        return sum + (Number.isFinite(fromDeal) && fromDeal > 0 ? fromDeal : fromPayment);
+      }, 0),
     [clients]
   );
 
@@ -248,43 +320,57 @@ ${publicEventUrl}`
 
   useEffect(() => {
     if (!selectedClient) {
-      setPaymentDraft({ amountPaid: "", paymentMethod: "" });
+      setDealDraft(defaultDealDraft());
       return;
     }
-    const amount = selectedClient.payment?.amountPaid;
-    setPaymentDraft({
-      amountPaid: amount === 0 || amount == null ? "" : String(amount),
-      paymentMethod: selectedClient.payment?.paymentMethod || ""
-    });
-    setPaymentSaved(false);
+    setDealDraft(dealDraftFromClient(selectedClient));
+    setDealSaved(false);
   }, [selectedClient]);
 
-  const onPaymentChange = (event) => {
+  const onDealFieldChange = (event) => {
     const { name, value } = event.target;
-    setPaymentDraft((prev) => ({ ...prev, [name]: value }));
-    setPaymentSaved(false);
+    setDealDraft((prev) => ({ ...prev, [name]: value }));
+    setDealSaved(false);
   };
 
-  const savePayment = async () => {
+  const onDealFeatureToggle = (key) => {
+    setDealDraft((prev) => ({
+      ...prev,
+      includedFeatures: {
+        ...prev.includedFeatures,
+        [key]: !prev.includedFeatures?.[key]
+      }
+    }));
+    setDealSaved(false);
+  };
+
+  const saveDeal = async () => {
     if (!selectedClientId) return;
-    setPaymentSaving(true);
+    setDealSaving(true);
     setError("");
     try {
-      const amountPaid =
-        paymentDraft.amountPaid === "" || paymentDraft.amountPaid == null
-          ? 0
-          : Math.max(0, Number(paymentDraft.amountPaid));
-      await api.patch(`/admin/clients/${selectedClientId}/payment`, {
-        amountPaid,
-        paymentMethod: paymentDraft.paymentMethod.trim()
-      });
+      const payload = {
+        packageType: dealDraft.packageType || "custom",
+        includedFeatures: dealDraft.includedFeatures,
+        marketingSource: dealDraft.marketingSource.trim(),
+        paymentAmount:
+          dealDraft.paymentAmount === "" || dealDraft.paymentAmount == null
+            ? 0
+            : Math.max(0, Number(dealDraft.paymentAmount)),
+        paymentMethod: dealDraft.paymentMethod || "other",
+        adminNotes: dealDraft.adminNotes.trim()
+      };
+      const response = await api.patch(`/admin/clients/${selectedClientId}/deal`, payload);
       await loadClients();
-      setPaymentSaved(true);
-      window.setTimeout(() => setPaymentSaved(false), 2000);
-    } catch (paymentErr) {
-      setError(paymentErr.response?.data?.message || "שמירת פרטי התשלום נכשלה");
+      if (response.data?.deal) {
+        setDealDraft(dealDraftFromClient({ deal: response.data.deal, payment: response.data.payment }));
+      }
+      setDealSaved(true);
+      window.setTimeout(() => setDealSaved(false), 2000);
+    } catch (dealErr) {
+      setError(dealErr.response?.data?.message || "שמירת פרטי העסקה נכשלה");
     } finally {
-      setPaymentSaving(false);
+      setDealSaving(false);
     }
   };
 
@@ -774,48 +860,121 @@ ${publicEventUrl}`
                     </form>
                   </div>
 
-                  <div className="us-admin-payment-block">
-                    <h3>פרטי תשלום (אופציונלי)</h3>
-                    <p className="us-admin-field-hint">ניתן להשאיר ריק או 0 אם הלקוח טרם שילם.</p>
+                  <div className="us-admin-payment-block us-admin-deal-block">
+                    <h3>פרטי עסקה ושיווק</h3>
+                    <p className="us-admin-field-hint">
+                      כמעט תמיד מותאמת אישית — ברירת המחדל היא &quot;התאמה אישית&quot;. סמנו בדיוק אילו סבבים
+                      ופיצ׳רים כלולים בעסקה.
+                    </p>
+
+                    <div className="us-admin-field">
+                      <label className="us-admin-field-label" htmlFor="deal-package-type">
+                        סוג חבילה
+                      </label>
+                      <select
+                        id="deal-package-type"
+                        className="us-admin-field-input"
+                        name="packageType"
+                        value={dealDraft.packageType}
+                        onChange={onDealFieldChange}
+                      >
+                        {PACKAGE_TYPE_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <fieldset className="us-admin-deal-features">
+                      <legend>פיצ׳רים וסבבים כלולים</legend>
+                      <div className="us-admin-deal-features__grid">
+                        {FEATURE_CHECKBOXES.map((feature) => (
+                          <label key={feature.key} className="us-admin-deal-check">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(dealDraft.includedFeatures?.[feature.key])}
+                              onChange={() => onDealFeatureToggle(feature.key)}
+                            />
+                            <span>{feature.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </fieldset>
+
+                    <div className="us-admin-field">
+                      <label className="us-admin-field-label" htmlFor="deal-marketing-source">
+                        מקור הגעה / שיווק
+                      </label>
+                      <input
+                        id="deal-marketing-source"
+                        className="us-admin-field-input"
+                        name="marketingSource"
+                        value={dealDraft.marketingSource}
+                        onChange={onDealFieldChange}
+                        placeholder='לדוגמה: Facebook - Linoy Lead'
+                      />
+                    </div>
+
                     <div className="us-admin-payment-fields">
                       <div className="us-admin-field">
-                        <label className="us-admin-field-label" htmlFor="payment-amount">
-                          כמה שולם (₪)
+                        <label className="us-admin-field-label" htmlFor="deal-payment-amount">
+                          סכום ששולם (₪)
                         </label>
                         <input
-                          id="payment-amount"
+                          id="deal-payment-amount"
                           className="us-admin-field-input"
-                          name="amountPaid"
+                          name="paymentAmount"
                           type="number"
                           min="0"
                           step="1"
                           placeholder="0"
-                          value={paymentDraft.amountPaid}
-                          onChange={onPaymentChange}
+                          value={dealDraft.paymentAmount}
+                          onChange={onDealFieldChange}
                         />
                       </div>
                       <div className="us-admin-field">
-                        <label className="us-admin-field-label" htmlFor="payment-method">
-                          איך שולם?
+                        <label className="us-admin-field-label" htmlFor="deal-payment-method">
+                          אמצעי תשלום
                         </label>
-                        <input
-                          id="payment-method"
+                        <select
+                          id="deal-payment-method"
                           className="us-admin-field-input"
                           name="paymentMethod"
-                          type="text"
-                          placeholder="לדוגמה: מזומן, העברה, ביט…"
-                          value={paymentDraft.paymentMethod}
-                          onChange={onPaymentChange}
-                        />
+                          value={dealDraft.paymentMethod}
+                          onChange={onDealFieldChange}
+                        >
+                          {DEAL_PAYMENT_METHOD_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
                       </div>
                     </div>
+
+                    <div className="us-admin-field">
+                      <label className="us-admin-field-label" htmlFor="deal-admin-notes">
+                        הערות מנהל
+                      </label>
+                      <textarea
+                        id="deal-admin-notes"
+                        className="us-admin-field-input us-admin-deal-notes"
+                        name="adminNotes"
+                        rows={4}
+                        value={dealDraft.adminNotes}
+                        onChange={onDealFieldChange}
+                        placeholder="חישוב מחיר מותאם, הנחות, מגבלות מיוחדות…"
+                      />
+                    </div>
+
                     <button
-                      className="us-admin-btn"
+                      className="us-admin-btn us-admin-btn--primary"
                       type="button"
-                      disabled={paymentSaving}
-                      onClick={savePayment}
+                      disabled={dealSaving}
+                      onClick={saveDeal}
                     >
-                      {paymentSaving ? "שומר…" : paymentSaved ? "נשמר" : "שמירת תשלום"}
+                      {dealSaving ? "שומר…" : dealSaved ? "נשמר" : "שמירת פרטי עסקה"}
                     </button>
                   </div>
 

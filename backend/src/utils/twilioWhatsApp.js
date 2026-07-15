@@ -136,18 +136,76 @@ export function buildTwilioContentVariables(
   return JSON.stringify(variables);
 }
 
-export async function sendTwilioWhatsAppMessage({ to, body, contentSid, contentVariables }) {
-  const client = getTwilioClient();
-  const from = getTwilioWhatsAppFrom();
-  if (contentSid) {
-    const serializedVariables =
-      typeof contentVariables === "string" ? contentVariables : buildTwilioContentVariables(contentVariables || {});
-    return client.messages.create({
-      from,
-      to,
-      contentSid,
-      contentVariables: serializedVariables
-    });
-  }
-  return client.messages.create({ body, from, to });
+export function formatWhatsAppRecipientPhone(toOrPhone) {
+  const raw = String(toOrPhone || "").trim();
+  if (!raw) return "לא ידוע";
+  return raw.replace(/^whatsapp:/i, "") || "לא ידוע";
 }
+
+export function formatWhatsAppSenderLabel({ userId, username, senderLabel } = {}) {
+  if (senderLabel) return String(senderLabel).trim();
+  const parts = [];
+  if (userId) parts.push(String(userId));
+  if (username) parts.push(String(username));
+  return parts.length ? parts.join(" / ") : "לא ידוע";
+}
+
+function formatTwilioFailureReason(error) {
+  if (!error) return "שגיאה לא ידועה";
+  const bits = [];
+  if (error.code != null && error.code !== "") bits.push(`code=${error.code}`);
+  if (error.status != null && error.status !== "") bits.push(`status=${error.status}`);
+  if (error.message) bits.push(String(error.message));
+  else if (typeof error === "string") bits.push(error);
+  return bits.join(" | ") || "שגיאה לא ידועה";
+}
+
+/**
+ * Send WhatsApp via Twilio and always log SUCCESS / ERROR for Railway console tracing.
+ * Optional context: userId, username, senderLabel, recipientPhone
+ */
+export async function sendTwilioWhatsAppMessage({
+  to,
+  body,
+  contentSid,
+  contentVariables,
+  userId,
+  username,
+  senderLabel,
+  recipientPhone
+}) {
+  const displayPhone = formatWhatsAppRecipientPhone(recipientPhone || to);
+  const displaySender = formatWhatsAppSenderLabel({ userId, username, senderLabel });
+
+  try {
+    const client = getTwilioClient();
+    const from = getTwilioWhatsAppFrom();
+    let result;
+    if (contentSid) {
+      const serializedVariables =
+        typeof contentVariables === "string"
+          ? contentVariables
+          : buildTwilioContentVariables(contentVariables || {});
+      result = await client.messages.create({
+        from,
+        to,
+        contentSid,
+        contentVariables: serializedVariables
+      });
+    } else {
+      result = await client.messages.create({ body, from, to });
+    }
+
+    console.log(
+      `SUCCESS: וואטסאפ נשלח בהצלחה למספר ${displayPhone} מאת משתמש ${displaySender}`
+    );
+    return result;
+  } catch (error) {
+    const reason = formatTwilioFailureReason(error);
+    console.error(
+      `ERROR: שליחת וואטסאפ נכשלה למספר ${displayPhone} מאת משתמש ${displaySender}. סיבה: ${reason}`
+    );
+    throw error;
+  }
+}
+

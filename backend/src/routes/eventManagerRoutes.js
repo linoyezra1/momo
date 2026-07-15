@@ -123,7 +123,9 @@ router.post("/create-client", async (req, res) => {
       username: user.username,
       password: plainPassword,
       dashboardUrl: links.clientDashboardLink,
-      invitationUrl: links.publicEventLink
+      invitationUrl: links.publicEventLink,
+      userId: user._id,
+      senderLabel: user.username
     });
 
     return res.status(201).json({

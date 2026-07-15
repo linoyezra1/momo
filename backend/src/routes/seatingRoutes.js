@@ -235,18 +235,24 @@ router.post("/:userId/seating/send-table-messages", async (req, res) => {
       const firstName = String(guest.fullName || "").trim().split(/\s+/)[0] || "אורח/ת";
       const body = `היי ${firstName}, שמחים שבאתם! מספר השולחן שלכם הוא ${tableLabel}. נתראה באירוע! — momoEVENT`;
       const to = toTwilioWhatsAppAddress(guest.phone);
-      if (!to) continue;
+      if (!to) {
+        console.error(
+          `ERROR: שליחת וואטסאפ נכשלה למספר ${guest.phone || "לא ידוע"} מאת משתמש ${userId}. סיבה: מספר טלפון לא תקין`
+        );
+        continue;
+      }
 
       try {
-        await sendTwilioWhatsAppMessage({ to, body });
+        await sendTwilioWhatsAppMessage({
+          to,
+          body,
+          userId,
+          recipientPhone: guest.phone
+        });
         sent += 1;
       } catch (sendError) {
         lastError = sendError;
-        console.error(
-          `[Twilio] Table message failed for ${guest.fullName}:`,
-          sendError?.code || "",
-          sendError?.message || sendError
-        );
+        // ERROR already logged inside sendTwilioWhatsAppMessage
       }
     }
 

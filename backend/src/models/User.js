@@ -34,6 +34,44 @@ const paymentSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const includedFeaturesSchema = new mongoose.Schema(
+  {
+    whatsappRound1: { type: Boolean, default: true },
+    whatsappRound2: { type: Boolean, default: false },
+    phoneCallsRound1: { type: Boolean, default: false },
+    phoneCallsRound2: { type: Boolean, default: false },
+    phoneCallsRound3: { type: Boolean, default: false },
+    phoneCallsRound4: { type: Boolean, default: false },
+    eventDayReminder: { type: Boolean, default: true },
+    eventDayTableNumber: { type: Boolean, default: true },
+    thankYouMessage: { type: Boolean, default: true }
+  },
+  { _id: false }
+);
+
+const dealSchema = new mongoose.Schema(
+  {
+    packageType: {
+      type: String,
+      enum: ["custom", "digital", "vip_2_rounds", "vip_4_rounds"],
+      default: "custom"
+    },
+    includedFeatures: {
+      type: includedFeaturesSchema,
+      default: () => ({})
+    },
+    marketingSource: { type: String, trim: true, default: "" },
+    paymentAmount: { type: Number, default: 0, min: 0 },
+    paymentMethod: {
+      type: String,
+      enum: ["bit", "paybox", "bank_transfer", "cash", "other"],
+      default: "other"
+    },
+    adminNotes: { type: String, trim: true, default: "" }
+  },
+  { _id: false }
+);
+
 const userSchema = new mongoose.Schema(
   {
     username: { type: String, required: true, unique: true, trim: true },
@@ -42,6 +80,7 @@ const userSchema = new mongoose.Schema(
     contactPhone: { type: String, trim: true, default: "" },
     event: { type: eventSchema, required: true },
     payment: { type: paymentSchema, default: () => ({ amountPaid: 0, paymentMethod: "" }) },
+    deal: { type: dealSchema, default: () => ({}) },
     managedBy: {
       type: String,
       enum: ["admin", "eventManager"],

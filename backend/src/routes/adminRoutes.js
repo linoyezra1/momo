@@ -118,7 +118,7 @@ function buildClientLinks(userId, req) {
 }
 
 function normalizePaymentPayload(rawPayment) {
-  const amountRaw = rawPayment?.amountPaid;
+  const amountRaw = rawPayment?.amountPaid ?? rawPayment?.paymentAmount;
   let amountPaid = 0;
   if (amountRaw !== "" && amountRaw != null && !Number.isNaN(Number(amountRaw))) {
     amountPaid = Math.max(0, Number(amountRaw));
@@ -128,14 +128,123 @@ function normalizePaymentPayload(rawPayment) {
   return { amountPaid, paymentMethod };
 }
 
+const PACKAGE_TYPES = new Set(["custom", "digital", "vip_2_rounds", "vip_4_rounds"]);
+const DEAL_PAYMENT_METHODS = new Set(["bit", "paybox", "bank_transfer", "cash", "other"]);
+const FEATURE_KEYS = [
+  "whatsappRound1",
+  "whatsappRound2",
+  "phoneCallsRound1",
+  "phoneCallsRound2",
+  "phoneCallsRound3",
+  "phoneCallsRound4",
+  "eventDayReminder",
+  "eventDayTableNumber",
+  "thankYouMessage"
+];
+
+const PAYMENT_METHOD_LABELS = {
+  bit: "ביט",
+  paybox: "פייבוקס",
+  bank_transfer: "העברה בנקאית",
+  cash: "מזומן",
+  other: "אחר"
+};
+
+function defaultIncludedFeatures() {
+  return {
+    whatsappRound1: true,
+    whatsappRound2: false,
+    phoneCallsRound1: false,
+    phoneCallsRound2: false,
+    phoneCallsRound3: false,
+    phoneCallsRound4: false,
+    eventDayReminder: true,
+    eventDayTableNumber: true,
+    thankYouMessage: true
+  };
+}
+
+function normalizeDealPayload(rawDeal = {}, existingDeal = {}) {
+  const existing = existingDeal?.toObject ? existingDeal.toObject() : existingDeal || {};
+  const packageType = PACKAGE_TYPES.has(String(rawDeal?.packageType || "").trim())
+    ? String(rawDeal.packageType).trim()
+    : existing.packageType || "custom";
+
+  const baseFeatures = {
+    ...defaultIncludedFeatures(),
+    ...(existing.includedFeatures || {})
+  };
+  const incomingFeatures = rawDeal?.includedFeatures || {};
+  const includedFeatures = { ...baseFeatures };
+  for (const key of FEATURE_KEYS) {
+    if (typeof incomingFeatures[key] === "boolean") {
+      includedFeatures[key] = incomingFeatures[key];
+    }
+  }
+
+  let paymentAmount = Number(existing.paymentAmount || 0);
+  if (rawDeal?.paymentAmount !== undefined && rawDeal?.paymentAmount !== "") {
+    const parsed = Number(rawDeal.paymentAmount);
+    paymentAmount = Number.isNaN(parsed) ? 0 : Math.max(0, parsed);
+  }
+
+  const methodRaw = String(rawDeal?.paymentMethod || existing.paymentMethod || "other").trim();
+  const paymentMethod = DEAL_PAYMENT_METHODS.has(methodRaw) ? methodRaw : "other";
+
+  return {
+    packageType,
+    includedFeatures,
+    marketingSource:
+      rawDeal?.marketingSource != null
+        ? String(rawDeal.marketingSource).trim()
+        : String(existing.marketingSource || "").trim(),
+    paymentAmount,
+    paymentMethod,
+    adminNotes:
+      rawDeal?.adminNotes != null
+        ? String(rawDeal.adminNotes).trim()
+        : String(existing.adminNotes || "").trim()
+  };
+}
+
+function serializeDeal(deal, payment = {}) {
+  const normalized = normalizeDealPayload(deal || {}, deal || {});
+  // Prefer deal payment; fall back to legacy payment for older clients
+  if (!deal?.paymentAmount && payment?.amountPaid) {
+    normalized.paymentAmount = Math.max(0, Number(payment.amountPaid) || 0);
+  }
+  if ((!deal?.paymentMethod || deal.paymentMethod === "other") && payment?.paymentMethod) {
+    const legacy = String(payment.paymentMethod).trim().toLowerCase();
+    if (DEAL_PAYMENT_METHODS.has(legacy)) {
+      normalized.paymentMethod = legacy;
+    }
+  }
+  return normalized;
+}
+
+function applyDealToUser(user, rawDeal) {
+  const deal = normalizeDealPayload(rawDeal, user.deal || {});
+  user.deal = deal;
+  // Keep legacy payment in sync for revenue totals / older UI
+  user.payment = {
+    amountPaid: deal.paymentAmount,
+    paymentMethod: PAYMENT_METHOD_LABELS[deal.paymentMethod] || deal.paymentMethod
+  };
+  return deal;
+}
+
 router.get("/clients", async (req, res) => {
   try {
-    const users = await User.find({}, "username event createdAt payment loginPassword contactPhone").sort({
+    const users = await User.find(
+      {},
+      "username event createdAt payment deal loginPassword contactPhone"
+    ).sort({
       createdAt: -1
     });
     const clients = users.map((user) => {
       const links = buildClientLinks(user._id, req);
       const payment = normalizePaymentPayload(user.payment || {});
+      const deal = serializeDeal(user.deal || {}, payment);
       return {
         userId: user._id,
         username: user.username,
@@ -143,11 +252,16 @@ router.get("/clients", async (req, res) => {
         contactPhone: user.contactPhone || "",
         event: user.event,
         payment,
+        deal,
         createdAt: user.createdAt,
         ...links
       };
     });
-    const totalRevenue = clients.reduce((sum, client) => sum + (client.payment?.amountPaid || 0), 0);
+    const totalRevenue = clients.reduce((sum, client) => {
+      const fromDeal = Number(client.deal?.paymentAmount);
+      const fromPayment = Number(client.payment?.amountPaid) || 0;
+      return sum + (Number.isFinite(fromDeal) && fromDeal > 0 ? fromDeal : fromPayment);
+    }, 0);
     return res.json({ clients, totalRevenue });
   } catch (error) {
     return res.status(500).json({ message: "Failed to load clients", error: error.message });
@@ -186,6 +300,7 @@ router.post("/create-client", async (req, res) => {
       loginPassword: plainPassword,
       contactPhone: phone,
       event: normalizedEvent,
+      deal: normalizeDealPayload(req.body?.deal || {}, {}),
       managedBy: "admin"
     });
 
@@ -198,7 +313,9 @@ router.post("/create-client", async (req, res) => {
       password: plainPassword,
       dashboardUrl: links.clientDashboardLink,
       invitationUrl: links.publicEventLink,
-      managerName: getAdminWelcomeDisplayName()
+      managerName: getAdminWelcomeDisplayName(),
+      userId: user._id,
+      senderLabel: user.username
     });
 
     return res.status(201).json({
@@ -218,7 +335,7 @@ router.post("/create-client", async (req, res) => {
 router.patch("/clients/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
-    const { username, password, event, contactPhone } = req.body;
+    const { username, password, event, contactPhone, deal } = req.body;
 
     const user = await User.findById(userId);
     if (!user) {
@@ -251,14 +368,21 @@ router.patch("/clients/:userId", async (req, res) => {
       user.event = normalizedEvent;
     }
 
+    if (deal && typeof deal === "object") {
+      applyDealToUser(user, deal);
+    }
+
     await user.save();
     const links = buildClientLinks(user._id, req);
+    const payment = normalizePaymentPayload(user.payment || {});
     return res.json({
       message: "Client updated",
       userId: user._id,
       username: user.username,
       loginPassword: user.loginPassword || "",
       contactPhone: user.contactPhone || "",
+      payment,
+      deal: serializeDeal(user.deal || {}, payment),
       ...links
     });
   } catch (error) {
@@ -275,15 +399,48 @@ router.patch("/clients/:userId/payment", async (req, res) => {
     }
 
     user.payment = normalizePaymentPayload(req.body);
+    // Mirror into deal for the unified deal section
+    const paymentMethodRaw = String(req.body?.paymentMethod || "").trim().toLowerCase();
+    const mappedMethod = DEAL_PAYMENT_METHODS.has(paymentMethodRaw)
+      ? paymentMethodRaw
+      : user.deal?.paymentMethod || "other";
+    applyDealToUser(user, {
+      ...(user.deal?.toObject?.() || user.deal || {}),
+      paymentAmount: user.payment.amountPaid,
+      paymentMethod: mappedMethod
+    });
     await user.save();
 
     return res.json({
       message: "Payment updated",
       userId: user._id,
-      payment: user.payment
+      payment: user.payment,
+      deal: serializeDeal(user.deal || {}, user.payment)
     });
   } catch (error) {
     return res.status(500).json({ message: error.message || "Failed to update payment" });
+  }
+});
+
+router.patch("/clients/:userId/deal", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "Client not found" });
+    }
+
+    const deal = applyDealToUser(user, req.body?.deal || req.body || {});
+    await user.save();
+
+    return res.json({
+      message: "פרטי העסקה נשמרו",
+      userId: user._id,
+      deal,
+      payment: user.payment
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "Failed to update deal" });
   }
 });
 

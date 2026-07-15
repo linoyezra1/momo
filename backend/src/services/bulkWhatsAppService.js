@@ -153,9 +153,21 @@ function resolveInviteeTemplateFields({ invitee, defaults, eventId, origin, temp
   };
 }
 
-async function sendToInvitee({ invitee, templateBodyText, eventId, origin, contentSid, defaults, templateKeys }) {
+async function sendToInvitee({
+  invitee,
+  templateBodyText,
+  eventId,
+  origin,
+  contentSid,
+  defaults,
+  templateKeys,
+  userId
+}) {
   const to = toTwilioWhatsAppAddress(invitee.phone);
   if (!to) {
+    console.error(
+      `ERROR: שליחת וואטסאפ נכשלה למספר ${invitee.phone || "לא ידוע"} מאת משתמש ${userId || "לא ידוע"}. סיבה: מספר טלפון לא תקין`
+    );
     return {
       ok: false,
       invitee,
@@ -190,15 +202,13 @@ async function sendToInvitee({ invitee, templateBodyText, eventId, origin, conte
     await sendTwilioWhatsAppMessage({
       to,
       contentSid,
-      contentVariables
+      contentVariables,
+      userId: userId || eventId,
+      recipientPhone: invitee.phone
     });
     return { ok: true, invitee };
   } catch (error) {
-    console.error(
-      `[Twilio] Send failed for ${invitee.name} (${invitee.phone}):`,
-      error?.code || "",
-      error?.message || error
-    );
+    // sendTwilioWhatsAppMessage already logged ERROR; keep debug payload for templates
     try {
       const debugFields = resolveInviteeTemplateFields({
         invitee,
@@ -316,7 +326,8 @@ export async function sendBulkWhatsApp({
           origin,
           contentSid,
           defaults,
-          templateKeys
+          templateKeys,
+          userId
         })
       )
     );
