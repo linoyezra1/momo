@@ -18,54 +18,54 @@ import "../landing.css";
 
 const WHATSAPP_LINK =
   import.meta.env.VITE_MARKETING_WHATSAPP_URL ||
-  "https://api.whatsapp.com/send?text=" + encodeURIComponent("ωμεν, ΰωξη μχαμ τψθιν ςμ momoEVENT");
+  "https://api.whatsapp.com/send?text=" + encodeURIComponent("Χ©ΧΧ•Χ, ΧΧ©ΧΧ— ΧΧ§Χ‘Χ Χ¤Χ¨ΧΧ™Χ ΧΆΧ momoEVENT");
 
 const FEATURES = [
   {
     icon: Sparkles,
-    title: "δζξπδ γιβιθμιϊ ξςεφαϊ",
-    text: "ιφιψϊ δζξπδ ξδξξϊ ςν ΰτωψεϊ ςψιλδ ςφξΰιϊ ωμ τψθι δΰιψες, δϊΰψιλιν εδξιχεν αλμ ψβς."
+    title: "Χ”Χ–ΧΧ Χ” Χ“Χ™Χ’Χ™ΧΧΧ™Χª ΧΧΆΧ•Χ¦Χ‘Χª",
+    text: "Χ™Χ¦Χ™Χ¨Χª Χ”Χ–ΧΧ Χ” ΧΧ”ΧΧΧª ΧΆΧ ΧΧ¤Χ©Χ¨Χ•Χª ΧΆΧ¨Χ™Χ›Χ” ΧΆΧ¦ΧΧΧ™Χª Χ©Χ Χ¤Χ¨ΧΧ™ Χ”ΧΧ™Χ¨Χ•ΧΆ, Χ”ΧªΧΧ¨Χ™Χ›Χ™Χ Χ•Χ”ΧΧ™Χ§Χ•Χ Χ‘Χ›Χ Χ¨Χ’ΧΆ."
   },
   {
     icon: BarChart3,
-    title: "ΰιωεψι δβςδ αζξο ΰξϊ",
-    text: "ξςχα ΰεπμιιο ξμΰ ςν ρθθερ ξβιςιν / μΰ ξβιςιν / ΰεμι δξϊςγλο ΰφμλν αξρκ αωπιεϊ ΰξϊ."
+    title: "ΧΧ™Χ©Χ•Χ¨Χ™ Χ”Χ’ΧΆΧ” Χ‘Χ–ΧΧ ΧΧΧª",
+    text: "ΧΧΆΧ§Χ‘ ΧΧ•Χ ΧΧ™Χ™Χ ΧΧΧ ΧΆΧ Χ΅ΧΧΧ•Χ΅ ΧΧ’Χ™ΧΆΧ™Χ / ΧΧ ΧΧ’Χ™ΧΆΧ™Χ / ΧΧ•ΧΧ™ Χ”ΧΧªΧΆΧ“Χ›Χ ΧΧ¦ΧΧ›Χ Χ‘ΧΧ΅Χ Χ‘Χ©Χ Χ™Χ•Χª ΧΧΧª."
   },
   {
     icon: Users,
-    title: "πιδεμ ψωιξεϊ ηλν",
-    text: "ιιαεΰ χμ εξδιψ ξχεαυ Excel, ΰτωψεϊ μδερτδ ιγπιϊ εξπβπεο ΰεθεξθι μξπιςϊ λτιμειεϊ μτι ξρτψ θμτεο."
+    title: "Χ Χ™Χ”Χ•Χ Χ¨Χ©Χ™ΧΧ•Χª Χ—Χ›Χ",
+    text: "Χ™Χ™Χ‘Χ•Χ Χ§Χ Χ•ΧΧ”Χ™Χ¨ ΧΧ§Χ•Χ‘Χ¥ Excel, ΧΧ¤Χ©Χ¨Χ•Χª ΧΧ”Χ•Χ΅Χ¤Χ” Χ™Χ“Χ Χ™Χª Χ•ΧΧ Χ’Χ Χ•Χ ΧΧ•ΧΧ•ΧΧΧ™ ΧΧΧ Χ™ΧΆΧª Χ›Χ¤Χ™ΧΧ•Χ™Χ•Χª ΧΧ¤Χ™ ΧΧ΅Χ¤Χ¨ ΧΧΧ¤Χ•Χ."
   },
   {
     icon: Gift,
-    title: "ξςχα ϊωμεξιν εξϊπεϊ",
-    text: "ψιωεν εξςχα ξρεγψ ΰηψ δξϊπεϊ εδλρτιν ωχιαμϊν αΰιψες, λγι ωωεν γαψ μΰ ιμκ μΰιαεγ."
+    title: "ΧΧΆΧ§Χ‘ ΧªΧ©ΧΧ•ΧΧ™Χ Χ•ΧΧªΧ Χ•Χª",
+    text: "Χ¨Χ™Χ©Χ•Χ Χ•ΧΧΆΧ§Χ‘ ΧΧ΅Χ•Χ“Χ¨ ΧΧ—Χ¨ Χ”ΧΧªΧ Χ•Χª Χ•Χ”Χ›Χ΅Χ¤Χ™Χ Χ©Χ§Χ™Χ‘ΧΧªΧ Χ‘ΧΧ™Χ¨Χ•ΧΆ, Χ›Χ“Χ™ Χ©Χ©Χ•Χ Χ“Χ‘Χ¨ ΧΧ Χ™ΧΧ ΧΧΧ™Χ‘Χ•Χ“."
   },
   {
     icon: MessageCircle,
-    title: "ωμιηδ αεεΰθρΰτ μμΰ δβαμδ",
-    text: "τιφ'ψ ιιηεγι μωμιηϊ δζξπεϊ εϊζλεψεϊ ιωιψεϊ ξδξρτψ δΰιωι ωμλν μμΰ δβαμϊ λξεϊ."
+    title: "Χ©ΧΧ™Χ—Χ” Χ‘Χ•Χ•ΧΧΧ΅ΧΧ¤ ΧΧΧ Χ”Χ’Χ‘ΧΧ”",
+    text: "Χ¤Χ™Χ¦'Χ¨ Χ™Χ™Χ—Χ•Χ“Χ™ ΧΧ©ΧΧ™Χ—Χª Χ”Χ–ΧΧ Χ•Χª Χ•ΧªΧ–Χ›Χ•Χ¨Χ•Χª Χ™Χ©Χ™Χ¨Χ•Χª ΧΧ”ΧΧ΅Χ¤Χ¨ Χ”ΧΧ™Χ©Χ™ Χ©ΧΧ›Χ ΧΧΧ Χ”Χ’Χ‘ΧΧª Χ›ΧΧ•Χª."
   }
 ];
 
 const TESTIMONIALS = [
   {
     quote:
-      "ρεσ ρεσ ςωιπε ργψ αξεζξπιν αμι ΰχρμιν ΰιπρετιιν. δδζξπδ ιφΰδ ξγδιξδ εΰιωεψι δδβςδ ζψξε ΰμιπε αζξο ΰξϊ.",
-    names: "μιπει εγο",
-    meta: "ΰεμν ςγιδ | 28.06"
+      "Χ΅Χ•Χ£ Χ΅Χ•Χ£ ΧΆΧ©Χ™Χ Χ• Χ΅Χ“Χ¨ Χ‘ΧΧ•Χ–ΧΧ Χ™Χ Χ‘ΧΧ™ ΧΧ§Χ΅ΧΧ™Χ ΧΧ™Χ Χ΅Χ•Χ¤Χ™Χ™Χ. Χ”Χ”Χ–ΧΧ Χ” Χ™Χ¦ΧΧ” ΧΧ“Χ”Χ™ΧΧ” Χ•ΧΧ™Χ©Χ•Χ¨Χ™ Χ”Χ”Χ’ΧΆΧ” Χ–Χ¨ΧΧ• ΧΧΧ™Χ Χ• Χ‘Χ–ΧΧ ΧΧΧª.",
+    names: "ΧΧ™Χ Χ•Χ™ Χ•Χ“Χ",
+    meta: "ΧΧ•ΧΧ ΧΆΧ“Χ™Χ” | 28.06"
   },
   {
     quote:
-      "δωμιηδ αεεΰθρΰτ ηρλδ μπε ωςεϊ. δλμ διδ τωεθ, ιεχψϊι εξχφεςι — αγιεχ λξε ωψφιπε ωδηϊεπδ ϊψβιω.",
-    names: "ιφηχ εψςεϊ",
-    meta: "βο δΰιψεςιν ψιαιιψδ | 14.05"
+      "Χ”Χ©ΧΧ™Χ—Χ” Χ‘Χ•Χ•ΧΧΧ΅ΧΧ¤ Χ—Χ΅Χ›Χ” ΧΧ Χ• Χ©ΧΆΧ•Χª. Χ”Χ›Χ Χ”Χ™Χ” Χ¤Χ©Χ•Χ, Χ™Χ•Χ§Χ¨ΧªΧ™ Χ•ΧΧ§Χ¦Χ•ΧΆΧ™ β€” Χ‘Χ“Χ™Χ•Χ§ Χ›ΧΧ• Χ©Χ¨Χ¦Χ™Χ Χ• Χ©Χ”Χ—ΧªΧ•Χ Χ” ΧªΧ¨Χ’Χ™Χ©.",
+    names: "Χ™Χ¦Χ—Χ§ Χ•Χ¨ΧΆΧ•Χª",
+    meta: "Χ’Χ Χ”ΧΧ™Χ¨Χ•ΧΆΧ™Χ Χ¨Χ™Χ‘Χ™Χ™Χ¨Χ” | 14.05"
   },
   {
     quote:
-      "ξςχα δξϊπεϊ εδρθθεριν πϊπε μπε ωχθ ξγδιν. δφεεϊ ωμ momoEVENT ζξιο, πςιν εξγειχ — ξξμιφιν αηεν.",
-    names: "πεςδ εΰεψι",
-    meta: "ΰεμξι τπεψξδ | 03.04"
+      "ΧΧΆΧ§Χ‘ Χ”ΧΧªΧ Χ•Χª Χ•Χ”Χ΅ΧΧΧ•Χ΅Χ™Χ Χ ΧªΧ Χ• ΧΧ Χ• Χ©Χ§Χ ΧΧ“Χ”Χ™Χ. Χ”Χ¦Χ•Χ•Χª Χ©Χ momoEVENT Χ–ΧΧ™Χ, Χ ΧΆΧ™Χ Χ•ΧΧ“Χ•Χ™Χ§ β€” ΧΧΧΧ™Χ¦Χ™Χ Χ‘Χ—Χ•Χ.",
+    names: "Χ Χ•ΧΆΧ” Χ•ΧΧ•Χ¨Χ™",
+    meta: "ΧΧ•ΧΧΧ™ Χ¤Χ Χ•Χ¨ΧΧ” | 03.04"
   }
 ];
 
@@ -116,7 +116,7 @@ export default function LandingPage() {
       setContactForm(initialContact);
       setToastVisible(true);
     } catch (submitError) {
-      setContactError(submitError.response?.data?.message || "ωμιηϊ δθετρ πλωμδ. πρε ωεα αςεγ ψβς.");
+      setContactError(submitError.response?.data?.message || "Χ©ΧΧ™Χ—Χª Χ”ΧΧ•Χ¤Χ΅ Χ Χ›Χ©ΧΧ”. Χ Χ΅Χ• Χ©Χ•Χ‘ Χ‘ΧΆΧ•Χ“ Χ¨Χ’ΧΆ.");
     } finally {
       setContactBusy(false);
     }
@@ -124,7 +124,7 @@ export default function LandingPage() {
 
   return (
     <div className="landing-page" dir="rtl" lang="he">
-      <nav className="landing-nav" aria-label="ϊτψιθ ψΰωι">
+      <nav className="landing-nav" aria-label="ΧªΧ¤Χ¨Χ™Χ Χ¨ΧΧ©Χ™">
         <div className="landing-nav-inner">
           <Link className="landing-nav-brand" to="/" onClick={() => setMenuOpen(false)}>
             <img src="/logo-momo.png" alt="" className="landing-nav-logo" />
@@ -136,7 +136,7 @@ export default function LandingPage() {
             type="button"
             aria-expanded={menuOpen}
             aria-controls="landing-nav-menu"
-            aria-label={menuOpen ? "ρβιψϊ ϊτψιθ" : "τϊιηϊ ϊτψιθ"}
+            aria-label={menuOpen ? "Χ΅Χ’Χ™Χ¨Χª ΧªΧ¤Χ¨Χ™Χ" : "Χ¤ΧªΧ™Χ—Χª ΧªΧ¤Χ¨Χ™Χ"}
             onClick={() => setMenuOpen((open) => !open)}
           >
             {menuOpen ? <X size={22} /> : <Menu size={22} />}
@@ -151,21 +151,21 @@ export default function LandingPage() {
               href="#features"
               onClick={() => setMenuOpen(false)}
             >
-              δτιφ&apos;ψιν
+              Χ”Χ¤Χ™Χ¦&apos;Χ¨Χ™Χ
             </a>
             <a
               className="landing-nav-link"
               href="#testimonials"
               onClick={() => setMenuOpen(false)}
             >
-              λεϊαιν ςμιπε
+              Χ›Χ•ΧªΧ‘Χ™Χ ΧΆΧΧ™Χ Χ•
             </a>
             <a
               className="landing-nav-link"
               href="#contact"
               onClick={() => setMenuOpen(false)}
             >
-              ιφιψϊ χωψ
+              Χ™Χ¦Χ™Χ¨Χª Χ§Χ©Χ¨
             </a>
             <Link
               className="landing-nav-login"
@@ -173,9 +173,9 @@ export default function LandingPage() {
               onClick={() => setMenuOpen(false)}
             >
               <LogIn size={16} aria-hidden="true" />
-              <span className="landing-nav-login-label">δϊηαψεϊ μμχεηεϊ</span>
+              <span className="landing-nav-login-label">Χ”ΧªΧ—Χ‘Χ¨Χ•Χª ΧΧΧ§Χ•Χ—Χ•Χª</span>
               <span className="landing-nav-login-short" aria-hidden="true">
-                λπιρδ
+                Χ›Χ Χ™Χ΅Χ”
               </span>
             </Link>
           </div>
@@ -196,20 +196,20 @@ export default function LandingPage() {
 
           <p className="landing-eyebrow">RSVP & Event Guest Management</p>
           <h1 className="landing-title">
-            momoEVENT — ξςψλϊ ΰιωεψι δβςδ εδζξπεϊ γιβιθμιεϊ ηλξεϊ μΰιψεςιν
+            momoEVENT β€” ΧΧΆΧ¨Χ›Χª ΧΧ™Χ©Χ•Χ¨Χ™ Χ”Χ’ΧΆΧ” Χ•Χ”Χ–ΧΧ Χ•Χª Χ“Χ™Χ’Χ™ΧΧΧ™Χ•Χª Χ—Χ›ΧΧ•Χª ΧΧΧ™Χ¨Χ•ΧΆΧ™Χ
           </h1>
           <p className="landing-subtitle">
-            ςεωιν μλν ργψ αξεζξπιν αχμεϊ εαμι λΰαι ψΰω. ξωμξιν ψχ ςμ ξδ ωφψιλιν — ωχμ ΰηγ αμαγ
-            μψωεξδ, εΰϊν χεαςιν ΰϊ δλξεϊ.
+            ΧΆΧ•Χ©Χ™Χ ΧΧ›Χ Χ΅Χ“Χ¨ Χ‘ΧΧ•Χ–ΧΧ Χ™Χ Χ‘Χ§ΧΧ•Χª Χ•Χ‘ΧΧ™ Χ›ΧΧ‘Χ™ Χ¨ΧΧ©. ΧΧ©ΧΧΧ™Χ Χ¨Χ§ ΧΆΧ ΧΧ” Χ©Χ¦Χ¨Χ™Χ›Χ™Χ β€” Χ©Χ§Χ ΧΧ—Χ“ Χ‘ΧΧ‘Χ“
+            ΧΧ¨Χ©Χ•ΧΧ”, Χ•ΧΧªΧ Χ§Χ•Χ‘ΧΆΧ™Χ ΧΧª Χ”Χ›ΧΧ•Χª.
           </p>
 
           <div className="landing-cta-row">
             <Link className="landing-cta landing-cta--primary" to="/client/login">
-              πρε ΰϊ δξςψλϊ αηιπν
+              Χ Χ΅Χ• ΧΧª Χ”ΧΧΆΧ¨Χ›Χª Χ‘Χ—Χ™Χ Χ
               <ArrowLeft size={18} aria-hidden="true" />
             </Link>
             <a className="landing-cta landing-cta--whatsapp" href={WHATSAPP_LINK} target="_blank" rel="noreferrer">
-              γαψε ΰιϊπε αεεΰθρΰτ
+              Χ“Χ‘Χ¨Χ• ΧΧ™ΧªΧ Χ• Χ‘Χ•Χ•ΧΧΧ΅ΧΧ¤
               <MessageCircle size={18} aria-hidden="true" />
             </a>
           </div>
@@ -218,18 +218,18 @@ export default function LandingPage() {
 
       <section className="landing-section landing-about">
         <div className="landing-section-inner">
-          <h2 className="landing-section-title">ξι ΰπηπε εξδ ΰπηπε πεϊπιν?</h2>
+          <h2 className="landing-section-title">ΧΧ™ ΧΧ Χ—Χ Χ• Χ•ΧΧ” ΧΧ Χ—Χ Χ• Χ Χ•ΧªΧ Χ™Χ?</h2>
           <p className="landing-about-text">
-            momoEVENT διΰ ξςψλϊ θλπεμεβιϊ ξϊχγξϊ μπιδεμ ξεζξπιν μΰιψεςιν — ηϊεπεϊ, αψ/αϊ ξφεεδ, αψιϊεϊ
-            εςεγ. διΰ ξΰτωψϊ μαςμι δΰιψες μωμεθ αδλμ ξδπιιγ ΰε δξηωα, αψεβς εααιθηεο: ψωιξεϊ ξεζξπιν,
-            δζξπδ γιβιθμιϊ, ΰιωεψι δβςδ, ϊζλεψεϊ εξςχα ξϊπεϊ — δλμ αξχεν ΰηγ.
+            momoEVENT Χ”Χ™Χ ΧΧΆΧ¨Χ›Χª ΧΧ›Χ Χ•ΧΧ•Χ’Χ™Χª ΧΧªΧ§Χ“ΧΧª ΧΧ Χ™Χ”Χ•Χ ΧΧ•Χ–ΧΧ Χ™Χ ΧΧΧ™Χ¨Χ•ΧΆΧ™Χ β€” Χ—ΧªΧ•Χ Χ•Χª, Χ‘Χ¨/Χ‘Χª ΧΧ¦Χ•Χ•Χ”, Χ‘Χ¨Χ™ΧªΧ•Χª
+            Χ•ΧΆΧ•Χ“. Χ”Χ™Χ ΧΧΧ¤Χ©Χ¨Χª ΧΧ‘ΧΆΧΧ™ Χ”ΧΧ™Χ¨Χ•ΧΆ ΧΧ©ΧΧ•Χ Χ‘Χ”Χ›Χ ΧΧ”Χ Χ™Χ™Χ“ ΧΧ• Χ”ΧΧ—Χ©Χ‘, Χ‘Χ¨Χ•Χ’ΧΆ Χ•Χ‘Χ‘Χ™ΧΧ—Χ•Χ: Χ¨Χ©Χ™ΧΧ•Χª ΧΧ•Χ–ΧΧ Χ™Χ,
+            Χ”Χ–ΧΧ Χ” Χ“Χ™Χ’Χ™ΧΧΧ™Χª, ΧΧ™Χ©Χ•Χ¨Χ™ Χ”Χ’ΧΆΧ”, ΧªΧ–Χ›Χ•Χ¨Χ•Χª Χ•ΧΧΆΧ§Χ‘ ΧΧªΧ Χ•Χª β€” Χ”Χ›Χ Χ‘ΧΧ§Χ•Χ ΧΧ—Χ“.
           </p>
         </div>
       </section>
 
       <section id="features" className="landing-section landing-features">
         <div className="landing-section-inner">
-          <h2 className="landing-section-title">ΰιμε τιφ&apos;ψιν ξηλιν μλν αξςψλϊ?</h2>
+          <h2 className="landing-section-title">ΧΧ™ΧΧ• Χ¤Χ™Χ¦&apos;Χ¨Χ™Χ ΧΧ—Χ›Χ™Χ ΧΧ›Χ Χ‘ΧΧΆΧ¨Χ›Χª?</h2>
           <div className="landing-features-grid">
             {FEATURES.map((feature) => {
               const Icon = feature.icon;
@@ -249,11 +249,11 @@ export default function LandingPage() {
 
       <section id="testimonials" className="landing-section landing-testimonials">
         <div className="landing-section-inner">
-          <p className="landing-section-eyebrow">ΰξεο ξδωθη</p>
-          <h2 className="landing-section-title">λεϊαιν ςμιπε</h2>
+          <p className="landing-section-eyebrow">ΧΧΧ•Χ ΧΧ”Χ©ΧΧ—</p>
+          <h2 className="landing-section-title">Χ›Χ•ΧªΧ‘Χ™Χ ΧΆΧΧ™Χ Χ•</h2>
           <p className="landing-section-lead">
-            ζεβεϊ ωαηψε αΞmomoEVENT ξρτψιν ΰικ δηεειδ δψβιωδ αΰξϊ — τωεθδ, ιεχψϊιϊ εξρεγψϊ ςγ δτψθ
-            δΰηψεο.
+            Χ–Χ•Χ’Χ•Χª Χ©Χ‘Χ—Χ¨Χ• Χ‘ΦΎmomoEVENT ΧΧ΅Χ¤Χ¨Χ™Χ ΧΧ™Χ Χ”Χ—Χ•Χ•Χ™Χ” Χ”Χ¨Χ’Χ™Χ©Χ” Χ‘ΧΧΧª β€” Χ¤Χ©Χ•ΧΧ”, Χ™Χ•Χ§Χ¨ΧªΧ™Χª Χ•ΧΧ΅Χ•Χ“Χ¨Χª ΧΆΧ“ Χ”Χ¤Χ¨Χ
+            Χ”ΧΧ—Χ¨Χ•Χ.
           </p>
           <div className="landing-testimonials-grid">
             {TESTIMONIALS.map((item) => (
@@ -275,22 +275,22 @@ export default function LandingPage() {
       <section id="contact" className="landing-section landing-contact">
         <div className="landing-section-inner landing-contact-grid">
           <div className="landing-contact-copy">
-            <p className="landing-section-eyebrow">φψε χωψ</p>
-            <h2 className="landing-section-title landing-section-title--start">γαψε ΰιϊπε</h2>
+            <p className="landing-section-eyebrow">Χ¦Χ¨Χ• Χ§Χ©Χ¨</p>
+            <h2 className="landing-section-title landing-section-title--start">Χ“Χ‘Χ¨Χ• ΧΧ™ΧªΧ Χ•</h2>
             <p className="landing-contact-intro">
-              πωξη μδϊΰιν μλν ΰϊ δηαιμδ δξεωμξϊ μΰιψες ωμλν — αμι μηυ, αμι αμαεμ, εςν μιεει ΰιωι μλμ
-              ΰεψκ δγψκ.
+              Χ Χ©ΧΧ— ΧΧ”ΧªΧΧ™Χ ΧΧ›Χ ΧΧª Χ”Χ—Χ‘Χ™ΧΧ” Χ”ΧΧ•Χ©ΧΧΧª ΧΧΧ™Χ¨Χ•ΧΆ Χ©ΧΧ›Χ β€” Χ‘ΧΧ™ ΧΧ—Χ¥, Χ‘ΧΧ™ Χ‘ΧΧ‘Χ•Χ, Χ•ΧΆΧ ΧΧ™Χ•Χ•Χ™ ΧΧ™Χ©Χ™ ΧΧ›Χ
+              ΧΧ•Χ¨Χ Χ”Χ“Χ¨Χ.
             </p>
             <ul className="landing-contact-bullets">
-              <li>ξςπδ ξδιψ ξφεεϊ momoEVENT</li>
-              <li>δϊΰξδ ΰιωιϊ μρεβ δΰιψες εμϊχφια</li>
-              <li>μιεει ξχφεςι ςγ ιεν δΰιψες</li>
+              <li>ΧΧΆΧ Χ” ΧΧ”Χ™Χ¨ ΧΧ¦Χ•Χ•Χª momoEVENT</li>
+              <li>Χ”ΧªΧΧΧ” ΧΧ™Χ©Χ™Χª ΧΧ΅Χ•Χ’ Χ”ΧΧ™Χ¨Χ•ΧΆ Χ•ΧΧªΧ§Χ¦Χ™Χ‘</li>
+              <li>ΧΧ™Χ•Χ•Χ™ ΧΧ§Χ¦Χ•ΧΆΧ™ ΧΆΧ“ Χ™Χ•Χ Χ”ΧΧ™Χ¨Χ•ΧΆ</li>
             </ul>
           </div>
 
           <form className="landing-contact-form" onSubmit={onContactSubmit} noValidate>
             <div className="landing-field">
-              <label htmlFor="contact-fullName">ων ξμΰ</label>
+              <label htmlFor="contact-fullName">Χ©Χ ΧΧΧ</label>
               <input
                 id="contact-fullName"
                 name="fullName"
@@ -299,11 +299,11 @@ export default function LandingPage() {
                 required
                 value={contactForm.fullName}
                 onChange={onContactChange}
-                placeholder="δων ωμλν"
+                placeholder="Χ”Χ©Χ Χ©ΧΧ›Χ"
               />
             </div>
             <div className="landing-field">
-              <label htmlFor="contact-phone">ξρτψ θμτεο</label>
+              <label htmlFor="contact-phone">ΧΧ΅Χ¤Χ¨ ΧΧΧ¤Χ•Χ</label>
               <input
                 id="contact-phone"
                 name="phone"
@@ -319,7 +319,7 @@ export default function LandingPage() {
             </div>
             <div className="landing-field">
               <label htmlFor="contact-eventDate">
-                ϊΰψικ δΰιψες <span className="landing-optional">(ΰετφιεπμι)</span>
+                ΧªΧΧ¨Χ™Χ Χ”ΧΧ™Χ¨Χ•ΧΆ <span className="landing-optional">(ΧΧ•Χ¤Χ¦Χ™Χ•Χ ΧΧ™)</span>
               </label>
               <input
                 id="contact-eventDate"
@@ -331,7 +331,7 @@ export default function LandingPage() {
             </div>
             <div className="landing-field">
               <label htmlFor="contact-message">
-                δςψεϊ / δεγςδ <span className="landing-optional">(ΰετφιεπμι)</span>
+                Χ”ΧΆΧ¨Χ•Χª / Χ”Χ•Χ“ΧΆΧ” <span className="landing-optional">(ΧΧ•Χ¤Χ¦Χ™Χ•Χ ΧΧ™)</span>
               </label>
               <textarea
                 id="contact-message"
@@ -339,7 +339,7 @@ export default function LandingPage() {
                 rows={4}
                 value={contactForm.message}
                 onChange={onContactChange}
-                placeholder="ρτψε μπε αχφψδ ςμ δΰιψες ωμλν"
+                placeholder="Χ΅Χ¤Χ¨Χ• ΧΧ Χ• Χ‘Χ§Χ¦Χ¨Χ” ΧΆΧ Χ”ΧΧ™Χ¨Χ•ΧΆ Χ©ΧΧ›Χ"
               />
             </div>
 
@@ -350,20 +350,20 @@ export default function LandingPage() {
             ) : null}
 
             <button className="landing-cta landing-cta--primary landing-contact-submit" type="submit" disabled={contactBusy}>
-              {contactBusy ? "ωεμηιν…" : "ωμηε μπε δεγςδ"}
+              {contactBusy ? "Χ©Χ•ΧΧ—Χ™Χβ€¦" : "Χ©ΧΧ—Χ• ΧΧ Χ• Χ”Χ•Χ“ΧΆΧ”"}
             </button>
           </form>
         </div>
       </section>
 
       <footer className="landing-footer">
-        <p>momoEVENT · ξςψλϊ ΰιωεψι δβςδ εδζξπεϊ γιβιθμιεϊ</p>
+        <p>momoEVENT Β· ΧΧΆΧ¨Χ›Χª ΧΧ™Χ©Χ•Χ¨Χ™ Χ”Χ’ΧΆΧ” Χ•Χ”Χ–ΧΧ Χ•Χª Χ“Χ™Χ’Χ™ΧΧΧ™Χ•Χª</p>
         <div className="landing-footer-links">
           <Link className="landing-footer-link" to="/client/login">
-            δϊηαψεϊ μμχεηεϊ
+            Χ”ΧªΧ—Χ‘Χ¨Χ•Χª ΧΧΧ§Χ•Χ—Χ•Χª
           </Link>
           <a className="landing-footer-link" href={WHATSAPP_LINK} target="_blank" rel="noreferrer">
-            εεΰθρΰτ ιωιψ
+            Χ•Χ•ΧΧΧ΅ΧΧ¤ Χ™Χ©Χ™Χ¨
           </a>
         </div>
       </footer>
@@ -373,7 +373,7 @@ export default function LandingPage() {
         role="status"
         aria-live="polite"
       >
-        δεγςϊλν δϊχαμδ αδφμηδ! πφιβ ξξεξε ΰιεεπθ ιηζεψ ΰμιλν αδχγν ??
+        Χ”Χ•Χ“ΧΆΧªΧ›Χ Χ”ΧªΧ§Χ‘ΧΧ” Χ‘Χ”Χ¦ΧΧ—Χ”! Χ Χ¦Χ™Χ’ ΧΧΧ•ΧΧ• ΧΧ™Χ•Χ•Χ Χ Χ™Χ—Χ–Χ•Χ¨ ΧΧΧ™Χ›Χ Χ‘Χ”Χ§Χ“Χ ??
       </div>
     </div>
   );
