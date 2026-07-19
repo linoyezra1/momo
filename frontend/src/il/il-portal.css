@@ -101,15 +101,25 @@
 }
 
 .il-status-donut__center strong {
-  font-size: 1.35rem;
+  font-size: clamp(1.15rem, 3vw, 1.45rem);
   line-height: 1;
   color: var(--us-espresso);
+  transition: opacity 0.2s ease;
 }
 
 .il-status-donut__center span {
-  margin-top: 0.2rem;
-  font-size: 0.65rem;
+  margin-top: 0.18rem;
+  font-size: clamp(0.56rem, 1.4vw, 0.65rem);
+  font-weight: 600;
   color: var(--us-muted);
+}
+
+.il-status-donut__center small {
+  margin-top: 0.12rem;
+  color: var(--us-muted);
+  font-size: clamp(0.55rem, 1.35vw, 0.64rem);
+  line-height: 1.1;
+  direction: ltr;
 }
 
 .il-status-donut__content {

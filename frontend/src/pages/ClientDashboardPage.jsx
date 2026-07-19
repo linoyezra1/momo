@@ -39,7 +39,9 @@ const REMINDER_FILTER_OPTIONS = [
   { value: "all", label: "כל סבבי השליחה" },
   { value: "0", label: "טרם נשלחו" },
   { value: "1", label: "סבב 1 בלבד" },
-  { value: "2+", label: "סבב 2 ומעלה" }
+  { value: "2", label: "סבב 2 בלבד" },
+  { value: "3", label: "סבב 3 בלבד" },
+  { value: "4+", label: "סבב 4 ומעלה" }
 ];
 
 function parseAttendeesCount(raw) {
@@ -233,12 +235,12 @@ export default function ClientDashboardPage() {
       list = list.filter((guest) => guest.status === statusFilter);
     }
 
-    if (reminderRoundFilter === "0") {
-      list = list.filter((guest) => getReminderRound(guest) === 0);
-    } else if (reminderRoundFilter === "1") {
-      list = list.filter((guest) => getReminderRound(guest) === 1);
-    } else if (reminderRoundFilter === "2+") {
-      list = list.filter((guest) => getReminderRound(guest) >= 2);
+    if (reminderRoundFilter.endsWith("+")) {
+      const minimumRound = Number(reminderRoundFilter.slice(0, -1));
+      list = list.filter((guest) => getReminderRound(guest) >= minimumRound);
+    } else if (reminderRoundFilter !== "all") {
+      const exactRound = Number(reminderRoundFilter);
+      list = list.filter((guest) => getReminderRound(guest) === exactRound);
     }
 
     const query = appliedSearch.trim().toLowerCase();
@@ -399,6 +401,16 @@ export default function ClientDashboardPage() {
   const maxPhoneRounds = Number(eventInfo?.maxPhoneRounds || 0);
   const phoneServiceEnabled = maxPhoneRounds > 0;
   const guestTableColumnCount = phoneServiceEnabled ? 12 : 11;
+  const totalInvited = Number(
+    summary.totalInvited ??
+      summary.totalComing +
+        summary.totalNotComing +
+        summary.totalMaybe +
+        (summary.totalUnknown || 0)
+  );
+  const totalAttending = Number(summary.totalComing || 0);
+  const attendingPercentage =
+    totalInvited > 0 ? Math.round((totalAttending / totalInvited) * 100) : 0;
   const allFilteredSelected =
     filteredGuests.length > 0 && filteredGuests.every((guest) => selectedGuestIds.has(guest._id));
 
@@ -853,8 +865,9 @@ export default function ClientDashboardPage() {
             aria-hidden="true"
           >
             <div className="il-status-donut__center">
-              <strong>{summary.totalInvited || 0}</strong>
-              <span>מוזמנים</span>
+              <strong>{attendingPercentage}%</strong>
+              <span>אישרו הגעה</span>
+              <small>{totalAttending} / {totalInvited}</small>
             </div>
           </div>
           <div className="il-status-donut__content">
