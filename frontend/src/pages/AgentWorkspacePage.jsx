@@ -1,9 +1,10 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { CalendarDays, ChevronDown, Clock3, MapPin, Phone, Users } from "lucide-react";
+import { CalendarDays, ChevronDown, Clock3, MapPin, MessageCircle, Phone, Users } from "lucide-react";
 import api from "../api";
 import AgentPhoneRsvpForm from "../components/AgentPhoneRsvpForm.jsx";
 import { formatIsraeliDate } from "../utils/dateFormat.js";
+import { toInternationalWhatsAppPhone } from "../utils/whatsapp.js";
 import "../agent-workspace.css";
 
 function getWhatsAppRoundCount(guest) {
@@ -48,6 +49,31 @@ function buildEventHosts(event) {
   return event.batMitzvahName || event.eventNames || event.parentName1 || "—";
 }
 
+function buildManualWhatsAppUrl({ guest, event, userId }) {
+  const phone = toInternationalWhatsAppPhone(guest?.phone);
+  if (!phone || !event || !userId) return "";
+
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const guestRsvpLink = `${origin}/event/${userId}?guest=${encodeURIComponent(guest._id)}`;
+  const message = [
+    "✨ 🥂 ✨",
+    `שלום ${guest.fullName || "אורח/ת יקר/ה"},`,
+    "",
+    "משפחה וחברים יקרים, הנכם מוזמנים לחתונה שלנו",
+    "",
+    `האירוע יתקיים ב-${formatIsraeliDate(event.eventDate)} בגן האירועים "${event.venueName || ""}"`,
+    "",
+    "נשמח אם תוכלו לאשר הגעתכם בקישור המצורף:",
+    guestRsvpLink,
+    "",
+    `אוהבים ${event.brideName || ""} ו${event.groomName || ""}`,
+    "",
+    "✨ 🎉 ✨"
+  ].join("\n");
+
+  return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+}
+
 export default function AgentWorkspacePage() {
   const { userId } = useParams();
   const [eventLabel, setEventLabel] = useState("");
@@ -59,6 +85,7 @@ export default function AgentWorkspacePage() {
   const [maxPhoneRounds, setMaxPhoneRounds] = useState(0);
   const [selectedGuestIds, setSelectedGuestIds] = useState(() => new Set());
   const [exporting, setExporting] = useState(false);
+  const [attemptsFilter, setAttemptsFilter] = useState("all");
 
   const loadGuests = async () => {
     setLoading(true);
@@ -80,7 +107,11 @@ export default function AgentWorkspacePage() {
     loadGuests();
   }, [userId]);
 
-  const filteredGuests = guests;
+  const filteredGuests = useMemo(() => {
+    if (attemptsFilter === "all") return guests;
+    const exactAttempts = Number(attemptsFilter);
+    return guests.filter((guest) => Number(guest.phoneAttemptsCount || 0) === exactAttempts);
+  }, [attemptsFilter, guests]);
 
   const allFilteredSelected =
     filteredGuests.length > 0 && filteredGuests.every((guest) => selectedGuestIds.has(guest._id));
@@ -238,6 +269,18 @@ export default function AgentWorkspacePage() {
                 />
                 בחירת כל המוצגים ({filteredGuests.length})
               </label>
+              <label className="agent-attempts-filter">
+                <span>סינון לפי ניסיונות שיחה</span>
+                <select value={attemptsFilter} onChange={(event) => setAttemptsFilter(event.target.value)}>
+                  <option value="all">כל הניסיונות</option>
+                  <option value="0">טרם בוצעה שיחה</option>
+                  {Array.from({ length: maxPhoneRounds }, (_, index) => index + 1).map((attempt) => (
+                    <option key={attempt} value={attempt}>
+                      {attempt === 1 ? "ניסיון אחד" : `${attempt} ניסיונות`}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
 
             <div className="agent-auto-queue" role="status">
@@ -249,7 +292,7 @@ export default function AgentWorkspacePage() {
               </div>
               <div className="agent-auto-queue__stats">
                 <span>
-                  בתור: <strong>{guests.length}</strong>
+                  מוצגים: <strong>{filteredGuests.length}</strong> מתוך {guests.length}
                 </span>
                 <span>
                   מכסה: <strong>{maxPhoneRounds}</strong> ניסיונות
@@ -287,7 +330,9 @@ export default function AgentWorkspacePage() {
               {!loading && !filteredGuests.length ? (
                 <tr>
                   <td colSpan={9} className="agent-table-empty">
-                    אין כרגע מוזמנים שממתינים לשיחה לפי תנאי החבילה
+                    {guests.length
+                      ? "לא נמצאו מוזמנים עם מספר ניסיונות השיחה שנבחר"
+                      : "אין כרגע מוזמנים שממתינים לשיחה לפי תנאי החבילה"}
                   </td>
                 </tr>
               ) : null}
@@ -358,6 +403,17 @@ export default function AgentWorkspacePage() {
                         </span>
                       </td>
                       <td className="agent-table-actions" data-label="פעולות">
+                        <a
+                          className="agent-quick-action agent-quick-action--whatsapp"
+                          href={buildManualWhatsAppUrl({ guest, event: eventInfo, userId }) || undefined}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(event) => event.stopPropagation()}
+                          aria-label={`שלח הזמנה ידנית בווצאפ אל ${guest.fullName}`}
+                          title="שלח הזמנה ידנית בווצאפ"
+                        >
+                          <MessageCircle size={18} aria-hidden="true" />
+                        </a>
                         <a
                           className={`agent-quick-action agent-quick-action--phone${
                             getWhatsAppRoundCount(guest) === 0 ? " is-unready" : ""

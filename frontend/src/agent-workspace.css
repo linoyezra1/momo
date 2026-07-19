@@ -146,6 +146,30 @@
   height: 1rem;
 }
 
+.agent-attempts-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--agent-muted);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.agent-attempts-filter select {
+  min-width: 10.5rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--agent-border);
+  border-radius: 0.6rem;
+  background: #fff;
+  color: var(--agent-ink);
+  font: inherit;
+}
+
+.agent-attempts-filter select:focus-visible {
+  border-color: var(--agent-coral);
+  outline: 3px solid rgb(213 126 126 / 14%);
+}
+
 .agent-filters {
   display: flex;
   flex-wrap: wrap;
@@ -502,7 +526,7 @@
 }
 
 .agent-table-actions {
-  width: 4.25rem;
+  width: 6.5rem;
   text-align: center !important;
 }
 
@@ -529,6 +553,19 @@
   color: #287a4b !important;
   border-color: #b9ddc8;
   background: #f2fbf6;
+}
+
+.agent-quick-action--whatsapp {
+  margin-inline-end: 0.35rem;
+  border-color: #a9dfb6;
+  background: #effcf2;
+  color: #16853b !important;
+}
+
+.agent-quick-action--whatsapp:hover {
+  border-color: #68c57e;
+  background: #e1f8e7;
+  color: #0f6c2e !important;
 }
 
 .agent-quick-action:hover {
@@ -999,9 +1036,15 @@
   }
 
   .agent-toolbar .agent-btn,
-  .agent-filters__select {
+  .agent-filters__select,
+  .agent-attempts-filter,
+  .agent-attempts-filter select {
     width: 100%;
     min-width: 0;
+  }
+
+  .agent-attempts-filter {
+    justify-content: space-between;
   }
 
   .agent-filters__summary {
