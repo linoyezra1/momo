@@ -18,13 +18,12 @@ const RSVP_NO_TEXT = "לצערי לא אוכל";
 const RSVP_MAYBE_TEXT = "עדיין לא יודע";
 const CONTENT_SID_DEFAULTS = {
   TWILIO_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID: "HX9eb2ac4178732bcfd5eb3e9609f9f626",
+  TWILIO_RSVP_YES_FOLLOWUP_CONTENT_SID: "HX39585c62a9bc7a739e93fa1cb2ea2015",
   TWILIO_RSVP_DECLINED_FOLLOWUP_CONTENT_SID: "HX6a2e87ea5163b3a450a9bef6ca8d12c0",
   TWILIO_RSVP_MAYBE_FOLLOWUP_CONTENT_SID: "HX9ff2e89f9c65862149743fd43a8c20c0"
 };
 const ASK_GUEST_COUNT_TEXT =
   "איזה כיף! כמה תהיו בבקשה? (נא להשיב במספר בלבד, לדוגמה: 2)";
-const CONFIRMED_TEXT =
-  "תודה רבה, נשמח לראותכם! ✨ במידה ויש שינויים בהמשך, ניתן לעדכן את התשובה.";
 
 function requireContentSid(envName) {
   const sid = String(process.env[envName] || CONTENT_SID_DEFAULTS[envName] || "").trim();
@@ -211,7 +210,10 @@ export async function handleIncomingWhatsAppRsvp({
     }
 
     await saveRsvp(guest, { status: "מגיע", attendeesCount: Number(text) });
-    await sendSessionText({ guest, body: CONFIRMED_TEXT });
+    await sendContentTemplate({
+      guest,
+      contentSid: requireContentSid("TWILIO_RSVP_YES_FOLLOWUP_CONTENT_SID")
+    });
     return { handled: true, action: "confirmed" };
   }
 
