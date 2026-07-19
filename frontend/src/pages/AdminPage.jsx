@@ -25,6 +25,7 @@ const DEAL_PAYMENT_METHOD_OPTIONS = [
 const FEATURE_CHECKBOXES = [
   { key: "whatsappRound1", label: "וואטסאפ — סבב 1" },
   { key: "whatsappRound2", label: "וואטסאפ — סבב 2" },
+  { key: "isPremiumWhatsappButtonsEnabled", label: "ווצאפ כפתורים מהירים (Premium)" },
   { key: "phoneCallsRound1", label: "שיחות טלפון — סבב 1" },
   { key: "phoneCallsRound2", label: "שיחות טלפון — סבב 2" },
   { key: "phoneCallsRound3", label: "שיחות טלפון — סבב 3" },
@@ -40,6 +41,7 @@ function defaultDealDraft() {
     includedFeatures: {
       whatsappRound1: true,
       whatsappRound2: false,
+      isPremiumWhatsappButtonsEnabled: false,
       phoneCallsRound1: false,
       phoneCallsRound2: false,
       phoneCallsRound3: false,
@@ -58,6 +60,9 @@ function defaultDealDraft() {
 function dealDraftFromClient(client) {
   const deal = client?.deal || {};
   const features = { ...defaultDealDraft().includedFeatures, ...(deal.includedFeatures || {}) };
+  features.isPremiumWhatsappButtonsEnabled = Boolean(
+    client?.event?.isPremiumWhatsappButtonsEnabled
+  );
   const amount =
     deal.paymentAmount != null && deal.paymentAmount !== ""
       ? deal.paymentAmount
@@ -401,7 +406,13 @@ ${publicEventUrl}`
       const response = await api.patch(`/admin/clients/${selectedClientId}/deal`, payload);
       await loadClients();
       if (response.data?.deal) {
-        setDealDraft(dealDraftFromClient({ deal: response.data.deal, payment: response.data.payment }));
+        setDealDraft(
+          dealDraftFromClient({
+            deal: response.data.deal,
+            payment: response.data.payment,
+            event: response.data.event
+          })
+        );
       }
       setDealSaved(true);
       window.setTimeout(() => setDealSaved(false), 2000);

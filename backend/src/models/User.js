@@ -44,6 +44,7 @@ const includedFeaturesSchema = new mongoose.Schema(
   {
     whatsappRound1: { type: Boolean, default: true },
     whatsappRound2: { type: Boolean, default: false },
+    isPremiumWhatsappButtonsEnabled: { type: Boolean, default: false },
     phoneCallsRound1: { type: Boolean, default: false },
     phoneCallsRound2: { type: Boolean, default: false },
     phoneCallsRound3: { type: Boolean, default: false },

@@ -143,6 +143,7 @@ const DEAL_PAYMENT_METHODS = new Set(["bit", "paybox", "bank_transfer", "cash", 
 const FEATURE_KEYS = [
   "whatsappRound1",
   "whatsappRound2",
+  "isPremiumWhatsappButtonsEnabled",
   "phoneCallsRound1",
   "phoneCallsRound2",
   "phoneCallsRound3",
@@ -164,6 +165,7 @@ function defaultIncludedFeatures() {
   return {
     whatsappRound1: true,
     whatsappRound2: false,
+    isPremiumWhatsappButtonsEnabled: false,
     phoneCallsRound1: false,
     phoneCallsRound2: false,
     phoneCallsRound3: false,
@@ -235,6 +237,9 @@ function serializeDeal(deal, payment = {}) {
 function applyDealToUser(user, rawDeal) {
   const deal = normalizeDealPayload(rawDeal, user.deal || {});
   user.deal = deal;
+  user.event.isPremiumWhatsappButtonsEnabled = Boolean(
+    deal.includedFeatures.isPremiumWhatsappButtonsEnabled
+  );
   // Keep legacy payment in sync for revenue totals / older UI
   user.payment = {
     amountPaid: deal.paymentAmount,
@@ -455,7 +460,8 @@ router.patch("/clients/:userId/deal", async (req, res) => {
       message: "פרטי העסקה נשמרו",
       userId: user._id,
       deal,
-      payment: user.payment
+      payment: user.payment,
+      event: user.event
     });
   } catch (error) {
     return res.status(500).json({ message: error.message || "Failed to update deal" });
