@@ -7,6 +7,13 @@ const RSVP_STATUS_OPTIONS = [
   { value: "אולי", label: "אולי" }
 ];
 
+function callStatusLabel(status) {
+  if (status === "answered") return "ענה";
+  if (status === "no_answer") return "לא ענה";
+  if (status === "disconnected") return "מנותק";
+  return "—";
+}
+
 function buildInitialForm(guest) {
   return {
     callStatus: guest?.callStatus || "",
@@ -30,6 +37,21 @@ export default function AgentPhoneRsvpForm({ guest, userId, onSaved }) {
 
   const isAnswered = form.callStatus === "answered";
   const showRsvpFields = isAnswered;
+  const callHistory =
+    Array.isArray(guest.callHistory) && guest.callHistory.length
+      ? guest.callHistory
+      : guest.callTimestamp
+        ? [
+            {
+              attemptNumber: guest.currentCallRound || guest.phoneAttemptsCount || 1,
+              callRound: guest.currentCallRound || 1,
+              callStatus: guest.callStatus,
+              rsvpStatus: guest.status,
+              attendeesCount: guest.attendeesCount,
+              agentNotes: guest.agentNotes || ""
+            }
+          ]
+        : [];
 
   const onChange = (field, value) => {
     setForm((prev) => {
@@ -96,6 +118,34 @@ export default function AgentPhoneRsvpForm({ guest, userId, onSaved }) {
 
   return (
     <form className="agent-phone-form" onSubmit={onSubmit}>
+      {callHistory.length ? (
+        <section className="agent-call-history" aria-label="היסטוריית שיחות">
+          <div className="agent-call-history__title">
+            <strong>היסטוריית שיחות</strong>
+            <span>{callHistory.length} ניסיונות קודמים</span>
+          </div>
+          <div className="agent-call-history__list">
+            {callHistory.map((entry, index) => (
+              <article
+                className="agent-call-history__item"
+                key={`${entry.attemptNumber || index}-${index}`}
+              >
+                <span className="agent-call-history__number">
+                  {entry.attemptNumber || index + 1}
+                </span>
+                <div><span>סבב חיוג</span><strong>{entry.callRound || index + 1}</strong></div>
+                <div><span>סטטוס שיחה</span><strong>{callStatusLabel(entry.callStatus)}</strong></div>
+                <div><span>האם מגיע?</span><strong>{entry.rsvpStatus || "—"}</strong></div>
+                <div><span>כמות אורחים</span><strong>{entry.attendeesCount ?? "—"}</strong></div>
+                <div className="agent-call-history__notes">
+                  <span>הערות נציג</span><strong>{entry.agentNotes?.trim() || "—"}</strong>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       <div className="agent-phone-form__grid">
         <div className="agent-field">
           <span className="agent-field-label">סטטוס שיחה *</span>

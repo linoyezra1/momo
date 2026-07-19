@@ -87,7 +87,7 @@ function ReminderRoundBadge({ round }) {
 }
 
 function hasPhoneRsvpRecord(guest) {
-  return guest?.confirmationMethod === "phone" && Boolean(guest?.callTimestamp);
+  return Boolean(guest?.callHistory?.length || guest?.callTimestamp);
 }
 
 function formatCallStatusLabel(callStatus) {
@@ -97,12 +97,42 @@ function formatCallStatusLabel(callStatus) {
   return "—";
 }
 
-function formatCallTimestamp(value) {
-  if (!value) return "—";
-  return new Date(value).toLocaleString("he-IL", {
-    dateStyle: "short",
-    timeStyle: "short"
-  });
+function getGuestCallHistory(guest) {
+  if (Array.isArray(guest?.callHistory) && guest.callHistory.length) {
+    return guest.callHistory;
+  }
+  if (!guest?.callTimestamp) return [];
+  return [
+    {
+      attemptNumber: guest.currentCallRound || guest.phoneAttemptsCount || 1,
+      callRound: guest.currentCallRound || 1,
+      callStatus: guest.callStatus,
+      rsvpStatus: guest.status,
+      attendeesCount: guest.attendeesCount,
+      agentNotes: guest.agentNotes || ""
+    }
+  ];
+}
+
+function buildStatusDonutGradient(summary) {
+  const values = [
+    { value: Number(summary.totalComing || 0), color: "#d57e7e" },
+    { value: Number(summary.totalNotComing || 0), color: "#9b5a5a" },
+    { value: Number(summary.totalMaybe || 0), color: "#d4af37" },
+    { value: Number(summary.totalUnknown || 0), color: "#94a3b8" }
+  ];
+  const total = values.reduce((sum, item) => sum + item.value, 0);
+  if (!total) return "conic-gradient(#e5e7eb 0 100%)";
+
+  let cursor = 0;
+  const stops = values
+    .filter((item) => item.value > 0)
+    .map((item) => {
+      const start = cursor;
+      cursor += (item.value / total) * 100;
+      return `${item.color} ${start}% ${cursor}%`;
+    });
+  return `conic-gradient(${stops.join(", ")})`;
 }
 
 function getOwnerGreeting(event) {
@@ -242,6 +272,29 @@ export default function ClientDashboardPage() {
 
   useEffect(() => {
     loadGuests();
+  }, [userId]);
+
+  useEffect(() => {
+    const stream = new EventSource(`/api/client/${userId}/live-updates`);
+    let refreshTimer;
+
+    stream.onmessage = (event) => {
+      try {
+        const payload = JSON.parse(event.data);
+        if (payload.type !== "guest-phone-rsvp-updated") return;
+        window.clearTimeout(refreshTimer);
+        refreshTimer = window.setTimeout(() => {
+          loadGuests();
+        }, 120);
+      } catch {
+        // Ignore malformed keepalive/event payloads; EventSource reconnects automatically.
+      }
+    };
+
+    return () => {
+      window.clearTimeout(refreshTimer);
+      stream.close();
+    };
   }, [userId]);
 
   const onManualChange = (event) => {
@@ -776,6 +829,28 @@ export default function ClientDashboardPage() {
           </button>
         </div>
 
+        <section className="il-status-donut-card" aria-label="התפלגות סטטוסי הגעה">
+          <div
+            className="il-status-donut"
+            style={{ background: buildStatusDonutGradient(summary) }}
+            aria-hidden="true"
+          >
+            <div className="il-status-donut__center">
+              <strong>{summary.totalInvited || 0}</strong>
+              <span>מוזמנים</span>
+            </div>
+          </div>
+          <div className="il-status-donut__content">
+            <h2>התפלגות סטטוסים</h2>
+            <div className="il-status-donut__legend">
+              <span><i className="is-coming" /> מגיעים: {summary.totalComing || 0}</span>
+              <span><i className="is-not-coming" /> לא מגיעים: {summary.totalNotComing || 0}</span>
+              <span><i className="is-maybe" /> אולי: {summary.totalMaybe || 0}</span>
+              <span><i className="is-unknown" /> לא ידוע: {summary.totalUnknown || 0}</span>
+            </div>
+          </div>
+        </section>
+
         <div className="us-toolbar">
           <button
             className="us-btn"
@@ -1078,12 +1153,45 @@ export default function ClientDashboardPage() {
                       {showPhoneDetails && isDetailExpanded ? (
                         <tr className="il-guest-detail-row">
                           <td colSpan={11}>
-                            <div className="il-phone-rsvp-summary">
-                              <strong>אישור הגעה טלפוני</strong>
-                              <span>סבב: {guest.currentCallRound || "—"}</span>
-                              <span>סטטוס שיחה: {formatCallStatusLabel(guest.callStatus)}</span>
-                              <span>הערות נציג: {guest.agentNotes?.trim() || "—"}</span>
-                              <span>תאריך: {formatCallTimestamp(guest.callTimestamp)}</span>
+                            <div className="il-call-history">
+                              <div className="il-call-history__header">
+                                <strong>היסטוריית שיחות טלפוניות</strong>
+                                <span>{getGuestCallHistory(guest).length} ניסיונות</span>
+                              </div>
+                              <div className="il-call-history__timeline">
+                                {getGuestCallHistory(guest).map((entry, index) => (
+                                  <article
+                                    className="il-call-history__item"
+                                    key={`${entry.attemptNumber || index}-${index}`}
+                                  >
+                                    <span className="il-call-history__marker" aria-hidden="true">
+                                      {entry.attemptNumber || index + 1}
+                                    </span>
+                                    <div className="il-call-history__grid">
+                                      <div>
+                                        <span>סבב חיוג</span>
+                                        <strong>{entry.callRound || entry.attemptNumber || index + 1}</strong>
+                                      </div>
+                                      <div>
+                                        <span>סטטוס שיחה</span>
+                                        <strong>{formatCallStatusLabel(entry.callStatus)}</strong>
+                                      </div>
+                                      <div>
+                                        <span>האם מגיע?</span>
+                                        <strong>{entry.rsvpStatus || "—"}</strong>
+                                      </div>
+                                      <div>
+                                        <span>כמות אורחים</span>
+                                        <strong>{entry.attendeesCount ?? "—"}</strong>
+                                      </div>
+                                      <div className="il-call-history__notes">
+                                        <span>הערות נציג</span>
+                                        <strong>{entry.agentNotes?.trim() || "—"}</strong>
+                                      </div>
+                                    </div>
+                                  </article>
+                                ))}
+                              </div>
                             </div>
                           </td>
                         </tr>

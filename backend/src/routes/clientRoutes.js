@@ -17,6 +17,7 @@ import { normalizeIlEventUpdatePayload } from "../utils/ilEvent.js";
 import { sendBulkWhatsApp } from "../services/bulkWhatsAppService.js";
 import { getClientBaseUrl } from "../utils/clientUrl.js";
 import ActivationCode from "../models/ActivationCode.js";
+import { subscribeToDashboardEvents } from "../services/dashboardEvents.js";
 
 const router = express.Router();
 
@@ -86,6 +87,37 @@ router.post("/login", async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ message: "Login failed", error: error.message });
+  }
+});
+
+router.get("/:userId/live-updates", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const userExists = await User.exists({ _id: userId });
+    if (!userExists) {
+      return res.status(404).end();
+    }
+
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache, no-transform");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
+    res.flushHeaders?.();
+    res.write(`data: ${JSON.stringify({ type: "connected" })}\n\n`);
+
+    const unsubscribe = subscribeToDashboardEvents(userId, (payload) => {
+      res.write(`data: ${JSON.stringify(payload)}\n\n`);
+    });
+    const heartbeat = setInterval(() => {
+      res.write(": heartbeat\n\n");
+    }, 25000);
+
+    req.on("close", () => {
+      clearInterval(heartbeat);
+      unsubscribe();
+    });
+  } catch {
+    return res.status(400).end();
   }
 });
 

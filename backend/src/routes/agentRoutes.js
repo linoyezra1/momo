@@ -1,6 +1,7 @@
 import express from "express";
 import User from "../models/User.js";
 import Guest from "../models/Guest.js";
+import { publishDashboardEvent } from "../services/dashboardEvents.js";
 import {
   requireAgent,
   signAgentToken,
@@ -201,6 +202,19 @@ router.patch("/:userId/guests/:guestId/phone-rsvp", async (req, res) => {
       }
     }
 
+    const historyEntry = {
+      attemptNumber: nextAttempt,
+      callRound: Math.min(nextAttempt, 4),
+      callStatus,
+      rsvpStatus: update.status || existingGuest.status,
+      attendeesCount:
+        typeof update.attendeesCount === "number"
+          ? update.attendeesCount
+          : Number(existingGuest.attendeesCount || 0),
+      agentNotes: update.agentNotes,
+      calledAt: update.callTimestamp
+    };
+
     const guest = await Guest.findOneAndUpdate(
       {
         _id: guestId,
@@ -213,7 +227,8 @@ router.patch("/:userId/guests/:guestId/phone-rsvp", async (req, res) => {
       },
       {
         $set: update,
-        $inc: { phoneAttemptsCount: 1 }
+        $inc: { phoneAttemptsCount: 1 },
+        $push: { callHistory: historyEntry }
       },
       {
         new: true,
@@ -224,6 +239,11 @@ router.patch("/:userId/guests/:guestId/phone-rsvp", async (req, res) => {
     if (!guest) {
       return res.status(409).json({ message: "המוזמן כבר אינו זמין בתור השיחות הפעיל" });
     }
+
+    publishDashboardEvent(userId, {
+      type: "guest-phone-rsvp-updated",
+      guestId: String(guest._id)
+    });
 
     return res.json({
       message: "Phone RSVP saved",
