@@ -24,6 +24,7 @@
 
 .us-login-shell {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -72,6 +73,8 @@
 
 .us-field-input {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   border: none;
   border-bottom: 1px solid var(--us-border);
   background: transparent;
@@ -505,13 +508,14 @@
   align-items: center;
   justify-content: center;
   padding: 1.25rem;
+  overflow-y: auto;
   background: rgb(74 46 43 / 35%);
 }
 
 .us-modal-card {
   width: 100%;
   max-width: 32rem;
-  max-height: 90vh;
+  max-height: min(90vh, 90dvh);
   overflow-y: auto;
   border: 1px solid var(--us-border);
   border-radius: 0.65rem;
@@ -713,6 +717,8 @@
   display: flex;
   flex-direction: column;
   background: var(--us-ivory);
+  height: 100vh;
+  height: 100dvh;
 }
 
 .us-invitation-editor__topbar {
@@ -967,6 +973,46 @@
 }
 
 @media (max-width: 768px) {
+  .us-dashboard-content {
+    padding: 1rem 0.7rem 6rem;
+  }
+
+  .us-dashboard-shell::before {
+    background-attachment: scroll;
+  }
+
+  .us-dashboard-header {
+    padding: 1rem 0.85rem;
+  }
+
+  .us-public-link-box {
+    align-items: stretch;
+  }
+
+  .us-public-link-box .us-btn {
+    flex: 1 1 10rem;
+  }
+
+  .us-toolbar {
+    align-items: stretch;
+  }
+
+  .us-toolbar > .us-btn {
+    flex: 1 1 10rem;
+  }
+
+  .us-search-wrap {
+    width: 100%;
+    margin: 0;
+  }
+
+  .us-search-input {
+    flex: 1;
+    width: 100%;
+    min-width: 0;
+    font-size: 16px;
+  }
+
   .us-guest-table thead {
     display: none;
   }
@@ -986,6 +1032,8 @@
     gap: 0.75rem;
     border-bottom: none;
     padding: 0.45rem 0;
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   .us-guest-table td::before {
@@ -996,5 +1044,89 @@
     text-transform: uppercase;
     color: var(--us-espresso);
     flex-shrink: 0;
+  }
+
+  .us-inline-input,
+  .us-field-input {
+    min-width: 0;
+    font-size: 16px;
+  }
+
+  .us-modal-backdrop {
+    align-items: flex-start;
+    padding: 0.5rem;
+  }
+
+  .us-modal-card {
+    max-height: calc(100dvh - 1rem);
+    padding: 1rem 0.8rem;
+  }
+
+  .us-invitation-editor__footer {
+    position: sticky;
+    bottom: 0;
+    padding-bottom: max(0.85rem, env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 420px) {
+  .us-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.6rem;
+  }
+
+  .us-stats-grid .us-stat-card:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .us-stat-card {
+    padding: 0.8rem;
+  }
+
+  .us-stat-card p {
+    font-size: 1.75rem;
+  }
+
+  .us-login-shell {
+    align-items: flex-start;
+    padding: max(1rem, env(safe-area-inset-top)) 0.7rem 1.5rem;
+  }
+
+  .us-login-card {
+    padding: 1.4rem 1rem;
+  }
+
+  .us-login-title {
+    font-size: 1.65rem;
+    letter-spacing: 0.04em;
+  }
+
+  .us-invitation-editor__topbar,
+  .us-invitation-editor__footer {
+    padding-inline: 0.75rem;
+  }
+
+  .us-invitation-editor__topbar {
+    align-items: flex-start;
+  }
+
+  .us-invitation-editor__title {
+    font-size: 1.1rem;
+    letter-spacing: 0.03em;
+    overflow-wrap: anywhere;
+  }
+
+  .us-invitation-editor__close {
+    flex: 0 0 2.5rem;
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  .us-invitation-editor__footer {
+    flex-wrap: wrap;
+  }
+
+  .us-invitation-editor__save {
+    width: 100%;
   }
 }

@@ -19,6 +19,7 @@
   text-align: right;
   background-color: var(--us-ivory);
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .us-admin-shell {
@@ -218,6 +219,7 @@
 
 .us-admin-client-main {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -233,12 +235,16 @@
 .us-admin-client-main strong {
   font-size: 0.95rem;
   color: var(--us-espresso);
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .us-admin-client-main span {
   font-size: 0.78rem;
   color: var(--us-muted);
   line-height: 1.4;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .us-admin-client-row:nth-child(even) .us-admin-client-main {
@@ -295,6 +301,7 @@
 }
 
 .us-admin-detail-value {
+  min-width: 0;
   font-size: 0.92rem;
   font-weight: 600;
   color: var(--us-espresso);
@@ -364,6 +371,8 @@
 
 .us-admin-field-input {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   border: none;
   border-bottom: 1px solid var(--us-border);
   background: transparent;
@@ -524,13 +533,14 @@
   align-items: center;
   justify-content: center;
   padding: 1.25rem;
+  overflow-y: auto;
   background: rgb(74 46 43 / 42%);
 }
 
 .us-admin-modal {
   width: 100%;
   max-width: 36rem;
-  max-height: 90vh;
+  max-height: min(90vh, 90dvh);
   overflow-y: auto;
   border: 1px solid var(--us-border);
   border-radius: 0.6rem;
@@ -594,6 +604,7 @@
 
 .us-admin-auth-loading {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -602,6 +613,7 @@
 
 .us-admin-login-shell {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -739,4 +751,101 @@
   border-radius: 0.4rem;
   border: 1px solid var(--us-border);
   background: #fff;
+}
+
+@media (max-width: 480px) {
+  .us-admin-container {
+    padding: 1rem 0.7rem 2rem;
+  }
+
+  .us-admin-header {
+    margin-bottom: 1rem;
+    padding-bottom: 0.9rem;
+  }
+
+  .us-admin-header h1 {
+    font-size: 1.65rem;
+    letter-spacing: 0.02em;
+    overflow-wrap: anywhere;
+  }
+
+  .us-admin-header p {
+    font-size: 0.88rem;
+    line-height: 1.55;
+  }
+
+  .us-admin-toolbar,
+  .us-admin-form-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .us-admin-toolbar > .us-admin-btn,
+  .us-admin-form-actions > .us-admin-btn {
+    width: 100%;
+  }
+
+  .us-admin-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+  }
+
+  .us-admin-stat-card {
+    padding: 0.8rem;
+    min-width: 0;
+  }
+
+  .us-admin-card-title,
+  .us-admin-card-body {
+    padding-inline: 0.8rem;
+  }
+
+  .us-admin-client-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+  }
+
+  .us-admin-client-main {
+    grid-column: 1 / -1;
+  }
+
+  .us-admin-client-row > .us-admin-btn--xs {
+    min-width: 2.5rem;
+    min-height: 2.5rem;
+    margin-bottom: 0.45rem;
+  }
+
+  .us-admin-client-row > .us-admin-btn--xs:nth-of-type(2) {
+    grid-column: 2;
+  }
+
+  .us-admin-client-row > .us-admin-btn--xs:nth-of-type(3) {
+    grid-column: 3;
+    margin-inline-end: 0.45rem;
+  }
+
+  .us-admin-modal-backdrop {
+    align-items: flex-start;
+    padding: 0.5rem;
+  }
+
+  .us-admin-modal {
+    max-height: calc(100dvh - 1rem);
+    padding: 1rem 0.8rem 1.2rem;
+    border-radius: 0.5rem;
+  }
+
+  .us-admin-field-input,
+  .us-admin-lead-actions select {
+    font-size: 16px;
+  }
+
+  .us-admin-login-shell {
+    align-items: flex-start;
+    padding: max(1rem, env(safe-area-inset-top)) 0.7rem 1.5rem;
+  }
+
+  .us-admin-login-card {
+    padding: 1.35rem 1rem;
+  }
 }

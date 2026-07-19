@@ -17,6 +17,7 @@
 
 .il-invite-page {
   min-height: 100vh;
+  min-height: 100dvh;
   background: #ffffff;
   color: var(--il-ink);
   font-family: Heebo, "Segoe UI", Arial, sans-serif;
@@ -66,6 +67,7 @@
   width: 100%;
   height: auto;
   max-height: 70vh;
+  max-height: 70dvh;
   object-fit: cover;
   object-position: center top;
 }
@@ -433,5 +435,53 @@
 
   .il-invite-timeline {
     gap: 1.5rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .il-invite-body {
+    padding: 1.35rem 0.9rem 2rem;
+  }
+
+  .il-invite-names,
+  .il-invite-venue {
+    overflow-wrap: anywhere;
+  }
+
+  .il-invite-names {
+    font-size: 2.15rem;
+  }
+
+  .il-invite-date {
+    font-size: 2.7rem;
+  }
+
+  .il-invite-timeline {
+    gap: 0.5rem;
+    padding-inline: 0;
+  }
+
+  .il-invite-field__input {
+    min-width: 0;
+    font-size: 16px;
+  }
+
+  .il-invite-countdown__row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    align-items: start;
+    gap: 0.25rem;
+  }
+
+  .il-invite-countdown__unit {
+    min-width: 0;
+  }
+
+  .il-invite-countdown__value {
+    font-size: 1.85rem;
+  }
+
+  .il-invite-countdown__sep {
+    display: none;
   }
 }

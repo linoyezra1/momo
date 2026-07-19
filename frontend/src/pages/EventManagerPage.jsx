@@ -185,6 +185,7 @@ export default function EventManagerPage() {
 
   return (
     <div className="us-admin-portal us-admin-shell" dir="rtl" lang="he">
+      <div className="us-admin-container">
       <header className="us-admin-header">
         <div>
           <h1>מנהל אירועים — Partner</h1>
@@ -402,6 +403,7 @@ export default function EventManagerPage() {
           </form>
         </div>
       ) : null}
+      </div>
     </div>
   );
 }

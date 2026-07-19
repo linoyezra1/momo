@@ -363,6 +363,11 @@
   .il-bulk-action-bar {
     flex-direction: column;
     align-items: stretch;
+    bottom: max(0.5rem, env(safe-area-inset-bottom));
+    width: calc(100vw - 1rem);
+    max-height: min(68vh, 32rem);
+    overflow-y: auto;
+    padding-bottom: max(0.85rem, env(safe-area-inset-bottom));
   }
 
   .il-bulk-action-bar-actions {
@@ -372,6 +377,44 @@
 
   .il-bulk-action-bar-actions .us-btn {
     width: 100%;
+  }
+
+  .il-guest-filters,
+  .il-guest-filter-group {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .il-status-filter-tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .il-status-filter-tab {
+    min-height: 2.5rem;
+  }
+
+  .il-reminder-filter-select {
+    width: 100%;
+    min-width: 0;
+    font-size: 16px;
+  }
+
+  .il-guest-filter-summary {
+    margin-right: 0;
+  }
+
+  .il-phone-rsvp-summary {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .il-guest-detail-row {
+    display: block !important;
+  }
+
+  .il-guest-actions {
+    justify-content: flex-end;
   }
 }
 
