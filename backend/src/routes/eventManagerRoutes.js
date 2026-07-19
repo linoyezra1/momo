@@ -175,7 +175,16 @@ router.patch("/clients/:userId", async (req, res) => {
       if (eventValidationError) {
         return res.status(400).json({ message: eventValidationError });
       }
-      user.event = normalizedEvent;
+      const previousEvent = user.event?.toObject
+        ? user.event.toObject()
+        : { ...(user.event || {}) };
+      user.event = {
+        ...normalizedEvent,
+        maxPhoneRounds: previousEvent.maxPhoneRounds || 2,
+        welcomeParagraph: previousEvent.welcomeParagraph || "",
+        eventDetailsParagraph: previousEvent.eventDetailsParagraph || "",
+        closingParagraph: previousEvent.closingParagraph || ""
+      };
     }
 
     await user.save();

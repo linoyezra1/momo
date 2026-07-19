@@ -30,12 +30,13 @@ const guestSchema = new mongoose.Schema(
     guestGroup: { type: String, trim: true, default: "" },
     seatingTableId: { type: String, trim: true, default: "" },
     reminderRound: { type: Number, min: 0, default: 0 },
+    whatsappRoundsSentCount: { type: Number, min: 0, default: 0 },
     confirmationMethod: {
       type: String,
       enum: ["whatsapp", "phone", "web"],
       default: "web"
     },
-    currentCallRound: { type: Number, enum: [1, 2], default: null },
+    currentCallRound: { type: Number, enum: [1, 2, 3, 4], default: null },
     callStatus: {
       type: String,
       enum: ["answered", "no_answer", "disconnected"],
@@ -49,5 +50,11 @@ const guestSchema = new mongoose.Schema(
 );
 
 guestSchema.index({ userId: 1, phone: 1 });
+guestSchema.index({
+  userId: 1,
+  status: 1,
+  whatsappRoundsSentCount: 1,
+  phoneAttemptsCount: 1
+});
 
 export default mongoose.model("Guest", guestSchema);

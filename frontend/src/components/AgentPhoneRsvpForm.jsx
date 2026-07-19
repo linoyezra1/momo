@@ -9,7 +9,6 @@ const RSVP_STATUS_OPTIONS = [
 
 function buildInitialForm(guest) {
   return {
-    currentCallRound: guest?.currentCallRound ? String(guest.currentCallRound) : "",
     callStatus: guest?.callStatus || "",
     agentNotes: guest?.agentNotes || "",
     status: "",
@@ -27,7 +26,7 @@ export default function AgentPhoneRsvpForm({ guest, userId, onSaved }) {
     setForm(buildInitialForm(guest));
     setError("");
     setSuccess("");
-  }, [guest._id, guest.callTimestamp, guest.callStatus, guest.currentCallRound, guest.agentNotes]);
+  }, [guest._id, guest.callTimestamp, guest.callStatus, guest.agentNotes]);
 
   const isAnswered = form.callStatus === "answered";
   const showRsvpFields = isAnswered;
@@ -55,17 +54,16 @@ export default function AgentPhoneRsvpForm({ guest, userId, onSaved }) {
     setError("");
     setSuccess("");
 
-    if (!form.currentCallRound) {
-      setError("יש לבחור סבב שיחה");
-      return;
-    }
     if (!form.callStatus) {
       setError("יש לבחור סטטוס שיחה");
       return;
     }
+    if (isAnswered && !form.status) {
+      setError("לאחר מענה יש לבחור סטטוס הגעה");
+      return;
+    }
 
     const payload = {
-      currentCallRound: Number(form.currentCallRound),
       callStatus: form.callStatus,
       agentNotes: form.agentNotes
     };
@@ -84,7 +82,10 @@ export default function AgentPhoneRsvpForm({ guest, userId, onSaved }) {
     try {
       const response = await api.patch(`/agent/${userId}/guests/${guest._id}/phone-rsvp`, payload);
       setSuccess("נשמר בהצלחה");
-      onSaved?.(response.data?.guest || guest);
+      onSaved?.(response.data?.guest || guest, {
+        removeFromQueue: Boolean(response.data?.removeFromQueue),
+        maxPhoneRounds: response.data?.maxPhoneRounds
+      });
       setForm((prev) => ({ ...prev, status: "" }));
     } catch (submitError) {
       setError(submitError.response?.data?.message || "שמירה נכשלה");
@@ -96,22 +97,6 @@ export default function AgentPhoneRsvpForm({ guest, userId, onSaved }) {
   return (
     <form className="agent-phone-form" onSubmit={onSubmit}>
       <div className="agent-phone-form__grid">
-        <div className="agent-field">
-          <label className="agent-field-label" htmlFor={`round-${guest._id}`}>
-            סבב שיחה *
-          </label>
-          <select
-            id={`round-${guest._id}`}
-            className="agent-field-input"
-            value={form.currentCallRound}
-            onChange={(event) => onChange("currentCallRound", event.target.value)}
-          >
-            <option value="">בחרו סבב</option>
-            <option value="1">סבב 1</option>
-            <option value="2">סבב 2</option>
-          </select>
-        </div>
-
         <div className="agent-field">
           <span className="agent-field-label">סטטוס שיחה *</span>
           <div className="agent-binary-toggle" role="group" aria-label="סטטוס שיחה">
@@ -156,7 +141,7 @@ export default function AgentPhoneRsvpForm({ guest, userId, onSaved }) {
 
       {showRsvpFields ? (
         <div className="agent-rsvp-panel">
-          <p className="agent-rsvp-panel__title">עדכון סטטוס הגעה (אופציונלי)</p>
+          <p className="agent-rsvp-panel__title">עדכון סטטוס הגעה (חובה לאחר מענה)</p>
           <div className="agent-status-group" role="group" aria-label="סטטוס הגעה">
             {RSVP_STATUS_OPTIONS.map((option) => (
               <button

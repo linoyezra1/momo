@@ -56,6 +56,13 @@ function normalizeEventPayload(rawEvent) {
   const batMitzvahName = String(rawEvent?.batMitzvahName || "").trim();
   const parentName1 = String(rawEvent?.parentName1 || "").trim();
   const parentName2 = String(rawEvent?.parentName2 || "").trim();
+  const requestedMaxPhoneRounds = Number(rawEvent?.maxPhoneRounds);
+  const maxPhoneRounds =
+    Number.isInteger(requestedMaxPhoneRounds) &&
+    requestedMaxPhoneRounds >= 1 &&
+    requestedMaxPhoneRounds <= 4
+      ? requestedMaxPhoneRounds
+      : 2;
 
   const baseEvent = {
     eventType,
@@ -66,6 +73,7 @@ function normalizeEventPayload(rawEvent) {
     eventDateHebrew:
       eventType === "ברית" ? String(rawEvent?.eventDateHebrew || "").trim() : "",
     eventTime: String(rawEvent?.eventTime || "").trim(),
+    maxPhoneRounds,
     imageDataUrl: String(rawEvent?.imageDataUrl || "").trim(),
     groomName,
     brideName,
@@ -366,7 +374,15 @@ router.patch("/clients/:userId", async (req, res) => {
       if (eventValidationError) {
         return res.status(400).json({ message: eventValidationError });
       }
-      user.event = normalizedEvent;
+      const previousEvent = user.event?.toObject
+        ? user.event.toObject()
+        : { ...(user.event || {}) };
+      user.event = {
+        ...normalizedEvent,
+        welcomeParagraph: previousEvent.welcomeParagraph || "",
+        eventDetailsParagraph: previousEvent.eventDetailsParagraph || "",
+        closingParagraph: previousEvent.closingParagraph || ""
+      };
     }
 
     if (deal && typeof deal === "object") {

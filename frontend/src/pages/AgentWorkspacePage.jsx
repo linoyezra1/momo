@@ -6,43 +6,18 @@ import AgentPhoneRsvpForm from "../components/AgentPhoneRsvpForm.jsx";
 import { formatIsraeliDate } from "../utils/dateFormat.js";
 import "../agent-workspace.css";
 
-const CALL_OUTCOME_FILTER_OPTIONS = [
-  { value: "all", label: "הכל" },
-  { value: "answered", label: "ענה" },
-  { value: "no_answer", label: "לא ענה" }
-];
-
-const RSVP_STATUS_FILTER_OPTIONS = [
-  { value: "מגיע", label: "מגיע" },
-  { value: "לא מגיע", label: "לא מגיע" },
-  { value: "אולי", label: "אולי" },
-  { value: "לא ידוע", label: "לא ידוע" }
-];
-
-const ATTEMPTS_FILTER_OPTIONS = [
-  { value: "all", label: "כל מספר שיחות" },
-  { value: "exact:0", label: "טרם התקשרו (0)" },
-  { value: "exact:1", label: "בדיוק שיחה אחת" },
-  { value: "exact:2", label: "בדיוק 2 שיחות" },
-  { value: "exact:3", label: "בדיוק 3 שיחות" },
-  { value: "gte:2", label: "2 שיחות ומעלה" },
-  { value: "gte:3", label: "3 שיחות ומעלה" }
-];
-
-function matchesCallOutcomeFilter(guest, outcomeFilter) {
-  if (outcomeFilter === "all") return true;
-  if (outcomeFilter === "answered") return guest.callStatus === "answered";
-  return guest.callStatus === "no_answer" || guest.callStatus === "disconnected";
+function getWhatsAppRoundCount(guest) {
+  return Math.max(
+    0,
+    Number(guest?.whatsappRoundsSentCount || 0),
+    Number(guest?.reminderRound || 0)
+  );
 }
 
-function matchesAttemptsFilter(guest, attemptsFilter) {
-  if (attemptsFilter === "all") return true;
-  const attempts = Math.max(0, Number(guest.phoneAttemptsCount || 0));
-  const [operator, rawValue] = attemptsFilter.split(":");
-  const value = Number(rawValue);
-  if (operator === "exact") return attempts === value;
-  if (operator === "gte") return attempts >= value;
-  return true;
+function whatsappRoundLabel(guest) {
+  const round = getWhatsAppRoundCount(guest);
+  if (!round) return "טרם נשלח";
+  return `סבב ${round}`;
 }
 
 function callOutcomeLabel(callStatus) {
@@ -81,9 +56,7 @@ export default function AgentWorkspacePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [expandedGuestId, setExpandedGuestId] = useState("");
-  const [outcomeFilter, setOutcomeFilter] = useState("all");
-  const [rsvpStatusFilters, setRsvpStatusFilters] = useState([]);
-  const [attemptsFilter, setAttemptsFilter] = useState("all");
+  const [maxPhoneRounds, setMaxPhoneRounds] = useState(2);
   const [selectedGuestIds, setSelectedGuestIds] = useState(() => new Set());
   const [exporting, setExporting] = useState(false);
 
@@ -94,6 +67,7 @@ export default function AgentWorkspacePage() {
       const response = await api.get(`/agent/${userId}/guests`);
       setEventLabel(response.data?.eventLabel || "");
       setEventInfo(response.data?.event || null);
+      setMaxPhoneRounds(Number(response.data?.maxPhoneRounds) || 2);
       setGuests(response.data?.guests || []);
     } catch (loadError) {
       setError(loadError.response?.data?.message || "טעינת מוזמנים נכשלה");
@@ -106,22 +80,7 @@ export default function AgentWorkspacePage() {
     loadGuests();
   }, [userId]);
 
-  const filteredGuests = useMemo(
-    () =>
-      guests.filter(
-        (guest) =>
-          matchesCallOutcomeFilter(guest, outcomeFilter) &&
-          (!rsvpStatusFilters.length || rsvpStatusFilters.includes(guest.status)) &&
-          matchesAttemptsFilter(guest, attemptsFilter)
-      ),
-    [guests, outcomeFilter, rsvpStatusFilters, attemptsFilter]
-  );
-
-  const toggleRsvpStatusFilter = (status) => {
-    setRsvpStatusFilters((prev) =>
-      prev.includes(status) ? prev.filter((item) => item !== status) : [...prev, status]
-    );
-  };
+  const filteredGuests = guests;
 
   const allFilteredSelected =
     filteredGuests.length > 0 && filteredGuests.every((guest) => selectedGuestIds.has(guest._id));
@@ -132,8 +91,20 @@ export default function AgentWorkspacePage() {
     return filteredGuests;
   }, [filteredGuests, selectedGuestIds]);
 
-  const onGuestSaved = (updatedGuest) => {
-    setGuests((prev) => prev.map((guest) => (guest._id === updatedGuest._id ? updatedGuest : guest)));
+  const onGuestSaved = (updatedGuest, metadata = {}) => {
+    setGuests((prev) =>
+      metadata.removeFromQueue
+        ? prev.filter((guest) => guest._id !== updatedGuest._id)
+        : prev.map((guest) => (guest._id === updatedGuest._id ? updatedGuest : guest))
+    );
+    if (metadata.removeFromQueue) {
+      setSelectedGuestIds((prev) => {
+        const next = new Set(prev);
+        next.delete(updatedGuest._id);
+        return next;
+      });
+      setExpandedGuestId("");
+    }
   };
 
   const toggleGuestSelection = (guestId) => {
@@ -168,6 +139,7 @@ export default function AgentWorkspacePage() {
         טלפון: guest.phone,
         "סטטוס הגעה": guest.status,
         "תוצאת שיחה": callOutcomeLabel(guest.callStatus),
+        "סבב וואטסאפ": whatsappRoundLabel(guest),
         "מספר ניסיונות שיחה": guest.phoneAttemptsCount || 0,
         "כמות מגיעים": guest.attendeesCount ?? 0,
         הערות: guest.agentNotes || ""
@@ -268,67 +240,26 @@ export default function AgentWorkspacePage() {
               </label>
             </div>
 
-            <div className="agent-filters">
-              <fieldset className="agent-filters__group agent-filters__checks">
-                <legend className="agent-field-label">סטטוס הגעה:</legend>
-                <div className="agent-filter-checkboxes">
-                  {RSVP_STATUS_FILTER_OPTIONS.map((option) => (
-                    <label key={option.value} className="agent-filter-checkbox">
-                      <input
-                        type="checkbox"
-                        checked={rsvpStatusFilters.includes(option.value)}
-                        onChange={() => toggleRsvpStatusFilter(option.value)}
-                      />
-                      {option.label}
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-              <div className="agent-filters__group">
-                <label className="agent-field-label" htmlFor="agent-outcome-filter">
-                  תוצאת שיחה:
-                </label>
-                <select
-                  id="agent-outcome-filter"
-                  className="agent-field-input agent-filters__select"
-                  value={outcomeFilter}
-                  onChange={(event) => setOutcomeFilter(event.target.value)}
-                >
-                  {CALL_OUTCOME_FILTER_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+            <div className="agent-auto-queue" role="status">
+              <div>
+                <strong>תור שיחות אוטומטי</strong>
+                <span>
+                  מוצגים רק מוזמנים שקיבלו וואטסאפ, טרם אישרו הגעה ולא הגיעו למכסת השיחות.
+                </span>
               </div>
-              <div className="agent-filters__group">
-                <label className="agent-field-label" htmlFor="agent-attempts-filter">
-                  מספר ניסיונות:
-                </label>
-                <select
-                  id="agent-attempts-filter"
-                  className="agent-field-input agent-filters__select"
-                  value={attemptsFilter}
-                  onChange={(event) => setAttemptsFilter(event.target.value)}
-                >
-                  {ATTEMPTS_FILTER_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <p className="agent-filters__summary">
-                מוצגים <strong>{filteredGuests.length}</strong> מתוך {guests.length} מוזמנים
+              <div className="agent-auto-queue__stats">
+                <span>
+                  בתור: <strong>{guests.length}</strong>
+                </span>
+                <span>
+                  מכסה: <strong>{maxPhoneRounds}</strong> ניסיונות
+                </span>
                 {selectedGuestIds.size ? (
-                  <>
-                    {" "}
-                    · נבחרו <strong>{exportTargets.length}</strong> לייצוא
-                  </>
-                ) : (
-                  <> · ייוצאו כל המוצגים</>
-                )}
-              </p>
+                  <span>
+                    נבחרו: <strong>{exportTargets.length}</strong>
+                  </span>
+                ) : null}
+              </div>
             </div>
           </>
         ) : null}
@@ -343,6 +274,7 @@ export default function AgentWorkspacePage() {
                 <th>שם</th>
                 <th>טלפון</th>
                 <th>סטטוס הגעה</th>
+                <th>סבב וואטסאפ</th>
                 <th>תוצאת שיחה</th>
                 <th>ניסיונות</th>
                 <th className="agent-table-actions">פעולות</th>
@@ -354,8 +286,8 @@ export default function AgentWorkspacePage() {
             <tbody>
               {!loading && !filteredGuests.length ? (
                 <tr>
-                  <td colSpan={8} className="agent-table-empty">
-                    לא נמצאו מוזמנים לסינון הנוכחי
+                  <td colSpan={9} className="agent-table-empty">
+                    אין כרגע מוזמנים שממתינים לשיחה לפי תנאי החבילה
                   </td>
                 </tr>
               ) : null}
@@ -398,6 +330,15 @@ export default function AgentWorkspacePage() {
                       <td data-label="סטטוס הגעה">
                         <span className="agent-pill">{guest.status}</span>
                       </td>
+                      <td data-label="סבב וואטסאפ">
+                        <span
+                          className={`agent-whatsapp-round-badge${
+                            getWhatsAppRoundCount(guest) === 0 ? " is-none" : ""
+                          }`}
+                        >
+                          {whatsappRoundLabel(guest)}
+                        </span>
+                      </td>
                       <td data-label="תוצאת שיחה">
                         <span
                           className={`agent-pill${
@@ -418,11 +359,17 @@ export default function AgentWorkspacePage() {
                       </td>
                       <td className="agent-table-actions" data-label="פעולות">
                         <a
-                          className="agent-quick-action agent-quick-action--phone"
+                          className={`agent-quick-action agent-quick-action--phone${
+                            getWhatsAppRoundCount(guest) === 0 ? " is-unready" : ""
+                          }`}
                           href={`tel:${guest.phone}`}
                           onClick={(event) => event.stopPropagation()}
                           aria-label={`חיוג אל ${guest.fullName}`}
-                          title={`חיוג אל ${guest.fullName}`}
+                          title={
+                            getWhatsAppRoundCount(guest) === 0
+                              ? "אזהרה: טרם נשלח וואטסאפ למוזמן"
+                              : `חיוג אל ${guest.fullName}`
+                          }
                         >
                           <Phone size={18} aria-hidden="true" />
                         </a>
@@ -444,7 +391,7 @@ export default function AgentWorkspacePage() {
                     </tr>
                     {isExpanded ? (
                       <tr className="agent-table-detail-row">
-                        <td colSpan={8}>
+                        <td colSpan={9}>
                           <div className="agent-table-detail-content">
                             <AgentPhoneRsvpForm
                               guest={guest}

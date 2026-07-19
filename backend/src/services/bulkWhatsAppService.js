@@ -313,7 +313,15 @@ export async function sendBulkWhatsApp({
         .filter(Boolean);
       if (sentGuestIds.length) {
         try {
-          await Guest.updateMany({ _id: { $in: sentGuestIds } }, { $inc: { reminderRound: 1 } });
+          await Guest.updateMany(
+            { _id: { $in: sentGuestIds } },
+            {
+              $inc: {
+                reminderRound: 1,
+                whatsappRoundsSentCount: 1
+              }
+            }
+          );
         } catch (roundError) {
           console.error("[Twilio] Failed to increment reminderRound:", roundError?.message || roundError);
         }

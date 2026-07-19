@@ -24,6 +24,30 @@ function buildEventLabel(event) {
   return event.eventNames || event.eventType || "אירוע";
 }
 
+function resolveMaxPhoneRounds(user) {
+  const configured = Number(user?.event?.maxPhoneRounds);
+  if (Number.isInteger(configured) && configured >= 1 && configured <= 4) {
+    return configured;
+  }
+  return 2;
+}
+
+function getWhatsAppRoundsSent(guest) {
+  return Math.max(
+    0,
+    Number(guest?.whatsappRoundsSentCount || 0),
+    Number(guest?.reminderRound || 0)
+  );
+}
+
+function isInAgentQueue(guest, maxPhoneRounds) {
+  return (
+    getWhatsAppRoundsSent(guest) >= 1 &&
+    ["לא ידוע", "אולי"].includes(guest?.status) &&
+    Number(guest?.phoneAttemptsCount || 0) < maxPhoneRounds
+  );
+}
+
 router.post("/login", (req, res) => {
   const username = String(req.body?.username || "").trim();
   const password = String(req.body?.password || "");
@@ -79,12 +103,37 @@ router.get("/:userId/guests", async (req, res) => {
       return res.status(404).json({ message: "Client not found" });
     }
 
-    const guests = await Guest.find({ userId }).sort({ fullName: 1 });
+    const maxPhoneRounds = resolveMaxPhoneRounds(user);
+    const candidates = await Guest.find({
+      userId,
+      status: { $in: ["לא ידוע", "אולי"] },
+      $and: [
+        {
+          $or: [
+            { whatsappRoundsSentCount: { $gte: 1 } },
+            { reminderRound: { $gte: 1 } }
+          ]
+        },
+        {
+          $or: [
+            { phoneAttemptsCount: { $lt: maxPhoneRounds } },
+            { phoneAttemptsCount: { $exists: false } }
+          ]
+        }
+      ]
+    }).sort({ phoneAttemptsCount: 1, fullName: 1 });
+    const guests = candidates.map((guest) => {
+      const data = guest.toObject();
+      data.whatsappRoundsSentCount = getWhatsAppRoundsSent(data);
+      return data;
+    });
     return res.json({
       userId,
       username: user.username,
       event: user.event,
       eventLabel: buildEventLabel(user.event),
+      maxPhoneRounds,
+      queueCount: guests.length,
       guests
     });
   } catch (error) {
@@ -95,29 +144,34 @@ router.get("/:userId/guests", async (req, res) => {
 router.patch("/:userId/guests/:guestId/phone-rsvp", async (req, res) => {
   try {
     const { userId, guestId } = req.params;
-    const { currentCallRound, callStatus, agentNotes, status, attendeesCount } = req.body;
-
-    const round = Number(currentCallRound);
-    if (![1, 2].includes(round)) {
-      return res.status(400).json({ message: "יש לבחור סבב שיחה (1 או 2)" });
-    }
+    const { callStatus, agentNotes, status, attendeesCount } = req.body;
 
     if (!["answered", "no_answer", "disconnected"].includes(callStatus)) {
       return res.status(400).json({ message: "יש לבחור תוצאת שיחה תקינה" });
     }
 
+    const user = await User.findById(userId).select("event.maxPhoneRounds");
+    if (!user) {
+      return res.status(404).json({ message: "Client not found" });
+    }
+    const maxPhoneRounds = resolveMaxPhoneRounds(user);
+    const existingGuest = await Guest.findOne({ _id: guestId, userId });
+    if (!existingGuest) {
+      return res.status(404).json({ message: "Guest not found" });
+    }
+    if (!isInAgentQueue(existingGuest, maxPhoneRounds)) {
+      return res.status(409).json({ message: "המוזמן כבר אינו זמין בתור השיחות הפעיל" });
+    }
+
+    const nextAttempt = Number(existingGuest.phoneAttemptsCount || 0) + 1;
     const update = {
-      currentCallRound: round,
+      currentCallRound: Math.min(nextAttempt, 4),
       callStatus,
       agentNotes: String(agentNotes ?? "").trim(),
       callTimestamp: new Date()
     };
 
-    const hasStatusUpdate =
-      callStatus === "answered" &&
-      typeof status !== "undefined" &&
-      status !== null &&
-      String(status).trim() !== "";
+    const hasStatusUpdate = callStatus === "answered";
 
     if (hasStatusUpdate) {
       const nextStatus = String(status).trim();
@@ -148,7 +202,15 @@ router.patch("/:userId/guests/:guestId/phone-rsvp", async (req, res) => {
     }
 
     const guest = await Guest.findOneAndUpdate(
-      { _id: guestId, userId },
+      {
+        _id: guestId,
+        userId,
+        status: { $in: ["לא ידוע", "אולי"] },
+        $or: [
+          { phoneAttemptsCount: { $lt: maxPhoneRounds } },
+          { phoneAttemptsCount: { $exists: false } }
+        ]
+      },
       {
         $set: update,
         $inc: { phoneAttemptsCount: 1 }
@@ -160,10 +222,15 @@ router.patch("/:userId/guests/:guestId/phone-rsvp", async (req, res) => {
     );
 
     if (!guest) {
-      return res.status(404).json({ message: "Guest not found" });
+      return res.status(409).json({ message: "המוזמן כבר אינו זמין בתור השיחות הפעיל" });
     }
 
-    return res.json({ message: "Phone RSVP saved", guest });
+    return res.json({
+      message: "Phone RSVP saved",
+      guest,
+      removeFromQueue: !isInAgentQueue(guest, maxPhoneRounds),
+      maxPhoneRounds
+    });
   } catch (error) {
     return res.status(500).json({ message: error.message || "Failed to save phone RSVP" });
   }
