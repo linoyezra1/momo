@@ -19,7 +19,8 @@ function buildInitialForm(guest) {
     callStatus: guest?.callStatus || "",
     agentNotes: guest?.agentNotes || "",
     status: "",
-    attendeesCount: guest?.attendeesCount ?? ""
+    attendeesCount: guest?.attendeesCount ?? "",
+    attendeesCountTouched: false
   };
 }
 
@@ -56,11 +57,8 @@ export default function AgentPhoneRsvpForm({ guest, userId, onSaved }) {
   const onChange = (field, value) => {
     setForm((prev) => {
       const next = { ...prev, [field]: value };
-      if (field === "status" && value === "מגיע" && (prev.attendeesCount === "" || prev.attendeesCount == null)) {
-        next.attendeesCount = 1;
-      }
-      if (field === "status" && value === "לא מגיע") {
-        next.attendeesCount = 0;
+      if (field === "attendeesCount") {
+        next.attendeesCountTouched = true;
       }
       if (field === "callStatus" && value !== "answered") {
         next.status = "";
@@ -92,10 +90,11 @@ export default function AgentPhoneRsvpForm({ guest, userId, onSaved }) {
 
     if (isAnswered && form.status) {
       payload.status = form.status;
-      if (form.status === "מגיע") {
-        payload.attendeesCount =
-          form.attendeesCount === "" || form.attendeesCount == null ? 1 : Number(form.attendeesCount);
-      } else if (form.attendeesCount !== "" && form.attendeesCount != null) {
+      if (
+        form.attendeesCountTouched &&
+        form.attendeesCount !== "" &&
+        form.attendeesCount != null
+      ) {
         payload.attendeesCount = Number(form.attendeesCount);
       }
     }
@@ -108,7 +107,7 @@ export default function AgentPhoneRsvpForm({ guest, userId, onSaved }) {
         removeFromQueue: Boolean(response.data?.removeFromQueue),
         maxPhoneRounds: response.data?.maxPhoneRounds
       });
-      setForm((prev) => ({ ...prev, status: "" }));
+      setForm((prev) => ({ ...prev, status: "", attendeesCountTouched: false }));
     } catch (submitError) {
       setError(submitError.response?.data?.message || "שמירה נכשלה");
     } finally {

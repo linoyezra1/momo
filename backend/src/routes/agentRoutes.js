@@ -183,22 +183,16 @@ router.patch("/:userId/guests/:guestId/phone-rsvp", async (req, res) => {
       update.status = nextStatus;
       update.confirmationMethod = "phone";
 
-      if (nextStatus === "מגיע") {
-        const rawCount = attendeesCount;
-        const parsed =
-          rawCount === undefined || rawCount === null || rawCount === ""
-            ? 1
-            : Math.max(1, Number(rawCount));
-        update.attendeesCount = Number.isNaN(parsed) ? 1 : parsed;
-      } else if (nextStatus === "לא מגיע") {
-        update.attendeesCount = 0;
-      } else if (
+      if (
         attendeesCount !== undefined &&
         attendeesCount !== null &&
         attendeesCount !== "" &&
         !Number.isNaN(Number(attendeesCount))
       ) {
-        update.attendeesCount = Math.max(1, Number(attendeesCount));
+        update.attendeesCount =
+          nextStatus === "לא מגיע"
+            ? Math.max(0, Number(attendeesCount))
+            : Math.max(1, Number(attendeesCount));
       }
     }
 
