@@ -624,7 +624,9 @@ router.post("/:userId/whatsapp/bulk-send", async (req, res) => {
     const { userId } = req.params;
     const { paymentCode, guestIds } = req.body;
 
-    const user = await User.findById(userId).select("event");
+    const user = await User.findById(userId).select(
+      "event deal.includedFeatures.isPremiumWhatsappButtonsEnabled"
+    );
     if (!user) {
       return res.status(404).json({ message: "Client not found" });
     }
@@ -638,11 +640,16 @@ router.post("/:userId/whatsapp/bulk-send", async (req, res) => {
       return res.status(400).json({ message: "חלק מהמוזמנים שנבחרו לא נמצאו ברשימה" });
     }
 
+    const event = user.event?.toObject ? user.event.toObject() : { ...(user.event || {}) };
+    event.isPremiumWhatsappButtonsEnabled =
+      user.event?.isPremiumWhatsappButtonsEnabled === true ||
+      user.deal?.includedFeatures?.isPremiumWhatsappButtonsEnabled === true;
+
     const origin = getClientBaseUrl(req);
     const result = await sendBulkWhatsApp({
       paymentCode,
       guests,
-      event: user.event,
+      event,
       userId,
       origin
     });

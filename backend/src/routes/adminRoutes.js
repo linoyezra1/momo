@@ -237,9 +237,11 @@ function serializeDeal(deal, payment = {}) {
 function applyDealToUser(user, rawDeal) {
   const deal = normalizeDealPayload(rawDeal, user.deal || {});
   user.deal = deal;
-  user.event.isPremiumWhatsappButtonsEnabled = Boolean(
+  const premiumButtonsEnabled = Boolean(
     deal.includedFeatures.isPremiumWhatsappButtonsEnabled
   );
+  user.set("event.isPremiumWhatsappButtonsEnabled", premiumButtonsEnabled);
+  user.markModified("event");
   // Keep legacy payment in sync for revenue totals / older UI
   user.payment = {
     amountPaid: deal.paymentAmount,
@@ -308,6 +310,9 @@ router.post("/create-client", async (req, res) => {
 
     const plainPassword = String(password);
     const passwordHash = await bcrypt.hash(plainPassword, 10);
+    const normalizedDeal = normalizeDealPayload(req.body?.deal || {}, {});
+    normalizedDeal.includedFeatures.isPremiumWhatsappButtonsEnabled =
+      normalizedEvent.isPremiumWhatsappButtonsEnabled === true;
 
     const user = await User.create({
       username: username.trim(),
@@ -315,7 +320,7 @@ router.post("/create-client", async (req, res) => {
       loginPassword: plainPassword,
       contactPhone: phone,
       event: normalizedEvent,
-      deal: normalizeDealPayload(req.body?.deal || {}, {}),
+      deal: normalizedDeal,
       managedBy: "admin"
     });
 
@@ -389,6 +394,10 @@ router.patch("/clients/:userId", async (req, res) => {
         eventDetailsParagraph: previousEvent.eventDetailsParagraph || "",
         closingParagraph: previousEvent.closingParagraph || ""
       };
+      const synchronizedDeal = normalizeDealPayload({}, user.deal || {});
+      synchronizedDeal.includedFeatures.isPremiumWhatsappButtonsEnabled =
+        normalizedEvent.isPremiumWhatsappButtonsEnabled === true;
+      user.deal = synchronizedDeal;
     }
 
     if (deal && typeof deal === "object") {

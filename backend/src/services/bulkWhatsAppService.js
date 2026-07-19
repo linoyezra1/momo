@@ -18,26 +18,7 @@ const PREMIUM_WEDDING_RSVP_CONTENT_SID = "HX9eb2ac4178732bcfd5eb3e9609f9f626";
 
 function getTwilioContentSid(event) {
   const premiumEnabled = event?.isPremiumWhatsappButtonsEnabled === true;
-  const contentSid = String(
-    premiumEnabled
-      ? process.env.TWILIO_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID ||
-        PREMIUM_WEDDING_RSVP_CONTENT_SID
-      : process.env.TWILIO_STANDARD_INVITE_CONTENT_SID ||
-          STANDARD_INVITE_CONTENT_SID
-  ).trim();
-  if (!contentSid) {
-    throw new Error(
-      premiumEnabled
-        ? "TWILIO_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID is not configured on the server"
-        : "Standard WhatsApp invitation Content SID is not configured on the server"
-    );
-  }
-  if (!contentSid.startsWith("HX")) {
-    throw new Error(
-      `TWILIO_CONTENT_SID must be a Content Template SID starting with HX (got: ${contentSid.slice(0, 6)}...)`
-    );
-  }
-  return contentSid;
+  return premiumEnabled ? PREMIUM_WEDDING_RSVP_CONTENT_SID : STANDARD_INVITE_CONTENT_SID;
 }
 
 function normalizePaymentCode(rawCode) {
@@ -282,6 +263,9 @@ export async function sendBulkWhatsApp({
     });
     const paragraphs = resolveWhatsAppInviteParagraphs(event);
     const contentSid = getTwilioContentSid(event);
+    console.log(
+      `[Twilio] Premium buttons ${event?.isPremiumWhatsappButtonsEnabled === true ? "enabled" : "disabled"}; selected template SID: ${contentSid}`
+    );
     let templateKeys = ["1", "2", "3", "4", "5"];
     try {
       const templateMeta = await fetchTwilioContentTemplate(contentSid);

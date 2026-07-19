@@ -99,7 +99,7 @@ export async function fetchTwilioContentTemplate(contentSid) {
 
   return {
     sid: content.sid,
-    friendlyName: content.friendly_name,
+    friendlyName: content.friendlyName || content.friendly_name || "unknown",
     variableKeys,
     defaultVariables: content.variables || {},
     contentTypes: Object.keys(content.types || {})

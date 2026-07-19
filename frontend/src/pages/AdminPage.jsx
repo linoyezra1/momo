@@ -60,9 +60,9 @@ function defaultDealDraft() {
 function dealDraftFromClient(client) {
   const deal = client?.deal || {};
   const features = { ...defaultDealDraft().includedFeatures, ...(deal.includedFeatures || {}) };
-  features.isPremiumWhatsappButtonsEnabled = Boolean(
-    client?.event?.isPremiumWhatsappButtonsEnabled
-  );
+  features.isPremiumWhatsappButtonsEnabled =
+    client?.event?.isPremiumWhatsappButtonsEnabled === true ||
+    deal.includedFeatures?.isPremiumWhatsappButtonsEnabled === true;
   const amount =
     deal.paymentAmount != null && deal.paymentAmount !== ""
       ? deal.paymentAmount
