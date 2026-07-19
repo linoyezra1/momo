@@ -83,6 +83,51 @@
   gap: 0.5rem;
 }
 
+.agent-filters__checks {
+  min-width: 100%;
+  margin: 0;
+  padding: 0 0 0.75rem;
+  border: 0;
+  border-bottom: 1px solid var(--agent-border);
+}
+
+.agent-filters__checks legend {
+  float: right;
+  margin-inline-end: 0.65rem;
+}
+
+.agent-filter-checkboxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.agent-filter-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.38rem 0.65rem;
+  border: 1px solid var(--agent-border);
+  border-radius: 999px;
+  background: #fff;
+  color: #4b4654;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.agent-filter-checkbox:has(input:checked) {
+  border-color: rgb(213 126 126 / 55%);
+  background: rgb(213 126 126 / 10%);
+  color: #75413f;
+}
+
+.agent-filter-checkbox input {
+  width: 0.95rem;
+  height: 0.95rem;
+  accent-color: var(--agent-coral);
+}
+
 .agent-filters__select {
   min-width: 11rem;
 }

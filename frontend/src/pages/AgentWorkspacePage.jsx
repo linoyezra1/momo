@@ -11,6 +11,13 @@ const CALL_OUTCOME_FILTER_OPTIONS = [
   { value: "no_answer", label: "לא ענה" }
 ];
 
+const RSVP_STATUS_FILTER_OPTIONS = [
+  { value: "מגיע", label: "מגיע" },
+  { value: "לא מגיע", label: "לא מגיע" },
+  { value: "אולי", label: "אולי" },
+  { value: "לא ידוע", label: "לא ידוע" }
+];
+
 const ATTEMPTS_FILTER_OPTIONS = [
   { value: "all", label: "כל מספר שיחות" },
   { value: "exact:0", label: "טרם התקשרו (0)" },
@@ -62,6 +69,7 @@ export default function AgentWorkspacePage() {
   const [error, setError] = useState("");
   const [expandedGuestId, setExpandedGuestId] = useState("");
   const [outcomeFilter, setOutcomeFilter] = useState("all");
+  const [rsvpStatusFilters, setRsvpStatusFilters] = useState([]);
   const [attemptsFilter, setAttemptsFilter] = useState("all");
   const [selectedGuestIds, setSelectedGuestIds] = useState(() => new Set());
   const [exporting, setExporting] = useState(false);
@@ -89,10 +97,17 @@ export default function AgentWorkspacePage() {
       guests.filter(
         (guest) =>
           matchesCallOutcomeFilter(guest, outcomeFilter) &&
+          (!rsvpStatusFilters.length || rsvpStatusFilters.includes(guest.status)) &&
           matchesAttemptsFilter(guest, attemptsFilter)
       ),
-    [guests, outcomeFilter, attemptsFilter]
+    [guests, outcomeFilter, rsvpStatusFilters, attemptsFilter]
   );
+
+  const toggleRsvpStatusFilter = (status) => {
+    setRsvpStatusFilters((prev) =>
+      prev.includes(status) ? prev.filter((item) => item !== status) : [...prev, status]
+    );
+  };
 
   const allFilteredSelected =
     filteredGuests.length > 0 && filteredGuests.every((guest) => selectedGuestIds.has(guest._id));
@@ -191,6 +206,21 @@ export default function AgentWorkspacePage() {
             </div>
 
             <div className="agent-filters">
+              <fieldset className="agent-filters__group agent-filters__checks">
+                <legend className="agent-field-label">סטטוס הגעה:</legend>
+                <div className="agent-filter-checkboxes">
+                  {RSVP_STATUS_FILTER_OPTIONS.map((option) => (
+                    <label key={option.value} className="agent-filter-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={rsvpStatusFilters.includes(option.value)}
+                        onChange={() => toggleRsvpStatusFilter(option.value)}
+                      />
+                      {option.label}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
               <div className="agent-filters__group">
                 <label className="agent-field-label" htmlFor="agent-outcome-filter">
                   תוצאת שיחה:
