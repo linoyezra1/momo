@@ -708,6 +708,7 @@ router.put("/:userId/event", async (req, res) => {
     user.event = {
       ...next,
       maxPhoneRounds: Number(previous.maxPhoneRounds) || 0,
+      isPremiumWhatsappButtonsEnabled: Boolean(previous.isPremiumWhatsappButtonsEnabled),
       welcomeParagraph: previous.welcomeParagraph || "",
       eventDetailsParagraph: previous.eventDetailsParagraph || "",
       closingParagraph: previous.closingParagraph || ""

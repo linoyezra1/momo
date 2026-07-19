@@ -21,6 +21,7 @@ const eventSchema = new mongoose.Schema(
     eventTime: { type: String, trim: true, default: "" },
     receptionTime: { type: String, trim: true, default: "" },
     maxPhoneRounds: { type: Number, min: 0, max: 4, default: 0 },
+    isPremiumWhatsappButtonsEnabled: { type: Boolean, default: false },
     welcomeText: { type: String, trim: true, default: "" },
     imageDataUrl: { type: String, default: "" },
     /** WhatsApp approved-template editable segments ({{2}}, {{3}}, {{5}}) */

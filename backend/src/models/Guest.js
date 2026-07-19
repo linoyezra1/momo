@@ -52,6 +52,12 @@ const guestSchema = new mongoose.Schema(
     seatingTableId: { type: String, trim: true, default: "" },
     reminderRound: { type: Number, min: 0, default: 0 },
     whatsappRoundsSentCount: { type: Number, min: 0, default: 0 },
+    whatsappConversationState: {
+      type: String,
+      enum: ["idle", "awaiting_guest_count"],
+      default: "idle"
+    },
+    lastWhatsAppSentAt: { type: Date, default: null },
     confirmationMethod: {
       type: String,
       enum: ["whatsapp", "phone", "web"],

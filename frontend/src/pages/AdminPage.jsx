@@ -89,6 +89,7 @@ const initialForm = {
   eventDateHebrew: "",
   eventTime: "",
   maxPhoneRounds: 0,
+  isPremiumWhatsappButtonsEnabled: false,
   imageDataUrl: ""
 };
 
@@ -412,7 +413,8 @@ ${publicEventUrl}`
   };
 
   const onChange = (event) => {
-    setForm((prev) => ({ ...prev, [event.target.name]: event.target.value }));
+    const { checked, name, type, value } = event.target;
+    setForm((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
   };
 
   const onImageChange = (event) => {
@@ -484,6 +486,7 @@ ${publicEventUrl}`
           eventDateHebrew: form.eventType === "ברית" ? form.eventDateHebrew : "",
           eventTime: form.eventTime,
           maxPhoneRounds: Number(form.maxPhoneRounds) || 0,
+          isPremiumWhatsappButtonsEnabled: Boolean(form.isPremiumWhatsappButtonsEnabled),
           imageDataUrl: form.imageDataUrl
         }
       };
@@ -573,6 +576,7 @@ ${publicEventUrl}`
       eventDateHebrew: client.event?.eventDateHebrew || "",
       eventTime: client.event?.eventTime || "",
       maxPhoneRounds: Number(client.event?.maxPhoneRounds) || 0,
+      isPremiumWhatsappButtonsEnabled: Boolean(client.event?.isPremiumWhatsappButtonsEnabled),
       imageDataUrl: client.event?.imageDataUrl || ""
     });
     setShowCreateWizard(true);
@@ -1347,6 +1351,21 @@ ${publicEventUrl}`
                 </select>
                 <p className="us-admin-field-hint">
                   המוזמן יוסר אוטומטית מתור הסוכן לאחר מיצוי המכסה.
+                </p>
+              </div>
+              <div className="us-admin-field">
+                <label className="us-admin-deal-check" htmlFor="isPremiumWhatsappButtonsEnabled">
+                  <input
+                    id="isPremiumWhatsappButtonsEnabled"
+                    type="checkbox"
+                    name="isPremiumWhatsappButtonsEnabled"
+                    checked={form.isPremiumWhatsappButtonsEnabled}
+                    onChange={onChange}
+                  />
+                  <span>ווצאפ כפתורים מהירים (Premium)</span>
+                </label>
+                <p className="us-admin-field-hint">
+                  מפעיל תבנית הזמנה אינטראקטיבית מאושרת עם כפתורי אישור הגעה.
                 </p>
               </div>
               <div className="us-admin-field">

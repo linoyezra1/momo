@@ -74,6 +74,7 @@ function normalizeEventPayload(rawEvent) {
       eventType === "ברית" ? String(rawEvent?.eventDateHebrew || "").trim() : "",
     eventTime: String(rawEvent?.eventTime || "").trim(),
     maxPhoneRounds,
+    isPremiumWhatsappButtonsEnabled: rawEvent?.isPremiumWhatsappButtonsEnabled === true,
     imageDataUrl: String(rawEvent?.imageDataUrl || "").trim(),
     groomName,
     brideName,

@@ -13,12 +13,24 @@ import {
 } from "../utils/whatsappMessage.js";
 import { resolveWhatsAppInviteParagraphs } from "../utils/whatsappInviteCopy.js";
 
-function getTwilioContentSid() {
+const STANDARD_INVITE_CONTENT_SID = "HXa32f37f28c9aeea9d824b1b53919c326";
+const PREMIUM_WEDDING_RSVP_CONTENT_SID = "HX9eb2ac4178732bcfd5eb3e9609f9f626";
+
+function getTwilioContentSid(event) {
+  const premiumEnabled = event?.isPremiumWhatsappButtonsEnabled === true;
   const contentSid = String(
-    process.env.TWILIO_CONTENT_SID || process.env.TWILIO_WHATSAPP_TEMPLATE_SID || ""
+    premiumEnabled
+      ? process.env.TWILIO_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID ||
+        PREMIUM_WEDDING_RSVP_CONTENT_SID
+      : process.env.TWILIO_STANDARD_INVITE_CONTENT_SID ||
+          STANDARD_INVITE_CONTENT_SID
   ).trim();
   if (!contentSid) {
-    throw new Error("TWILIO_CONTENT_SID is not configured on the server");
+    throw new Error(
+      premiumEnabled
+        ? "TWILIO_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID is not configured on the server"
+        : "Standard WhatsApp invitation Content SID is not configured on the server"
+    );
   }
   if (!contentSid.startsWith("HX")) {
     throw new Error(
@@ -269,11 +281,15 @@ export async function sendBulkWhatsApp({
       origin
     });
     const paragraphs = resolveWhatsAppInviteParagraphs(event);
-    const contentSid = getTwilioContentSid();
+    const contentSid = getTwilioContentSid(event);
     let templateKeys = ["1", "2", "3", "4", "5"];
     try {
       const templateMeta = await fetchTwilioContentTemplate(contentSid);
-      templateKeys = templateMeta.variableKeys;
+      if (templateMeta.variableKeys.join(",") !== templateKeys.join(",")) {
+        throw new Error(
+          `Template ${contentSid} must define exactly variables 1-5 (found: ${templateMeta.variableKeys.join(", ")})`
+        );
+      }
       console.log(
         `[Twilio] Using template "${templateMeta.friendlyName}" (${contentSid}) variables: ${templateKeys.join(", ")}`
       );
@@ -319,6 +335,10 @@ export async function sendBulkWhatsApp({
               $inc: {
                 reminderRound: 1,
                 whatsappRoundsSentCount: 1
+              },
+              $set: {
+                whatsappConversationState: "idle",
+                lastWhatsAppSentAt: new Date()
               }
             }
           );

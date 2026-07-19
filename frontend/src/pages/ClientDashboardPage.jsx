@@ -295,7 +295,7 @@ export default function ClientDashboardPage() {
     stream.onmessage = (event) => {
       try {
         const payload = JSON.parse(event.data);
-        if (payload.type !== "guest-phone-rsvp-updated") return;
+        if (!["guest-phone-rsvp-updated", "guest-whatsapp-rsvp-updated"].includes(payload.type)) return;
         window.clearTimeout(refreshTimer);
         refreshTimer = window.setTimeout(() => {
           loadGuests();

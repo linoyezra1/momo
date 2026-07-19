@@ -182,16 +182,18 @@ export async function sendTwilioWhatsAppMessage({
     const from = getTwilioWhatsAppFrom();
     let result;
     if (contentSid) {
-      const serializedVariables =
-        typeof contentVariables === "string"
-          ? contentVariables
-          : buildTwilioContentVariables(contentVariables || {});
-      result = await client.messages.create({
+      const messagePayload = {
         from,
         to,
-        contentSid,
-        contentVariables: serializedVariables
-      });
+        contentSid
+      };
+      if (contentVariables != null) {
+        messagePayload.contentVariables =
+          typeof contentVariables === "string"
+            ? contentVariables
+            : buildTwilioContentVariables(contentVariables);
+      }
+      result = await client.messages.create(messagePayload);
     } else {
       result = await client.messages.create({ body, from, to });
     }
