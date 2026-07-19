@@ -219,7 +219,7 @@
 
 .us-stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 0.85rem;
   margin-top: 1.5rem;
 }
@@ -238,6 +238,25 @@
   text-align: left;
   box-shadow: 0 8px 24px rgb(74 46 43 / 4%);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.us-stat-card--filter {
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.us-stat-card--filter.is-active {
+  border-color: var(--us-rose);
+  box-shadow:
+    0 0 0 2px rgb(213 126 126 / 13%),
+    0 12px 28px rgb(213 126 126 / 12%);
+}
+
+.us-stat-card--filter:focus-visible {
+  outline: 3px solid rgb(213 126 126 / 25%);
+  outline-offset: 2px;
 }
 
 .us-stat-card:hover {

@@ -36,7 +36,12 @@ const guestSchema = new mongoose.Schema(
       default: "web"
     },
     currentCallRound: { type: Number, enum: [1, 2], default: null },
-    callStatus: { type: String, enum: ["answered", "no_answer"], default: null },
+    callStatus: {
+      type: String,
+      enum: ["answered", "no_answer", "disconnected"],
+      default: null
+    },
+    phoneAttemptsCount: { type: Number, min: 0, default: 0 },
     agentNotes: { type: String, trim: true, default: "" },
     callTimestamp: { type: Date, default: null }
   },

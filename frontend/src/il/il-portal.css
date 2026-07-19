@@ -58,6 +58,10 @@
   color: #a67c3d;
 }
 
+.il-client-portal .us-stat-card--unknown p {
+  color: #687481;
+}
+
 .il-invitation-editor__layout {
   flex: 1;
   min-height: 0;

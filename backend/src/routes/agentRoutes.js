@@ -102,8 +102,8 @@ router.patch("/:userId/guests/:guestId/phone-rsvp", async (req, res) => {
       return res.status(400).json({ message: "יש לבחור סבב שיחה (1 או 2)" });
     }
 
-    if (!["answered", "no_answer"].includes(callStatus)) {
-      return res.status(400).json({ message: "יש לבחור סטטוס שיחה (ענה / לא ענה)" });
+    if (!["answered", "no_answer", "disconnected"].includes(callStatus)) {
+      return res.status(400).json({ message: "יש לבחור תוצאת שיחה תקינה" });
     }
 
     const update = {
@@ -147,10 +147,17 @@ router.patch("/:userId/guests/:guestId/phone-rsvp", async (req, res) => {
       }
     }
 
-    const guest = await Guest.findOneAndUpdate({ _id: guestId, userId }, update, {
-      new: true,
-      runValidators: true
-    });
+    const guest = await Guest.findOneAndUpdate(
+      { _id: guestId, userId },
+      {
+        $set: update,
+        $inc: { phoneAttemptsCount: 1 }
+      },
+      {
+        new: true,
+        runValidators: true
+      }
+    );
 
     if (!guest) {
       return res.status(404).json({ message: "Guest not found" });

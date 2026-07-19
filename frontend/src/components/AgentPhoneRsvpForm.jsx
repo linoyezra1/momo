@@ -129,6 +129,13 @@ export default function AgentPhoneRsvpForm({ guest, userId, onSaved }) {
             >
               לא ענה
             </button>
+            <button
+              type="button"
+              className={`agent-toggle-btn${form.callStatus === "disconnected" ? " is-active" : ""}`}
+              onClick={() => onChange("callStatus", "disconnected")}
+            >
+              מנותק
+            </button>
           </div>
         </div>
       </div>

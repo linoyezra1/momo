@@ -106,12 +106,20 @@ router.get("/:userId/guests", async (req, res) => {
           acc.totalComing += count;
         } else if (guest.status === "לא מגיע") {
           acc.totalNotComing += count;
-        } else {
+        } else if (guest.status === "אולי") {
           acc.totalMaybe += count;
+        } else {
+          acc.totalUnknown += count;
         }
         return acc;
       },
-      { totalInvited: 0, totalComing: 0, totalNotComing: 0, totalMaybe: 0 }
+      {
+        totalInvited: 0,
+        totalComing: 0,
+        totalNotComing: 0,
+        totalMaybe: 0,
+        totalUnknown: 0
+      }
     );
 
     return res.json({ summary, guests, event: user.event, username: user.username });

@@ -31,7 +31,8 @@ const STATUS_FILTER_OPTIONS = [
   { value: "all", label: "הכל" },
   { value: "מגיע", label: "מגיע" },
   { value: "לא מגיע", label: "לא מגיע" },
-  { value: "אולי", label: "אולי" }
+  { value: "אולי", label: "אולי" },
+  { value: "לא ידוע", label: "לא ידוע" }
 ];
 
 const REMINDER_FILTER_OPTIONS = [
@@ -54,6 +55,11 @@ function getGuestRowClass(status) {
   if (status === "לא מגיע") return "il-row-not-coming";
   if (status === "אולי") return "il-row-maybe";
   return "il-row-unknown";
+}
+
+function isUnknownGuestStatus(status) {
+  const normalized = String(status || "").trim().toLowerCase();
+  return !normalized || normalized === "לא ידוע" || normalized === "unknown" || normalized === "pending";
 }
 
 function getReminderRound(guest) {
@@ -87,6 +93,7 @@ function hasPhoneRsvpRecord(guest) {
 function formatCallStatusLabel(callStatus) {
   if (callStatus === "answered") return "ענה";
   if (callStatus === "no_answer") return "לא ענה";
+  if (callStatus === "disconnected") return "מנותק";
   return "—";
 }
 
@@ -114,7 +121,13 @@ function getOwnerGreeting(event) {
 
 export default function ClientDashboardPage() {
   const { userId } = useParams();
-  const [summary, setSummary] = useState({ totalInvited: 0, totalComing: 0, totalNotComing: 0, totalMaybe: 0 });
+  const [summary, setSummary] = useState({
+    totalInvited: 0,
+    totalComing: 0,
+    totalNotComing: 0,
+    totalMaybe: 0,
+    totalUnknown: 0
+  });
   const [importError, setImportError] = useState("");
   const [showConflictModal, setShowConflictModal] = useState(false);
   const [importConflicts, setImportConflicts] = useState([]);
@@ -170,7 +183,9 @@ export default function ClientDashboardPage() {
   const filteredGuests = useMemo(() => {
     let list = guests;
 
-    if (statusFilter !== "all") {
+    if (statusFilter === "לא ידוע") {
+      list = list.filter((guest) => isUnknownGuestStatus(guest.status));
+    } else if (statusFilter !== "all") {
       list = list.filter((guest) => guest.status === statusFilter);
     }
 
@@ -696,34 +711,69 @@ export default function ClientDashboardPage() {
         </header>
 
         <div className="us-stats-grid">
-          <div className="us-stat-card">
+          <button
+            className={`us-stat-card us-stat-card--filter${statusFilter === "all" ? " is-active" : ""}`}
+            type="button"
+            onClick={() => setStatusFilter("all")}
+            aria-pressed={statusFilter === "all"}
+          >
             <div className="us-stat-card-head" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
               <Users size={20} aria-hidden="true" />
               <h3>סה״כ מוזמנים</h3>
             </div>
-            <p>{summary.totalInvited ?? summary.totalComing + summary.totalNotComing + summary.totalMaybe}</p>
-          </div>
-          <div className="us-stat-card us-stat-card--coming">
+            <p>
+              {summary.totalInvited ??
+                summary.totalComing + summary.totalNotComing + summary.totalMaybe + (summary.totalUnknown || 0)}
+            </p>
+          </button>
+          <button
+            className={`us-stat-card us-stat-card--coming us-stat-card--filter${statusFilter === "מגיע" ? " is-active" : ""}`}
+            type="button"
+            onClick={() => setStatusFilter("מגיע")}
+            aria-pressed={statusFilter === "מגיע"}
+          >
             <div className="us-stat-card-head" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
               <Check size={20} aria-hidden="true" />
               <h3>סה״כ מגיעים</h3>
             </div>
             <p>{summary.totalComing}</p>
-          </div>
-          <div className="us-stat-card us-stat-card--not-coming">
+          </button>
+          <button
+            className={`us-stat-card us-stat-card--not-coming us-stat-card--filter${statusFilter === "לא מגיע" ? " is-active" : ""}`}
+            type="button"
+            onClick={() => setStatusFilter("לא מגיע")}
+            aria-pressed={statusFilter === "לא מגיע"}
+          >
             <div className="us-stat-card-head" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
               <X size={20} aria-hidden="true" />
               <h3>סה״כ לא מגיעים</h3>
             </div>
             <p>{summary.totalNotComing}</p>
-          </div>
-          <div className="us-stat-card us-stat-card--maybe">
+          </button>
+          <button
+            className={`us-stat-card us-stat-card--maybe us-stat-card--filter${statusFilter === "אולי" ? " is-active" : ""}`}
+            type="button"
+            onClick={() => setStatusFilter("אולי")}
+            aria-pressed={statusFilter === "אולי"}
+          >
             <div className="us-stat-card-head" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
               <HelpCircle size={20} aria-hidden="true" />
               <h3>סה״כ אולי</h3>
             </div>
             <p>{summary.totalMaybe}</p>
-          </div>
+          </button>
+          <button
+            className={`us-stat-card us-stat-card--unknown us-stat-card--filter${statusFilter === "לא ידוע" ? " is-active" : ""}`}
+            type="button"
+            onClick={() => setStatusFilter("לא ידוע")}
+            aria-pressed={statusFilter === "לא ידוע"}
+          >
+            <div className="us-stat-card-head" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <Clock size={20} aria-hidden="true" />
+              <h3>סה״כ לא ידוע</h3>
+            </div>
+            <p>{summary.totalUnknown || 0}</p>
+          </button>
         </div>
 
         <div className="us-toolbar">
