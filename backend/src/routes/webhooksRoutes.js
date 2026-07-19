@@ -39,10 +39,14 @@ function hasValidTwilioSignature(req) {
 
 router.post("/twilio-whatsapp", async (req, res) => {
   if (!hasValidTwilioSignature(req)) {
+    console.warn("[Twilio RSVP] Rejected inbound webhook: invalid Twilio signature");
     return res.status(403).send("Invalid Twilio signature");
   }
 
   try {
+    console.log(
+      `[Twilio RSVP] Inbound webhook received: ${req.body.MessageSid || "unknown"} from ${req.body.From || "unknown"}`
+    );
     await handleIncomingWhatsAppRsvp({
       from: req.body.From,
       body: req.body.Body,

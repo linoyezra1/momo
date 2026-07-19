@@ -1,11 +1,16 @@
 import twilio from "twilio";
 import { normalizePhone } from "./guestPhone.js";
 
+const DEFAULT_MESSAGING_SERVICE_SID = "MG42b953157d0a2c06edaa8e088177c31b";
+
 export function isTwilioConfigured() {
   return Boolean(
     process.env.TWILIO_ACCOUNT_SID &&
       process.env.TWILIO_AUTH_TOKEN &&
-      (process.env.TWILIO_PHONE_NUMBER || process.env.TWILIO_WHATSAPP_FROM)
+      (process.env.TWILIO_MESSAGING_SERVICE_SID ||
+        DEFAULT_MESSAGING_SERVICE_SID ||
+        process.env.TWILIO_PHONE_NUMBER ||
+        process.env.TWILIO_WHATSAPP_FROM)
   );
 }
 
@@ -27,6 +32,16 @@ export function getTwilioWhatsAppFrom() {
   if (trimmed.startsWith("whatsapp:")) return trimmed;
   if (trimmed.startsWith("+")) return `whatsapp:${trimmed}`;
   return `whatsapp:+${trimmed.replace(/\D/g, "")}`;
+}
+
+export function getTwilioMessagingServiceSid() {
+  const sid = String(
+    process.env.TWILIO_MESSAGING_SERVICE_SID || DEFAULT_MESSAGING_SERVICE_SID
+  ).trim();
+  if (!sid.startsWith("MG")) {
+    throw new Error("TWILIO_MESSAGING_SERVICE_SID must start with MG");
+  }
+  return sid;
 }
 
 export function toTwilioWhatsAppAddress(phone) {
@@ -179,13 +194,13 @@ export async function sendTwilioWhatsAppMessage({
 
   try {
     const client = getTwilioClient();
-    const from = getTwilioWhatsAppFrom();
+    const messagingServiceSid = getTwilioMessagingServiceSid();
     let result;
     if (contentSid) {
       const messagePayload = {
-        from,
         to,
-        contentSid
+        contentSid,
+        messagingServiceSid
       };
       if (contentVariables != null) {
         messagePayload.contentVariables =
@@ -195,7 +210,7 @@ export async function sendTwilioWhatsAppMessage({
       }
       result = await client.messages.create(messagePayload);
     } else {
-      result = await client.messages.create({ body, from, to });
+      result = await client.messages.create({ body, messagingServiceSid, to });
     }
 
     console.log(
