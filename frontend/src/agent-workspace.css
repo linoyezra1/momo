@@ -42,6 +42,88 @@
   margin-bottom: 1.25rem;
 }
 
+.agent-quick-info {
+  margin-bottom: 1.25rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid rgb(213 126 126 / 28%);
+  border-radius: 0.9rem;
+  background:
+    linear-gradient(135deg, rgb(213 126 126 / 10%), rgb(255 254 251 / 92%)),
+    var(--agent-card);
+  box-shadow: 0 10px 30px rgb(74 46 43 / 6%);
+}
+
+.agent-quick-info__heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.8rem;
+}
+
+.agent-quick-info__heading span {
+  color: #9b5b58;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.agent-quick-info__heading h2 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--agent-ink);
+}
+
+.agent-quick-info__grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.agent-quick-info__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  min-width: 0;
+  padding: 0.65rem 0.7rem;
+  border-radius: 0.65rem;
+  background: rgb(255 255 255 / 72%);
+}
+
+.agent-quick-info__item > svg {
+  flex: 0 0 auto;
+  margin-top: 0.08rem;
+  color: var(--agent-coral);
+}
+
+.agent-quick-info__item div {
+  min-width: 0;
+}
+
+.agent-quick-info__item span {
+  display: block;
+  margin-bottom: 0.15rem;
+  color: var(--agent-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.agent-quick-info__item strong,
+.agent-quick-info__item a {
+  display: block;
+  color: var(--agent-ink);
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.agent-quick-info__item a {
+  color: #8a5b55;
+  text-decoration: underline;
+  text-underline-offset: 0.15rem;
+}
+
 .agent-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -870,6 +952,33 @@
 
   .agent-login-card {
     padding: 1.35rem 1rem;
+  }
+
+  .agent-quick-info {
+    padding: 0.9rem 0.8rem;
+  }
+
+  .agent-quick-info__heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  .agent-quick-info__grid {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .agent-quick-info__item {
+    position: relative;
+    padding: 0.65rem 0.15rem;
+    border-radius: 0;
+    border-bottom: 1px solid rgb(213 126 126 / 14%);
+    background: transparent;
+  }
+
+  .agent-quick-info__item:last-child {
+    border-bottom: 0;
   }
 }
 

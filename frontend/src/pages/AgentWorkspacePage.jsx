@@ -1,8 +1,9 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ChevronDown, Phone } from "lucide-react";
+import { CalendarDays, ChevronDown, Clock3, MapPin, Phone, Users } from "lucide-react";
 import api from "../api";
 import AgentPhoneRsvpForm from "../components/AgentPhoneRsvpForm.jsx";
+import { formatIsraeliDate } from "../utils/dateFormat.js";
 import "../agent-workspace.css";
 
 const CALL_OUTCOME_FILTER_OPTIONS = [
@@ -61,9 +62,21 @@ function buildExportFileName(eventLabel) {
   return `ייצוא-שיחות-${safeLabel || "guests"}-${stamp}.xlsx`;
 }
 
+function buildEventHosts(event) {
+  if (!event) return "—";
+  if (event.eventType === "חתונה") {
+    return [event.brideName, event.groomName].filter(Boolean).join(" & ") || "—";
+  }
+  if (event.eventType === "ברית") {
+    return [event.parentName1, event.parentName2].filter(Boolean).join(" & ") || "—";
+  }
+  return event.batMitzvahName || event.eventNames || event.parentName1 || "—";
+}
+
 export default function AgentWorkspacePage() {
   const { userId } = useParams();
   const [eventLabel, setEventLabel] = useState("");
+  const [eventInfo, setEventInfo] = useState(null);
   const [guests, setGuests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -80,6 +93,7 @@ export default function AgentWorkspacePage() {
     try {
       const response = await api.get(`/agent/${userId}/guests`);
       setEventLabel(response.data?.eventLabel || "");
+      setEventInfo(response.data?.event || null);
       setGuests(response.data?.guests || []);
     } catch (loadError) {
       setError(loadError.response?.data?.message || "טעינת מוזמנים נכשלה");
@@ -167,6 +181,9 @@ export default function AgentWorkspacePage() {
     }
   };
 
+  const eventAddress = [eventInfo?.streetAndNumber, eventInfo?.city].filter(Boolean).join(", ");
+  const eventStartTime = eventInfo?.receptionTime || eventInfo?.eventTime || "";
+
   return (
     <div className="agent-shell" dir="rtl">
       <div className="agent-container agent-container--wide">
@@ -182,6 +199,52 @@ export default function AgentWorkspacePage() {
 
         {loading ? <p className="agent-muted">טוען מוזמנים…</p> : null}
         {error ? <p className="agent-error">{error}</p> : null}
+
+        {!loading && eventInfo ? (
+          <section className="agent-quick-info" aria-labelledby="agent-quick-info-title">
+            <div className="agent-quick-info__heading">
+              <span>מידע מהיר לשיחה</span>
+              <h2 id="agent-quick-info-title">{eventLabel || "פרטי האירוע"}</h2>
+            </div>
+            <div className="agent-quick-info__grid">
+              <div className="agent-quick-info__item">
+                <Users size={19} aria-hidden="true" />
+                <div>
+                  <span>הזוג</span>
+                  <strong>{buildEventHosts(eventInfo)}</strong>
+                </div>
+              </div>
+              <div className="agent-quick-info__item">
+                <CalendarDays size={19} aria-hidden="true" />
+                <div>
+                  <span>תאריך</span>
+                  <strong>{formatIsraeliDate(eventInfo.eventDate) || "—"}</strong>
+                </div>
+              </div>
+              <div className="agent-quick-info__item">
+                <MapPin size={19} aria-hidden="true" />
+                <div>
+                  <span>אולם / מיקום</span>
+                  <strong>{eventInfo.venueName || "—"}</strong>
+                </div>
+              </div>
+              <div className="agent-quick-info__item">
+                <Clock3 size={19} aria-hidden="true" />
+                <div>
+                  <span>שעת התחלה</span>
+                  <strong>{eventStartTime || "—"}</strong>
+                </div>
+              </div>
+              <div className="agent-quick-info__item agent-quick-info__item--wide">
+                <MapPin size={19} aria-hidden="true" />
+                <div>
+                  <span>כתובת</span>
+                  <strong>{eventAddress || "—"}</strong>
+                </div>
+              </div>
+            </div>
+          </section>
+        ) : null}
 
         {!loading ? (
           <>
