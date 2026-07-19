@@ -97,6 +97,20 @@ function formatCallStatusLabel(callStatus) {
   return "—";
 }
 
+function getPhoneTreatmentBadge(guest, maxPhoneRounds) {
+  const attempts = Math.max(0, Number(guest?.phoneAttemptsCount || 0));
+  if (attempts === 0) {
+    return { label: "טרם טופל טלפונית", tone: "pending" };
+  }
+  if (guest?.callStatus === "answered") {
+    return { label: "✓ ענה טלפונית", tone: "answered" };
+  }
+  if (attempts >= maxPhoneRounds) {
+    return { label: "ללא מענה סופית", tone: "exhausted" };
+  }
+  return { label: `לא ענה - סבב ${attempts}`, tone: "no-answer" };
+}
+
 function getGuestCallHistory(guest) {
   if (Array.isArray(guest?.callHistory) && guest.callHistory.length) {
     return guest.callHistory;
@@ -382,6 +396,9 @@ export default function ClientDashboardPage() {
   );
 
   const selectedCount = selectedGuestIds.size;
+  const maxPhoneRounds = Number(eventInfo?.maxPhoneRounds || 0);
+  const phoneServiceEnabled = maxPhoneRounds > 0;
+  const guestTableColumnCount = phoneServiceEnabled ? 12 : 11;
   const allFilteredSelected =
     filteredGuests.length > 0 && filteredGuests.every((guest) => selectedGuestIds.has(guest._id));
 
@@ -968,6 +985,7 @@ export default function ClientDashboardPage() {
                 <th>כמה מגיעים</th>
                 <th>סכום מתנה</th>
                 <th>סטטוס</th>
+                {phoneServiceEnabled ? <th>טיפול טלפוני</th> : null}
                 <th>סבב שליחה</th>
                 <th>מקור</th>
                 <th>וואטסאפ</th>
@@ -977,7 +995,7 @@ export default function ClientDashboardPage() {
             <tbody>
               {filteredGuests.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="us-table-empty">
+                  <td colSpan={guestTableColumnCount} className="us-table-empty">
                     {appliedSearch || statusFilter !== "all" || reminderRoundFilter !== "all"
                       ? "לא נמצאו תוצאות לסינון הנוכחי"
                       : "אין אורחים עדיין"}
@@ -987,6 +1005,9 @@ export default function ClientDashboardPage() {
                 filteredGuests.map((guest) => {
                   const isDetailExpanded = expandedGuestDetailIds.has(guest._id);
                   const showPhoneDetails = hasPhoneRsvpRecord(guest);
+                  const phoneTreatment = phoneServiceEnabled
+                    ? getPhoneTreatmentBadge(guest, maxPhoneRounds)
+                    : null;
                   return (
                     <Fragment key={guest._id}>
                       <tr className={getGuestRowClass(guest.status)}>
@@ -1089,6 +1110,13 @@ export default function ClientDashboardPage() {
                         guest.status
                       )}
                     </td>
+                    {phoneTreatment ? (
+                      <td data-label="טיפול טלפוני">
+                        <span className={`il-phone-treatment-badge is-${phoneTreatment.tone}`}>
+                          {phoneTreatment.label}
+                        </span>
+                      </td>
+                    ) : null}
                     <td data-label="סבב שליחה">
                       <ReminderRoundBadge round={getReminderRound(guest)} />
                     </td>
@@ -1152,7 +1180,7 @@ export default function ClientDashboardPage() {
                       </tr>
                       {showPhoneDetails && isDetailExpanded ? (
                         <tr className="il-guest-detail-row">
-                          <td colSpan={11}>
+                          <td colSpan={guestTableColumnCount}>
                             <div className="il-call-history">
                               <div className="il-call-history__header">
                                 <strong>היסטוריית שיחות טלפוניות</strong>

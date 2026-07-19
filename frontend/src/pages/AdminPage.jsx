@@ -88,7 +88,7 @@ const initialForm = {
   eventDate: "",
   eventDateHebrew: "",
   eventTime: "",
-  maxPhoneRounds: 2,
+  maxPhoneRounds: 0,
   imageDataUrl: ""
 };
 
@@ -483,7 +483,7 @@ ${publicEventUrl}`
           eventDate: form.eventDate,
           eventDateHebrew: form.eventType === "ברית" ? form.eventDateHebrew : "",
           eventTime: form.eventTime,
-          maxPhoneRounds: Number(form.maxPhoneRounds) || 2,
+          maxPhoneRounds: Number(form.maxPhoneRounds) || 0,
           imageDataUrl: form.imageDataUrl
         }
       };
@@ -572,7 +572,7 @@ ${publicEventUrl}`
       eventDate: client.event?.eventDate || "",
       eventDateHebrew: client.event?.eventDateHebrew || "",
       eventTime: client.event?.eventTime || "",
-      maxPhoneRounds: Number(client.event?.maxPhoneRounds) || 2,
+      maxPhoneRounds: Number(client.event?.maxPhoneRounds) || 0,
       imageDataUrl: client.event?.imageDataUrl || ""
     });
     setShowCreateWizard(true);
@@ -1339,6 +1339,7 @@ ${publicEventUrl}`
                   value={form.maxPhoneRounds}
                   onChange={onChange}
                 >
+                  <option value="0">ללא שירות שיחות טלפוניות</option>
                   <option value="1">סבב אחד</option>
                   <option value="2">2 סבבים</option>
                   <option value="3">3 סבבים</option>

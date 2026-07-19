@@ -56,7 +56,7 @@ export default function AgentWorkspacePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [expandedGuestId, setExpandedGuestId] = useState("");
-  const [maxPhoneRounds, setMaxPhoneRounds] = useState(2);
+  const [maxPhoneRounds, setMaxPhoneRounds] = useState(0);
   const [selectedGuestIds, setSelectedGuestIds] = useState(() => new Set());
   const [exporting, setExporting] = useState(false);
 
@@ -67,7 +67,7 @@ export default function AgentWorkspacePage() {
       const response = await api.get(`/agent/${userId}/guests`);
       setEventLabel(response.data?.eventLabel || "");
       setEventInfo(response.data?.event || null);
-      setMaxPhoneRounds(Number(response.data?.maxPhoneRounds) || 2);
+      setMaxPhoneRounds(Number(response.data?.maxPhoneRounds) || 0);
       setGuests(response.data?.guests || []);
     } catch (loadError) {
       setError(loadError.response?.data?.message || "טעינת מוזמנים נכשלה");

@@ -707,7 +707,7 @@ router.put("/:userId/event", async (req, res) => {
     const next = normalizeIlEventUpdatePayload(req.body);
     user.event = {
       ...next,
-      maxPhoneRounds: previous.maxPhoneRounds || 2,
+      maxPhoneRounds: Number(previous.maxPhoneRounds) || 0,
       welcomeParagraph: previous.welcomeParagraph || "",
       eventDetailsParagraph: previous.eventDetailsParagraph || "",
       closingParagraph: previous.closingParagraph || ""

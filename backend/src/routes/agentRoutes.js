@@ -27,10 +27,10 @@ function buildEventLabel(event) {
 
 function resolveMaxPhoneRounds(user) {
   const configured = Number(user?.event?.maxPhoneRounds);
-  if (Number.isInteger(configured) && configured >= 1 && configured <= 4) {
+  if (Number.isInteger(configured) && configured >= 0 && configured <= 4) {
     return configured;
   }
-  return 2;
+  return 0;
 }
 
 function getWhatsAppRoundsSent(guest) {

@@ -59,10 +59,10 @@ function normalizeEventPayload(rawEvent) {
   const requestedMaxPhoneRounds = Number(rawEvent?.maxPhoneRounds);
   const maxPhoneRounds =
     Number.isInteger(requestedMaxPhoneRounds) &&
-    requestedMaxPhoneRounds >= 1 &&
+    requestedMaxPhoneRounds >= 0 &&
     requestedMaxPhoneRounds <= 4
       ? requestedMaxPhoneRounds
-      : 2;
+      : 0;
 
   const baseEvent = {
     eventType,

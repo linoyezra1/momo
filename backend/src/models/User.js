@@ -20,7 +20,7 @@ const eventSchema = new mongoose.Schema(
     eventDateHebrew: { type: String, trim: true, default: "" },
     eventTime: { type: String, trim: true, default: "" },
     receptionTime: { type: String, trim: true, default: "" },
-    maxPhoneRounds: { type: Number, min: 1, max: 4, default: 2 },
+    maxPhoneRounds: { type: Number, min: 0, max: 4, default: 0 },
     welcomeText: { type: String, trim: true, default: "" },
     imageDataUrl: { type: String, default: "" },
     /** WhatsApp approved-template editable segments ({{2}}, {{3}}, {{5}}) */

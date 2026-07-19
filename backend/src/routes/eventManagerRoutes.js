@@ -180,7 +180,7 @@ router.patch("/clients/:userId", async (req, res) => {
         : { ...(user.event || {}) };
       user.event = {
         ...normalizedEvent,
-        maxPhoneRounds: previousEvent.maxPhoneRounds || 2,
+        maxPhoneRounds: Number(previousEvent.maxPhoneRounds) || 0,
         welcomeParagraph: previousEvent.welcomeParagraph || "",
         eventDetailsParagraph: previousEvent.eventDetailsParagraph || "",
         closingParagraph: previousEvent.closingParagraph || ""

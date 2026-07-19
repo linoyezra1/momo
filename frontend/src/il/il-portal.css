@@ -498,6 +498,43 @@
   border: 1px solid #fed7aa;
 }
 
+.il-phone-treatment-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.24rem 0.58rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.il-phone-treatment-badge.is-pending {
+  border-color: #d8dde3;
+  background: #f3f4f6;
+  color: #687481;
+}
+
+.il-phone-treatment-badge.is-no-answer {
+  border-color: #f5d28f;
+  background: #fff8e6;
+  color: #8a5b16;
+}
+
+.il-phone-treatment-badge.is-exhausted {
+  border-color: #edb8b8;
+  background: #fff1f1;
+  color: #963838;
+}
+
+.il-phone-treatment-badge.is-answered {
+  border-color: #a7e3bf;
+  background: #ecfdf3;
+  color: #17663a;
+}
+
 .il-bulk-action-bar {
   position: fixed;
   left: 50%;
