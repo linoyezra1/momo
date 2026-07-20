@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ChevronDown, LayoutGrid, Map } from "lucide-react";
+import { ChevronDown, LayoutGrid, Map as MapIcon } from "lucide-react";
 import api from "../api";
 import IlSeatingCanvas from "../il/seating/IlSeatingCanvas.jsx";
 import IlSeatingGuestPanel from "../il/seating/IlSeatingGuestPanel.jsx";
@@ -417,7 +417,7 @@ export default function IlSeatingPage() {
               className={!isSimpleView ? "is-active" : ""}
               onClick={() => setViewMode("canvas")}
             >
-              <Map size={16} aria-hidden="true" />
+              <MapIcon size={16} aria-hidden="true" />
               תצוגת סקיצה
             </button>
           </div>
