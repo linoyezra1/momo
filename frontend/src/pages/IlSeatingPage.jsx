@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { ChevronDown, LayoutGrid, Map } from "lucide-react";
 import api from "../api";
 import IlSeatingCanvas from "../il/seating/IlSeatingCanvas.jsx";
 import IlSeatingGuestPanel from "../il/seating/IlSeatingGuestPanel.jsx";
-import IlSeatingTablePanel from "../il/seating/IlSeatingTablePanel.jsx";
+import IlSeatingSimpleGrid from "../il/seating/IlSeatingSimpleGrid.jsx";
+import IlSeatingTableEditModal from "../il/seating/IlSeatingTableEditModal.jsx";
 import { exportSeatingPdf } from "../il/seating/exportSeatingPdf.js";
 import { TABLE_SHAPES, VENUE_ELEMENT_TYPES } from "../il/seating/seatingConstants.js";
 import { buildSeatingExportRows, filterSeatingGuests, makeSeatingId } from "../il/seating/ilSeatingUtils.js";
@@ -34,6 +36,7 @@ export default function IlSeatingPage() {
   const [filters, setFilters] = useState(initialFilters);
   const [selectedGuestIds, setSelectedGuestIds] = useState(() => new Set());
   const [activeTableId, setActiveTableId] = useState("");
+  const [editingTableId, setEditingTableId] = useState("");
   const [groupAssignTableId, setGroupAssignTableId] = useState("");
   const [toast, setToast] = useState("");
   const [saving, setSaving] = useState(false);
@@ -42,6 +45,9 @@ export default function IlSeatingPage() {
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [eventTitle, setEventTitle] = useState("תוכנית הושבה");
   const [exportingPdf, setExportingPdf] = useState(false);
+  const [viewMode, setViewMode] = useState("simple");
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false);
 
   const tableLabelById = useMemo(
     () => new Map(tables.map((table) => [table.tableId, table.label])),
@@ -67,10 +73,21 @@ export default function IlSeatingPage() {
     [eligibleGuests]
   );
 
-  const activeTable = useMemo(
-    () => tables.find((table) => table.tableId === activeTableId) || null,
-    [tables, activeTableId]
+  const editingTable = useMemo(
+    () => tables.find((table) => table.tableId === editingTableId) || null,
+    [tables, editingTableId]
   );
+
+  const kpi = useMemo(() => {
+    const invited = Number(analytics?.totalInvitedSeats ?? eligibleGuests.length);
+    const seated = Number(analytics?.seatedSeats ?? eligibleGuests.filter((g) => g.isSeated).length);
+    return {
+      forSeating: invited,
+      seated,
+      waiting: Math.max(0, invited - seated),
+      activeTables: Number(analytics?.tableCount ?? tables.length)
+    };
+  }, [analytics, eligibleGuests, tables.length]);
 
   const loadTemplates = useCallback(async () => {
     try {
@@ -107,6 +124,12 @@ export default function IlSeatingPage() {
     loadSeating();
     loadTemplates();
   }, [loadSeating, loadTemplates]);
+
+  useEffect(() => {
+    if (!toast) return undefined;
+    const timer = window.setTimeout(() => setToast(""), 2800);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
 
   const saveLayout = useCallback(
     async (patch) => {
@@ -254,6 +277,7 @@ export default function IlSeatingPage() {
   }
 
   async function exportSeatingExcel() {
+    setActionsOpen(false);
     const { perTable, alphabetical } = buildSeatingExportRows(
       guestsWithLabels.filter((guest) => guest.isEligible),
       tables
@@ -266,6 +290,11 @@ export default function IlSeatingPage() {
   }
 
   async function exportPdf() {
+    setActionsOpen(false);
+    if (viewMode === "simple" || !canvasRef.current) {
+      setToast("לייצוא PDF עברו ל״תצוגת סקיצה״");
+      return;
+    }
     setExportingPdf(true);
     try {
       await exportSeatingPdf({
@@ -325,17 +354,35 @@ export default function IlSeatingPage() {
       await unassignGuestIds(staleGuestIds);
     }
     setActiveTableId("");
+    setEditingTableId("");
     setSelectedTemplateId(templateId);
     setToast(`נטענה תבנית: ${template.name}`);
   }
 
-  async function sendTableMessages() {
-    try {
-      const response = await api.post(`/client/${userId}/seating/send-table-messages`, {});
-      setToast(response.data.message || "הודעות נשלחו");
-    } catch (sendError) {
-      setToast(sendError.response?.data?.message || "שליחת הודעות שולחן נכשלה");
+  function saveEditedTable({ label, capacity }) {
+    if (!editingTable) return;
+    saveLayout({
+      tables: tables.map((item) =>
+        item.tableId === editingTable.tableId ? { ...item, label, capacity } : item
+      )
+    });
+    setEditingTableId("");
+    setToast("פרטי השולחן עודכנו");
+  }
+
+  function deleteEditedTable() {
+    if (!editingTable) return;
+    const hasGuests = eligibleGuests.some((guest) => guest.seatingTableId === editingTable.tableId);
+    if (hasGuests) {
+      setToast("לא ניתן למחוק שולחן שיש בו מוזמנים");
+      return;
     }
+    saveLayout({
+      tables: tables.filter((item) => item.tableId !== editingTable.tableId)
+    });
+    setActiveTableId((prev) => (prev === editingTable.tableId ? "" : prev));
+    setEditingTableId("");
+    setToast("השולחן נמחק");
   }
 
   if (loading) {
@@ -346,50 +393,62 @@ export default function IlSeatingPage() {
     );
   }
 
+  const isSimpleView = viewMode === "simple";
+
   return (
-    <div className="il-seat-page il-client-portal" dir="rtl" lang="he">
+    <div className={`il-seat-page il-client-portal${isSimpleView ? " is-simple-view" : ""}`} dir="rtl" lang="he">
       <header className="il-seat-header">
         <div>
           <h1>מערכת הושבה — momoEVENT</h1>
-          <p>גרור אורחים לשולחנות · כיסא אדום = תפוס לפי כמות מגיעים</p>
+          <p>גררו אורחים לשולחנות · {isSimpleView ? "תצוגת שולחנות נקייה" : "תצוגת סקיצה מלאה"}</p>
         </div>
-        <Link className="us-btn" to={`/client/dashboard/${userId}`}>
-          חזרה לדשבורד
-        </Link>
+        <div className="il-seat-header__actions">
+          <div className="il-seat-view-toggle" role="group" aria-label="בחירת תצוגה">
+            <button
+              type="button"
+              className={isSimpleView ? "is-active" : ""}
+              onClick={() => setViewMode("simple")}
+            >
+              <LayoutGrid size={16} aria-hidden="true" />
+              תצוגת שולחנות
+            </button>
+            <button
+              type="button"
+              className={!isSimpleView ? "is-active" : ""}
+              onClick={() => setViewMode("canvas")}
+            >
+              <Map size={16} aria-hidden="true" />
+              תצוגת סקיצה
+            </button>
+          </div>
+          <Link className="us-btn" to={`/client/dashboard/${userId}`}>
+            חזרה לדשבורד
+          </Link>
+        </div>
       </header>
 
       {error ? <p className="us-error-message">{error}</p> : null}
       {toast ? <p className="il-seat-toast">{toast}</p> : null}
       {saving ? <p className="il-seat-saving">שומר פריסה…</p> : null}
 
-      {analytics ? (
-        <div className="il-seat-analytics">
-          <div>
-            <span>שולחנות</span>
-            <strong>{analytics.tableCount}</strong>
-          </div>
-          <div>
-            <span>כיסאות פתוחים</span>
-            <strong>{analytics.totalCapacity}</strong>
-          </div>
-          <div>
-            <span>מוזמנים (מגיע/אולי)</span>
-            <strong>{analytics.totalInvitedSeats}</strong>
-          </div>
-          <div>
-            <span>מושבים</span>
-            <strong>{analytics.seatedSeats}</strong>
-          </div>
-          <div>
-            <span>צפים</span>
-            <strong>{analytics.floatingSeats}</strong>
-          </div>
-          <div>
-            <span>ניצול</span>
-            <strong>{analytics.utilizationPercent}%</strong>
-          </div>
+      <div className="il-seat-kpi-bar" aria-label="מדדי הושבה">
+        <div>
+          <span>אורחים לשיבוץ</span>
+          <strong>{kpi.forSeating}</strong>
         </div>
-      ) : null}
+        <div>
+          <span>אורחים משובצים</span>
+          <strong>{kpi.seated}</strong>
+        </div>
+        <div>
+          <span>ממתינים לשיבוץ</span>
+          <strong>{kpi.waiting}</strong>
+        </div>
+        <div>
+          <span>שולחנות פעילים</span>
+          <strong>{kpi.activeTables}</strong>
+        </div>
+      </div>
 
       {warnings.length ? (
         <ul className="il-seat-warnings">
@@ -401,96 +460,116 @@ export default function IlSeatingPage() {
         </ul>
       ) : null}
 
-      <div className="il-seat-toolbar">
-        <div className="il-seat-toolbar__group">
-          <span>הוספת שולחן:</span>
-          {TABLE_SHAPES.map((shape) => (
-            <button key={shape.value} className="us-btn" type="button" onClick={() => addTable(shape.value)}>
-              {shape.label}
-            </button>
-          ))}
-        </div>
-        <div className="il-seat-toolbar__group">
-          <span>אלמנט אולם:</span>
-          {VENUE_ELEMENT_TYPES.map((element) => (
-            <button key={element.value} className="us-btn" type="button" onClick={() => addVenueElement(element.value)}>
-              {element.label}
-            </button>
-          ))}
-        </div>
-        <button className="us-btn us-btn--primary" type="button" onClick={autoAssign}>
-          שיבוץ אוטומטי לפי קבוצות
-        </button>
-        <button className="us-btn" type="button" onClick={exportSeatingExcel}>
-          ייצוא Excel
-        </button>
-        <button className="us-btn us-btn--primary" type="button" onClick={exportPdf} disabled={exportingPdf}>
-          {exportingPdf ? "מייצא PDF…" : "ייצוא PDF מלא"}
-        </button>
-        <button
-          className="us-btn il-seating-wa-btn"
-          type="button"
-          onClick={sendTableMessages}
-          disabled
-          title="המערכת בהרצה — שליחת וואטסאפ אינה זמינה בשלב זה"
-        >
-          שליחת מספר שולחן בוואטסאפ
-        </button>
-      </div>
-
-      <div className="il-seat-templates">
-        <div className="il-seat-templates__save">
-          <input
-            value={templateName}
-            onChange={(event) => setTemplateName(event.target.value)}
-            placeholder='שם תבנית (לדוגמה: "אדיה — אולם קטן")'
-          />
-          <button className="us-btn" type="button" onClick={saveAsTemplate}>
-            שמירה כתבנית
+      <div className="il-seat-command-bar">
+        <div className="il-seat-toolbox" aria-label="הוספת אובייקטים">
+          <div className="il-seat-toolbox__group">
+            <span>שולחנות</span>
+            {TABLE_SHAPES.filter((shape) => shape.value !== "head" || !isSimpleView).map((shape) => (
+              <button key={shape.value} type="button" onClick={() => addTable(shape.value)}>
+                {shape.label}
+              </button>
+            ))}
+          </div>
+          {!isSimpleView ? (
+            <div className="il-seat-toolbox__group">
+              <span>אלמנטים</span>
+              {VENUE_ELEMENT_TYPES.map((element) => (
+                <button key={element.value} type="button" onClick={() => addVenueElement(element.value)}>
+                  {element.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
+          <button type="button" className="il-seat-toolbox__primary" onClick={autoAssign}>
+            שיבוץ אוטומטי
           </button>
         </div>
-        <div className="il-seat-templates__load">
-          <label htmlFor="il-seat-template-select">טעינת תבנית</label>
-          <select
-            id="il-seat-template-select"
-            value={selectedTemplateId}
-            onChange={(event) => applyTemplate(event.target.value)}
+
+        <div className="il-seat-actions-menu">
+          <button
+            type="button"
+            className="il-seat-actions-menu__trigger"
+            aria-expanded={actionsOpen}
+            onClick={() => setActionsOpen((open) => !open)}
           >
-            <option value="">בחרו תבנית…</option>
-            {templates.map((template) => (
-              <option key={template._id} value={template._id}>
-                {template.name} ({template.ownerRole === "eventManager" ? "מנהל אירועים" : "אדמין"} ·{" "}
-                {template.tableCount} שולחנות)
-              </option>
-            ))}
-          </select>
+            פעולות
+            <ChevronDown size={16} aria-hidden="true" />
+          </button>
+          {actionsOpen ? (
+            <div className="il-seat-actions-menu__panel">
+              <button type="button" onClick={exportPdf} disabled={exportingPdf}>
+                {exportingPdf ? "מייצא PDF…" : "ייצוא PDF מלא"}
+              </button>
+              <button type="button" onClick={exportSeatingExcel}>
+                ייצוא Excel
+              </button>
+            </div>
+          ) : null}
         </div>
       </div>
 
-      <div className="il-seat-group-bar">
-        <span>הושבה קבוצתית: נבחרו {selectedGuestIds.size}</span>
-        <select value={groupAssignTableId} onChange={(event) => setGroupAssignTableId(event.target.value)}>
-          <option value="">בחרו שולחן</option>
-          {tables.map((table) => (
-            <option key={table.tableId} value={table.tableId}>
-              שולחן {table.label} ({table.capacity})
-            </option>
-          ))}
-        </select>
-        <button
-          className="us-btn us-btn--primary"
-          type="button"
-          onClick={assignGroupToTable}
-          disabled={!selectedGuestIds.size || !groupAssignTableId}
-        >
-          שיבוץ קבוצה לשולחן
-        </button>
-        <button className="us-btn" type="button" onClick={unassignSelected} disabled={!selectedGuestIds.size}>
-          הסרת שיבוץ
-        </button>
-      </div>
+      <details
+        className="il-seat-advanced"
+        open={advancedOpen}
+        onToggle={(event) => setAdvancedOpen(event.currentTarget.open)}
+      >
+        <summary>אפשרויות מתקדמות</summary>
+        <div className="il-seat-advanced__body">
+          <div className="il-seat-templates">
+            <div className="il-seat-templates__save">
+              <input
+                value={templateName}
+                onChange={(event) => setTemplateName(event.target.value)}
+                placeholder='שם תבנית (לדוגמה: "אדיה — אולם קטן")'
+              />
+              <button className="us-btn" type="button" onClick={saveAsTemplate}>
+                שמירה כתבנית
+              </button>
+            </div>
+            <div className="il-seat-templates__load">
+              <label htmlFor="il-seat-template-select">טעינת תבנית</label>
+              <select
+                id="il-seat-template-select"
+                value={selectedTemplateId}
+                onChange={(event) => applyTemplate(event.target.value)}
+              >
+                <option value="">בחרו תבנית…</option>
+                {templates.map((template) => (
+                  <option key={template._id} value={template._id}>
+                    {template.name} ({template.ownerRole === "eventManager" ? "מנהל אירועים" : "אדמין"} ·{" "}
+                    {template.tableCount} שולחנות)
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
 
-      <div className={`il-seat-layout${activeTable ? " il-seat-layout--with-panel" : ""}`}>
+          <div className="il-seat-group-bar">
+            <span>הושבה קבוצתית: נבחרו {selectedGuestIds.size}</span>
+            <select value={groupAssignTableId} onChange={(event) => setGroupAssignTableId(event.target.value)}>
+              <option value="">בחרו שולחן</option>
+              {tables.map((table) => (
+                <option key={table.tableId} value={table.tableId}>
+                  שולחן {table.label} ({table.capacity})
+                </option>
+              ))}
+            </select>
+            <button
+              className="us-btn us-btn--primary"
+              type="button"
+              onClick={assignGroupToTable}
+              disabled={!selectedGuestIds.size || !groupAssignTableId}
+            >
+              שיבוץ קבוצה לשולחן
+            </button>
+            <button className="us-btn" type="button" onClick={unassignSelected} disabled={!selectedGuestIds.size}>
+              הסרת שיבוץ
+            </button>
+          </div>
+        </div>
+      </details>
+
+      <div className="il-seat-layout">
         <IlSeatingGuestPanel
           guests={guestsWithLabels}
           filters={filters}
@@ -500,41 +579,45 @@ export default function IlSeatingPage() {
           onToggleAll={toggleAllFiltered}
           onGuestMetaChange={updateGuestMeta}
           onDragStart={onDragStart}
+          compact={isSimpleView}
         />
-        <IlSeatingCanvas
-          tables={tables}
-          venueElements={venueElements}
-          guests={eligibleGuests}
-          warnings={warnings}
-          activeTableId={activeTableId}
-          onLayoutChange={saveLayout}
-          onSelectTable={setActiveTableId}
-          onDropGuestsOnTable={(tableId, guestIds) => assignGuests(guestIds, tableId)}
-          canvasRef={canvasRef}
-        />
-        {activeTable ? (
-          <IlSeatingTablePanel
-            table={activeTable}
+
+        {isSimpleView ? (
+          <IlSeatingSimpleGrid
+            tables={tables}
             guests={eligibleGuests}
-            unassignedGuests={unassignedGuests}
-            onClose={() => setActiveTableId("")}
-            onRenameTable={(label) =>
-              saveLayout({
-                tables: tables.map((item) => (item.tableId === activeTable.tableId ? { ...item, label } : item))
-              })
-            }
-            onCapacityChange={(capacity) =>
-              saveLayout({
-                tables: tables.map((item) =>
-                  item.tableId === activeTable.tableId ? { ...item, capacity } : item
-                )
-              })
-            }
-            onUnassignGuest={(guestId) => unassignGuestIds([guestId])}
-            onAssignGuest={(guestId) => assignGuests([guestId], activeTable.tableId)}
+            activeTableId={activeTableId}
+            onSelectTable={setActiveTableId}
+            onEditTable={setEditingTableId}
+            onDropGuestsOnTable={(tableId, guestIds) => assignGuests(guestIds, tableId)}
           />
-        ) : null}
+        ) : (
+          <IlSeatingCanvas
+            tables={tables}
+            venueElements={venueElements}
+            guests={eligibleGuests}
+            warnings={warnings}
+            activeTableId={activeTableId}
+            onLayoutChange={saveLayout}
+            onSelectTable={(tableId) => {
+              setActiveTableId(tableId);
+              setEditingTableId(tableId);
+            }}
+            onDropGuestsOnTable={(tableId, guestIds) => assignGuests(guestIds, tableId)}
+            canvasRef={canvasRef}
+          />
+        )}
       </div>
+
+      {editingTable ? (
+        <IlSeatingTableEditModal
+          table={editingTable}
+          guests={eligibleGuests}
+          onClose={() => setEditingTableId("")}
+          onSave={saveEditedTable}
+          onDelete={deleteEditedTable}
+        />
+      ) : null}
     </div>
   );
 }
