@@ -4,6 +4,12 @@
   font-family: "Segoe UI", Tahoma, Arial, sans-serif;
 }
 
+.us-client-portal.il-client-portal,
+.il-client-portal.us-client-portal {
+  direction: rtl;
+  text-align: right;
+}
+
 .il-client-portal .us-dashboard-header h1,
 .il-client-portal .us-modal-title,
 .il-client-portal .us-invitation-editor__title {
@@ -17,8 +23,8 @@
 }
 
 .il-client-portal .us-search-wrap {
-  margin-left: 0;
-  margin-right: auto;
+  margin-inline-start: 0;
+  margin-inline-end: auto;
 }
 
 .il-client-portal .us-public-link-box {

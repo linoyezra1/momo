@@ -1,3 +1,9 @@
+.app-root {
+  min-height: 100%;
+  direction: rtl;
+  text-align: right;
+}
+
 :root {
   --color-bg: #ffffff;
   --color-primary: #ff1a5f;
@@ -31,6 +37,8 @@ html,
 body,
 #root {
   min-height: 100%;
+  direction: rtl;
+  text-align: right;
 }
 
 body {

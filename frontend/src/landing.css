@@ -14,6 +14,8 @@
 
   min-height: 100vh;
   min-height: 100dvh;
+  direction: rtl;
+  text-align: right;
   color: var(--landing-ink);
   font-family: "Heebo", "Rubik", "Segoe UI", Tahoma, Arial, sans-serif;
   background:

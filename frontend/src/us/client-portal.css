@@ -17,8 +17,8 @@
 .us-client-portal {
   font-family: Montserrat, ui-sans-serif, system-ui, sans-serif;
   color: var(--us-text);
-  direction: ltr;
-  text-align: left;
+  direction: rtl;
+  text-align: right;
   background-color: var(--us-ivory);
 }
 
@@ -238,7 +238,7 @@
   border-radius: 0.65rem;
   background: rgb(255 254 251 / 96%);
   padding: 1rem 1.05rem;
-  text-align: left;
+  text-align: right;
   box-shadow: 0 8px 24px rgb(74 46 43 / 4%);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
@@ -347,7 +347,7 @@
   display: flex;
   align-items: center;
   gap: 0.35rem;
-  margin-left: auto;
+  margin-inline-start: auto;
 }
 
 .us-search-input {
@@ -384,7 +384,7 @@
   width: 100%;
   border-collapse: collapse;
   font-size: 0.85rem;
-  text-align: left;
+  text-align: right;
 }
 
 .us-guest-table th {
@@ -881,8 +881,8 @@
   flex-direction: column;
   gap: 0.55rem;
   margin: 0.5rem 0 0.75rem;
-  padding-left: 0.75rem;
-  border-left: 2px solid rgb(213 126 126 / 35%);
+  padding-inline-start: 0.75rem;
+  border-inline-start: 2px solid rgb(213 126 126 / 35%);
 }
 
 .us-editor-link-btn {
@@ -892,7 +892,7 @@
   font-size: 0.75rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  text-align: left;
+  text-align: right;
   padding: 0;
 }
 
