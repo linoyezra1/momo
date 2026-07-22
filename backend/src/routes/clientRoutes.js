@@ -266,6 +266,109 @@ router.post("/:userId/guests/manual", async (req, res) => {
   }
 });
 
+router.post("/:userId/guests/contacts-import", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const guestsPayload = Array.isArray(req.body?.guests) ? req.body.guests : [];
+    if (!guestsPayload.length) {
+      return res.status(400).json({ message: "יש לבחור לפחות איש קשר אחד לייבוא" });
+    }
+
+    const user = await User.findById(userId).select("_id");
+    if (!user) {
+      return res.status(404).json({ message: "Client not found" });
+    }
+
+    const inserted = [];
+    const skipped = [];
+    const failed = [];
+    const seenPhones = new Set();
+
+    for (const raw of guestsPayload) {
+      const fullName = String(raw?.fullName || "").trim();
+      const normalizedPhone = normalizePhone(raw?.phone);
+      const guestGroup = String(raw?.guestGroup || "").trim();
+      const attendeesCount = Math.max(1, Number(raw?.attendeesCount) || 1);
+
+      if (!fullName || !normalizedPhone) {
+        failed.push({ fullName, phone: raw?.phone || "", reason: "חסר שם או טלפון תקין" });
+        continue;
+      }
+
+      if (!isValidIsraeliMobilePhone(normalizedPhone) && !hasUsablePhoneDigits(normalizedPhone)) {
+        failed.push({ fullName, phone: normalizedPhone, reason: "מספר טלפון לא תקין" });
+        continue;
+      }
+
+      if (seenPhones.has(normalizedPhone)) {
+        skipped.push({ fullName, phone: normalizedPhone, reason: "כפילות ברשימת הייבוא" });
+        continue;
+      }
+      seenPhones.add(normalizedPhone);
+
+      const existing = await Guest.findOne({ userId, phone: normalizedPhone }).select("_id fullName source");
+      if (existing) {
+        skipped.push({
+          fullName,
+          phone: normalizedPhone,
+          reason: "קיים במערכת",
+          existingId: String(existing._id)
+        });
+        continue;
+      }
+
+      try {
+        const guest = await Guest.create({
+          userId,
+          fullName,
+          phone: normalizedPhone,
+          attendeesCount,
+          giftAmount: 0,
+          status: "לא ידוע",
+          source: "CONTACTS_IMPORT",
+          guestGroup
+        });
+
+        await recordGuestAuditLog({
+          userId,
+          guestId: guest._id,
+          guestName: guest.fullName,
+          guestPhone: guest.phone,
+          actor: "client",
+          channel: "import",
+          action: "guest_created",
+          description: buildGuestCreatedDescription(guest),
+          metadata: { source: "CONTACTS_IMPORT" },
+          changes: {
+            status: { to: guest.status },
+            attendeesCount: { to: guest.attendeesCount }
+          }
+        });
+
+        inserted.push(guest);
+      } catch (createError) {
+        failed.push({
+          fullName,
+          phone: normalizedPhone,
+          reason: createError.message || "שמירה נכשלה"
+        });
+      }
+    }
+
+    return res.status(201).json({
+      message: `יובאו ${inserted.length} מוזמנים מאנשי קשר`,
+      insertedCount: inserted.length,
+      skippedCount: skipped.length,
+      failedCount: failed.length,
+      skipped,
+      failed,
+      guests: inserted
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "ייבוא מאנשי קשר נכשל" });
+  }
+});
+
 router.post("/:userId/guests/import/precheck", async (req, res) => {
   try {
     const { userId } = req.params;

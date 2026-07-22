@@ -40,7 +40,7 @@ const guestSchema = new mongoose.Schema(
     },
     source: {
       type: String,
-      enum: ["excel", "form", "manual", "excel_and_form"],
+      enum: ["excel", "form", "manual", "excel_and_form", "CONTACTS_IMPORT"],
       default: "manual"
     },
     guestSide: {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, Fragment } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Check, ChevronDown, Clock, Eye, HelpCircle, Pencil, Plus, Search, Trash2, Users, X } from "lucide-react";
+import { Check, ChevronDown, Clock, Contact, Eye, HelpCircle, Pencil, Plus, Search, Trash2, Users, X } from "lucide-react";
 import api from "../api";
 import WhatsAppIcon from "../components/WhatsAppIcon";
 import { buildWhatsAppSendUrl } from "../utils/whatsapp";
@@ -9,8 +9,10 @@ import { normalizeIsraeliPhone } from "../utils/phoneNormalize";
 import { formatFailedRowLabel, mergeFailedRows, parseExcelGuestRows } from "../utils/guestExcelImport";
 import IlInvitationEditor from "../il/components/IlInvitationEditor.jsx";
 import IlWhatsAppInviteEditor from "../il/components/IlWhatsAppInviteEditor.jsx";
+import ContactImportModal from "../components/ContactImportModal.jsx";
 import "../us/client-portal.css";
 import "../il/il-portal.css";
+import "../il/contacts-import.css";
 
 const initialGuest = {
   fullName: "",
@@ -210,6 +212,8 @@ export default function ClientDashboardPage() {
   const [expandedGuestDetailIds, setExpandedGuestDetailIds] = useState(() => new Set());
   const actionsMenuRef = useRef(null);
   const [showBulkWhatsApp, setShowBulkWhatsApp] = useState(false);
+  const [showContactsImport, setShowContactsImport] = useState(false);
+  const [contactsImportToast, setContactsImportToast] = useState("");
   const [paymentCode, setPaymentCode] = useState("");
   const [inviteCopy, setInviteCopy] = useState({
     welcomeParagraph: "",
@@ -545,7 +549,20 @@ export default function ClientDashboardPage() {
     if (source === "excel") return "קובץ אקסל";
     if (source === "excel_and_form") return "הועלה מאקסל ואישר עצמית";
     if (source === "form" || source === "public") return "אישור הגעה עצמי";
+    if (source === "CONTACTS_IMPORT") return "ייבוא מאנשי קשר";
     return "ידני";
+  };
+
+  const importContactsFromPicker = async (guestsPayload) => {
+    const response = await api.post(`/client/${userId}/guests/contacts-import`, {
+      guests: guestsPayload
+    });
+    await loadGuests();
+    return {
+      insertedCount: Number(response.data?.insertedCount || 0),
+      skippedCount: Number(response.data?.skippedCount || 0),
+      failedCount: Number(response.data?.failedCount || 0)
+    };
   };
 
   const finalizeImport = async (newGuests, resolutions, meta = {}) => {
@@ -919,6 +936,15 @@ export default function ClientDashboardPage() {
               </button>
 
               <button
+                className="us-btn il-contacts-import-btn"
+                type="button"
+                onClick={() => setShowContactsImport(true)}
+              >
+                <Contact size={16} aria-hidden="true" />
+                ייבוא מאנשי קשר
+              </button>
+
+              <button
                 className="us-btn il-broadcast-cta"
                 type="button"
                 onClick={openBulkWhatsApp}
@@ -1033,6 +1059,11 @@ export default function ClientDashboardPage() {
           </div>
 
           {importError ? <p className="us-error-message us-error-message--left">{importError}</p> : null}
+          {contactsImportToast ? (
+            <p className="il-contacts-toast" role="status">
+              {contactsImportToast}
+            </p>
+          ) : null}
 
           <div className="il-guest-filters il-guest-filters--strip">
             <div className="il-guest-filter-group" role="group" aria-label="סינון לפי סטטוס הגעה">
@@ -1701,6 +1732,20 @@ export default function ClientDashboardPage() {
               </div>
             </div>
           </div>
+        ) : null}
+
+        {showContactsImport ? (
+          <ContactImportModal
+            userId={userId}
+            existingPhones={guests.map((guest) => guest.phone)}
+            onClose={() => setShowContactsImport(false)}
+            onRequestExcelImport={() => fileInputRef.current?.click()}
+            importContacts={importContactsFromPicker}
+            onImported={(result) => {
+              setContactsImportToast(`יובאו ${result.insertedCount || 0} מוזמנים מאנשי קשר`);
+              window.setTimeout(() => setContactsImportToast(""), 2800);
+            }}
+          />
         ) : null}
 
         {showInvitationEditor && eventInfo ? (

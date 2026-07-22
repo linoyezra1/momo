@@ -292,6 +292,21 @@
   gap: 0.45rem;
 }
 
+.il-contacts-import-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: #fff;
+  color: var(--us-espresso);
+  font-weight: 700;
+}
+
+.il-contacts-import-btn:hover {
+  background: #f8fafc;
+  color: var(--us-espresso);
+}
+
 .il-add-guest-btn {
   display: inline-flex;
   align-items: center;
