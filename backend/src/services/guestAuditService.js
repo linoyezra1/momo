@@ -1,12 +1,6 @@
 import GuestAuditLog from "../models/GuestAuditLog.js";
 import { publishDashboardEvent } from "./dashboardEvents.js";
 
-const CALL_STATUS_LABELS = {
-  answered: "ענה",
-  no_answer: "לא ענה",
-  disconnected: "מנותק"
-};
-
 export function resolvePerformerLabel({ actor, channel, metadata = {} }) {
   if (actor === "agent" && channel === "phone") {
     const round = metadata.attemptNumber || metadata.callRound || 1;
@@ -19,31 +13,20 @@ export function resolvePerformerLabel({ actor, channel, metadata = {} }) {
   return "מערכת";
 }
 
-export function buildStatusChangeDescription(fromStatus, toStatus) {
-  if (!fromStatus || fromStatus === toStatus) {
-    return `סטטוס: ${toStatus}`;
-  }
-  return `שינוי סטטוס: ${fromStatus} → ${toStatus}`;
-}
-
-export function buildAttendeesChangeDescription(fromCount, toCount) {
-  return `עדכון כמות מגיעים: ${fromCount} → ${toCount}`;
+function formatGuestCountPart(status, attendeesCount) {
+  if (typeof attendeesCount !== "number") return "";
+  if (status === "לא מגיע") return "";
+  return ` (**${attendeesCount}** אורחים)`;
 }
 
 export function buildClientUpdateDescription(before = {}, after = {}) {
-  const parts = [];
-
-  if (before.status !== after.status && after.status) {
-    parts.push(buildStatusChangeDescription(before.status, after.status));
-  }
-  if (
-    before.attendeesCount !== after.attendeesCount &&
+  const status = after.status || before.status || "לא ידוע";
+  const count =
     typeof after.attendeesCount === "number"
-  ) {
-    parts.push(buildAttendeesChangeDescription(before.attendeesCount ?? 0, after.attendeesCount));
-  }
+      ? after.attendeesCount
+      : before.attendeesCount;
 
-  return parts.join(" · ") || "עדכון פרטי מוזמן";
+  return `עודכן ע"י הזוג: **${status}**${formatGuestCountPart(status, count)}`;
 }
 
 export function buildPhoneAttemptDescription({
@@ -51,33 +34,38 @@ export function buildPhoneAttemptDescription({
   attemptNumber,
   status,
   attendeesCount,
-  previousStatus
+  agentNotes = ""
 }) {
-  const roundLabel = `סבב ${attemptNumber}`;
-  const callLabel = CALL_STATUS_LABELS[callStatus] || callStatus;
+  const round = attemptNumber || 1;
+  const notes = String(agentNotes || "").trim();
+  const notesPart = notes ? ` · הערה: "${notes}"` : "";
 
   if (callStatus === "answered" && status) {
-    const countPart =
-      typeof attendeesCount === "number" && status !== "לא מגיע"
-        ? ` (${attendeesCount} מוזמנים)`
-        : "";
-    if (previousStatus && previousStatus !== status) {
-      return `עדכון בשיחה ${roundLabel}: ${buildStatusChangeDescription(previousStatus, status)}${countPart}`;
-    }
-    return `עדכון בשיחה ${roundLabel}: ${status}${countPart}`;
+    const countPart = formatGuestCountPart(status, attendeesCount);
+    return `שיחה טלפונית (**סבב ${round}**): סטטוס עודכן ל-**${status}**${countPart}${notesPart}`;
   }
 
-  return `שיחה ${roundLabel}: ${callLabel}`;
+  if (callStatus === "disconnected") {
+    return `שיחה טלפונית (**סבב ${round}**): השיחה נותקה${notesPart}`;
+  }
+
+  return `שיחה טלפונית (**סבב ${round}**): לא היה מענה${notesPart}`;
 }
 
 export function buildGuestSelfUpdateDescription(before = {}, after = {}) {
-  const parts = buildClientUpdateDescription(before, after);
-  if (parts === "עדכון פרטי מוזמן" && after.status) {
-    return `עדכון עצמאי: ${after.status}${
-      after.status === "מגיע" && after.attendeesCount ? ` (${after.attendeesCount} מוזמנים)` : ""
-    }`;
-  }
-  return `עדכון עצמאי · ${parts}`;
+  const status = after.status || before.status || "לא ידוע";
+  const count =
+    typeof after.attendeesCount === "number"
+      ? after.attendeesCount
+      : before.attendeesCount;
+
+  return `אישור הגעה עצמאי: עודכן ל-**${status}**${formatGuestCountPart(status, count)}`;
+}
+
+export function buildGuestCreatedDescription(guest = {}) {
+  const status = guest.status || "לא ידוע";
+  const count = Number(guest.attendeesCount);
+  return `הוספת מוזמן: **${status}**${formatGuestCountPart(status, Number.isFinite(count) ? count : undefined)}`;
 }
 
 function resolveActionFromChanges(before = {}, after = {}, fallback = "guest_updated") {
@@ -192,14 +180,16 @@ export async function recordPhoneAttemptAudit({
   attemptNumber,
   previousStatus,
   nextStatus,
-  attendeesCount
+  attendeesCount,
+  agentNotes = ""
 }) {
+  const notes = String(agentNotes || "").trim();
   const description = buildPhoneAttemptDescription({
     callStatus,
     attemptNumber,
     status: nextStatus,
     attendeesCount,
-    previousStatus
+    agentNotes: notes
   });
 
   const action =
@@ -220,7 +210,12 @@ export async function recordPhoneAttemptAudit({
     channel: "phone",
     action,
     description,
-    metadata: { callStatus, attemptNumber, callRound: attemptNumber },
+    metadata: {
+      callStatus,
+      attemptNumber,
+      callRound: attemptNumber,
+      agentNotes: notes
+    },
     changes: {
       callStatus,
       status: nextStatus ? { from: previousStatus, to: nextStatus } : undefined,

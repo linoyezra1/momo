@@ -316,7 +316,18 @@
 
 .il-audit-log__description {
   color: #334155;
-  line-height: 1.45;
+  line-height: 1.55;
+}
+
+.il-audit-log__em {
+  font-weight: 700;
+  color: #111827;
+}
+
+.il-audit-log__note {
+  color: #94a3b8;
+  font-size: 0.92em;
+  font-weight: 400;
 }
 
 .il-audit-log__performer {

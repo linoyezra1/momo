@@ -19,6 +19,7 @@ import { getClientBaseUrl } from "../utils/clientUrl.js";
 import ActivationCode from "../models/ActivationCode.js";
 import { subscribeToDashboardEvents } from "../services/dashboardEvents.js";
 import {
+  buildGuestCreatedDescription,
   listGuestAuditLogs,
   recordClientGuestUpdate,
   recordGuestAuditLog
@@ -251,10 +252,12 @@ router.post("/:userId/guests/manual", async (req, res) => {
       actor: "client",
       channel: "dashboard",
       action: "guest_created",
-      description: `הוספת מוזמן: ${guest.status}${
-        guest.status === "מגיע" ? ` (${guest.attendeesCount} מוזמנים)` : ""
-      }`,
-      metadata: {}
+      description: buildGuestCreatedDescription(guest),
+      metadata: {},
+      changes: {
+        status: { to: guest.status },
+        attendeesCount: { to: guest.attendeesCount }
+      }
     });
 
     return res.status(201).json({ message: "Guest added", guest });

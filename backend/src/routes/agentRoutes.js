@@ -266,7 +266,8 @@ router.patch("/:userId/guests/:guestId/phone-rsvp", async (req, res) => {
       attendeesCount:
         typeof update.attendeesCount === "number"
           ? update.attendeesCount
-          : undefined
+          : undefined,
+      agentNotes: update.agentNotes
     });
 
     publishDashboardEvent(userId, {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import api from "../api";
 import "../il/il-portal.css";
 
@@ -29,6 +29,135 @@ function performerBadgeClass(entry) {
   if (entry.actor === "guest") return "il-audit-log__badge--guest";
   if (entry.actor === "client") return "il-audit-log__badge--client";
   return "il-audit-log__badge--system";
+}
+
+function Bold({ children }) {
+  return <strong className="il-audit-log__em">{children}</strong>;
+}
+
+function GuestCountPart({ status, count }) {
+  if (typeof count !== "number" || status === "לא מגיע") return null;
+  return (
+    <>
+      {" "}
+      (
+      <Bold>{count}</Bold> אורחים)
+    </>
+  );
+}
+
+function NotesPart({ notes }) {
+  const text = String(notes || "").trim();
+  if (!text) return null;
+  return (
+    <span className="il-audit-log__note">
+      {" "}
+      · הערה: &quot;{text}&quot;
+    </span>
+  );
+}
+
+function renderBoldMarkedText(text) {
+  const raw = String(text || "");
+  if (!raw) return "—";
+
+  const parts = raw.split(/(\*\*[^*]+\*\*)/g).filter(Boolean);
+  return parts.map((part, index) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return <Bold key={`${part}-${index}`}>{part.slice(2, -2)}</Bold>;
+    }
+
+    // Soft-clean leftover technical arrows in legacy rows
+    const cleaned = part.replace(/\s*→\s*/g, " ל-");
+    return <Fragment key={`${cleaned}-${index}`}>{cleaned}</Fragment>;
+  });
+}
+
+function getStatusFromEntry(entry) {
+  return entry?.changes?.status?.to || entry?.changes?.status || null;
+}
+
+function getCountFromEntry(entry) {
+  const count = entry?.changes?.attendeesCount?.to;
+  return typeof count === "number" ? count : null;
+}
+
+function renderStructuredDescription(entry) {
+  const status = getStatusFromEntry(entry);
+  const count = getCountFromEntry(entry);
+  const notes = entry?.metadata?.agentNotes || "";
+  const round = entry?.metadata?.attemptNumber || entry?.metadata?.callRound || 1;
+  const callStatus = entry?.metadata?.callStatus || entry?.changes?.callStatus;
+
+  if (entry.actor === "agent" && entry.channel === "phone" && callStatus) {
+    if (callStatus === "answered" && status) {
+      return (
+        <>
+          שיחה טלפונית (<Bold>סבב {round}</Bold>): סטטוס עודכן ל-
+          <Bold>{status}</Bold>
+          <GuestCountPart status={status} count={count} />
+          <NotesPart notes={notes} />
+        </>
+      );
+    }
+
+    if (callStatus === "disconnected") {
+      return (
+        <>
+          שיחה טלפונית (<Bold>סבב {round}</Bold>): השיחה נותקה
+          <NotesPart notes={notes} />
+        </>
+      );
+    }
+
+    if (callStatus === "no_answer") {
+      return (
+        <>
+          שיחה טלפונית (<Bold>סבב {round}</Bold>): לא היה מענה
+          <NotesPart notes={notes} />
+        </>
+      );
+    }
+  }
+
+  if (entry.actor === "guest" && status) {
+    return (
+      <>
+        אישור הגעה עצמאי: עודכן ל-
+        <Bold>{status}</Bold>
+        <GuestCountPart status={status} count={count} />
+      </>
+    );
+  }
+
+  if (entry.actor === "client" && entry.action === "guest_created" && status) {
+    return (
+      <>
+        הוספת מוזמן: <Bold>{status}</Bold>
+        <GuestCountPart status={status} count={count} />
+      </>
+    );
+  }
+
+  if (entry.actor === "client" && status) {
+    const prefix =
+      entry.channel === "import" ? 'עודכן ע"י הזוג (ייבוא אקסל): ' : 'עודכן ע"י הזוג: ';
+    return (
+      <>
+        {prefix}
+        <Bold>{status}</Bold>
+        <GuestCountPart status={status} count={count} />
+      </>
+    );
+  }
+
+  return null;
+}
+
+function AuditDescription({ entry }) {
+  const structured = renderStructuredDescription(entry);
+  if (structured) return structured;
+  return renderBoldMarkedText(entry.description);
 }
 
 export default function GuestAuditLogTable({
@@ -161,7 +290,9 @@ export default function GuestAuditLogTable({
                     <strong>{entry.guestName || "—"}</strong>
                     <span dir="ltr">{entry.guestPhone || "—"}</span>
                   </td>
-                  <td className="il-audit-log__description">{entry.description}</td>
+                  <td className="il-audit-log__description">
+                    <AuditDescription entry={entry} />
+                  </td>
                   <td className="il-audit-log__performer">
                     <span className={`il-audit-log__badge ${performerBadgeClass(entry)}`}>
                       {entry.performerLabel}
