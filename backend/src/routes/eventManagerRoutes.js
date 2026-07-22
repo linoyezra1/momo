@@ -82,6 +82,11 @@ router.get("/clients", async (req, res) => {
 
 router.post("/create-client", async (req, res) => {
   try {
+    if (req.body?.deal != null || req.body?.includedFeatures != null) {
+      return res.status(403).json({
+        message: "הפעלת פיצ׳רים וקופונים זמינה למנהל המערכת בלבד"
+      });
+    }
     const { username, password, event, contactPhone } = req.body;
 
     if (!username?.trim() || !password?.trim() || !event) {
@@ -144,6 +149,11 @@ router.post("/create-client", async (req, res) => {
 
 router.patch("/clients/:userId", async (req, res) => {
   try {
+    if (req.body?.deal != null || req.body?.includedFeatures != null) {
+      return res.status(403).json({
+        message: "הפעלת פיצ׳רים וקופונים זמינה למנהל המערכת בלבד"
+      });
+    }
     const { userId } = req.params;
     const { username, password, event, contactPhone } = req.body;
 

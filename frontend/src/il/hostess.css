@@ -1,0 +1,127 @@
+.il-hostess-page {
+  min-height: 100vh;
+  padding: 1.25rem 1rem 2.5rem;
+  background: #fff;
+  color: #1f2937;
+}
+
+.il-hostess-header h1 {
+  margin: 0.15rem 0 0.35rem;
+  font-size: clamp(1.4rem, 3vw, 1.85rem);
+}
+
+.il-hostess-header p {
+  margin: 0;
+  color: #6b7280;
+}
+
+.il-hostess-eyebrow {
+  margin: 0;
+  color: #9ca3af;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.il-hostess-search {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 1.25rem 0 1rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.85rem;
+  background: #fff;
+}
+
+.il-hostess-search input {
+  flex: 1;
+  border: 0;
+  outline: none;
+  font: inherit;
+  background: transparent;
+}
+
+.il-hostess-toast {
+  margin: 0 0 0.85rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 0.65rem;
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  color: #166534;
+  font-weight: 600;
+}
+
+.il-hostess-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.il-hostess-empty {
+  padding: 1.5rem;
+  text-align: center;
+  color: #9ca3af;
+}
+
+.il-hostess-card {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.95rem 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.9rem;
+  background: #fff;
+}
+
+.il-hostess-card__info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.il-hostess-card__info strong {
+  font-size: 1.05rem;
+}
+
+.il-hostess-card__info span {
+  color: #6b7280;
+  font-size: 0.86rem;
+}
+
+.il-hostess-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.il-hostess-card__actions .us-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.il-hostess-modal h2 {
+  margin-top: 0;
+}
+
+.il-hostess-modal p {
+  line-height: 1.55;
+  color: #374151;
+}
+
+@media (max-width: 640px) {
+  .il-hostess-card__actions {
+    width: 100%;
+  }
+
+  .il-hostess-card__actions .us-btn {
+    flex: 1;
+    justify-content: center;
+  }
+}

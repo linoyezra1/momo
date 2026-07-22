@@ -725,6 +725,14 @@ router.patch("/:userId/guests/:guestId", async (req, res) => {
       return res.status(404).json({ message: "Guest not found" });
     }
 
+    if (typeof status !== "undefined") {
+      if (status === "לא מגיע" && (update.seatingTableId || existingGuest.seatingTableId)) {
+        update.declinedWhileSeatedAt = new Date();
+      } else if (status !== "לא מגיע") {
+        update.declinedWhileSeatedAt = null;
+      }
+    }
+
     const guest = await Guest.findOneAndUpdate({ _id: guestId, userId }, update, {
       new: true,
       runValidators: true

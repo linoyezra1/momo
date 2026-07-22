@@ -7,8 +7,17 @@ import {
   buildSeatingWarnings,
   isGuestEligibleForSeating
 } from "../utils/seatingAssign.js";
-import { sendTwilioWhatsAppMessage, toTwilioWhatsAppAddress, isTwilioConfigured } from "../utils/twilioWhatsApp.js";
-import { mapTwilioErrorMessage } from "../services/bulkWhatsAppService.js";
+import { isTwilioConfigured } from "../utils/twilioWhatsApp.js";
+import {
+  findValidActivationCode,
+  mapTwilioErrorMessage,
+  releaseActivationCredits,
+  reserveActivationCredits
+} from "../services/bulkWhatsAppService.js";
+import {
+  canSendTableWhatsApp,
+  sendTableNumberWhatsApp
+} from "../services/tableNumberWhatsApp.js";
 
 const router = express.Router();
 
@@ -40,30 +49,23 @@ function defaultLayout() {
         height: 96
       }
     ],
-    venueElements: [
-      {
-        elementId: makeId("el"),
-        type: "stage",
-        label: "במה",
-        x: 180,
-        y: 20,
-        width: 160,
-        height: 48
-      },
-      {
-        elementId: makeId("el"),
-        type: "dance",
-        label: "רחבת ריקודים",
-        x: 140,
-        y: 280,
-        width: 200,
-        height: 100
-      }
-    ]
+    venueElements: []
   };
 }
 
-function guestForSeating(guest) {
+function formatDeclineDate(value) {
+  if (!value) return "";
+  try {
+    return new Date(value).toLocaleDateString("he-IL");
+  } catch {
+    return "";
+  }
+}
+
+export function guestForSeating(guest) {
+  const isSeated = Boolean(guest.seatingTableId);
+  const isDeclinedWhileSeated = isSeated && guest.status === "לא מגיע";
+  const declinedAt = guest.declinedWhileSeatedAt || (isDeclinedWhileSeated ? guest.updatedAt : null);
   return {
     _id: guest._id,
     fullName: guest.fullName,
@@ -74,16 +76,142 @@ function guestForSeating(guest) {
     guestSide: guest.guestSide || "",
     guestGroup: guest.guestGroup || "",
     seatingTableId: guest.seatingTableId || "",
-    isSeated: Boolean(guest.seatingTableId),
-    isEligible: isGuestEligibleForSeating(guest)
+    isSeated,
+    isEligible: isGuestEligibleForSeating(guest),
+    isDeclinedWhileSeated,
+    declinedWhileSeatedAt: declinedAt || null,
+    declinedWhileSeatedLabel: isDeclinedWhileSeated
+      ? `מוזמן זה אושב אך עודכן שלא יגיע בתאריך ${formatDeclineDate(declinedAt) || "לא ידוע"}`
+      : "",
+    hostessArrivedAt: guest.hostessArrivedAt || null,
+    updatedAt: guest.updatedAt
   };
+}
+
+function serializeTableDispatch(dispatch = {}) {
+  return {
+    scheduledAt: dispatch.scheduledAt || null,
+    status: dispatch.status || "idle",
+    lastSentAt: dispatch.lastSentAt || null,
+    lastError: dispatch.lastError || "",
+    sentCount: Number(dispatch.sentCount || 0)
+  };
+}
+
+function featureFlagsForUser(user) {
+  const enabled = canSendTableWhatsApp(user);
+  return {
+    canSendTableWhatsApp: enabled,
+    eventDayTableNumber: enabled
+  };
+}
+
+async function dispatchTableMessages({ user, paymentCode }) {
+  const layout = await SeatingLayout.findOne({ userId: user._id });
+  const tableById = new Map((layout?.tables || []).map((table) => [table.tableId, table]));
+  const guests = await Guest.find({
+    userId: user._id,
+    seatingTableId: { $ne: "" },
+    status: { $in: ["מגיע", "אולי"] }
+  });
+
+  if (!guests.length) {
+    return { ok: false, status: 400, message: "אין אורחים משובצים לשולחן עם סטטוס מגיע/אולי" };
+  }
+
+  const { codeRecord, error: codeError } = await findValidActivationCode(paymentCode);
+  if (codeError === "missing_code") {
+    return { ok: false, status: 400, message: "יש להזין קוד קופון לרכישה זו" };
+  }
+  if (codeError === "invalid_code" || codeError === "expired_code") {
+    return { ok: false, status: 400, message: "קוד הקופון אינו תקין או שפג תוקפו" };
+  }
+
+  const reserved = await reserveActivationCredits(codeRecord, guests.length);
+  if (!reserved.ok) {
+    return { ok: false, status: 400, message: reserved.message };
+  }
+
+  let sent = 0;
+  let lastError = null;
+
+  for (const guest of guests) {
+    const table = tableById.get(guest.seatingTableId);
+    const result = await sendTableNumberWhatsApp({
+      user,
+      guest,
+      tableLabel: table?.label || guest.seatingTableId
+    });
+    if (result.ok) {
+      sent += 1;
+    } else {
+      lastError = result;
+    }
+  }
+
+  const failed = guests.length - sent;
+  if (failed > 0) {
+    await releaseActivationCredits(reserved.codeRecord._id, failed);
+  }
+
+  if (!reserved.codeRecord.redeemedByUserId) {
+    try {
+      reserved.codeRecord.redeemedByUserId = user._id;
+      await reserved.codeRecord.save();
+    } catch {
+      /* non-fatal */
+    }
+  }
+
+  if (sent === 0) {
+    return {
+      ok: false,
+      status: 400,
+      message: lastError?.message || mapTwilioErrorMessage(lastError?.error) || "לא נשלחה אף הודעה"
+    };
+  }
+
+  return {
+    ok: true,
+    sentCount: sent,
+    message: `נשלחו ${sent} הודעות עם מספר שולחן`
+  };
+}
+
+async function processDueTableDispatch(user) {
+  const job = user.tableDispatch || {};
+  if (job.status !== "scheduled" || !job.scheduledAt) return null;
+  if (new Date(job.scheduledAt).getTime() > Date.now()) return null;
+  if (!canSendTableWhatsApp(user)) {
+    user.tableDispatch = {
+      ...job,
+      status: "failed",
+      lastError: "הפיצ׳ר אינו פעיל לאירוע זה"
+    };
+    await user.save();
+    return { processed: true, ok: false, message: user.tableDispatch.lastError };
+  }
+
+  const result = await dispatchTableMessages({ user, paymentCode: job.paymentCode });
+  user.tableDispatch = {
+    scheduledAt: job.scheduledAt,
+    paymentCode: "",
+    status: result.ok ? "sent" : "failed",
+    lastSentAt: result.ok ? new Date() : job.lastSentAt || null,
+    lastError: result.ok ? "" : result.message || "",
+    sentCount: result.sentCount || 0
+  };
+  await user.save();
+  return { processed: true, ...result };
 }
 
 router.get("/:userId/seating", async (req, res) => {
   try {
     const { userId } = req.params;
-    const user = await User.findById(userId).select("event");
+    const user = await User.findById(userId).select("event deal tableDispatch");
     if (!user) return res.status(404).json({ message: "Client not found" });
+
+    await processDueTableDispatch(user);
 
     let layout = await SeatingLayout.findOne({ userId });
     if (!layout) {
@@ -93,20 +221,24 @@ router.get("/:userId/seating", async (req, res) => {
 
     const guests = await Guest.find({ userId }).sort({ fullName: 1 });
     const seatingGuests = guests.map(guestForSeating);
-    const eligibleGuests = seatingGuests.filter((guest) => guest.isEligible);
     const analytics = buildSeatingAnalytics(guests, layout.tables);
     const warnings = buildSeatingWarnings(guests, layout.tables);
 
     return res.json({
       layout: {
         tables: layout.tables,
-        venueElements: layout.venueElements
+        venueElements: layout.venueElements || []
       },
+      tables: layout.tables,
+      venueElements: layout.venueElements || [],
       guests: seatingGuests,
-      eligibleGuests,
+      eligibleGuests: seatingGuests.filter((guest) => guest.isEligible),
       analytics,
       warnings,
-      event: user.event
+      event: user.event,
+      features: featureFlagsForUser(user),
+      tableDispatch: serializeTableDispatch(user.tableDispatch),
+      hostessPath: `/hostess/${userId}`
     });
   } catch (error) {
     return res.status(500).json({ message: error.message || "Failed to load seating" });
@@ -125,14 +257,17 @@ router.put("/:userId/seating/layout", async (req, res) => {
     const layout = await SeatingLayout.findOneAndUpdate(
       { userId },
       { tables, venueElements },
-      { new: true, upsert: true, runValidators: true }
+      { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true }
     );
 
     const guests = await Guest.find({ userId });
     return res.json({
       message: "פריסת האולם נשמרה",
       layout: { tables: layout.tables, venueElements: layout.venueElements },
-      warnings: buildSeatingWarnings(guests, layout.tables)
+      tables: layout.tables,
+      venueElements: layout.venueElements || [],
+      warnings: buildSeatingWarnings(guests, layout.tables),
+      analytics: buildSeatingAnalytics(guests, layout.tables)
     });
   } catch (error) {
     return res.status(500).json({ message: error.message || "Failed to save layout" });
@@ -150,14 +285,20 @@ router.patch("/:userId/seating/assign", async (req, res) => {
     }
 
     for (const guestId of unassignGuestIds) {
-      await Guest.findOneAndUpdate({ _id: guestId, userId }, { seatingTableId: "" });
+      await Guest.findOneAndUpdate(
+        { _id: guestId, userId },
+        { $set: { seatingTableId: "" }, $unset: { declinedWhileSeatedAt: 1 } }
+      );
     }
 
     for (const item of assignments) {
       if (!item?.guestId) continue;
       await Guest.findOneAndUpdate(
         { _id: item.guestId, userId },
-        { seatingTableId: String(item.tableId || "").trim() }
+        {
+          $set: { seatingTableId: String(item.tableId || "").trim() },
+          $unset: { declinedWhileSeatedAt: 1 }
+        }
       );
     }
 
@@ -179,66 +320,77 @@ router.patch("/:userId/seating/assign", async (req, res) => {
 router.post("/:userId/seating/send-table-messages", async (req, res) => {
   try {
     const { userId } = req.params;
-    const paymentCode = String(req.body?.paymentCode || "").trim();
+    const paymentCode = String(req.body?.paymentCode || req.body?.couponCode || "").trim();
+    const scheduledAtRaw = req.body?.scheduledAt;
+    const sendNow = req.body?.sendNow === true || !scheduledAtRaw;
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "Client not found" });
+
+    if (!canSendTableWhatsApp(user)) {
+      return res.status(403).json({
+        success: false,
+        code: "feature_disabled",
+        message:
+          "שליחת מספר שולחן ב-WhatsApp דורשת הפעלה ע״י מנהל המערכת ורכישת קופון מתאים"
+      });
+    }
 
     if (!isTwilioConfigured()) {
       return res.status(503).json({ message: "שירות שליחת הודעות לא מוגדר בשרת" });
     }
 
-    const layout = await SeatingLayout.findOne({ userId });
-    const tableById = new Map((layout?.tables || []).map((table) => [table.tableId, table]));
-    const guests = await Guest.find({
-      userId,
-      seatingTableId: { $ne: "" },
-      status: "מגיע"
-    });
-
-    if (!guests.length) {
-      return res.status(400).json({ message: "אין אורחים משובצים לשולחן עם סטטוס מגיע" });
+    if (!paymentCode) {
+      return res.status(400).json({ message: "יש להזין קוד קופון לרכישה זו" });
     }
 
-    let sent = 0;
-    let lastError = null;
-
-    for (const guest of guests) {
-      const table = tableById.get(guest.seatingTableId);
-      const tableLabel = table?.label || guest.seatingTableId;
-      const firstName = String(guest.fullName || "").trim().split(/\s+/)[0] || "אורח/ת";
-      const body = `היי ${firstName}, שמחים שבאתם! מספר השולחן שלכם הוא ${tableLabel}. נתראה באירוע! — momoEVENT`;
-      const to = toTwilioWhatsAppAddress(guest.phone);
-      if (!to) {
-        console.error(
-          `ERROR: שליחת וואטסאפ נכשלה למספר ${guest.phone || "לא ידוע"} מאת משתמש ${userId}. סיבה: מספר טלפון לא תקין`
-        );
-        continue;
+    if (!sendNow) {
+      const scheduledAt = new Date(scheduledAtRaw);
+      if (Number.isNaN(scheduledAt.getTime())) {
+        return res.status(400).json({ message: "שעת השליחה אינה תקינה" });
       }
-
-      try {
-        await sendTwilioWhatsAppMessage({
-          to,
-          body,
-          userId,
-          recipientPhone: guest.phone
+      if (scheduledAt.getTime() > Date.now() + 60 * 1000) {
+        user.tableDispatch = {
+          scheduledAt,
+          paymentCode,
+          status: "scheduled",
+          lastSentAt: user.tableDispatch?.lastSentAt || null,
+          lastError: "",
+          sentCount: 0
+        };
+        await user.save();
+        return res.json({
+          success: true,
+          scheduled: true,
+          message: `השליחה תוזמנה ל-${scheduledAt.toLocaleString("he-IL")}`,
+          tableDispatch: serializeTableDispatch(user.tableDispatch)
         });
-        sent += 1;
-      } catch (sendError) {
-        lastError = sendError;
-        // ERROR already logged inside sendTwilioWhatsAppMessage
       }
     }
 
-    if (sent === 0) {
-      return res.status(lastError ? 400 : 500).json({
+    const result = await dispatchTableMessages({ user, paymentCode });
+    if (!result.ok) {
+      return res.status(result.status || 400).json({
         success: false,
-        message: lastError ? mapTwilioErrorMessage(lastError) : "לא נשלחה אף הודעה"
+        message: result.message
       });
     }
 
+    user.tableDispatch = {
+      scheduledAt: null,
+      paymentCode: "",
+      status: "sent",
+      lastSentAt: new Date(),
+      lastError: "",
+      sentCount: result.sentCount || 0
+    };
+    await user.save();
+
     return res.json({
       success: true,
-      message: `נשלחו ${sent} הודעות עם מספר שולחן`,
-      sentCount: sent,
-      paymentCodeUsed: Boolean(paymentCode)
+      message: result.message,
+      sentCount: result.sentCount,
+      tableDispatch: serializeTableDispatch(user.tableDispatch)
     });
   } catch (error) {
     console.error("[Twilio] send-table-messages error:", error?.message || error);

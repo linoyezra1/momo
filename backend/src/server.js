@@ -13,6 +13,7 @@ import seatingRoutes from "./routes/seatingRoutes.js";
 import seatingTemplateRoutes from "./routes/seatingTemplateRoutes.js";
 import agentRoutes from "./routes/agentRoutes.js";
 import eventManagerRoutes from "./routes/eventManagerRoutes.js";
+import hostessRoutes from "./routes/hostessRoutes.js";
 import vendorRoutes from "./routes/vendorRoutes.js";
 import clientVendorRoutes from "./routes/clientVendorRoutes.js";
 
@@ -39,6 +40,7 @@ app.use("/api/public", setupRoutes);
 app.use("/api/client", clientRoutes);
 app.use("/api/client", seatingRoutes);
 app.use("/api/client", clientVendorRoutes);
+app.use("/api/hostess", hostessRoutes);
 app.use("/api/seating-templates", seatingTemplateRoutes);
 app.use("/api/agent", agentRoutes);
 app.use("/api/manager", eventManagerRoutes);

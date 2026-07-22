@@ -31,7 +31,7 @@ const FEATURE_CHECKBOXES = [
   { key: "phoneCallsRound3", label: "שיחות טלפון — סבב 3" },
   { key: "phoneCallsRound4", label: "שיחות טלפון — סבב 4" },
   { key: "eventDayReminder", label: "תזכורת ביום האירוע" },
-  { key: "eventDayTableNumber", label: "שליחת מספר שולחן ביום האירוע" },
+  { key: "eventDayTableNumber", label: "שליחת מספר שולחן ביום האירוע (WhatsApp / דיילת)" },
   { key: "thankYouMessage", label: "הודעת תודה" }
 ];
 
@@ -47,7 +47,8 @@ function defaultDealDraft() {
       phoneCallsRound3: false,
       phoneCallsRound4: false,
       eventDayReminder: true,
-      eventDayTableNumber: true,
+      eventDayTableNumber: false,
+      canSendTableWhatsApp: false,
       thankYouMessage: true
     },
     marketingSource: "",
@@ -377,13 +378,18 @@ ${publicEventUrl}`
   };
 
   const onDealFeatureToggle = (key) => {
-    setDealDraft((prev) => ({
-      ...prev,
-      includedFeatures: {
+    setDealDraft((prev) => {
+      const nextValue = !prev.includedFeatures?.[key];
+      const includedFeatures = {
         ...prev.includedFeatures,
-        [key]: !prev.includedFeatures?.[key]
+        [key]: nextValue
+      };
+      if (key === "eventDayTableNumber" || key === "canSendTableWhatsApp") {
+        includedFeatures.eventDayTableNumber = nextValue;
+        includedFeatures.canSendTableWhatsApp = nextValue;
       }
-    }));
+      return { ...prev, includedFeatures };
+    });
     setDealSaved(false);
   };
 
@@ -999,7 +1005,7 @@ ${publicEventUrl}`
                     </div>
 
                     <fieldset className="us-admin-deal-features">
-                      <legend>פיצ׳רים וסבבים כלולים</legend>
+                      <legend>פיצ׳רים וסבבים כלולים (SYSTEM_ADMIN בלבד)</legend>
                       <div className="us-admin-deal-features__grid">
                         {FEATURE_CHECKBOXES.map((feature) => (
                           <label key={feature.key} className="us-admin-deal-check">

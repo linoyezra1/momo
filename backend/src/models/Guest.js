@@ -50,6 +50,10 @@ const guestSchema = new mongoose.Schema(
     },
     guestGroup: { type: String, trim: true, default: "" },
     seatingTableId: { type: String, trim: true, default: "" },
+    /** Set when a seated guest switches to לא מגיע */
+    declinedWhileSeatedAt: { type: Date, default: null },
+    /** Hostess marked guest as arrived on event day */
+    hostessArrivedAt: { type: Date, default: null },
     reminderRound: { type: Number, min: 0, default: 0 },
     whatsappRoundsSentCount: { type: Number, min: 0, default: 0 },
     whatsappConversationState: {

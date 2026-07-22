@@ -45,8 +45,8 @@ export function mapTwilioErrorMessage(error) {
   return error?.message || "שליחת ההודעה נכשלה, אנא נסה שוב מאוחר יותר";
 }
 
-async function findValidCodeRecord(paymentCode) {
-  const code = normalizePaymentCode(paymentCode);
+export async function findValidActivationCode(paymentCode) {
+  const code = String(paymentCode || "").trim().toUpperCase();
   if (!code) return { error: "missing_code" };
 
   const codeRecord = await ActivationCode.findOne({ code, isActive: true });
@@ -61,7 +61,7 @@ async function findValidCodeRecord(paymentCode) {
   return { codeRecord };
 }
 
-async function reserveCredits(codeRecord, requestedCount) {
+export async function reserveActivationCredits(codeRecord, requestedCount) {
   const reserved = await ActivationCode.findOneAndUpdate(
     {
       _id: codeRecord._id,
@@ -76,20 +76,32 @@ async function reserveCredits(codeRecord, requestedCount) {
     const fresh = await ActivationCode.findById(codeRecord._id);
     return {
       ok: false,
-      message: buildInsufficientCreditsMessage(fresh || codeRecord)
+      message: `קנית מכסה בסך של ${(fresh || codeRecord).total_credits} הודעות. נשארו לך ${(fresh || codeRecord).remaining_credits} הודעות לניצול.`
     };
   }
 
   return { ok: true, codeRecord: reserved };
 }
 
-async function releaseCredits(codeId, count) {
+export async function releaseActivationCredits(codeId, count) {
   if (!codeId || !count) return;
   try {
     await ActivationCode.findByIdAndUpdate(codeId, { $inc: { remaining_credits: count } });
   } catch (releaseError) {
     console.error("[Twilio] Failed to release credits:", releaseError?.message || releaseError);
   }
+}
+
+async function findValidCodeRecord(paymentCode) {
+  return findValidActivationCode(paymentCode);
+}
+
+async function reserveCredits(codeRecord, requestedCount) {
+  return reserveActivationCredits(codeRecord, requestedCount);
+}
+
+async function releaseCredits(codeId, count) {
+  return releaseActivationCredits(codeId, count);
 }
 
 function resolveInviteeTemplateFields({ invitee, defaults, eventId, origin, paragraphs }) {

@@ -18,6 +18,7 @@ import ClientAuditLogPage from "./pages/ClientAuditLogPage.jsx";
 import ClientVendorsPage from "./pages/ClientVendorsPage.jsx";
 import ManagerBudgetPage from "./pages/ManagerBudgetPage.jsx";
 import IlSeatingPage from "./pages/IlSeatingPage.jsx";
+import HostessPage from "./pages/HostessPage.jsx";
 import EventManagerVendorsPage from "./pages/EventManagerVendorsPage.jsx";
 
 export default function App() {
@@ -82,6 +83,7 @@ export default function App() {
         }
       />
       <Route path="/event/:eventId" element={<EventPage />} />
+      <Route path="/hostess/:eventId" element={<HostessPage />} />
       <Route path="/client/login" element={<ClientLoginPage />} />
       <Route path="/client/dashboard/:userId" element={<ClientDashboardPage />} />
       <Route path="/client/dashboard/:userId/audit-log" element={<ClientAuditLogPage />} />

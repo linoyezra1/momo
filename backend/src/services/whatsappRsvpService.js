@@ -124,6 +124,11 @@ async function saveRsvp(guest, { status, attendeesCount }) {
   if (attendeesCount !== undefined) {
     guest.attendeesCount = attendeesCount;
   }
+  if (status === "לא מגיע" && guest.seatingTableId) {
+    guest.declinedWhileSeatedAt = new Date();
+  } else if (status !== "לא מגיע") {
+    guest.declinedWhileSeatedAt = undefined;
+  }
   guest.confirmationMethod = "whatsapp";
   guest.source = resolveSourceAfterSelfRsvp(guest);
   guest.whatsappConversationState = "idle";

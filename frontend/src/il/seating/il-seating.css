@@ -5,10 +5,41 @@
   background: #faf8f6;
 }
 
+.il-seat-page--white,
+.il-seat-page.is-simple-view.il-seat-page--white {
+  background: #ffffff;
+}
+
 .il-seat-page--state {
   display: grid;
   place-items: center;
   color: #555;
+}
+
+.il-seat-help-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  min-width: 2.2rem;
+  height: 2.2rem;
+  padding: 0 0.55rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  background: #fff;
+  color: #374151;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.il-seat-schedule-note {
+  margin: 0 0 0.85rem;
+  padding: 0.65rem 0.8rem;
+  border-radius: 0.65rem;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
+  font-weight: 600;
 }
 
 .il-seat-header {
@@ -1003,6 +1034,33 @@
   box-shadow: 0 0 0 2px rgb(169 111 104 / 12%), 0 12px 28px rgb(47 42 40 / 8%);
 }
 
+.il-seat-table-card.is-overfill {
+  border: 2px solid #ef4444;
+  box-shadow: 0 0 0 1px rgb(239 68 68 / 15%);
+}
+
+.il-seat-decline-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.05rem;
+  height: 1.05rem;
+  margin-inline-start: 0.35rem;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #fff;
+  font-style: normal;
+  font-size: 0.72rem;
+  font-weight: 800;
+  vertical-align: middle;
+  line-height: 1;
+}
+
+.il-seat-table-card__guests li.is-declined {
+  border-color: #fecaca;
+  background: #fff7f7;
+}
+
 .il-seat-table-card__header {
   display: flex;
   align-items: flex-start;
@@ -1109,6 +1167,33 @@
   display: inline-grid;
   place-items: center;
   flex-shrink: 0;
+}
+
+.il-seat-table-card__guest-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.il-seat-table-card__unassign {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  padding: 0;
+  border: 1px solid #f5c2c2;
+  border-radius: 0.45rem;
+  background: #fff5f5;
+  color: #b91c1c;
+  cursor: pointer;
+}
+
+.il-seat-table-card__unassign:hover,
+.il-seat-table-card__unassign:focus-visible {
+  background: #fee2e2;
+  outline: none;
 }
 
 /* Edit modal */

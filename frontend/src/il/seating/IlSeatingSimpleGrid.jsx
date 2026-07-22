@@ -1,5 +1,5 @@
 import { countGuestSeats, getTableOccupancy } from "./ilSeatingUtils.js";
-import { Pencil } from "lucide-react";
+import { Pencil, UserMinus } from "lucide-react";
 
 export default function IlSeatingSimpleGrid({
   tables,
@@ -7,7 +7,8 @@ export default function IlSeatingSimpleGrid({
   activeTableId,
   onSelectTable,
   onEditTable,
-  onDropGuestsOnTable
+  onDropGuestsOnTable,
+  onUnassignGuest
 }) {
   function handleDrop(event, tableId) {
     event.preventDefault();
@@ -32,16 +33,16 @@ export default function IlSeatingSimpleGrid({
     <div className="il-seat-simple-grid" role="list">
       {tables.map((table) => {
         const occupied = getTableOccupancy(guests, table.tableId);
-        const seatedGuests = guests.filter(
-          (guest) => guest.seatingTableId === table.tableId && guest.isEligible
-        );
+        const seatedGuests = guests.filter((guest) => guest.seatingTableId === table.tableId);
         const isActive = activeTableId === table.tableId;
+        const isOverfill = occupied > Number(table.capacity || 0);
 
         return (
           <article
             key={table.tableId}
-            className={`il-seat-table-card${isActive ? " is-active" : ""}`}
+            className={`il-seat-table-card${isActive ? " is-active" : ""}${isOverfill ? " is-overfill" : ""}`}
             role="listitem"
+            title={isOverfill ? "חריגה מקיבולת השולחן" : undefined}
             onClick={() => onSelectTable(table.tableId)}
             onDragOver={(event) => event.preventDefault()}
             onDrop={(event) => handleDrop(event, table.tableId)}
@@ -71,16 +72,43 @@ export default function IlSeatingSimpleGrid({
               {seatedGuests.length ? (
                 <ul className="il-seat-table-card__guests">
                   {seatedGuests.map((guest) => (
-                    <li key={guest._id}>
+                    <li
+                      key={guest._id}
+                      className={guest.isDeclinedWhileSeated ? "is-declined" : undefined}
+                      title={guest.declinedWhileSeatedLabel || undefined}
+                    >
                       <div className="il-seat-table-card__guest-main">
-                        <strong>{guest.fullName}</strong>
+                        <strong>
+                          {guest.fullName}
+                          {guest.isDeclinedWhileSeated ? (
+                            <em className="il-seat-decline-badge" aria-label={guest.declinedWhileSeatedLabel}>
+                              !
+                            </em>
+                          ) : null}
+                        </strong>
                         <span className="il-seat-table-card__guest-phone" dir="ltr">
                           {guest.phone || "—"}
                         </span>
                       </div>
-                      <span className="il-seat-table-card__guest-seats" title="מספר מושבים תפוסים">
-                        {countGuestSeats(guest)}
-                      </span>
+                      <div className="il-seat-table-card__guest-actions">
+                        <span className="il-seat-table-card__guest-seats" title="מספר מושבים תפוסים">
+                          {countGuestSeats(guest)}
+                        </span>
+                        {onUnassignGuest ? (
+                          <button
+                            type="button"
+                            className="il-seat-table-card__unassign"
+                            aria-label={`הסרת ${guest.fullName} מהשולחן`}
+                            title="הסרה מהושבה — חזרה לצפים"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onUnassignGuest(guest._id);
+                            }}
+                          >
+                            <UserMinus size={15} aria-hidden="true" />
+                          </button>
+                        ) : null}
+                      </div>
                     </li>
                   ))}
                 </ul>

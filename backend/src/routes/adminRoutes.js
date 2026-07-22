@@ -150,6 +150,7 @@ const FEATURE_KEYS = [
   "phoneCallsRound4",
   "eventDayReminder",
   "eventDayTableNumber",
+  "canSendTableWhatsApp",
   "thankYouMessage"
 ];
 
@@ -171,7 +172,8 @@ function defaultIncludedFeatures() {
     phoneCallsRound3: false,
     phoneCallsRound4: false,
     eventDayReminder: true,
-    eventDayTableNumber: true,
+    eventDayTableNumber: false,
+    canSendTableWhatsApp: false,
     thankYouMessage: true
   };
 }
@@ -192,6 +194,21 @@ function normalizeDealPayload(rawDeal = {}, existingDeal = {}) {
     if (typeof incomingFeatures[key] === "boolean") {
       includedFeatures[key] = incomingFeatures[key];
     }
+  }
+
+  // Keep table-dispatch aliases in sync (admin toggles either key).
+  if (typeof incomingFeatures.canSendTableWhatsApp === "boolean") {
+    includedFeatures.eventDayTableNumber = incomingFeatures.canSendTableWhatsApp;
+    includedFeatures.canSendTableWhatsApp = incomingFeatures.canSendTableWhatsApp;
+  } else if (typeof incomingFeatures.eventDayTableNumber === "boolean") {
+    includedFeatures.canSendTableWhatsApp = incomingFeatures.eventDayTableNumber;
+    includedFeatures.eventDayTableNumber = incomingFeatures.eventDayTableNumber;
+  } else {
+    const enabled = Boolean(
+      includedFeatures.canSendTableWhatsApp || includedFeatures.eventDayTableNumber
+    );
+    includedFeatures.eventDayTableNumber = enabled;
+    includedFeatures.canSendTableWhatsApp = enabled;
   }
 
   let paymentAmount = Number(existing.paymentAmount || 0);

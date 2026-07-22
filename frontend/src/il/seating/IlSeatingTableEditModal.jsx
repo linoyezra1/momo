@@ -11,9 +11,14 @@ export default function IlSeatingTableEditModal({
   const [label, setLabel] = useState("");
   const [capacity, setCapacity] = useState("");
 
+  const tableId = table?.tableId || "";
+
   const assignedGuests = useMemo(
-    () => guests.filter((guest) => guest.seatingTableId === table?.tableId && guest.isEligible),
-    [guests, table?.tableId]
+    () =>
+      guests.filter(
+        (guest) => guest.seatingTableId === tableId && (guest.isEligible || guest.isDeclinedWhileSeated || guest.isSeated)
+      ),
+    [guests, tableId]
   );
 
   const occupiedSeats = useMemo(
@@ -24,41 +29,57 @@ export default function IlSeatingTableEditModal({
   const hasAssignedGuests = assignedGuests.length > 0;
   const capacityNumber = Math.max(1, Number(capacity) || 1);
 
+  // Sync only when opening a different table — never while typing an empty name.
   useEffect(() => {
-    if (!table) return;
-    setLabel(table.label || "");
+    if (!tableId || !table) return;
+    setLabel(table.label ?? "");
     setCapacity(String(Math.max(1, Number(table.capacity) || 1)));
-  }, [table]);
+  }, [tableId]);
 
   if (!table) return null;
 
-  function handleSave() {
+  function handleSave(event) {
+    event?.preventDefault?.();
+    const nextLabel = String(label ?? "").trim();
     onSave({
-      label: String(label || "").trim() || table.label,
+      label: nextLabel || String(table.label || "").trim() || "1",
       capacity: capacityNumber
     });
   }
 
+  function handleBackdropPointerDown(event) {
+    if (event.target === event.currentTarget) onClose();
+  }
+
   return (
-    <div className="il-seat-modal-backdrop" role="presentation" onClick={onClose}>
-      <div
+    <div
+      className="il-seat-modal-backdrop"
+      role="presentation"
+      onMouseDown={handleBackdropPointerDown}
+    >
+      <form
         className="il-seat-modal"
         role="dialog"
         aria-modal="true"
         aria-labelledby="il-seat-modal-title"
+        onMouseDown={(event) => event.stopPropagation()}
         onClick={(event) => event.stopPropagation()}
+        onSubmit={handleSave}
       >
         <header className="il-seat-modal__header">
           <h2 id="il-seat-modal-title">עריכת שולחן</h2>
-          <span className="il-seat-modal__badge">שולחן מספר {table.label}</span>
+          <span className="il-seat-modal__badge">
+            שולחן {String(table.label || "").trim() || tableId}
+          </span>
         </header>
 
         <label className="il-seat-modal__field">
-          <span>שם אופציונלי לשולחן</span>
+          <span>שם השולחן</span>
           <input
             value={label}
             onChange={(event) => setLabel(event.target.value)}
-            placeholder="...שם אופציונלי לשולחן"
+            placeholder="לדוגמה: 5 / משפחה"
+            autoComplete="off"
           />
         </label>
 
@@ -69,14 +90,10 @@ export default function IlSeatingTableEditModal({
             type="text"
             inputMode="numeric"
             autoComplete="off"
-            value={capacity === "" ? "" : capacity}
+            value={capacity}
             onChange={(event) => {
               const raw = event.target.value.replace(/\D/g, "");
-              if (raw === "") {
-                setCapacity("");
-                return;
-              }
-              setCapacity(Math.max(1, Number(raw) || 1));
+              setCapacity(raw);
             }}
           />
         </label>
@@ -88,7 +105,7 @@ export default function IlSeatingTableEditModal({
         <p className="il-seat-modal__hint">לא ניתן למחוק שולחן שיש בו מוזמנים</p>
 
         <div className="il-seat-modal__actions">
-          <button type="button" className="il-seat-modal__btn il-seat-modal__btn--primary" onClick={handleSave}>
+          <button type="submit" className="il-seat-modal__btn il-seat-modal__btn--primary">
             שמירת שינויים
           </button>
           <button
@@ -104,7 +121,7 @@ export default function IlSeatingTableEditModal({
             ביטול
           </button>
         </div>
-      </div>
+      </form>
     </div>
   );
 }

@@ -50,7 +50,9 @@ const includedFeaturesSchema = new mongoose.Schema(
     phoneCallsRound3: { type: Boolean, default: false },
     phoneCallsRound4: { type: Boolean, default: false },
     eventDayReminder: { type: Boolean, default: true },
-    eventDayTableNumber: { type: Boolean, default: true },
+    /** Day-of table number WhatsApp (hostess + scheduled dispatch) */
+    eventDayTableNumber: { type: Boolean, default: false },
+    canSendTableWhatsApp: { type: Boolean, default: false },
     thankYouMessage: { type: Boolean, default: true }
   },
   { _id: false }
@@ -92,6 +94,22 @@ const financeSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const tableDispatchSchema = new mongoose.Schema(
+  {
+    scheduledAt: { type: Date, default: null },
+    paymentCode: { type: String, trim: true, default: "" },
+    status: {
+      type: String,
+      enum: ["idle", "scheduled", "sent", "failed"],
+      default: "idle"
+    },
+    lastSentAt: { type: Date, default: null },
+    lastError: { type: String, trim: true, default: "" },
+    sentCount: { type: Number, min: 0, default: 0 }
+  },
+  { _id: false }
+);
+
 const userSchema = new mongoose.Schema(
   {
     username: { type: String, required: true, unique: true, trim: true },
@@ -102,6 +120,7 @@ const userSchema = new mongoose.Schema(
     payment: { type: paymentSchema, default: () => ({ amountPaid: 0, paymentMethod: "" }) },
     deal: { type: dealSchema, default: () => ({}) },
     finance: { type: financeSchema, default: () => ({}) },
+    tableDispatch: { type: tableDispatchSchema, default: () => ({}) },
     managedBy: {
       type: String,
       enum: ["admin", "eventManager"],
