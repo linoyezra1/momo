@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Phone, Plus, Search, X } from "lucide-react";
+import { Pencil, Phone, Plus, Search, Trash2, X } from "lucide-react";
 import api from "../api";
+import IconActionButton from "../components/IconActionButton.jsx";
+import WhatsAppIcon from "../components/WhatsAppIcon";
 import {
   EVENT_VENDOR_STATUS_LABELS,
   VENDOR_CATEGORIES,
@@ -11,6 +13,7 @@ import {
 } from "../utils/vendors.js";
 import "../us/admin-portal.css";
 import "../il/vendors.css";
+import "../il/manager-event.css";
 
 const emptyVendorForm = {
   name: "",
@@ -193,32 +196,34 @@ export default function EventManagerVendorsPage() {
                         <span>{vendor.contactName || "ללא איש קשר"}</span>
                         <span dir="ltr">{vendor.phone || "—"}</span>
                       </button>
-                      <div className="il-vendor-card__actions">
-                        {tel ? (
-                          <a className="us-admin-btn us-admin-btn--xs" href={tel} aria-label="חיוג">
-                            <Phone size={14} />
-                          </a>
-                        ) : null}
+                      <div className="il-vendor-card__actions il-guest-actions">
                         {wa ? (
-                          <a
-                            className="us-admin-btn us-admin-btn--xs"
+                          <IconActionButton
+                            as="a"
+                            className="il-icon-action--whatsapp"
                             href={wa}
                             target="_blank"
                             rel="noreferrer"
+                            tooltip="וואטסאפ"
                           >
-                            WA
-                          </a>
+                            <WhatsAppIcon size={16} />
+                          </IconActionButton>
                         ) : null}
-                        <button className="us-admin-btn us-admin-btn--xs" type="button" onClick={() => openEdit(vendor)}>
-                          עריכה
-                        </button>
-                        <button
-                          className="us-admin-btn us-admin-btn--xs us-admin-btn--danger"
-                          type="button"
+                        {tel ? (
+                          <IconActionButton as="a" className="il-icon-action--phone" href={tel} tooltip="חיוג">
+                            <Phone size={14} />
+                          </IconActionButton>
+                        ) : null}
+                        <IconActionButton tooltip="עריכה" onClick={() => openEdit(vendor)}>
+                          <Pencil size={14} />
+                        </IconActionButton>
+                        <IconActionButton
+                          className="il-icon-action--danger"
+                          tooltip="מחיקה"
                           onClick={() => deleteVendor(vendor)}
                         >
-                          מחיקה
-                        </button>
+                          <Trash2 size={14} />
+                        </IconActionButton>
                       </div>
                     </article>
                   );

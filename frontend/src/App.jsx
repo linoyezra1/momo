@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import AdminProtectedRoute from "./components/AdminProtectedRoute.jsx";
 import AgentProtectedRoute from "./components/AgentProtectedRoute.jsx";
 import EventManagerProtectedRoute from "./components/EventManagerProtectedRoute.jsx";
+import EventManagerEventLayout from "./components/EventManagerEventLayout.jsx";
 import AdminLoginPage from "./pages/AdminLoginPage.jsx";
 import AgentClientsPage from "./pages/AgentClientsPage.jsx";
 import AgentLoginPage from "./pages/AgentLoginPage.jsx";
@@ -15,6 +16,7 @@ import ClientLoginPage from "./pages/ClientLoginPage.jsx";
 import ClientDashboardPage from "./pages/ClientDashboardPage.jsx";
 import ClientAuditLogPage from "./pages/ClientAuditLogPage.jsx";
 import ClientVendorsPage from "./pages/ClientVendorsPage.jsx";
+import ManagerBudgetPage from "./pages/ManagerBudgetPage.jsx";
 import IlSeatingPage from "./pages/IlSeatingPage.jsx";
 import EventManagerVendorsPage from "./pages/EventManagerVendorsPage.jsx";
 
@@ -48,6 +50,20 @@ export default function App() {
           </EventManagerProtectedRoute>
         }
       />
+      <Route
+        path="/manager/events/:userId"
+        element={
+          <EventManagerProtectedRoute>
+            <EventManagerEventLayout />
+          </EventManagerProtectedRoute>
+        }
+      >
+        <Route index element={<ClientDashboardPage />} />
+        <Route path="vendors" element={<ClientVendorsPage />} />
+        <Route path="seating" element={<IlSeatingPage />} />
+        <Route path="budget" element={<ManagerBudgetPage />} />
+        <Route path="audit-log" element={<ClientAuditLogPage />} />
+      </Route>
       <Route path="/agent/login" element={<AgentLoginPage />} />
       <Route
         path="/agent"

@@ -20,6 +20,7 @@ import ActivationCode from "../models/ActivationCode.js";
 import { subscribeToDashboardEvents } from "../services/dashboardEvents.js";
 import {
   buildGuestCreatedDescription,
+  countGuestAuditLogsSince,
   listGuestAuditLogs,
   recordClientGuestUpdate,
   recordGuestAuditLog
@@ -124,6 +125,23 @@ router.get("/:userId/live-updates", async (req, res) => {
     });
   } catch {
     return res.status(400).end();
+  }
+});
+
+router.get("/:userId/audit-logs/unread-count", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await User.findById(userId).select("_id");
+    if (!user) {
+      return res.status(404).json({ message: "Client not found" });
+    }
+    const count = await countGuestAuditLogsSince({
+      userId,
+      since: req.query.since
+    });
+    return res.json({ count });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "Failed to count unread audit logs" });
   }
 });
 

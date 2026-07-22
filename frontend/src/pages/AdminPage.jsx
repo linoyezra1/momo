@@ -635,7 +635,10 @@ ${publicEventUrl}`
       <div className="us-admin-container">
         <header className="us-admin-header">
           <h1>מרכז ניהול אירועים</h1>
-          <p>ניהול לקוחות, פרטי הזמנה וקישורים לדשבורד</p>
+          <p>
+            ניהול לקוחות, פרטי הזמנה וקישורים לדשבורד · חשבונות מנהל אירוע (EVENT_MANAGER) מוגדרים
+            בשרת בלבד ורק ע״י SYSTEM_ADMIN
+          </p>
         </header>
 
         <div className="us-admin-toolbar">

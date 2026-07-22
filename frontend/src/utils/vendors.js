@@ -22,10 +22,24 @@
  * @property {string} eventId
  * @property {string} vendorId
  * @property {number} quoteAmount
+ * @property {number} vendorQuoteAmount
+ * @property {number} couplePrice
+ * @property {number} [profit]
  * @property {EventVendorStatus} status
  * @property {string} eventNotes
  * @property {string} attachmentUrl
  * @property {GlobalVendor|null} [vendor]
+ */
+
+/**
+ * @typedef {'PENDING'|'PARTIAL'|'PAID'} CouplePaymentStatus
+ */
+
+/**
+ * @typedef {Object} EventFinance
+ * @property {number} targetCoupleBudget
+ * @property {CouplePaymentStatus} couplePaymentStatus
+ * @property {string} couplePaymentNotes
  */
 
 export const VENDOR_CATEGORIES = [

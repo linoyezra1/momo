@@ -2,10 +2,15 @@ import express from "express";
 import User from "../models/User.js";
 import Vendor, { VENDOR_CATEGORIES } from "../models/Vendor.js";
 import EventVendor, { EVENT_VENDOR_STATUSES } from "../models/EventVendor.js";
+import { requireEventManager } from "../middleware/eventManagerAuth.js";
 import {
-  requireEventManager,
-  verifyEventManagerToken
-} from "../middleware/eventManagerAuth.js";
+  buildBudgetWarning,
+  buildVendorAmountSummary,
+  sanitizeEventVendorFinancePayload,
+  sanitizeFinancePayload,
+  serializeEventVendorFinance,
+  serializeFinance
+} from "../utils/eventFinance.js";
 
 const router = express.Router();
 
@@ -52,13 +57,6 @@ const SAMPLE_VENDORS = [
   }
 ];
 
-function optionalManagerAuth(req, _res, next) {
-  const authHeader = String(req.headers.authorization || "");
-  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
-  req.isEventManager = Boolean(token && verifyEventManagerToken(token));
-  next();
-}
-
 function sanitizeVendorPayload(body = {}) {
   const category = String(body.category || "אחר").trim();
   return {
@@ -72,13 +70,11 @@ function sanitizeVendorPayload(body = {}) {
 }
 
 function sanitizeEventVendorPayload(body = {}) {
-  const status = String(body.status || "OFFER_SENT").trim();
-  return {
-    quoteAmount: Math.max(0, Number(body.quoteAmount) || 0),
-    status: EVENT_VENDOR_STATUSES.includes(status) ? status : "OFFER_SENT",
-    eventNotes: String(body.eventNotes || "").trim(),
-    attachmentUrl: String(body.attachmentUrl || "").trim()
-  };
+  const payload = sanitizeEventVendorFinancePayload(body);
+  if (!EVENT_VENDOR_STATUSES.includes(payload.status)) {
+    payload.status = "OFFER_SENT";
+  }
+  return payload;
 }
 
 function buildEventLabel(event) {
@@ -115,33 +111,11 @@ function serializeVendor(vendor) {
 }
 
 function serializeEventVendor(doc) {
-  const vendor = doc.vendorId && typeof doc.vendorId === "object" ? doc.vendorId : null;
-  return {
-    id: String(doc._id),
-    eventId: String(doc.eventId?._id || doc.eventId),
-    vendorId: String(vendor?._id || doc.vendorId),
-    quoteAmount: Number(doc.quoteAmount || 0),
-    status: doc.status,
-    eventNotes: doc.eventNotes || "",
-    attachmentUrl: doc.attachmentUrl || "",
-    createdAt: doc.createdAt,
-    updatedAt: doc.updatedAt,
-    vendor: vendor
-      ? serializeVendor(vendor)
-      : null
-  };
+  return serializeEventVendorFinance(doc, serializeVendor);
 }
 
 function buildSummary(entries) {
-  return entries.reduce(
-    (acc, item) => {
-      const amount = Number(item.quoteAmount || 0);
-      acc.totalProposed += amount;
-      if (item.status === "BOOKED") acc.totalBooked += amount;
-      return acc;
-    },
-    { totalProposed: 0, totalBooked: 0 }
-  );
+  return buildVendorAmountSummary(entries);
 }
 
 /* ——— Global vendor directory (manager only) ——— */
@@ -205,12 +179,17 @@ router.get("/vendors/:vendorId", requireEventManager, async (req, res) => {
 
     const history = quotes.map((item) => {
       const user = item.eventId;
+      const vendorQuoteAmount = Math.max(0, Number(item.vendorQuoteAmount ?? item.quoteAmount) || 0);
+      const couplePrice = Math.max(0, Number(item.couplePrice) || 0);
       return {
         id: String(item._id),
         eventId: String(user?._id || item.eventId),
         eventLabel: buildEventLabel(user?.event),
         username: user?.username || "",
-        quoteAmount: Number(item.quoteAmount || 0),
+        quoteAmount: vendorQuoteAmount,
+        vendorQuoteAmount,
+        couplePrice,
+        profit: couplePrice - vendorQuoteAmount,
         status: item.status,
         eventNotes: item.eventNotes || "",
         attachmentUrl: item.attachmentUrl || "",
@@ -256,12 +235,12 @@ router.delete("/vendors/:vendorId", requireEventManager, async (req, res) => {
   }
 });
 
-/* ——— Event-scoped vendors (client path + manager) ——— */
+/* ——— Event-scoped vendors + finance (manager only) ——— */
 
-router.get("/clients/:userId/event-vendors", optionalManagerAuth, async (req, res) => {
+router.get("/clients/:userId/event-vendors", requireEventManager, async (req, res) => {
   try {
     const { userId } = req.params;
-    const user = await User.findById(userId).select("_id event username");
+    const user = await User.findById(userId).select("_id event username finance");
     if (!user) return res.status(404).json({ message: "האירוע לא נמצא" });
 
     const entries = await EventVendor.find({ eventId: userId })
@@ -269,11 +248,18 @@ router.get("/clients/:userId/event-vendors", optionalManagerAuth, async (req, re
       .sort({ updatedAt: -1 });
 
     const eventVendors = entries.map(serializeEventVendor);
+    const summary = buildSummary(eventVendors);
+    const finance = serializeFinance(user.finance);
     return res.json({
       eventId: String(user._id),
       eventLabel: buildEventLabel(user.event),
       eventVendors,
-      summary: buildSummary(eventVendors),
+      summary,
+      finance,
+      budgetWarning: buildBudgetWarning({
+        totalRevenue: summary.totalRevenue,
+        targetCoupleBudget: finance.targetCoupleBudget
+      }),
       categories: VENDOR_CATEGORIES,
       statuses: EVENT_VENDOR_STATUSES
     });
@@ -282,10 +268,10 @@ router.get("/clients/:userId/event-vendors", optionalManagerAuth, async (req, re
   }
 });
 
-router.post("/clients/:userId/event-vendors", optionalManagerAuth, async (req, res) => {
+router.post("/clients/:userId/event-vendors", requireEventManager, async (req, res) => {
   try {
     const { userId } = req.params;
-    const user = await User.findById(userId).select("_id");
+    const user = await User.findById(userId).select("_id finance");
     if (!user) return res.status(404).json({ message: "האירוע לא נמצא" });
 
     let vendorId = String(req.body?.vendorId || "").trim();
@@ -320,7 +306,20 @@ router.post("/clients/:userId/event-vendors", optionalManagerAuth, async (req, r
     });
     await entry.populate("vendorId");
 
-    return res.status(201).json({ eventVendor: serializeEventVendor(entry) });
+    const allEntries = await EventVendor.find({ eventId: userId });
+    const projected = allEntries.map(serializeEventVendor);
+    const summary = buildSummary(projected);
+    const finance = serializeFinance(user.finance);
+
+    return res.status(201).json({
+      eventVendor: serializeEventVendor(entry),
+      summary,
+      finance,
+      budgetWarning: buildBudgetWarning({
+        totalRevenue: summary.totalRevenue,
+        targetCoupleBudget: finance.targetCoupleBudget
+      })
+    });
   } catch (error) {
     if (error?.code === 11000) {
       return res.status(409).json({ message: "הספק כבר משויך לאירוע זה" });
@@ -329,9 +328,12 @@ router.post("/clients/:userId/event-vendors", optionalManagerAuth, async (req, r
   }
 });
 
-router.patch("/clients/:userId/event-vendors/:eventVendorId", optionalManagerAuth, async (req, res) => {
+router.patch("/clients/:userId/event-vendors/:eventVendorId", requireEventManager, async (req, res) => {
   try {
     const { userId, eventVendorId } = req.params;
+    const user = await User.findById(userId).select("_id finance");
+    if (!user) return res.status(404).json({ message: "האירוע לא נמצא" });
+
     const payload = sanitizeEventVendorPayload(req.body);
     const entry = await EventVendor.findOneAndUpdate(
       { _id: eventVendorId, eventId: userId },
@@ -340,13 +342,27 @@ router.patch("/clients/:userId/event-vendors/:eventVendorId", optionalManagerAut
     ).populate("vendorId");
 
     if (!entry) return res.status(404).json({ message: "שיוך הספק לא נמצא" });
-    return res.json({ eventVendor: serializeEventVendor(entry) });
+
+    const allEntries = await EventVendor.find({ eventId: userId });
+    const projected = allEntries.map(serializeEventVendor);
+    const summary = buildSummary(projected);
+    const finance = serializeFinance(user.finance);
+
+    return res.json({
+      eventVendor: serializeEventVendor(entry),
+      summary,
+      finance,
+      budgetWarning: buildBudgetWarning({
+        totalRevenue: summary.totalRevenue,
+        targetCoupleBudget: finance.targetCoupleBudget
+      })
+    });
   } catch (error) {
     return res.status(500).json({ message: error.message || "עדכון שיוך הספק נכשל" });
   }
 });
 
-router.delete("/clients/:userId/event-vendors/:eventVendorId", optionalManagerAuth, async (req, res) => {
+router.delete("/clients/:userId/event-vendors/:eventVendorId", requireEventManager, async (req, res) => {
   try {
     const { userId, eventVendorId } = req.params;
     const entry = await EventVendor.findOneAndDelete({ _id: eventVendorId, eventId: userId });
@@ -354,6 +370,67 @@ router.delete("/clients/:userId/event-vendors/:eventVendorId", optionalManagerAu
     return res.json({ message: "הספק הוסר מהאירוע", id: String(entry._id) });
   } catch (error) {
     return res.status(500).json({ message: error.message || "הסרת הספק מהאירוע נכשלה" });
+  }
+});
+
+router.get("/clients/:userId/finance", requireEventManager, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await User.findById(userId).select("_id event finance");
+    if (!user) return res.status(404).json({ message: "האירוע לא נמצא" });
+
+    const entries = await EventVendor.find({ eventId: userId }).populate("vendorId");
+    const eventVendors = entries.map(serializeEventVendor);
+    const summary = buildSummary(eventVendors);
+    const finance = serializeFinance(user.finance);
+
+    return res.json({
+      eventId: String(user._id),
+      eventLabel: buildEventLabel(user.event),
+      finance,
+      summary,
+      eventVendors,
+      budgetWarning: buildBudgetWarning({
+        totalRevenue: summary.totalRevenue,
+        targetCoupleBudget: finance.targetCoupleBudget
+      }),
+      paymentStatusLabels: {
+        PENDING: "ממתין לתשלום",
+        PARTIAL: "שולם חלקית",
+        PAID: "שולם במלואו"
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "טעינת התקציב נכשלה" });
+  }
+});
+
+router.patch("/clients/:userId/finance", requireEventManager, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const payload = sanitizeFinancePayload(req.body);
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { finance: payload },
+      { new: true, runValidators: true }
+    ).select("_id event finance");
+
+    if (!user) return res.status(404).json({ message: "האירוע לא נמצא" });
+
+    const entries = await EventVendor.find({ eventId: userId });
+    const summary = buildSummary(entries.map(serializeEventVendor));
+    const finance = serializeFinance(user.finance);
+
+    return res.json({
+      finance,
+      summary,
+      budgetWarning: buildBudgetWarning({
+        totalRevenue: summary.totalRevenue,
+        targetCoupleBudget: finance.targetCoupleBudget
+      })
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "עדכון התקציב נכשל" });
   }
 });
 

@@ -11,9 +11,11 @@ import { TABLE_SHAPES, VENUE_ELEMENT_TYPES } from "../il/seating/seatingConstant
 import { buildSeatingExportRows, filterSeatingGuests, makeSeatingId } from "../il/seating/ilSeatingUtils.js";
 import { getAdminToken } from "../utils/adminAuth.js";
 import { getEventManagerToken } from "../utils/eventManagerAuth.js";
+import { useEventWorkspace } from "../utils/useEventWorkspace.js";
 import "../us/client-portal.css";
 import "../il/il-portal.css";
 import "../il/seating/il-seating.css";
+import "../il/manager-event.css";
 
 const initialFilters = { side: "", group: "", seated: "", query: "" };
 
@@ -25,6 +27,7 @@ function resolveTemplateOwnerRole() {
 
 export default function IlSeatingPage() {
   const { userId } = useParams();
+  const { isManagerEvent, backPath, backLabel, basePath } = useEventWorkspace();
   const canvasRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -421,9 +424,15 @@ export default function IlSeatingPage() {
               תצוגת סקיצה
             </button>
           </div>
-          <Link className="us-btn" to={`/client/dashboard/${userId}`}>
-            חזרה לדשבורד
-          </Link>
+          {!isManagerEvent ? (
+            <Link className="us-btn" to={backPath}>
+              {backLabel}
+            </Link>
+          ) : (
+            <Link className="us-btn" to={basePath}>
+              חזרה למוזמנים
+            </Link>
+          )}
         </div>
       </header>
 

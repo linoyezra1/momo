@@ -269,14 +269,11 @@ export default function EventManagerPage() {
                   {selectedClient.event?.eventTime || "—"}
                 </p>
                 <div className="us-admin-form-actions" style={{ marginTop: "1rem" }}>
-                  <Link className="us-admin-btn us-admin-btn--primary" to={`/client/dashboard/${selectedClient.userId}`}>
-                    טבלת אורחים
-                  </Link>
-                  <Link className="us-admin-btn" to={`/client/dashboard/${selectedClient.userId}/vendors`}>
-                    ספקים והצעות מחיר
-                  </Link>
-                  <Link className="us-admin-btn" to={`/client/dashboard/${selectedClient.userId}/seating`}>
-                    מערכת הושבה
+                  <Link
+                    className="us-admin-btn us-admin-btn--primary"
+                    to={`/manager/events/${selectedClient.userId}`}
+                  >
+                    פתיחת ניהול אירוע
                   </Link>
                   <a className="us-admin-btn" href={selectedClient.publicEventLink} target="_blank" rel="noreferrer">
                     הזמנה דיגיטלית

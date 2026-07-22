@@ -1,18 +1,23 @@
 import { useCallback, useEffect, useMemo, useRef, useState, Fragment } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Check, ChevronDown, Clock, Contact, Eye, HelpCircle, Pencil, Plus, Search, Trash2, Users, X } from "lucide-react";
+import { Check, ChevronDown, Clock, Contact, Eye, HelpCircle, Pencil, Phone, Plus, Search, Trash2, Users, X } from "lucide-react";
 import api from "../api";
 import WhatsAppIcon from "../components/WhatsAppIcon";
+import IconActionButton from "../components/IconActionButton.jsx";
 import { buildWhatsAppSendUrl } from "../utils/whatsapp";
 import { resolveInviteCopyDefaults } from "../utils/whatsappInviteCopy";
 import { normalizeIsraeliPhone } from "../utils/phoneNormalize";
 import { formatFailedRowLabel, mergeFailedRows, parseExcelGuestRows } from "../utils/guestExcelImport";
+import { getAuditLogLastReadAt } from "../utils/auditLogUnread.js";
+import { useEventWorkspace } from "../utils/useEventWorkspace.js";
+import { buildTelHref } from "../utils/vendors.js";
 import IlInvitationEditor from "../il/components/IlInvitationEditor.jsx";
 import IlWhatsAppInviteEditor from "../il/components/IlWhatsAppInviteEditor.jsx";
 import ContactImportModal from "../components/ContactImportModal.jsx";
 import "../us/client-portal.css";
 import "../il/il-portal.css";
 import "../il/contacts-import.css";
+import "../il/manager-event.css";
 
 const initialGuest = {
   fullName: "",
@@ -169,6 +174,8 @@ function getOwnerGreeting(event) {
 
 export default function ClientDashboardPage() {
   const { userId } = useParams();
+  const { isManagerEvent, basePath } = useEventWorkspace();
+  const [unreadLogCount, setUnreadLogCount] = useState(0);
   const [summary, setSummary] = useState({
     totalInvited: 0,
     totalComing: 0,
@@ -297,12 +304,35 @@ export default function ClientDashboardPage() {
   }, [userId]);
 
   useEffect(() => {
+    let cancelled = false;
+    async function loadUnreadCount() {
+      if (!userId) return;
+      try {
+        const since = getAuditLogLastReadAt(userId);
+        const { data } = await api.get(`/client/${userId}/audit-logs/unread-count`, {
+          params: since ? { since } : {}
+        });
+        if (!cancelled) setUnreadLogCount(Number(data.count) || 0);
+      } catch {
+        if (!cancelled) setUnreadLogCount(0);
+      }
+    }
+    loadUnreadCount();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  useEffect(() => {
     const stream = new EventSource(`/api/client/${userId}/live-updates`);
     let refreshTimer;
 
     stream.onmessage = (event) => {
       try {
         const payload = JSON.parse(event.data);
+        if (payload.type === "guest-audit-log-updated") {
+          setUnreadLogCount((prev) => prev + 1);
+        }
         if (!["guest-phone-rsvp-updated", "guest-whatsapp-rsvp-updated"].includes(payload.type)) return;
         window.clearTimeout(refreshTimer);
         refreshTimer = window.setTimeout(() => {
@@ -800,8 +830,16 @@ export default function ClientDashboardPage() {
   };
 
   return (
-    <div className="us-client-portal il-client-portal us-dashboard-shell" dir="rtl" lang="he">
-      <div className="us-dashboard-content">
+    <div
+      className={
+        isManagerEvent
+          ? "il-manager-dashboard-embed"
+          : "us-client-portal il-client-portal us-dashboard-shell"
+      }
+      dir="rtl"
+      lang="he"
+    >
+      <div className={isManagerEvent ? undefined : "us-dashboard-content"}>
         <header className="il-dash-header">
           <div className="il-dash-header__main">
             <div className="il-dash-header__intro">
@@ -817,11 +855,17 @@ export default function ClientDashboardPage() {
                   <Eye size={15} aria-hidden="true" />
                   צפייה בהזמנה הדיגיטלית
                 </a>
-                <Link className="il-dash-link-btn il-dash-link-btn--muted" to={`/client/dashboard/${userId}/audit-log`}>
+                <Link
+                  className="il-dash-link-btn il-dash-link-btn--muted il-audit-log-nav-btn"
+                  to={`${basePath}/audit-log`}
+                  onClick={() => setUnreadLogCount(0)}
+                >
                   לוג עדכונים
-                </Link>
-                <Link className="il-dash-link-btn il-dash-link-btn--muted" to={`/client/dashboard/${userId}/vendors`}>
-                  ספקים והצעות מחיר
+                  {unreadLogCount > 0 ? (
+                    <span className="il-unread-badge" aria-label={`${unreadLogCount} עדכונים שלא נקראו`}>
+                      {unreadLogCount > 99 ? "99+" : unreadLogCount}
+                    </span>
+                  ) : null}
                 </Link>
               </div>
             </div>
@@ -979,18 +1023,20 @@ export default function ClientDashboardPage() {
                     </button>
                     <Link
                       role="menuitem"
-                      to={`/client/dashboard/${userId}/seating`}
+                      to={`${basePath}/seating`}
                       onClick={() => setActionsMenuOpen(false)}
                     >
                       מערכת הושבה
                     </Link>
-                    <Link
-                      role="menuitem"
-                      to={`/client/dashboard/${userId}/vendors`}
-                      onClick={() => setActionsMenuOpen(false)}
-                    >
-                      ספקים והצעות מחיר
-                    </Link>
+                    {isManagerEvent ? (
+                      <Link
+                        role="menuitem"
+                        to={`${basePath}/vendors`}
+                        onClick={() => setActionsMenuOpen(false)}
+                      >
+                        ספקי אירוע
+                      </Link>
+                    ) : null}
                     <button
                       type="button"
                       role="menuitem"
@@ -1264,16 +1310,36 @@ export default function ClientDashboardPage() {
                       <span>{sourceLabel(guest.source)}</span>
                     </td>
                     <td data-label="וואטסאפ">
-                      <a
-                        className="us-whatsapp-link"
-                        href={getWhatsappLink(guest)}
-                        target="_blank"
-                        rel="noreferrer"
-                        aria-label={`שליחת הודעת וואטסאפ אל ${guest.fullName}`}
-                        title={`שליחת וואטסאפ אל ${guest.fullName}`}
-                      >
-                        <WhatsAppIcon size={20} />
-                      </a>
+                      <div className="il-guest-actions">
+                        <IconActionButton
+                          as="a"
+                          className="il-icon-action--whatsapp"
+                          href={getWhatsappLink(guest)}
+                          target="_blank"
+                          rel="noreferrer"
+                          tooltip="וואטסאפ"
+                        >
+                          <WhatsAppIcon size={18} />
+                        </IconActionButton>
+                        {buildTelHref(guest.phone) ? (
+                          <IconActionButton
+                            as="a"
+                            className="il-icon-action--phone"
+                            href={buildTelHref(guest.phone)}
+                            tooltip="חיוג"
+                          >
+                            <Phone size={16} />
+                          </IconActionButton>
+                        ) : (
+                          <IconActionButton
+                            className="il-icon-action--phone is-disabled"
+                            tooltip="אין מספר טלפון"
+                            disabled
+                          >
+                            <Phone size={16} />
+                          </IconActionButton>
+                        )}
+                      </div>
                     </td>
                     <td data-label="פעולות">
                       <div className="il-guest-actions">
@@ -1292,24 +1358,16 @@ export default function ClientDashboardPage() {
                           </>
                         ) : (
                           <>
-                            <button
-                              className="il-icon-btn"
-                              type="button"
-                              onClick={() => startEdit(guest)}
-                              aria-label={`עריכת ${guest.fullName}`}
-                              title="עריכה"
-                            >
-                              <Pencil size={18} aria-hidden="true" />
-                            </button>
-                            <button
-                              className="il-icon-btn il-icon-btn--danger"
-                              type="button"
+                            <IconActionButton tooltip="עריכה" onClick={() => startEdit(guest)}>
+                              <Pencil size={16} aria-hidden="true" />
+                            </IconActionButton>
+                            <IconActionButton
+                              className="il-icon-action--danger"
+                              tooltip="מחיקה"
                               onClick={() => requestDeleteGuest(guest)}
-                              aria-label={`מחיקת ${guest.fullName}`}
-                              title="מחיקה"
                             >
-                              <Trash2 size={18} aria-hidden="true" />
-                            </button>
+                              <Trash2 size={16} aria-hidden="true" />
+                            </IconActionButton>
                           </>
                         )}
                       </div>

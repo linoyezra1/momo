@@ -244,3 +244,14 @@ export async function listGuestAuditLogs({ userId, limit = 50, skip = 0, guestId
     hasMore: safeSkip + entries.length < total
   };
 }
+
+export async function countGuestAuditLogsSince({ userId, since }) {
+  const query = { userId };
+  if (since) {
+    const sinceDate = new Date(since);
+    if (!Number.isNaN(sinceDate.getTime())) {
+      query.createdAt = { $gt: sinceDate };
+    }
+  }
+  return GuestAuditLog.countDocuments(query);
+}

@@ -1,3 +1,8 @@
+/**
+ * Event Manager auth is ENVIRONMENT-ONLY (EVENT_MANAGER_USERNAME / PASSWORD / SECRET).
+ * There is no API to create EVENT_MANAGER staff accounts from the app.
+ * Only SYSTEM_ADMIN / ops may provision those credentials on the server.
+ */
 import crypto from "crypto";
 
 const TOKEN_TTL_MS = 12 * 60 * 60 * 1000;

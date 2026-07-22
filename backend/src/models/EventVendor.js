@@ -17,6 +17,10 @@ const eventVendorSchema = new mongoose.Schema(
       index: true
     },
     quoteAmount: { type: Number, min: 0, default: 0 },
+    /** Vendor cost (same as quoteAmount; kept explicit for finance UI) */
+    vendorQuoteAmount: { type: Number, min: 0, default: 0 },
+    /** Price charged to the couple (revenue) */
+    couplePrice: { type: Number, min: 0, default: 0 },
     status: {
       type: String,
       enum: EVENT_VENDOR_STATUSES,

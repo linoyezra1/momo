@@ -79,6 +79,19 @@ const dealSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const financeSchema = new mongoose.Schema(
+  {
+    targetCoupleBudget: { type: Number, min: 0, default: 0 },
+    couplePaymentStatus: {
+      type: String,
+      enum: ["PENDING", "PARTIAL", "PAID"],
+      default: "PENDING"
+    },
+    couplePaymentNotes: { type: String, trim: true, default: "" }
+  },
+  { _id: false }
+);
+
 const userSchema = new mongoose.Schema(
   {
     username: { type: String, required: true, unique: true, trim: true },
@@ -88,6 +101,7 @@ const userSchema = new mongoose.Schema(
     event: { type: eventSchema, required: true },
     payment: { type: paymentSchema, default: () => ({ amountPaid: 0, paymentMethod: "" }) },
     deal: { type: dealSchema, default: () => ({}) },
+    finance: { type: financeSchema, default: () => ({}) },
     managedBy: {
       type: String,
       enum: ["admin", "eventManager"],
