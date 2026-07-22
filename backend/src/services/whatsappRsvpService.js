@@ -1,6 +1,7 @@
 import Guest from "../models/Guest.js";
 import User from "../models/User.js";
 import { publishDashboardEvent } from "./dashboardEvents.js";
+import { recordGuestSelfUpdate } from "./guestAuditService.js";
 import { normalizePhone, resolveSourceAfterSelfRsvp } from "../utils/guestPhone.js";
 import {
   buildTwilioContentVariables,
@@ -114,6 +115,11 @@ async function publishRsvpUpdate(guest) {
 }
 
 async function saveRsvp(guest, { status, attendeesCount }) {
+  const before = {
+    status: guest.status,
+    attendeesCount: guest.attendeesCount
+  };
+
   guest.status = status;
   if (attendeesCount !== undefined) {
     guest.attendeesCount = attendeesCount;
@@ -122,6 +128,7 @@ async function saveRsvp(guest, { status, attendeesCount }) {
   guest.source = resolveSourceAfterSelfRsvp(guest);
   guest.whatsappConversationState = "idle";
   await guest.save();
+  await recordGuestSelfUpdate({ guest, before, channel: "whatsapp" });
   await publishRsvpUpdate(guest);
 }
 

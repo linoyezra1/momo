@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { CalendarDays, ChevronDown, Clock3, MapPin, Phone, Users } from "lucide-react";
 import api from "../api";
 import AgentPhoneRsvpForm from "../components/AgentPhoneRsvpForm.jsx";
+import GuestAuditLogTable from "../components/GuestAuditLogTable.jsx";
 import SmsIcon from "../components/SmsIcon.jsx";
 import WhatsAppIcon from "../components/WhatsAppIcon.jsx";
 import { formatIsraeliDate } from "../utils/dateFormat.js";
@@ -489,6 +490,12 @@ export default function AgentWorkspacePage() {
             </tbody>
           </table>
         </div>
+
+        <GuestAuditLogTable
+          userId={userId}
+          apiPrefix="agent"
+          title="לוג עדכונים אחרונים"
+        />
       </div>
     </div>
   );

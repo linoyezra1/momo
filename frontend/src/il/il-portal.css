@@ -158,6 +158,146 @@
 .il-status-donut__legend .is-maybe { background: #d4af37; }
 .il-status-donut__legend .is-unknown { background: #94a3b8; }
 
+.il-audit-log {
+  margin: 1.25rem 0 1.5rem;
+  padding: 1.1rem 1.15rem;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 0.85rem;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.il-audit-log__header h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+  color: var(--us-espresso);
+}
+
+.il-audit-log__header p {
+  margin: 0 0 0.85rem;
+  color: var(--us-muted);
+  font-size: 0.82rem;
+}
+
+.il-audit-log__error {
+  margin: 0 0 0.75rem;
+  color: #b42318;
+  font-size: 0.85rem;
+}
+
+.il-audit-log__table-wrap {
+  overflow: auto;
+  max-height: 28rem;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 0.65rem;
+}
+
+.il-audit-log__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+}
+
+.il-audit-log__table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 0.65rem 0.8rem;
+  text-align: right;
+  font-weight: 600;
+  color: var(--us-espresso);
+  background: #f8fafc;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.28);
+  white-space: nowrap;
+}
+
+.il-audit-log__table tbody td {
+  padding: 0.75rem 0.8rem;
+  vertical-align: top;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.il-audit-log__table tbody tr:hover {
+  background: rgba(248, 250, 252, 0.9);
+}
+
+.il-audit-log__datetime {
+  min-width: 6.5rem;
+}
+
+.il-audit-log__date {
+  display: block;
+  font-weight: 500;
+  color: var(--us-espresso);
+}
+
+.il-audit-log__time {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.72rem;
+  color: #94a3b8;
+}
+
+.il-audit-log__guest strong {
+  display: block;
+  font-weight: 700;
+  color: #111827;
+}
+
+.il-audit-log__guest span {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.72rem;
+  font-weight: 400;
+  color: #94a3b8;
+}
+
+.il-audit-log__description {
+  color: #334155;
+  line-height: 1.45;
+}
+
+.il-audit-log__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.il-audit-log__badge--agent {
+  color: #1d4ed8;
+  background: rgba(59, 130, 246, 0.12);
+}
+
+.il-audit-log__badge--guest {
+  color: #047857;
+  background: rgba(16, 185, 129, 0.12);
+}
+
+.il-audit-log__badge--client {
+  color: #9a3412;
+  background: rgba(249, 115, 22, 0.12);
+}
+
+.il-audit-log__badge--system {
+  color: #475569;
+  background: rgba(148, 163, 184, 0.18);
+}
+
+.il-audit-log__empty {
+  text-align: center;
+  color: var(--us-muted);
+  padding: 1.5rem 0.8rem !important;
+}
+
+.il-audit-log__footer {
+  display: flex;
+  justify-content: center;
+  margin-top: 0.85rem;
+}
+
 .il-invitation-editor__layout {
   flex: 1;
   min-height: 0;

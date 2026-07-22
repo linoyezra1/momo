@@ -9,6 +9,7 @@ import { normalizeIsraeliPhone } from "../utils/phoneNormalize";
 import { formatFailedRowLabel, mergeFailedRows, parseExcelGuestRows } from "../utils/guestExcelImport";
 import IlInvitationEditor from "../il/components/IlInvitationEditor.jsx";
 import IlWhatsAppInviteEditor from "../il/components/IlWhatsAppInviteEditor.jsx";
+import GuestAuditLogTable from "../components/GuestAuditLogTable.jsx";
 import "../us/client-portal.css";
 import "../il/il-portal.css";
 
@@ -881,6 +882,8 @@ export default function ClientDashboardPage() {
             </div>
           </div>
         </section>
+
+        <GuestAuditLogTable userId={userId} enableLiveUpdates />
 
         <div className="us-toolbar">
           <button

@@ -2,6 +2,7 @@ import express from "express";
 import User from "../models/User.js";
 import Guest from "../models/Guest.js";
 import { publishDashboardEvent } from "../services/dashboardEvents.js";
+import { listGuestAuditLogs, recordPhoneAttemptAudit } from "../services/guestAuditService.js";
 import {
   requireAgent,
   signAgentToken,
@@ -93,6 +94,27 @@ router.get("/clients", async (_req, res) => {
     return res.json({ clients });
   } catch (error) {
     return res.status(500).json({ message: "Failed to load clients", error: error.message });
+  }
+});
+
+router.get("/:userId/audit-logs", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await User.findById(userId).select("_id");
+    if (!user) {
+      return res.status(404).json({ message: "Client not found" });
+    }
+
+    const result = await listGuestAuditLogs({
+      userId,
+      limit: req.query.limit,
+      skip: req.query.skip,
+      guestId: req.query.guestId
+    });
+
+    return res.json(result);
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "Failed to load audit logs" });
   }
 });
 
@@ -233,6 +255,19 @@ router.patch("/:userId/guests/:guestId/phone-rsvp", async (req, res) => {
     if (!guest) {
       return res.status(409).json({ message: "המוזמן כבר אינו זמין בתור השיחות הפעיל" });
     }
+
+    await recordPhoneAttemptAudit({
+      userId,
+      guest,
+      callStatus,
+      attemptNumber: nextAttempt,
+      previousStatus: existingGuest.status,
+      nextStatus: update.status,
+      attendeesCount:
+        typeof update.attendeesCount === "number"
+          ? update.attendeesCount
+          : undefined
+    });
 
     publishDashboardEvent(userId, {
       type: "guest-phone-rsvp-updated",

@@ -18,6 +18,11 @@ import { sendBulkWhatsApp } from "../services/bulkWhatsAppService.js";
 import { getClientBaseUrl } from "../utils/clientUrl.js";
 import ActivationCode from "../models/ActivationCode.js";
 import { subscribeToDashboardEvents } from "../services/dashboardEvents.js";
+import {
+  listGuestAuditLogs,
+  recordClientGuestUpdate,
+  recordGuestAuditLog
+} from "../services/guestAuditService.js";
 
 const router = express.Router();
 
@@ -121,6 +126,27 @@ router.get("/:userId/live-updates", async (req, res) => {
   }
 });
 
+router.get("/:userId/audit-logs", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await User.findById(userId).select("_id");
+    if (!user) {
+      return res.status(404).json({ message: "Client not found" });
+    }
+
+    const result = await listGuestAuditLogs({
+      userId,
+      limit: req.query.limit,
+      skip: req.query.skip,
+      guestId: req.query.guestId
+    });
+
+    return res.json(result);
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "Failed to load audit logs" });
+  }
+});
+
 router.get("/:userId/guests", async (req, res) => {
   try {
     const { userId } = req.params;
@@ -198,6 +224,12 @@ router.post("/:userId/guests/manual", async (req, res) => {
         },
         { new: true, runValidators: true }
       );
+      await recordClientGuestUpdate({
+        userId,
+        before: existing,
+        after: guest,
+        channel: "dashboard"
+      });
       return res.json({ message: "Guest updated", guest });
     }
 
@@ -209,6 +241,20 @@ router.post("/:userId/guests/manual", async (req, res) => {
       giftAmount: Math.max(0, Number(giftAmount || 0)),
       status,
       source: "manual"
+    });
+
+    await recordGuestAuditLog({
+      userId,
+      guestId: guest._id,
+      guestName: guest.fullName,
+      guestPhone: guest.phone,
+      actor: "client",
+      channel: "dashboard",
+      action: "guest_created",
+      description: `הוספת מוזמן: ${guest.status}${
+        guest.status === "מגיע" ? ` (${guest.attendeesCount} מוזמנים)` : ""
+      }`,
+      metadata: {}
     });
 
     return res.status(201).json({ message: "Guest added", guest });
@@ -432,7 +478,7 @@ router.post("/:userId/guests/import", async (req, res) => {
       }
 
       try {
-        await Guest.findByIdAndUpdate(
+        const updatedGuest = await Guest.findByIdAndUpdate(
           existing._id,
           {
             fullName: doc.fullName,
@@ -441,8 +487,16 @@ router.post("/:userId/guests/import", async (req, res) => {
             status: doc.status,
             source: resolveSourceAfterExcelOverwrite(existing.source)
           },
-          { runValidators: true }
+          { new: true, runValidators: true }
         );
+        if (updatedGuest) {
+          await recordClientGuestUpdate({
+            userId,
+            before: existing,
+            after: updatedGuest,
+            channel: "import"
+          });
+        }
         updatedCount += 1;
       } catch (updateError) {
         failedRows.push(
@@ -542,6 +596,11 @@ router.patch("/:userId/guests/:guestId", async (req, res) => {
       return res.status(400).json({ message: "No fields to update" });
     }
 
+    const existingGuest = await Guest.findOne({ _id: guestId, userId });
+    if (!existingGuest) {
+      return res.status(404).json({ message: "Guest not found" });
+    }
+
     const guest = await Guest.findOneAndUpdate({ _id: guestId, userId }, update, {
       new: true,
       runValidators: true
@@ -549,6 +608,13 @@ router.patch("/:userId/guests/:guestId", async (req, res) => {
     if (!guest) {
       return res.status(404).json({ message: "Guest not found" });
     }
+
+    await recordClientGuestUpdate({
+      userId,
+      before: existingGuest,
+      after: guest,
+      channel: "dashboard"
+    });
 
     return res.json({ message: "Guest updated", guest });
   } catch (error) {

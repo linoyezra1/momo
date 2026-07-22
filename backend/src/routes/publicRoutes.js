@@ -3,6 +3,7 @@ import User from "../models/User.js";
 import Guest from "../models/Guest.js";
 import Lead from "../models/Lead.js";
 import { normalizePhone, resolveSourceAfterSelfRsvp } from "../utils/guestPhone.js";
+import { recordGuestSelfUpdate } from "../services/guestAuditService.js";
 
 const router = express.Router();
 
@@ -79,6 +80,10 @@ router.post("/event/:eventId/rsvp", async (req, res) => {
     const existing = await Guest.findOne({ userId: eventId, phone: normalizedPhone });
 
     if (existing) {
+      const before = {
+        status: existing.status,
+        attendeesCount: existing.attendeesCount
+      };
       const updated = await Guest.findByIdAndUpdate(
         existing._id,
         {
@@ -91,6 +96,11 @@ router.post("/event/:eventId/rsvp", async (req, res) => {
         },
         { new: true, runValidators: true }
       );
+      await recordGuestSelfUpdate({
+        guest: updated,
+        before,
+        channel: "web"
+      });
       return res.json({ message: "RSVP updated", guestId: updated._id, updated: true });
     }
 
