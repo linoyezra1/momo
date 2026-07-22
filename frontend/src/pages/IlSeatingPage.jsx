@@ -8,12 +8,13 @@ import IlSeatingTableEditModal from "../il/seating/IlSeatingTableEditModal.jsx";
 import { TABLE_SHAPES } from "../il/seating/seatingConstants.js";
 import { buildSeatingExportRows, filterSeatingGuests, makeSeatingId } from "../il/seating/ilSeatingUtils.js";
 import { useEventWorkspace } from "../utils/useEventWorkspace.js";
+import TableDispatchFeatureLockedNotice from "../components/TableDispatchFeatureLockedNotice.jsx";
 import "../us/client-portal.css";
 import "../il/il-portal.css";
 import "../il/seating/il-seating.css";
 import "../il/manager-event.css";
 
-const initialFilters = { seated: "", query: "" };
+const initialFilters = { query: "" };
 
 function defaultDispatchDateTimeLocal() {
   const date = new Date(Date.now() + 60 * 60 * 1000);
@@ -45,6 +46,7 @@ export default function IlSeatingPage() {
   const [scheduledAt, setScheduledAt] = useState(defaultDispatchDateTimeLocal);
   const [canSendTableWhatsApp, setCanSendTableWhatsApp] = useState(false);
   const [tableDispatch, setTableDispatch] = useState(null);
+  const [eventInfo, setEventInfo] = useState(null);
 
   const tableLabelById = useMemo(
     () => new Map(tables.map((table) => [table.tableId, table.label])),
@@ -92,6 +94,7 @@ export default function IlSeatingPage() {
       setWarnings((response.data.warnings || []).filter((item) => item.type === "overfill"));
       setCanSendTableWhatsApp(Boolean(response.data.features?.canSendTableWhatsApp));
       setTableDispatch(response.data.tableDispatch || null);
+      setEventInfo(response.data.event || null);
     } catch (loadError) {
       setError(loadError.response?.data?.message || "טעינת מערכת ההושבה נכשלה");
     } finally {
@@ -259,7 +262,7 @@ export default function IlSeatingPage() {
     setDispatchError("");
     try {
       if (!canSendTableWhatsApp) {
-        setDispatchError("הפיצ׳ר דורש הפעלה ע״י מנהל המערכת ורכישת קופון.");
+        setDispatchError("");
         setDispatchSaving(false);
         return;
       }
@@ -474,9 +477,7 @@ export default function IlSeatingPage() {
               להכווין אותם במהירות ביום האירוע.
             </p>
             {!canSendTableWhatsApp ? (
-              <p className="il-budget-warning">
-                הפיצ׳ר אינו פעיל לאירוע זה. יש להפעיל אותו בממשק מנהל המערכת ולרכוש קופון.
-              </p>
+              <TableDispatchFeatureLockedNotice event={eventInfo} eventId={userId} />
             ) : null}
             <label className="us-admin-field-label" style={{ display: "block", marginBottom: "0.75rem" }}>
               שעת שליחה

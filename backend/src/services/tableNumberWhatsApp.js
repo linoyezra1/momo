@@ -1,22 +1,38 @@
 /**
  * Day-of table-number WhatsApp (Meta Content Template).
  *
- * Body (he / UTILITY):
- * שלום {{1}}, תודה שהגעתם ל{{2}} שלנו! הנכם יושבים בשולחן {{3}}. אוהבים, {{4}}
+ * Friendly name: event_table_number_utility
+ * Content SID: HX250934f85a0e9b55f2d7bc0dfa84351d
+ * Language: he · Category: UTILITY · Type: Text
  *
- * {{1}} guest name
- * {{2}} event type (חתונה / ברית / …)
- * {{3}} table label
- * {{4}} hosts / couple names
+ * Body:
+ * ✨ 🥂 ✨
+ *
+ * שלום {{1}},
+ *
+ * תודה שהגעתם ל{{2}}!
+ *
+ * השולחן שלכם הוא:
+ * {{3}}
+ *
+ * מחכים לחגוג איתכם,
+ * {{4}}
+ *
+ * ✨ 🥂 ✨
+ *
+ * {{1}} guest full name     sample: יצחק כהן
+ * {{2}} event type          sample: חתונה
+ * {{3}} table label/number  sample: 12
+ * {{4}} hosts / couple      sample: לינוי ויצחק
  */
 import {
-  buildTwilioContentVariables,
   isTwilioConfigured,
+  sanitizeWhatsAppTemplateVariable,
   sendTwilioWhatsAppMessage,
   toTwilioWhatsAppAddress
 } from "../utils/twilioWhatsApp.js";
 
-const TABLE_NUMBER_CONTENT_SID_DEFAULT = "";
+const TABLE_NUMBER_CONTENT_SID_DEFAULT = "HX250934f85a0e9b55f2d7bc0dfa84351d";
 
 export function getTableNumberContentSid() {
   return String(
@@ -45,11 +61,11 @@ export function buildEventHostsLabel(event = {}) {
 }
 
 export function buildTableNumberContentVariables({ guestName, eventType, tableLabel, hostsLabel }) {
-  return buildTwilioContentVariables({
-    1: String(guestName || "אורח/ת").trim() || "אורח/ת",
-    2: String(eventType || "אירוע").trim() || "אירוע",
-    3: String(tableLabel || "?").trim() || "?",
-    4: String(hostsLabel || "המארחים").trim() || "המארחים"
+  return JSON.stringify({
+    "1": sanitizeWhatsAppTemplateVariable(guestName, "אורח/ת"),
+    "2": sanitizeWhatsAppTemplateVariable(eventType, "אירוע"),
+    "3": sanitizeWhatsAppTemplateVariable(tableLabel, "?"),
+    "4": sanitizeWhatsAppTemplateVariable(hostsLabel, "המארחים")
   });
 }
 
@@ -58,7 +74,21 @@ export function buildTableNumberFreeText({ guestName, eventType, tableLabel, hos
   const type = String(eventType || "אירוע").trim() || "אירוע";
   const table = String(tableLabel || "?").trim() || "?";
   const hosts = String(hostsLabel || "המארחים").trim() || "המארחים";
-  return `שלום ${name}, תודה שהגעתם ל${type} שלנו! הנכם יושבים בשולחן ${table}. אוהבים, ${hosts}`;
+  return [
+    "✨ 🥂 ✨",
+    "",
+    `שלום ${name},`,
+    "",
+    `תודה שהגעתם ל${type}!`,
+    "",
+    "השולחן שלכם הוא:",
+    table,
+    "",
+    "מחכים לחגוג איתכם,",
+    hosts,
+    "",
+    "✨ 🥂 ✨"
+  ].join("\n");
 }
 
 export function canSendTableWhatsApp(user) {
@@ -83,7 +113,7 @@ export async function sendTableNumberWhatsApp({ user, guest, tableLabel }) {
   }
 
   const event = user?.event || {};
-  const guestName = String(guest.fullName || "").trim().split(/\s+/)[0] || guest.fullName || "אורח/ת";
+  const guestName = String(guest.fullName || "").trim() || "אורח/ת";
   const eventType = String(event.eventType || "אירוע").trim() || "אירוע";
   const hostsLabel = buildEventHostsLabel(event);
   const label = String(tableLabel || "?").trim() || "?";

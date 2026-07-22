@@ -1,5 +1,6 @@
 import express from "express";
 import twilio from "twilio";
+import { handleGetAccessDetailsRequest } from "../services/whatsappAccessDetailsService.js";
 import { handleIncomingWhatsAppRsvp } from "../services/whatsappRsvpService.js";
 import { getClientBaseUrl } from "../utils/clientUrl.js";
 
@@ -37,26 +38,40 @@ function hasValidTwilioSignature(req) {
   return twilio.validateRequest(authToken, signature, getWebhookRequestUrl(req), req.body);
 }
 
+/**
+ * Inbound WhatsApp:
+ * 1) Couple Quick Reply → session credentials (GET_CREDENTIALS)
+ * 2) Guest RSVP button / reply flow
+ */
 router.post("/twilio-whatsapp", async (req, res) => {
   if (!hasValidTwilioSignature(req)) {
-    console.warn("[Twilio RSVP] Rejected inbound webhook: invalid Twilio signature");
+    console.warn("[Twilio WhatsApp] Rejected inbound webhook: invalid Twilio signature");
     return res.status(403).send("Invalid Twilio signature");
   }
 
+  const inbound = {
+    from: req.body.From,
+    body: req.body.Body,
+    buttonPayload: req.body.ButtonPayload,
+    buttonText: req.body.ButtonText,
+    interactiveData: req.body.InteractiveData,
+    origin: getClientBaseUrl(req)
+  };
+
   try {
     console.log(
-      `[Twilio RSVP] Inbound webhook received: ${req.body.MessageSid || "unknown"} from ${req.body.From || "unknown"}`
+      `[Twilio WhatsApp] Inbound: ${req.body.MessageSid || "unknown"} from ${req.body.From || "unknown"} payload=${req.body.ButtonPayload || "-"} text=${req.body.ButtonText || req.body.Body || "-"}`
     );
-    await handleIncomingWhatsAppRsvp({
-      from: req.body.From,
-      body: req.body.Body,
-      buttonPayload: req.body.ButtonPayload,
-      buttonText: req.body.ButtonText,
-      origin: getClientBaseUrl(req)
-    });
+
+    const accessResult = await handleGetAccessDetailsRequest(inbound);
+    if (accessResult.handled) {
+      return res.type("text/xml").status(200).send("<Response></Response>");
+    }
+
+    await handleIncomingWhatsAppRsvp(inbound);
     return res.type("text/xml").status(200).send("<Response></Response>");
   } catch (error) {
-    console.error("[Twilio RSVP] Incoming interaction failed:", error?.message || error);
+    console.error("[Twilio WhatsApp] Incoming interaction failed:", error?.message || error);
     return res.status(500).send("Failed to process WhatsApp interaction");
   }
 });

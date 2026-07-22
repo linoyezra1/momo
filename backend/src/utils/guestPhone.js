@@ -23,6 +23,19 @@ export function normalizePhone(phone) {
   return value;
 }
 
+/** Common stored / inbound forms of the same Israeli mobile for DB `$in` lookups. */
+export function phoneLookupVariants(phone) {
+  const normalized = normalizePhone(phone);
+  if (!normalized) return [];
+
+  const local = normalized.startsWith("0") ? normalized : `0${normalized}`;
+  const national = local.startsWith("0") ? local.slice(1) : local;
+  const e164 = `+972${national}`;
+  const e164Digits = `972${national}`;
+
+  return [...new Set([local, national, e164, e164Digits, `0${national}`].filter(Boolean))];
+}
+
 export function isSelfConfirmedSource(source) {
   return source === "form" || source === "excel_and_form";
 }

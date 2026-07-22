@@ -5,6 +5,7 @@ import Guest from "../models/Guest.js";
 import ActivationCode from "../models/ActivationCode.js";
 import Lead from "../models/Lead.js";
 import { buildClientUrl } from "../utils/clientUrl.js";
+import { normalizePhone } from "../utils/guestPhone.js";
 import {
   requireAdmin,
   signAdminToken,
@@ -315,7 +316,8 @@ router.post("/create-client", async (req, res) => {
       return res.status(400).json({ message: eventValidationError });
     }
 
-    const phone = String(contactPhone || req.body?.bridePhone || "").trim();
+    const rawPhone = String(contactPhone || req.body?.bridePhone || "").trim();
+    const phone = normalizePhone(rawPhone) || rawPhone;
     if (!phone) {
       return res.status(400).json({ message: "יש להזין מספר טלפון של הכלה (איש קשר)" });
     }
@@ -393,7 +395,8 @@ router.patch("/clients/:userId", async (req, res) => {
     }
 
     if (contactPhone != null || req.body?.bridePhone != null) {
-      user.contactPhone = String(contactPhone || req.body?.bridePhone || "").trim();
+      const rawPhone = String(contactPhone || req.body?.bridePhone || "").trim();
+      user.contactPhone = normalizePhone(rawPhone) || rawPhone;
     }
 
     if (event) {

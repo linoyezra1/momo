@@ -134,14 +134,11 @@
   font-weight: 700;
 }
 
-.il-budget-warning {
-  margin: 0;
-  padding: 0.85rem 1rem;
-  border-radius: 0.75rem;
-  border: 1px solid #f5c26b;
-  background: #fff8eb;
-  color: #92400e;
-  font-weight: 600;
+.il-budget-warning a,
+.il-hostess-modal a {
+  color: inherit;
+  font-weight: 800;
+  text-decoration: underline;
 }
 
 .il-money-input,

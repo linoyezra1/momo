@@ -84,6 +84,7 @@ export default function App() {
       />
       <Route path="/event/:eventId" element={<EventPage />} />
       <Route path="/hostess/:eventId" element={<HostessPage />} />
+      <Route path="/login" element={<Navigate to="/client/login" replace />} />
       <Route path="/client/login" element={<ClientLoginPage />} />
       <Route path="/client/dashboard/:userId" element={<ClientDashboardPage />} />
       <Route path="/client/dashboard/:userId/audit-log" element={<ClientAuditLogPage />} />

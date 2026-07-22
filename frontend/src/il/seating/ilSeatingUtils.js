@@ -12,11 +12,15 @@ export function getTableOccupancy(guests, tableId) {
     .reduce((sum, guest) => sum + countGuestSeats(guest), 0);
 }
 
-export function filterSeatingGuests(guests, { seated, query }) {
+export function filterSeatingGuests(guests, { seated, query } = {}) {
   return guests.filter((guest) => {
     if (!guest.isEligible) return false;
-    if (seated === "seated" && !guest.isSeated) return false;
-    if (seated === "floating" && guest.isSeated) return false;
+    // Assigned guests belong on tables — keep them out of the seating waitlist.
+    if (guest.isSeated || guest.seatingTableId) {
+      if (seated === "seated") return true;
+      return false;
+    }
+    if (seated === "seated") return false;
     const q = String(query || "").trim().toLowerCase();
     if (!q) return true;
     return (

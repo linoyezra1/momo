@@ -39,6 +39,7 @@ router.get("/:eventId", async (req, res) => {
       eventId: String(user._id),
       eventLabel: buildEventLabel(user.event),
       eventType: user.event?.eventType || "אירוע",
+      event: user.event || null,
       features: {
         canSendTableWhatsApp: canSendTableWhatsApp(user)
       },

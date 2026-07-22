@@ -6,114 +6,139 @@ import {
 } from "../utils/twilioWhatsApp.js";
 
 /**
- * Meta / Twilio Content Template — resubmit as UTILITY.
+ * Couple onboarding WhatsApp (two templates in sequence):
  *
- * Friendly name: couple_login_access_utility
- * Language: he (Hebrew)
- * Category: UTILITY
+ * 1) welcome_momoevent — CTA with URL buttons (Approved)
+ *    SID: HX97878ac790cd66e73459d9fa3529a0f3
+ *    {{1}} couple name · {{2}} event id for /event/{{2}}
  *
- * Body (copy exactly):
- * ✨ 🥂 ✨
- * שלום {{1}},
- *
- * מתרגשים איתכם לקראת האירוע!
- *
- * להלן פרטי הגישה שלך למערכת momoEVENT:
- *
- * שם משתמש: {{2}}
- * סיסמה: {{3}}
- *
- * כניסה למערכת:
- * {{4}}
- *
- * קישור להזמנה הדיגיטלית:
- * {{5}}
- *
- * ✨ 🎉 ✨
- *
- * Variables:
- * 1 = שם הנמען
- * 2 = שם משתמש
- * 3 = סיסמה
- * 4 = קישור כניסה לדשבורד
- * 5 = קישור להזמנה הציבורית
- *
- * Sample values for review:
- * {{1}}=לינוי
- * {{2}}=linoy_itzik
- * {{3}}=TempPass123
- * {{4}}=https://momoevent.up.railway.app/client/login
- * {{5}}=https://momoevent.up.railway.app/event/example
- *
- * After approval: TWILIO_COUPLE_ACCESS_CONTENT_SID=HXxxxxxxxx
+ * 2) get_login_credentials — Quick Reply (Approved UTILITY)
+ *    Env: TWILIO_GET_LOGIN_CREDENTIALS_CONTENT_SID
+ *    Button: "🔑 לקבלת פרטי הגישה" · payload GET_CREDENTIALS
+ *    → webhook sends free-text session credentials (whatsappAccessDetailsService)
  */
 
-const COUPLE_ACCESS_CONTENT_SID_DEFAULT = "";
+const WELCOME_CONTENT_SID_DEFAULT = "HX97878ac790cd66e73459d9fa3529a0f3";
 
 export function getAdminWelcomeDisplayName() {
   return String(process.env.ADMIN_DISPLAY_NAME || "").trim() || "momoEVENT";
 }
 
-function getCoupleAccessContentSid() {
+export function getWelcomeContentSid() {
   return String(
-    process.env.TWILIO_COUPLE_ACCESS_CONTENT_SID || COUPLE_ACCESS_CONTENT_SID_DEFAULT || ""
+    process.env.TWILIO_COUPLE_ACCESS_CONTENT_SID || WELCOME_CONTENT_SID_DEFAULT || ""
   ).trim();
 }
 
-export function buildEventManagerWelcomeMessage({
-  brideName,
-  username,
-  password,
-  dashboardUrl,
-  invitationUrl
-}) {
-  const name = String(brideName || "").trim() || "כלה יקרה";
+export function getLoginCredentialsContentSid() {
+  return String(process.env.TWILIO_GET_LOGIN_CREDENTIALS_CONTENT_SID || "").trim();
+}
 
-  return `✨ 🥂 ✨
-שלום ${name},
+/** Extract `/event/:id` path segment for CTA button variable {{2}}. */
+export function extractEventPathId(invitationUrl, userId) {
+  if (userId) return String(userId).trim();
+  const match = String(invitationUrl || "").match(/\/event\/([^/?#]+)/i);
+  return String(match?.[1] || "").trim();
+}
 
-מתרגשים איתכם לקראת האירוע!
+export function buildEventManagerWelcomeMessage({ brideName, dashboardUrl, invitationUrl }) {
+  const name = String(brideName || "").trim() || "שלום";
 
-להלן פרטי הגישה שלך למערכת momoEVENT:
+  return `שלום ${name},
 
-שם משתמש: ${username}
-סיסמה: ${password}
+ברוכים הבאים ל- momoEVENT אישורי הגעה🎉
+
+המערכת שלכם מוכנה לשימוש.
+באמצעות המערכת תוכלו לנהל את אישורי ההגעה ולצפות בהזמנה הדיגיטלית.
+
+לבחירתכם, לחצו על הכפתורים למטה.
 
 כניסה למערכת:
 ${dashboardUrl}
 
-קישור להזמנה הדיגיטלית:
+צפייה בהזמנה:
 ${invitationUrl}
 
-✨ 🎉 ✨`;
+🔑 לקבלת פרטי הגישה — השיבו בהודעה: GET_CREDENTIALS`;
 }
 
-export function buildCoupleAccessContentVariables({
-  brideName,
-  username,
-  password,
-  dashboardUrl,
-  invitationUrl
-}) {
-  const values = {
-    "1": sanitizeWhatsAppTemplateVariable(brideName, "כלה יקרה"),
-    "2": sanitizeWhatsAppTemplateVariable(username, "-"),
-    "3": sanitizeWhatsAppTemplateVariable(password, "-"),
-    "4": sanitizeWhatsAppTemplateVariable(
-      dashboardUrl,
-      "https://momoevent.up.railway.app/client/login"
-    ),
-    "5": sanitizeWhatsAppTemplateVariable(
-      invitationUrl,
-      "https://momoevent.up.railway.app"
-    )
-  };
+export function buildCoupleAccessContentVariables({ brideName, eventPathId }) {
+  return JSON.stringify({
+    "1": sanitizeWhatsAppTemplateVariable(brideName, "שלום"),
+    "2": sanitizeWhatsAppTemplateVariable(eventPathId, "example")
+  });
+}
 
-  return JSON.stringify(values);
+async function sendWelcomeTemplate({
+  to,
+  contactPhone,
+  brideName,
+  eventPathId,
+  userId,
+  username,
+  senderLabel
+}) {
+  const contentSid = getWelcomeContentSid();
+  if (!contentSid.startsWith("HX")) {
+    return { ok: false, reason: "welcome_template_missing" };
+  }
+
+  const result = await sendTwilioWhatsAppMessage({
+    to,
+    contentSid,
+    contentVariables: buildCoupleAccessContentVariables({ brideName, eventPathId }),
+    userId,
+    username,
+    senderLabel: senderLabel || username,
+    recipientPhone: contactPhone
+  });
+
+  return {
+    ok: true,
+    sid: result?.sid || "",
+    contentSid,
+    mode: "content_template"
+  };
 }
 
 /**
- * Sends couple login credentials via Meta-approved Content Template when configured.
+ * Second message: approved Quick Reply template with GET_CREDENTIALS button.
+ * Requires TWILIO_GET_LOGIN_CREDENTIALS_CONTENT_SID after Meta approval.
+ */
+async function sendCredentialsQuickReplyTemplate({
+  to,
+  contactPhone,
+  userId,
+  username,
+  senderLabel
+}) {
+  const contentSid = getLoginCredentialsContentSid();
+  if (!contentSid.startsWith("HX")) {
+    console.warn(
+      `[WHATSAPP] Skipping get_login_credentials — set TWILIO_GET_LOGIN_CREDENTIALS_CONTENT_SID (user=${username || userId || "unknown"})`
+    );
+    return { ok: false, reason: "credentials_qr_template_missing" };
+  }
+
+  const result = await sendTwilioWhatsAppMessage({
+    to,
+    contentSid,
+    userId,
+    username,
+    senderLabel: senderLabel || username,
+    recipientPhone: contactPhone
+  });
+
+  return {
+    ok: true,
+    sid: result?.sid || "",
+    contentSid,
+    mode: "content_template"
+  };
+}
+
+/**
+ * Sends welcome CTA template, then credentials Quick Reply template.
  * Falls back to free-text only if TWILIO_COUPLE_ACCESS_ALLOW_FREE_TEXT=true (local/dev).
  */
 export async function sendEventManagerWelcomeWhatsApp({
@@ -141,70 +166,71 @@ export async function sendEventManagerWelcomeWhatsApp({
     return { sent: false, reason: "invalid_phone" };
   }
 
-  const contentSid = getCoupleAccessContentSid();
   const allowFreeText =
     String(process.env.TWILIO_COUPLE_ACCESS_ALLOW_FREE_TEXT || "")
       .trim()
       .toLowerCase() === "true";
 
+  const eventPathId = extractEventPathId(invitationUrl, userId);
+  const common = {
+    to,
+    contactPhone,
+    userId,
+    username,
+    senderLabel: senderLabel || username
+  };
+
   try {
-    if (contentSid.startsWith("HX")) {
-      const contentVariables = buildCoupleAccessContentVariables({
+    const welcome = await sendWelcomeTemplate({
+      ...common,
+      brideName,
+      eventPathId
+    });
+
+    if (!welcome.ok) {
+      if (!allowFreeText) {
+        console.error(
+          `ERROR: שליחת וואטסאפ נכשלה למספר ${contactPhone || "לא ידוע"} מאת משתמש ${senderLabel || username || userId || "לא ידוע"}. סיבה: חסר TWILIO_COUPLE_ACCESS_CONTENT_SID (תבנית welcome_momoevent)`
+        );
+        return { sent: false, reason: "template_not_configured" };
+      }
+
+      const body = buildEventManagerWelcomeMessage({
         brideName,
-        username,
-        password,
         dashboardUrl,
         invitationUrl
       });
-
       const result = await sendTwilioWhatsAppMessage({
         to,
-        contentSid,
-        contentVariables,
+        body,
         userId,
         username,
         senderLabel: senderLabel || username,
         recipientPhone: contactPhone
       });
-
       return {
         sent: true,
         sid: result?.sid || "",
         to,
-        mode: "content_template",
-        contentSid
+        mode: "free_text",
+        credentialsQuickReply: { sent: false, reason: "free_text_fallback" }
       };
     }
 
-    if (!allowFreeText) {
-      console.error(
-        `ERROR: שליחת וואטסאפ נכשלה למספר ${contactPhone || "לא ידוע"} מאת משתמש ${senderLabel || username || userId || "לא ידוע"}. סיבה: חסר TWILIO_COUPLE_ACCESS_CONTENT_SID (תבנית Meta מאושרת לפרטי גישה)`
-      );
-      return { sent: false, reason: "template_not_configured" };
-    }
-
-    const body = buildEventManagerWelcomeMessage({
-      brideName,
-      username,
-      password,
-      dashboardUrl,
-      invitationUrl
-    });
-
-    const result = await sendTwilioWhatsAppMessage({
-      to,
-      body,
-      userId,
-      username,
-      senderLabel: senderLabel || username,
-      recipientPhone: contactPhone
-    });
+    const credentialsQr = await sendCredentialsQuickReplyTemplate(common);
 
     return {
       sent: true,
-      sid: result?.sid || "",
+      sid: welcome.sid,
       to,
-      mode: "free_text"
+      mode: "content_template",
+      contentSid: welcome.contentSid,
+      credentialsQuickReply: {
+        sent: Boolean(credentialsQr.ok),
+        reason: credentialsQr.ok ? null : credentialsQr.reason,
+        sid: credentialsQr.sid || "",
+        contentSid: credentialsQr.contentSid || ""
+      }
     };
   } catch (error) {
     return {

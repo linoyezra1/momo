@@ -560,9 +560,11 @@
   border-color: #b7e4c7;
 }
 
-.il-seat-guest-item.is-floating {
-  background: #fffdf7;
-  border-color: #f0dfb0;
+.il-seat-guest-item.is-empty {
+  opacity: 0.75;
+  pointer-events: none;
+  justify-content: center;
+  text-align: center;
 }
 
 .il-seat-guest-item__main {

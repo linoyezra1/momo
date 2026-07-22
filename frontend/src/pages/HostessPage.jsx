@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { MessageCircle, Search, UserCheck } from "lucide-react";
 import api from "../api";
+import TableDispatchFeatureLockedNotice from "../components/TableDispatchFeatureLockedNotice.jsx";
 import "../us/client-portal.css";
 import "../il/il-portal.css";
 import "../il/hostess.css";
@@ -11,6 +12,8 @@ export default function HostessPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [eventLabel, setEventLabel] = useState("");
+  const [eventType, setEventType] = useState("");
+  const [eventInfo, setEventInfo] = useState(null);
   const [guests, setGuests] = useState([]);
   const [query, setQuery] = useState("");
   const [canSendTableWhatsApp, setCanSendTableWhatsApp] = useState(false);
@@ -25,6 +28,8 @@ export default function HostessPage() {
     try {
       const { data } = await api.get(`/hostess/${eventId}`);
       setEventLabel(data.eventLabel || "");
+      setEventType(data.eventType || "");
+      setEventInfo(data.event || null);
       setGuests(data.guests || []);
       setCanSendTableWhatsApp(Boolean(data.features?.canSendTableWhatsApp));
     } catch (loadError) {
@@ -190,11 +195,14 @@ export default function HostessPage() {
             onClick={(event) => event.stopPropagation()}
           >
             <h2>הפיצ׳ר אינו פעיל</h2>
-            <p>
-              שליחת מספר שולחן ב-WhatsApp דורשת הפעלה ע״י מנהל המערכת ורכישת קופון מתאים.
-            </p>
+            <TableDispatchFeatureLockedNotice
+              event={eventInfo}
+              eventLabel={eventLabel}
+              eventType={eventType}
+              eventId={eventId}
+            />
             <button className="us-btn us-btn--primary" type="button" onClick={() => setLockedModal(false)}>
-              הבנתי
+              סגור
             </button>
           </div>
         </div>
