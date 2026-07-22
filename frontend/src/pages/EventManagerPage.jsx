@@ -192,6 +192,9 @@ export default function EventManagerPage() {
           <p>יצירת זוגות וניהול אירועים · ללא הקצאת קופונים</p>
         </div>
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+          <Link className="us-admin-btn" to="/manager/vendors">
+            מאגר ספקים
+          </Link>
           <button className="us-admin-btn us-admin-btn--primary" type="button" onClick={openCreateWizard}>
             פתיחת אירוע חדש
           </button>
@@ -268,6 +271,9 @@ export default function EventManagerPage() {
                 <div className="us-admin-form-actions" style={{ marginTop: "1rem" }}>
                   <Link className="us-admin-btn us-admin-btn--primary" to={`/client/dashboard/${selectedClient.userId}`}>
                     טבלת אורחים
+                  </Link>
+                  <Link className="us-admin-btn" to={`/client/dashboard/${selectedClient.userId}/vendors`}>
+                    ספקים והצעות מחיר
                   </Link>
                   <Link className="us-admin-btn" to={`/client/dashboard/${selectedClient.userId}/seating`}>
                     מערכת הושבה

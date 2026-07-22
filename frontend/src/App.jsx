@@ -14,7 +14,9 @@ import EventPage from "./pages/EventPage.jsx";
 import ClientLoginPage from "./pages/ClientLoginPage.jsx";
 import ClientDashboardPage from "./pages/ClientDashboardPage.jsx";
 import ClientAuditLogPage from "./pages/ClientAuditLogPage.jsx";
+import ClientVendorsPage from "./pages/ClientVendorsPage.jsx";
 import IlSeatingPage from "./pages/IlSeatingPage.jsx";
+import EventManagerVendorsPage from "./pages/EventManagerVendorsPage.jsx";
 
 export default function App() {
   return (
@@ -35,6 +37,14 @@ export default function App() {
         element={
           <EventManagerProtectedRoute>
             <EventManagerPage />
+          </EventManagerProtectedRoute>
+        }
+      />
+      <Route
+        path="/manager/vendors"
+        element={
+          <EventManagerProtectedRoute>
+            <EventManagerVendorsPage />
           </EventManagerProtectedRoute>
         }
       />
@@ -59,6 +69,7 @@ export default function App() {
       <Route path="/client/login" element={<ClientLoginPage />} />
       <Route path="/client/dashboard/:userId" element={<ClientDashboardPage />} />
       <Route path="/client/dashboard/:userId/audit-log" element={<ClientAuditLogPage />} />
+      <Route path="/client/dashboard/:userId/vendors" element={<ClientVendorsPage />} />
       <Route path="/client/dashboard/:userId/seating" element={<IlSeatingPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

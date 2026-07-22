@@ -803,6 +803,9 @@ export default function ClientDashboardPage() {
                 <Link className="il-dash-link-btn il-dash-link-btn--muted" to={`/client/dashboard/${userId}/audit-log`}>
                   לוג עדכונים
                 </Link>
+                <Link className="il-dash-link-btn il-dash-link-btn--muted" to={`/client/dashboard/${userId}/vendors`}>
+                  ספקים והצעות מחיר
+                </Link>
               </div>
             </div>
 
@@ -954,6 +957,13 @@ export default function ClientDashboardPage() {
                       onClick={() => setActionsMenuOpen(false)}
                     >
                       מערכת הושבה
+                    </Link>
+                    <Link
+                      role="menuitem"
+                      to={`/client/dashboard/${userId}/vendors`}
+                      onClick={() => setActionsMenuOpen(false)}
+                    >
+                      ספקים והצעות מחיר
                     </Link>
                     <button
                       type="button"
