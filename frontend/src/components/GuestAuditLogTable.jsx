@@ -35,7 +35,9 @@ export default function GuestAuditLogTable({
   userId,
   apiPrefix = "client",
   title = "לוג עדכונים ושינויים",
-  enableLiveUpdates = false
+  enableLiveUpdates = false,
+  showHeader = true,
+  fullPage = false
 }) {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -105,11 +107,18 @@ export default function GuestAuditLogTable({
   }, [apiPrefix, enableLiveUpdates, loadEntries, userId]);
 
   return (
-    <section className="il-audit-log" aria-label={title}>
-      <div className="il-audit-log__header">
-        <h2>{title}</h2>
-        <p>מעקב בזמן אמת אחר שינויי סטטוס, כמות מגיעים ושיחות טלפון לכל מוזמן.</p>
-      </div>
+    <section
+      className={`il-audit-log${fullPage ? " il-audit-log--full-page" : ""}`}
+      dir="rtl"
+      lang="he"
+      aria-label={title}
+    >
+      {showHeader ? (
+        <div className="il-audit-log__header">
+          <h2>{title}</h2>
+          <p>מעקב בזמן אמת אחר שינויי סטטוס, כמות מגיעים ושיחות טלפון לכל מוזמן.</p>
+        </div>
+      ) : null}
 
       {error ? <p className="il-audit-log__error">{error}</p> : null}
 
@@ -150,7 +159,7 @@ export default function GuestAuditLogTable({
                   </td>
                   <td className="il-audit-log__guest">
                     <strong>{entry.guestName || "—"}</strong>
-                    <span>{entry.guestPhone || "—"}</span>
+                    <span dir="ltr">{entry.guestPhone || "—"}</span>
                   </td>
                   <td className="il-audit-log__description">{entry.description}</td>
                   <td className="il-audit-log__performer">

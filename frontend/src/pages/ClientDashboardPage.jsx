@@ -9,7 +9,6 @@ import { normalizeIsraeliPhone } from "../utils/phoneNormalize";
 import { formatFailedRowLabel, mergeFailedRows, parseExcelGuestRows } from "../utils/guestExcelImport";
 import IlInvitationEditor from "../il/components/IlInvitationEditor.jsx";
 import IlWhatsAppInviteEditor from "../il/components/IlWhatsAppInviteEditor.jsx";
-import GuestAuditLogTable from "../components/GuestAuditLogTable.jsx";
 import "../us/client-portal.css";
 import "../il/il-portal.css";
 
@@ -788,6 +787,9 @@ export default function ClientDashboardPage() {
             >
               ✨ עריכת הזמנה ותצוגה חיה
             </button>
+            <Link className="us-btn il-audit-log-nav-btn" to={`/client/dashboard/${userId}/audit-log`}>
+              לוג עדכונים
+            </Link>
             <Link className="us-btn us-btn--primary il-seating-nav-btn" to={`/client/dashboard/${userId}/seating`}>
               🪑 מערכת הושבה
             </Link>
@@ -882,8 +884,6 @@ export default function ClientDashboardPage() {
             </div>
           </div>
         </section>
-
-        <GuestAuditLogTable userId={userId} enableLiveUpdates />
 
         <div className="us-toolbar">
           <button

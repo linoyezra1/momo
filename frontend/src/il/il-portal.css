@@ -158,12 +158,66 @@
 .il-status-donut__legend .is-maybe { background: #d4af37; }
 .il-status-donut__legend .is-unknown { background: #94a3b8; }
 
+.il-audit-log-page {
+  direction: rtl;
+  text-align: right;
+}
+
+.il-audit-log-page__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.il-audit-log-page__intro h1 {
+  margin: 0 0 0.35rem;
+  font-size: clamp(1.35rem, 3vw, 1.75rem);
+  color: var(--us-espresso);
+}
+
+.il-audit-log-page__intro p {
+  margin: 0;
+  color: var(--us-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.il-audit-log-page__back {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.il-audit-log-nav-btn {
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: #ffffff;
+  color: var(--us-espresso);
+  font-weight: 700;
+}
+
+.il-audit-log-nav-btn:hover {
+  background: #f8fafc;
+  color: var(--us-espresso);
+}
+
 .il-audit-log {
+  direction: rtl;
+  text-align: right;
   margin: 1.25rem 0 1.5rem;
   padding: 1.1rem 1.15rem;
   border: 1px solid rgba(148, 163, 184, 0.28);
   border-radius: 0.85rem;
   background: rgba(255, 255, 255, 0.72);
+}
+
+.il-audit-log--full-page {
+  margin: 0;
+}
+
+.il-audit-log--full-page .il-audit-log__table-wrap {
+  max-height: calc(100vh - 12rem);
 }
 
 .il-audit-log__header h2 {
@@ -195,6 +249,8 @@
   width: 100%;
   border-collapse: collapse;
   font-size: 0.86rem;
+  direction: rtl;
+  text-align: right;
 }
 
 .il-audit-log__table thead th {
@@ -249,11 +305,16 @@
   font-size: 0.72rem;
   font-weight: 400;
   color: #94a3b8;
+  text-align: right;
 }
 
 .il-audit-log__description {
   color: #334155;
   line-height: 1.45;
+}
+
+.il-audit-log__performer {
+  text-align: right;
 }
 
 .il-audit-log__badge {
