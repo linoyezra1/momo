@@ -902,14 +902,7 @@ export default function ClientDashboardPage() {
               <div className="il-status-donut__center">
                 <strong>{attendingPercentage}%</strong>
                 <span>אישרו הגעה</span>
-                <small>
-                  {totalAttending} / {totalInvited}
-                </small>
               </div>
-            </div>
-            <div className="il-analytics__donut-copy">
-              <h2>התפלגות הגעה</h2>
-              <p>שיעור המוזמנים שאישרו הגעה מתוך כלל הרשומים</p>
             </div>
           </div>
         </section>
@@ -920,6 +913,16 @@ export default function ClientDashboardPage() {
               <button className="us-btn us-btn--primary il-add-guest-btn" type="button" onClick={() => setShowModal(true)}>
                 <Plus size={16} aria-hidden="true" />
                 הוספת מוזמן
+              </button>
+
+              <button
+                className="us-btn il-broadcast-cta"
+                type="button"
+                onClick={openBulkWhatsApp}
+                disabled={!selectedCount}
+                title={!selectedCount ? "יש לבחור מוזמנים מהטבלה לפני שליחה בתפוצה" : undefined}
+              >
+                שליחה בתפוצה רחבה
               </button>
 
               <div className="il-actions-menu" ref={actionsMenuRef}>
@@ -982,17 +985,6 @@ export default function ClientDashboardPage() {
                       }}
                     >
                       הורדת קובץ אקסל לדוגמה
-                    </button>
-                    <button
-                      type="button"
-                      role="menuitem"
-                      onClick={() => {
-                        setActionsMenuOpen(false);
-                        openBulkWhatsApp();
-                      }}
-                      disabled={!selectedCount}
-                    >
-                      שליחת וואטסאפ בתפוצה
                     </button>
                     <button
                       type="button"

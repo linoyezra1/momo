@@ -233,40 +233,43 @@
 .il-analytics__donut {
   display: flex;
   align-items: center;
-  gap: 0.85rem;
-  padding: 0.85rem 1rem;
-  border: 1px solid var(--us-border);
-  border-radius: 0.85rem;
-  background: rgb(255 254 251 / 97%);
-  box-shadow: 0 6px 18px rgb(74 46 43 / 3%);
+  justify-content: center;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .il-analytics__donut .il-status-donut {
-  flex: 0 0 5.75rem;
-  width: 5.75rem;
-  height: 5.75rem;
+  flex: 0 0 6.25rem;
+  width: 6.25rem;
+  height: 6.25rem;
 }
 
 .il-analytics__donut .il-status-donut::after,
 .il-analytics__donut .il-status-donut__center {
-  inset: 0.85rem;
+  inset: 0.9rem;
 }
 
-.il-analytics__donut-copy {
-  min-width: 0;
+.il-analytics__donut .il-status-donut__center {
+  text-align: center;
 }
 
-.il-analytics__donut-copy h2 {
-  margin: 0 0 0.25rem;
-  font-size: 0.92rem;
-  color: var(--us-espresso);
+.il-analytics__donut .il-status-donut__center strong {
+  font-size: clamp(1.2rem, 2.6vw, 1.55rem);
 }
 
-.il-analytics__donut-copy p {
-  margin: 0;
-  font-size: 0.76rem;
-  line-height: 1.4;
+.il-analytics__donut .il-status-donut__center span {
+  margin-top: 0.2rem;
+  font-size: 0.62rem;
+  font-weight: 600;
   color: var(--us-muted);
+}
+
+.il-analytics__donut .il-status-donut__center small {
+  display: none;
 }
 
 .il-table-chrome {
@@ -294,6 +297,39 @@
   align-items: center;
   gap: 0.35rem;
   font-weight: 700;
+}
+
+.il-broadcast-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  border: 1px solid #b8860b;
+  border-radius: 0.55rem;
+  background: linear-gradient(180deg, #e0c15a 0%, #d4af37 48%, #b8860b 100%);
+  color: #1f1708;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 35%) inset,
+    0 8px 18px rgb(184 134 11 / 28%);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+
+.il-broadcast-cta:hover:not(:disabled) {
+  filter: brightness(1.04);
+  transform: translateY(-1px);
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 40%) inset,
+    0 10px 22px rgb(184 134 11 / 34%);
+  color: #1f1708;
+}
+
+.il-broadcast-cta:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  filter: grayscale(0.15);
+  box-shadow: none;
 }
 
 .il-actions-menu {
