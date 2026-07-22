@@ -1,9 +1,12 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { CalendarDays, ChevronDown, Clock3, MapPin, MessageCircle, Phone, Users } from "lucide-react";
+import { CalendarDays, ChevronDown, Clock3, MapPin, Phone, Users } from "lucide-react";
 import api from "../api";
 import AgentPhoneRsvpForm from "../components/AgentPhoneRsvpForm.jsx";
+import SmsIcon from "../components/SmsIcon.jsx";
+import WhatsAppIcon from "../components/WhatsAppIcon.jsx";
 import { formatIsraeliDate } from "../utils/dateFormat.js";
+import { normalizeIsraeliPhone } from "../utils/phoneNormalize.js";
 import { toInternationalWhatsAppPhone } from "../utils/whatsapp.js";
 import "../agent-workspace.css";
 
@@ -49,13 +52,13 @@ function buildEventHosts(event) {
   return event.batMitzvahName || event.eventNames || event.parentName1 || "—";
 }
 
-function buildManualWhatsAppUrl({ guest, event, userId }) {
-  const phone = toInternationalWhatsAppPhone(guest?.phone);
-  if (!phone || !event || !userId) return "";
+function buildManualInviteMessage({ guest, event, userId }) {
+  if (!guest || !event || !userId) return "";
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const guestRsvpLink = `${origin}/event/${userId}?guest=${encodeURIComponent(guest._id)}`;
-  const message = [
+
+  return [
     "✨ 🥂 ✨",
     `שלום ${guest.fullName || "אורח/ת יקר/ה"},`,
     "",
@@ -70,8 +73,21 @@ function buildManualWhatsAppUrl({ guest, event, userId }) {
     "",
     "✨ 🎉 ✨"
   ].join("\n");
+}
 
+function buildManualWhatsAppUrl({ guest, event, userId }) {
+  const phone = toInternationalWhatsAppPhone(guest?.phone);
+  const message = buildManualInviteMessage({ guest, event, userId });
+  if (!phone || !message) return "";
   return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+}
+
+function buildManualSmsUrl({ guest, event, userId }) {
+  const domestic = normalizeIsraeliPhone(guest?.phone);
+  const message = buildManualInviteMessage({ guest, event, userId });
+  if (!domestic || !message) return "";
+  const intlPhone = `+972${domestic.slice(1)}`;
+  return `sms:${intlPhone}?body=${encodeURIComponent(message)}`;
 }
 
 export default function AgentWorkspacePage() {
@@ -412,7 +428,16 @@ export default function AgentWorkspacePage() {
                           aria-label={`שלח הזמנה ידנית בווצאפ אל ${guest.fullName}`}
                           title="שלח הזמנה ידנית בווצאפ"
                         >
-                          <MessageCircle size={18} aria-hidden="true" />
+                          <WhatsAppIcon size={18} />
+                        </a>
+                        <a
+                          className="agent-quick-action agent-quick-action--sms"
+                          href={buildManualSmsUrl({ guest, event: eventInfo, userId }) || undefined}
+                          onClick={(event) => event.stopPropagation()}
+                          aria-label={`שלח הזמנת SMS אל ${guest.fullName}`}
+                          title="שלח הזמנה ב-SMS"
+                        >
+                          <SmsIcon size={18} />
                         </a>
                         <a
                           className={`agent-quick-action agent-quick-action--phone${

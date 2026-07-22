@@ -106,7 +106,7 @@ export function buildWhatsAppTemplateDefaults({ event, eventId, origin }) {
   };
 }
 
-export function buildGuestWhatsAppMessage({ event, eventId, origin }) {
+export function buildGuestWhatsAppMessage({ event, eventId, origin, guestName }) {
   const { rsvpLink } = buildWhatsAppTemplateDefaults({
     event,
     eventId,
@@ -114,10 +114,11 @@ export function buildGuestWhatsAppMessage({ event, eventId, origin }) {
   });
   const { welcomeParagraph, eventDetailsParagraph, closingParagraph } =
     resolveInviteCopyDefaults(event);
+  const name = String(guestName || "").trim() || "אורח/ת יקר/ה";
 
   return [
     "✨ 🥂 ✨",
-    `שלום אורח/ת יקר/ה,`,
+    `שלום ${name},`,
     "",
     welcomeParagraph,
     "",
@@ -167,9 +168,9 @@ export function personalizeWhatsAppMessage(template, guestName) {
   return name ? `שלום ${name},\n\n${template}` : template;
 }
 
-export function buildWhatsAppSendUrl({ phone, event, eventId, origin }) {
+export function buildWhatsAppSendUrl({ phone, event, eventId, origin, guestName }) {
   const intlPhone = toInternationalWhatsAppPhone(phone);
   if (!intlPhone) return "";
-  const message = buildGuestWhatsAppMessage({ event, eventId, origin });
+  const message = buildGuestWhatsAppMessage({ event, eventId, origin, guestName });
   return `https://api.whatsapp.com/send?phone=${intlPhone}&text=${encodeURIComponent(message)}`;
 }

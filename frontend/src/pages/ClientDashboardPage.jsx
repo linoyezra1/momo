@@ -510,9 +510,10 @@ export default function ClientDashboardPage() {
   };
 
   const getWhatsappLink = useCallback(
-    (phone) =>
+    (guest) =>
       buildWhatsAppSendUrl({
-        phone,
+        phone: guest?.phone,
+        guestName: guest?.fullName,
         event: eventInfo,
         eventId: userId,
         origin: window.location.origin
@@ -1139,11 +1140,11 @@ export default function ClientDashboardPage() {
                     <td data-label="וואטסאפ">
                       <a
                         className="us-whatsapp-link"
-                        href={getWhatsappLink(guest.phone)}
+                        href={getWhatsappLink(guest)}
                         target="_blank"
                         rel="noreferrer"
-                        aria-label="שליחת הודעת וואטסאפ"
-                        title="שליחת וואטסאפ"
+                        aria-label={`שליחת הודעת וואטסאפ אל ${guest.fullName}`}
+                        title={`שליחת וואטסאפ אל ${guest.fullName}`}
                       >
                         <WhatsAppIcon size={20} />
                       </a>

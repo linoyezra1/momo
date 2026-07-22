@@ -526,7 +526,7 @@
 }
 
 .agent-table-actions {
-  width: 6.5rem;
+  width: 9rem;
   text-align: center !important;
 }
 
@@ -562,10 +562,23 @@
   color: #16853b !important;
 }
 
+.agent-quick-action--sms {
+  margin-inline-end: 0.35rem;
+  border-color: #b8c8e8;
+  background: #f3f7fd;
+  color: #2f5fae !important;
+}
+
 .agent-quick-action--whatsapp:hover {
   border-color: #68c57e;
   background: #e1f8e7;
   color: #0f6c2e !important;
+}
+
+.agent-quick-action--sms:hover {
+  border-color: #8aaee0;
+  background: #e8f0fb;
+  color: #1f4f96 !important;
 }
 
 .agent-quick-action:hover {
