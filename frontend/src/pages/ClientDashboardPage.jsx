@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, Fragment } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Check, ChevronDown, Clock, HelpCircle, Pencil, RotateCw, Search, Trash2, Users, X } from "lucide-react";
+import { Check, ChevronDown, Clock, Eye, HelpCircle, Pencil, Plus, Search, Trash2, Users, X } from "lucide-react";
 import api from "../api";
 import WhatsAppIcon from "../components/WhatsAppIcon";
 import { buildWhatsAppSendUrl } from "../utils/whatsapp";
@@ -201,12 +201,14 @@ export default function ClientDashboardPage() {
   const [linkCopied, setLinkCopied] = useState(false);
   const [showInvitationEditor, setShowInvitationEditor] = useState(false);
   const [refreshingGuests, setRefreshingGuests] = useState(false);
+  const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
   const [searchInput, setSearchInput] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [reminderRoundFilter, setReminderRoundFilter] = useState("all");
   const [selectedGuestIds, setSelectedGuestIds] = useState(() => new Set());
   const [expandedGuestDetailIds, setExpandedGuestDetailIds] = useState(() => new Set());
+  const actionsMenuRef = useRef(null);
   const [showBulkWhatsApp, setShowBulkWhatsApp] = useState(false);
   const [paymentCode, setPaymentCode] = useState("");
   const [inviteCopy, setInviteCopy] = useState({
@@ -312,6 +314,24 @@ export default function ClientDashboardPage() {
       stream.close();
     };
   }, [userId]);
+
+  useEffect(() => {
+    if (!actionsMenuOpen) return undefined;
+    const onPointerDown = (event) => {
+      if (!actionsMenuRef.current?.contains(event.target)) {
+        setActionsMenuOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [actionsMenuOpen]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setAppliedSearch(searchInput.trim());
+    }, 220);
+    return () => window.clearTimeout(timer);
+  }, [searchInput]);
 
   const onManualChange = (event) => {
     const { name, value } = event.target;
@@ -762,225 +782,295 @@ export default function ClientDashboardPage() {
     window.setTimeout(() => setLinkCopied(false), 1600);
   };
 
-  const applySearch = () => {
-    setAppliedSearch(searchInput);
-  };
-
   return (
     <div className="us-client-portal il-client-portal us-dashboard-shell" dir="rtl" lang="he">
       <div className="us-dashboard-content">
-        <header className="us-dashboard-header">
-          <h1>{getOwnerGreeting(eventInfo)}</h1>
-          <p>ניהול אורחים ואישורי הגעה לאירוע</p>
-          <div className="us-public-link-box">
-            <span>קישור ציבורי לאישור הגעה:</span>
-            <a href={publicLink} target="_blank" rel="noreferrer">
-              {publicLink}
-            </a>
-            <button className="us-btn" type="button" onClick={copyPublicLink}>
-              {linkCopied ? "הועתק" : "העתק קישור"}
-            </button>
-            <button
-              className="us-btn us-btn--design-portal"
-              type="button"
-              onClick={() => setShowInvitationEditor(true)}
-            >
-              ✨ עריכת הזמנה ותצוגה חיה
-            </button>
-            <Link className="us-btn il-audit-log-nav-btn" to={`/client/dashboard/${userId}/audit-log`}>
-              לוג עדכונים
-            </Link>
-            <Link className="us-btn us-btn--primary il-seating-nav-btn" to={`/client/dashboard/${userId}/seating`}>
-              🪑 מערכת הושבה
-            </Link>
+        <header className="il-dash-header">
+          <div className="il-dash-header__main">
+            <div className="il-dash-header__intro">
+              <h1>{getOwnerGreeting(eventInfo)}</h1>
+              <p>ניהול אורחים ואישורי הגעה לאירוע</p>
+              <div className="il-dash-header__actions">
+                <a
+                  className="il-dash-link-btn"
+                  href={publicLink}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <Eye size={15} aria-hidden="true" />
+                  צפייה בהזמנה הדיגיטלית
+                </a>
+                <Link className="il-dash-link-btn il-dash-link-btn--muted" to={`/client/dashboard/${userId}/audit-log`}>
+                  לוג עדכונים
+                </Link>
+              </div>
+            </div>
+
+            <div className="il-dash-link-card">
+              <span className="il-dash-link-card__label">קישור ציבורי</span>
+              <div className="il-dash-link-card__row">
+                <a className="il-dash-link-card__url" href={publicLink} target="_blank" rel="noreferrer" title={publicLink}>
+                  {publicLink}
+                </a>
+                <button
+                  className={`il-dash-copy-btn${linkCopied ? " is-copied" : ""}`}
+                  type="button"
+                  onClick={copyPublicLink}
+                  aria-label={linkCopied ? "הקישור הועתק" : "העתק קישור"}
+                >
+                  {linkCopied ? "הועתק!" : "העתק קישור"}
+                  {linkCopied ? <span className="il-dash-copy-tooltip" role="status">הועתק!</span> : null}
+                </button>
+              </div>
+            </div>
           </div>
         </header>
 
-        <div className="us-stats-grid">
-          <button
-            className={`us-stat-card us-stat-card--filter${statusFilter === "all" ? " is-active" : ""}`}
-            type="button"
-            onClick={() => setStatusFilter("all")}
-            aria-pressed={statusFilter === "all"}
-          >
-            <div className="us-stat-card-head" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <Users size={20} aria-hidden="true" />
-              <h3>סה״כ מוזמנים</h3>
-            </div>
-            <p>
-              {summary.totalInvited ??
-                summary.totalComing + summary.totalNotComing + summary.totalMaybe + (summary.totalUnknown || 0)}
-            </p>
-          </button>
-          <button
-            className={`us-stat-card us-stat-card--coming us-stat-card--filter${statusFilter === "מגיע" ? " is-active" : ""}`}
-            type="button"
-            onClick={() => setStatusFilter("מגיע")}
-            aria-pressed={statusFilter === "מגיע"}
-          >
-            <div className="us-stat-card-head" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <Check size={20} aria-hidden="true" />
-              <h3>סה״כ מגיעים</h3>
-            </div>
-            <p>{summary.totalComing}</p>
-          </button>
-          <button
-            className={`us-stat-card us-stat-card--not-coming us-stat-card--filter${statusFilter === "לא מגיע" ? " is-active" : ""}`}
-            type="button"
-            onClick={() => setStatusFilter("לא מגיע")}
-            aria-pressed={statusFilter === "לא מגיע"}
-          >
-            <div className="us-stat-card-head" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <X size={20} aria-hidden="true" />
-              <h3>סה״כ לא מגיעים</h3>
-            </div>
-            <p>{summary.totalNotComing}</p>
-          </button>
-          <button
-            className={`us-stat-card us-stat-card--maybe us-stat-card--filter${statusFilter === "אולי" ? " is-active" : ""}`}
-            type="button"
-            onClick={() => setStatusFilter("אולי")}
-            aria-pressed={statusFilter === "אולי"}
-          >
-            <div className="us-stat-card-head" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <HelpCircle size={20} aria-hidden="true" />
-              <h3>סה״כ אולי</h3>
-            </div>
-            <p>{summary.totalMaybe}</p>
-          </button>
-          <button
-            className={`us-stat-card us-stat-card--unknown us-stat-card--filter${statusFilter === "לא ידוע" ? " is-active" : ""}`}
-            type="button"
-            onClick={() => setStatusFilter("לא ידוע")}
-            aria-pressed={statusFilter === "לא ידוע"}
-          >
-            <div className="us-stat-card-head" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-              <Clock size={20} aria-hidden="true" />
-              <h3>סה״כ לא ידוע</h3>
-            </div>
-            <p>{summary.totalUnknown || 0}</p>
-          </button>
-        </div>
-
-        <section className="il-status-donut-card" aria-label="התפלגות סטטוסי הגעה">
-          <div
-            className="il-status-donut"
-            style={{ background: buildStatusDonutGradient(summary) }}
-            aria-hidden="true"
-          >
-            <div className="il-status-donut__center">
-              <strong>{attendingPercentage}%</strong>
-              <span>אישרו הגעה</span>
-              <small>{totalAttending} / {totalInvited}</small>
-            </div>
+        <section className="il-analytics" aria-label="סקירת נתוני הגעה">
+          <div className="il-analytics__stats">
+            <button
+              className={`il-metric-card${statusFilter === "all" ? " is-active" : ""}`}
+              type="button"
+              onClick={() => setStatusFilter("all")}
+              aria-pressed={statusFilter === "all"}
+            >
+              <span className="il-metric-card__label">
+                <Users size={15} aria-hidden="true" />
+                סה״כ
+              </span>
+              <strong>
+                {summary.totalInvited ??
+                  summary.totalComing + summary.totalNotComing + summary.totalMaybe + (summary.totalUnknown || 0)}
+              </strong>
+            </button>
+            <button
+              className={`il-metric-card il-metric-card--coming${statusFilter === "מגיע" ? " is-active" : ""}`}
+              type="button"
+              onClick={() => setStatusFilter("מגיע")}
+              aria-pressed={statusFilter === "מגיע"}
+            >
+              <span className="il-metric-card__label">
+                <Check size={15} aria-hidden="true" />
+                מגיעים
+              </span>
+              <strong>{summary.totalComing}</strong>
+            </button>
+            <button
+              className={`il-metric-card il-metric-card--not-coming${statusFilter === "לא מגיע" ? " is-active" : ""}`}
+              type="button"
+              onClick={() => setStatusFilter("לא מגיע")}
+              aria-pressed={statusFilter === "לא מגיע"}
+            >
+              <span className="il-metric-card__label">
+                <X size={15} aria-hidden="true" />
+                לא מגיעים
+              </span>
+              <strong>{summary.totalNotComing}</strong>
+            </button>
+            <button
+              className={`il-metric-card il-metric-card--maybe${statusFilter === "אולי" ? " is-active" : ""}`}
+              type="button"
+              onClick={() => setStatusFilter("אולי")}
+              aria-pressed={statusFilter === "אולי"}
+            >
+              <span className="il-metric-card__label">
+                <HelpCircle size={15} aria-hidden="true" />
+                אולי
+              </span>
+              <strong>{summary.totalMaybe}</strong>
+            </button>
+            <button
+              className={`il-metric-card il-metric-card--unknown${statusFilter === "לא ידוע" ? " is-active" : ""}`}
+              type="button"
+              onClick={() => setStatusFilter("לא ידוע")}
+              aria-pressed={statusFilter === "לא ידוע"}
+            >
+              <span className="il-metric-card__label">
+                <Clock size={15} aria-hidden="true" />
+                לא ידוע
+              </span>
+              <strong>{summary.totalUnknown || 0}</strong>
+            </button>
           </div>
-          <div className="il-status-donut__content">
-            <h2>התפלגות סטטוסים</h2>
-            <div className="il-status-donut__legend">
-              <span><i className="is-coming" /> מגיעים: {summary.totalComing || 0}</span>
-              <span><i className="is-not-coming" /> לא מגיעים: {summary.totalNotComing || 0}</span>
-              <span><i className="is-maybe" /> אולי: {summary.totalMaybe || 0}</span>
-              <span><i className="is-unknown" /> לא ידוע: {summary.totalUnknown || 0}</span>
+
+          <div className="il-analytics__donut" aria-label="אחוז אישורי הגעה">
+            <div
+              className="il-status-donut"
+              style={{ background: buildStatusDonutGradient(summary) }}
+              aria-hidden="true"
+            >
+              <div className="il-status-donut__center">
+                <strong>{attendingPercentage}%</strong>
+                <span>אישרו הגעה</span>
+                <small>
+                  {totalAttending} / {totalInvited}
+                </small>
+              </div>
+            </div>
+            <div className="il-analytics__donut-copy">
+              <h2>התפלגות הגעה</h2>
+              <p>שיעור המוזמנים שאישרו הגעה מתוך כלל הרשומים</p>
             </div>
           </div>
         </section>
 
-        <div className="us-toolbar">
-          <button
-            className="us-btn"
-            type="button"
-            onClick={refreshGuests}
-            disabled={refreshingGuests}
-            aria-label="רענון רשימת מוזמנים"
-            title="רענון"
-          >
-            <RotateCw size={16} className={refreshingGuests ? "spinning" : ""} />
-          </button>
-          <button className="us-btn us-btn--primary" type="button" onClick={() => setShowModal(true)}>
-            הוספת מוזמן ידנית
-          </button>
-          <button className="us-btn" type="button" onClick={() => fileInputRef.current?.click()} disabled={importChecking}>
-            {importChecking ? "בודק קובץ…" : "העלאת מוזמנים מאקסל"}
-          </button>
-          <button className="us-btn" type="button" onClick={exportGuests}>
-            ייצוא לאקסל
-          </button>
-          <button
-            className="us-btn il-bulk-send-btn"
-            type="button"
-            onClick={openBulkWhatsApp}
-            disabled={!selectedCount}
-          >
-            שלח ווצאפ בתפוצה רחבה
-          </button>
-          <button className="us-btn" type="button" onClick={downloadTemplate}>
-            הורדת קובץ אקסל לדוגמה
-          </button>
-          <div className="us-search-wrap">
-            <input
-              className="us-search-input"
-              type="text"
-              placeholder="חיפוש שם / טלפון"
-              value={searchInput}
-              onChange={(event) => setSearchInput(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  applySearch();
-                }
-              }}
-            />
-            <button className="us-btn" type="button" onClick={applySearch} aria-label="חפש">
-              <Search size={16} />
-            </button>
-          </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".xlsx,.xls,.csv"
-            className="hidden-file-input"
-            onChange={onImportFile}
-          />
-        </div>
-        {importError ? <p className="us-error-message us-error-message--left">{importError}</p> : null}
+        <div className="il-table-chrome">
+          <div className="il-table-toolbar">
+            <div className="il-table-toolbar__primary">
+              <button className="us-btn us-btn--primary il-add-guest-btn" type="button" onClick={() => setShowModal(true)}>
+                <Plus size={16} aria-hidden="true" />
+                הוספת מוזמן
+              </button>
 
-        <div className="il-guest-filters">
-          <div className="il-guest-filter-group" role="group" aria-label="סינון לפי סטטוס הגעה">
-            <span className="il-guest-filter-label">סטטוס הגעה:</span>
-            <div className="il-status-filter-tabs">
-              {STATUS_FILTER_OPTIONS.map((option) => (
+              <div className="il-actions-menu" ref={actionsMenuRef}>
                 <button
-                  key={option.value}
+                  className="us-btn il-actions-menu__trigger"
                   type="button"
-                  className={`il-status-filter-tab${statusFilter === option.value ? " is-active" : ""}`}
-                  onClick={() => setStatusFilter(option.value)}
-                  aria-pressed={statusFilter === option.value}
+                  onClick={() => setActionsMenuOpen((open) => !open)}
+                  aria-expanded={actionsMenuOpen}
+                  aria-haspopup="menu"
                 >
-                  {option.label}
+                  פעולות נוספות
+                  <ChevronDown size={15} aria-hidden="true" />
                 </button>
-              ))}
+                {actionsMenuOpen ? (
+                  <div className="il-actions-menu__panel" role="menu">
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setActionsMenuOpen(false);
+                        setShowInvitationEditor(true);
+                      }}
+                    >
+                      עריכת הזמנה ותצוגה חיה
+                    </button>
+                    <Link
+                      role="menuitem"
+                      to={`/client/dashboard/${userId}/seating`}
+                      onClick={() => setActionsMenuOpen(false)}
+                    >
+                      מערכת הושבה
+                    </Link>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setActionsMenuOpen(false);
+                        fileInputRef.current?.click();
+                      }}
+                      disabled={importChecking}
+                    >
+                      {importChecking ? "בודק קובץ…" : "העלאת מוזמנים מאקסל"}
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setActionsMenuOpen(false);
+                        exportGuests();
+                      }}
+                    >
+                      ייצוא לאקסל
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setActionsMenuOpen(false);
+                        downloadTemplate();
+                      }}
+                    >
+                      הורדת קובץ אקסל לדוגמה
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setActionsMenuOpen(false);
+                        openBulkWhatsApp();
+                      }}
+                      disabled={!selectedCount}
+                    >
+                      שליחת וואטסאפ בתפוצה
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setActionsMenuOpen(false);
+                        refreshGuests();
+                      }}
+                      disabled={refreshingGuests}
+                    >
+                      {refreshingGuests ? "מרענן…" : "רענון רשימה"}
+                    </button>
+                  </div>
+                ) : null}
+              </div>
             </div>
-          </div>
-          <div className="il-guest-filter-group">
-            <label className="il-guest-filter-label" htmlFor="reminder-round-filter">
-              סטטוס שליחה:
+
+            <label className="il-search-field">
+              <Search size={15} aria-hidden="true" />
+              <input
+                type="search"
+                placeholder="חיפוש שם או טלפון…"
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
+                aria-label="חיפוש מוזמנים"
+              />
             </label>
-            <select
-              id="reminder-round-filter"
-              className="us-field-input il-reminder-filter-select"
-              value={reminderRoundFilter}
-              onChange={(event) => setReminderRoundFilter(event.target.value)}
-            >
-              {REMINDER_FILTER_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              className="hidden-file-input"
+              onChange={onImportFile}
+            />
           </div>
-          <p className="il-guest-filter-summary">
-            מוצגים <strong>{filteredGuests.length}</strong> מתוך {guests.length} מוזמנים
-          </p>
+
+          {importError ? <p className="us-error-message us-error-message--left">{importError}</p> : null}
+
+          <div className="il-guest-filters il-guest-filters--strip">
+            <div className="il-guest-filter-group" role="group" aria-label="סינון לפי סטטוס הגעה">
+              <div className="il-status-filter-tabs">
+                {STATUS_FILTER_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={`il-status-filter-tab${statusFilter === option.value ? " is-active" : ""}`}
+                    onClick={() => setStatusFilter(option.value)}
+                    aria-pressed={statusFilter === option.value}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="il-guest-filter-group il-guest-filter-group--select">
+              <label className="il-guest-filter-label" htmlFor="reminder-round-filter">
+                סבב שליחה
+              </label>
+              <select
+                id="reminder-round-filter"
+                className="us-field-input il-reminder-filter-select"
+                value={reminderRoundFilter}
+                onChange={(event) => setReminderRoundFilter(event.target.value)}
+              >
+                {REMINDER_FILTER_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <p className="il-guest-filter-summary">
+              מוצגים <strong>{filteredGuests.length}</strong> מתוך {guests.length}
+            </p>
+          </div>
         </div>
 
         <div className="us-table-wrap">
