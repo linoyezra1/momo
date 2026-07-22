@@ -72,7 +72,7 @@ function sanitizeVendorPayload(body = {}) {
 function sanitizeEventVendorPayload(body = {}) {
   const payload = sanitizeEventVendorFinancePayload(body);
   if (!EVENT_VENDOR_STATUSES.includes(payload.status)) {
-    payload.status = "OFFER_SENT";
+    payload.status = "NEGOTIATING";
   }
   return payload;
 }

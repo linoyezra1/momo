@@ -9,7 +9,7 @@ export default function IlSeatingTableEditModal({
   onDelete
 }) {
   const [label, setLabel] = useState("");
-  const [capacity, setCapacity] = useState(10);
+  const [capacity, setCapacity] = useState("");
 
   const assignedGuests = useMemo(
     () => guests.filter((guest) => guest.seatingTableId === table?.tableId && guest.isEligible),
@@ -22,11 +22,12 @@ export default function IlSeatingTableEditModal({
   );
 
   const hasAssignedGuests = assignedGuests.length > 0;
+  const capacityNumber = Math.max(1, Number(capacity) || 1);
 
   useEffect(() => {
     if (!table) return;
     setLabel(table.label || "");
-    setCapacity(Math.max(1, Number(table.capacity) || 1));
+    setCapacity(String(Math.max(1, Number(table.capacity) || 1)));
   }, [table]);
 
   if (!table) return null;
@@ -34,7 +35,7 @@ export default function IlSeatingTableEditModal({
   function handleSave() {
     onSave({
       label: String(label || "").trim() || table.label,
-      capacity: Math.max(1, Number(capacity) || 1)
+      capacity: capacityNumber
     });
   }
 
@@ -64,15 +65,24 @@ export default function IlSeatingTableEditModal({
         <label className="il-seat-modal__field">
           <span>מספר כיסאות נוכחי:</span>
           <input
-            type="number"
-            min="1"
-            value={capacity}
-            onChange={(event) => setCapacity(Math.max(1, Number(event.target.value) || 1))}
+            className="il-money-input"
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            value={capacity === "" ? "" : capacity}
+            onChange={(event) => {
+              const raw = event.target.value.replace(/\D/g, "");
+              if (raw === "") {
+                setCapacity("");
+                return;
+              }
+              setCapacity(Math.max(1, Number(raw) || 1));
+            }}
           />
         </label>
 
         <p className="il-seat-modal__occupancy">
-          תפוסה נוכחית: <strong>{occupiedSeats}</strong> / {capacity}
+          תפוסה נוכחית: <strong>{occupiedSeats}</strong> / {capacityNumber}
         </p>
 
         <p className="il-seat-modal__hint">לא ניתן למחוק שולחן שיש בו מוזמנים</p>

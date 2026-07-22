@@ -3,7 +3,6 @@ import User from "../models/User.js";
 import Guest from "../models/Guest.js";
 import SeatingLayout from "../models/SeatingLayout.js";
 import {
-  autoAssignGuestsToTables,
   buildSeatingAnalytics,
   buildSeatingWarnings,
   isGuestEligibleForSeating
@@ -174,34 +173,6 @@ router.patch("/:userId/seating/assign", async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ message: error.message || "Failed to update seating" });
-  }
-});
-
-router.post("/:userId/seating/auto-assign", async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const layout = await SeatingLayout.findOne({ userId });
-    if (!layout?.tables?.length) {
-      return res.status(400).json({ message: "יש להוסיף שולחנות לפני שיבוץ אוטומטי" });
-    }
-
-    const guests = await Guest.find({ userId });
-    const assignments = autoAssignGuestsToTables(guests, layout.tables);
-
-    for (const item of assignments) {
-      await Guest.findOneAndUpdate({ _id: item.guestId, userId }, { seatingTableId: item.tableId });
-    }
-
-    const updatedGuests = await Guest.find({ userId });
-    return res.json({
-      message: `שובצו אוטומטית ${assignments.length} רשומות`,
-      assignedCount: assignments.length,
-      guests: updatedGuests.map(guestForSeating),
-      warnings: buildSeatingWarnings(updatedGuests, layout.tables),
-      analytics: buildSeatingAnalytics(updatedGuests, layout.tables)
-    });
-  } catch (error) {
-    return res.status(500).json({ message: error.message || "Auto-assign failed" });
   }
 });
 

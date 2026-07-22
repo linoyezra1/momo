@@ -1,5 +1,6 @@
 export function sanitizeEventVendorFinancePayload(body = {}) {
-  const status = String(body.status || "OFFER_SENT").trim();
+  let status = String(body.status || "NEGOTIATING").trim();
+  if (status === "OFFER_SENT") status = "NEGOTIATING";
   const vendorQuoteAmount = Math.max(0, Number(body.vendorQuoteAmount ?? body.quoteAmount) || 0);
   const couplePrice = Math.max(0, Number(body.couplePrice) || 0);
   return {
@@ -16,6 +17,8 @@ export function serializeEventVendorFinance(doc, serializeVendor) {
   const vendor = doc.vendorId && typeof doc.vendorId === "object" ? doc.vendorId : null;
   const vendorQuoteAmount = Math.max(0, Number(doc.vendorQuoteAmount ?? doc.quoteAmount) || 0);
   const couplePrice = Math.max(0, Number(doc.couplePrice) || 0);
+  let status = doc.status || "NEGOTIATING";
+  if (status === "OFFER_SENT") status = "NEGOTIATING";
   return {
     id: String(doc._id),
     eventId: String(doc.eventId?._id || doc.eventId),
@@ -24,7 +27,7 @@ export function serializeEventVendorFinance(doc, serializeVendor) {
     vendorQuoteAmount,
     couplePrice,
     profit: couplePrice - vendorQuoteAmount,
-    status: doc.status,
+    status,
     eventNotes: doc.eventNotes || "",
     attachmentUrl: doc.attachmentUrl || "",
     createdAt: doc.createdAt,

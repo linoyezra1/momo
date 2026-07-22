@@ -1,17 +1,3 @@
-export const GUEST_SIDES = ["", "חתן", "כלה", "משותף"];
-
-export const GUEST_GROUPS = [
-  "",
-  "משפחה קרובה — חתן",
-  "משפחה קרובה — כלה",
-  "חברים מהעבודה",
-  "חברים מהצבא",
-  "חברים מלימודים",
-  "שכנים",
-  "ילדים",
-  "אחר"
-];
-
 export const TABLE_SHAPES = [
   { value: "round", label: "עגול" },
   { value: "rect", label: "מרובע" },

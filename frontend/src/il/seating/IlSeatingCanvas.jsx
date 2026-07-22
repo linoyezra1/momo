@@ -1,4 +1,5 @@
 import { Rnd } from "react-rnd";
+import { Pencil } from "lucide-react";
 import { VENUE_ELEMENT_LABELS } from "./seatingConstants.js";
 import { countGuestSeats, getTableOccupancy } from "./ilSeatingUtils.js";
 
@@ -42,6 +43,7 @@ export default function IlSeatingCanvas({
   activeTableId,
   onLayoutChange,
   onSelectTable,
+  onEditTable,
   onDropGuestsOnTable,
   canvasRef
 }) {
@@ -122,6 +124,20 @@ export default function IlSeatingCanvas({
               }}
             >
               <ChairRing capacity={table.capacity} occupied={seats} />
+              <button
+                type="button"
+                className="il-seat-table__edit"
+                aria-label={`עריכת שולחן ${table.label}`}
+                title="עריכת שולחן"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onEditTable?.(table.tableId);
+                }}
+                onMouseDown={(event) => event.stopPropagation()}
+                onTouchStart={(event) => event.stopPropagation()}
+              >
+                <Pencil size={14} aria-hidden="true" />
+              </button>
               <div className="il-seat-table__inner">
                 <strong>{table.label}</strong>
                 <span>
@@ -133,10 +149,14 @@ export default function IlSeatingCanvas({
                       .slice(0, 2)
                       .map((guest) => `${guest.fullName} (${countGuestSeats(guest)})`)
                       .join(" · ")}
-                    {tableGuests.length > 2 ? "…" : ""}
+                    {tableGuests.length > 2 ? ` +${tableGuests.length - 2}` : ""}
                   </em>
                 ) : null}
-                {warning ? <em className="il-seat-table__warn">{warning.type === "overfill" ? "!" : "…"}</em> : null}
+                {warning?.type === "overfill" ? (
+                  <em className="il-seat-table__warn" title={warning.message}>
+                    !
+                  </em>
+                ) : null}
               </div>
             </Rnd>
           );

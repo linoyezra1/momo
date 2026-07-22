@@ -17,7 +17,7 @@ import "../il/il-portal.css";
 import "../il/seating/il-seating.css";
 import "../il/manager-event.css";
 
-const initialFilters = { side: "", group: "", seated: "", query: "" };
+const initialFilters = { seated: "", query: "" };
 
 function resolveTemplateOwnerRole() {
   if (getAdminToken()) return "admin";
@@ -40,7 +40,6 @@ export default function IlSeatingPage() {
   const [selectedGuestIds, setSelectedGuestIds] = useState(() => new Set());
   const [activeTableId, setActiveTableId] = useState("");
   const [editingTableId, setEditingTableId] = useState("");
-  const [groupAssignTableId, setGroupAssignTableId] = useState("");
   const [toast, setToast] = useState("");
   const [saving, setSaving] = useState(false);
   const [templates, setTemplates] = useState([]);
@@ -69,11 +68,6 @@ export default function IlSeatingPage() {
   const eligibleGuests = useMemo(
     () => guestsWithLabels.filter((guest) => guest.isEligible),
     [guestsWithLabels]
-  );
-
-  const unassignedGuests = useMemo(
-    () => eligibleGuests.filter((guest) => !guest.isSeated),
-    [eligibleGuests]
   );
 
   const editingTable = useMemo(
@@ -193,33 +187,6 @@ export default function IlSeatingPage() {
     await unassignGuestIds([...selectedGuestIds]);
   }
 
-  async function autoAssign() {
-    try {
-      const response = await api.post(`/client/${userId}/seating/auto-assign`);
-      setGuests(response.data.guests || []);
-      setWarnings(response.data.warnings || []);
-      setAnalytics(response.data.analytics || null);
-      setToast(response.data.message || "שיבוץ אוטומטי הושלם");
-    } catch (autoError) {
-      setToast(autoError.response?.data?.message || "שיבוץ אוטומטי נכשל");
-    }
-  }
-
-  async function updateGuestMeta(guestId, patch) {
-    try {
-      await api.patch(`/client/${userId}/guests/${guestId}`, patch);
-      setGuests((prev) =>
-        prev.map((guest) =>
-          guest._id === guestId
-            ? { ...guest, ...patch, isSeated: Boolean(patch.seatingTableId ?? guest.seatingTableId) }
-            : guest
-        )
-      );
-    } catch (metaError) {
-      setToast(metaError.response?.data?.message || "עדכון אורח נכשל");
-    }
-  }
-
   function addTable(shape = "round") {
     const label = String(tables.length + 1);
     const isHead = shape === "head";
@@ -272,11 +239,6 @@ export default function IlSeatingPage() {
       else filtered.forEach((guest) => next.add(guest._id));
       return next;
     });
-  }
-
-  async function assignGroupToTable() {
-    if (!groupAssignTableId || !selectedGuestIds.size) return;
-    await assignGuests([...selectedGuestIds], groupAssignTableId);
   }
 
   async function exportSeatingExcel() {
@@ -489,9 +451,6 @@ export default function IlSeatingPage() {
               ))}
             </div>
           ) : null}
-          <button type="button" className="il-seat-toolbox__primary" onClick={autoAssign}>
-            שיבוץ אוטומטי
-          </button>
         </div>
 
         <div className="il-seat-actions-menu">
@@ -553,28 +512,14 @@ export default function IlSeatingPage() {
             </div>
           </div>
 
-          <div className="il-seat-group-bar">
-            <span>הושבה קבוצתית: נבחרו {selectedGuestIds.size}</span>
-            <select value={groupAssignTableId} onChange={(event) => setGroupAssignTableId(event.target.value)}>
-              <option value="">בחרו שולחן</option>
-              {tables.map((table) => (
-                <option key={table.tableId} value={table.tableId}>
-                  שולחן {table.label} ({table.capacity})
-                </option>
-              ))}
-            </select>
-            <button
-              className="us-btn us-btn--primary"
-              type="button"
-              onClick={assignGroupToTable}
-              disabled={!selectedGuestIds.size || !groupAssignTableId}
-            >
-              שיבוץ קבוצה לשולחן
-            </button>
-            <button className="us-btn" type="button" onClick={unassignSelected} disabled={!selectedGuestIds.size}>
-              הסרת שיבוץ
-            </button>
-          </div>
+          {selectedGuestIds.size ? (
+            <div className="il-seat-selection-bar">
+              <span>נבחרו {selectedGuestIds.size} אורחים</span>
+              <button className="us-btn" type="button" onClick={unassignSelected}>
+                הסרת שיבוץ
+              </button>
+            </div>
+          ) : null}
         </div>
       </details>
 
@@ -586,7 +531,6 @@ export default function IlSeatingPage() {
           selectedGuestIds={selectedGuestIds}
           onToggleGuest={toggleGuest}
           onToggleAll={toggleAllFiltered}
-          onGuestMetaChange={updateGuestMeta}
           onDragStart={onDragStart}
           compact={isSimpleView}
         />
@@ -608,10 +552,8 @@ export default function IlSeatingPage() {
             warnings={warnings}
             activeTableId={activeTableId}
             onLayoutChange={saveLayout}
-            onSelectTable={(tableId) => {
-              setActiveTableId(tableId);
-              setEditingTableId(tableId);
-            }}
+            onSelectTable={setActiveTableId}
+            onEditTable={setEditingTableId}
             onDropGuestsOnTable={(tableId, guestIds) => assignGuests(guestIds, tableId)}
             canvasRef={canvasRef}
           />

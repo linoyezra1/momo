@@ -232,11 +232,6 @@
   white-space: nowrap;
 }
 
-.il-vendor-status.is-OFFER_SENT {
-  color: #1d4ed8;
-  background: #eff6ff;
-}
-
 .il-vendor-status.is-NEGOTIATING {
   color: #9a3412;
   background: #fff7ed;

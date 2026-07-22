@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import api from "../api";
 import { formatIls } from "../utils/vendors.js";
+import { moneyFromStored, moneyToNumber, normalizeMoneyInput } from "../utils/moneyInput.js";
 import { useEventWorkspace } from "../utils/useEventWorkspace.js";
 import "../il/manager-event.css";
 
@@ -11,7 +12,7 @@ const PAYMENT_LABELS = {
 };
 
 const emptyFinance = {
-  targetCoupleBudget: 0,
+  targetCoupleBudget: "",
   couplePaymentStatus: "PENDING",
   couplePaymentNotes: ""
 };
@@ -21,6 +22,7 @@ export default function ManagerBudgetPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [successToast, setSuccessToast] = useState("");
   const [finance, setFinance] = useState(emptyFinance);
   const [summary, setSummary] = useState({
     totalRevenue: 0,
@@ -36,7 +38,12 @@ export default function ManagerBudgetPage() {
     setError("");
     try {
       const { data } = await api.get(`/manager/clients/${userId}/finance`);
-      setFinance(data.finance || emptyFinance);
+      const loaded = data.finance || {};
+      setFinance({
+        targetCoupleBudget: moneyFromStored(loaded.targetCoupleBudget),
+        couplePaymentStatus: loaded.couplePaymentStatus || "PENDING",
+        couplePaymentNotes: loaded.couplePaymentNotes || ""
+      });
       setSummary(data.summary || { totalRevenue: 0, totalCost: 0, totalProfit: 0 });
       setBudgetWarning(data.budgetWarning || { exceeded: false, message: "" });
       setEventLabel(data.eventLabel || "");
@@ -51,15 +58,33 @@ export default function ManagerBudgetPage() {
     loadFinance();
   }, [loadFinance]);
 
+  useEffect(() => {
+    if (!successToast) return undefined;
+    const timer = window.setTimeout(() => setSuccessToast(""), 3200);
+    return () => window.clearTimeout(timer);
+  }, [successToast]);
+
   const onSave = async (event) => {
     event.preventDefault();
     setSaving(true);
     setError("");
+    setSuccessToast("");
     try {
-      const { data } = await api.patch(`/manager/clients/${userId}/finance`, finance);
-      setFinance(data.finance || finance);
+      const payload = {
+        targetCoupleBudget: moneyToNumber(finance.targetCoupleBudget),
+        couplePaymentStatus: finance.couplePaymentStatus,
+        couplePaymentNotes: finance.couplePaymentNotes
+      };
+      const { data } = await api.patch(`/manager/clients/${userId}/finance`, payload);
+      const saved = data.finance || payload;
+      setFinance({
+        targetCoupleBudget: moneyFromStored(saved.targetCoupleBudget),
+        couplePaymentStatus: saved.couplePaymentStatus || "PENDING",
+        couplePaymentNotes: saved.couplePaymentNotes || ""
+      });
       setSummary(data.summary || summary);
       setBudgetWarning(data.budgetWarning || { exceeded: false, message: "" });
+      setSuccessToast("תקציב היעד נשמר בהצלחה");
     } catch (saveError) {
       setError(saveError.response?.data?.message || "שמירת התקציב נכשלה");
     } finally {
@@ -71,6 +96,8 @@ export default function ManagerBudgetPage() {
     return <p className="us-error-message">תקציב ורווחיות זמינים למנהל האירוע בלבד.</p>;
   }
 
+  const targetBudgetValue = moneyToNumber(finance.targetCoupleBudget);
+
   return (
     <div className="il-budget-page" dir="rtl" lang="he">
       <header>
@@ -80,6 +107,12 @@ export default function ManagerBudgetPage() {
         </p>
       </header>
 
+      {successToast ? (
+        <p className="il-budget-toast" role="status" aria-live="polite">
+          {successToast}
+        </p>
+      ) : null}
+
       {budgetWarning.exceeded ? (
         <p className="il-budget-warning" role="status">
           {budgetWarning.message}
@@ -88,6 +121,10 @@ export default function ManagerBudgetPage() {
       ) : null}
 
       <section className="il-budget-summary" aria-label="סיכום כספי">
+        <div className="il-budget-card il-budget-card--target">
+          <span>תקציב יעד</span>
+          <strong>{formatIls(targetBudgetValue)}</strong>
+        </div>
         <div className="il-budget-card">
           <span>סה״כ הכנסות (מחיר לזוג)</span>
           <strong>{formatIls(summary.totalRevenue)}</strong>
@@ -113,14 +150,16 @@ export default function ManagerBudgetPage() {
         <label>
           תקציב הזוג (יעד)
           <input
-            type="number"
-            min="0"
-            step="1"
+            className="il-money-input"
+            type="text"
+            inputMode="decimal"
+            autoComplete="off"
+            placeholder="0"
             value={finance.targetCoupleBudget}
             onChange={(e) =>
               setFinance((prev) => ({
                 ...prev,
-                targetCoupleBudget: Math.max(0, Number(e.target.value) || 0)
+                targetCoupleBudget: normalizeMoneyInput(e.target.value)
               }))
             }
           />

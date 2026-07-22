@@ -13,6 +13,7 @@ import {
   formatIls
 } from "../utils/vendors.js";
 import { useEventWorkspace } from "../utils/useEventWorkspace.js";
+import { moneyFromStored, moneyToNumber, normalizeMoneyInput } from "../utils/moneyInput.js";
 import "../us/client-portal.css";
 import "../il/il-portal.css";
 import "../il/vendors.css";
@@ -21,9 +22,9 @@ import "../il/manager-event.css";
 const emptyAssignForm = {
   mode: "existing",
   vendorId: "",
-  vendorQuoteAmount: 0,
-  couplePrice: 0,
-  status: "OFFER_SENT",
+  vendorQuoteAmount: "",
+  couplePrice: "",
+  status: "NEGOTIATING",
   eventNotes: "",
   attachmentUrl: "",
   createVendor: {
@@ -120,8 +121,8 @@ export default function ClientVendorsPage() {
     setError("");
     try {
       const payload = {
-        vendorQuoteAmount: Number(assignForm.vendorQuoteAmount) || 0,
-        couplePrice: Number(assignForm.couplePrice) || 0,
+        vendorQuoteAmount: moneyToNumber(assignForm.vendorQuoteAmount),
+        couplePrice: moneyToNumber(assignForm.couplePrice),
         status: assignForm.status,
         eventNotes: assignForm.eventNotes,
         attachmentUrl: assignForm.attachmentUrl
@@ -154,9 +155,9 @@ export default function ClientVendorsPage() {
   const openEdit = (entry) => {
     setEditing({
       id: entry.id,
-      vendorQuoteAmount: entry.vendorQuoteAmount ?? entry.quoteAmount ?? 0,
-      couplePrice: entry.couplePrice || 0,
-      status: entry.status,
+      vendorQuoteAmount: moneyFromStored(entry.vendorQuoteAmount ?? entry.quoteAmount),
+      couplePrice: moneyFromStored(entry.couplePrice),
+      status: entry.status === "OFFER_SENT" ? "NEGOTIATING" : entry.status,
       eventNotes: entry.eventNotes || "",
       attachmentUrl: entry.attachmentUrl || ""
     });
@@ -169,8 +170,8 @@ export default function ClientVendorsPage() {
     setError("");
     try {
       const { data } = await api.patch(`/manager/clients/${userId}/event-vendors/${editing.id}`, {
-        vendorQuoteAmount: Number(editing.vendorQuoteAmount) || 0,
-        couplePrice: Number(editing.couplePrice) || 0,
+        vendorQuoteAmount: moneyToNumber(editing.vendorQuoteAmount),
+        couplePrice: moneyToNumber(editing.couplePrice),
         status: editing.status,
         eventNotes: editing.eventNotes,
         attachmentUrl: editing.attachmentUrl
@@ -431,14 +432,16 @@ export default function ClientVendorsPage() {
             <div className="us-admin-field">
               <label className="us-admin-field-label">הצעת מחיר ספק (עלות)</label>
               <input
-                className="us-admin-field-input"
-                type="number"
-                min="0"
+                className="us-admin-field-input il-money-input"
+                type="text"
+                inputMode="decimal"
+                autoComplete="off"
+                placeholder="0"
                 value={assignForm.vendorQuoteAmount}
                 onChange={(e) =>
                   setAssignForm((prev) => ({
                     ...prev,
-                    vendorQuoteAmount: Math.max(0, Number(e.target.value) || 0)
+                    vendorQuoteAmount: normalizeMoneyInput(e.target.value)
                   }))
                 }
               />
@@ -446,14 +449,16 @@ export default function ClientVendorsPage() {
             <div className="us-admin-field">
               <label className="us-admin-field-label">הצעת מחיר לזוג (הכנסה)</label>
               <input
-                className="us-admin-field-input"
-                type="number"
-                min="0"
+                className="us-admin-field-input il-money-input"
+                type="text"
+                inputMode="decimal"
+                autoComplete="off"
+                placeholder="0"
                 value={assignForm.couplePrice}
                 onChange={(e) =>
                   setAssignForm((prev) => ({
                     ...prev,
-                    couplePrice: Math.max(0, Number(e.target.value) || 0)
+                    couplePrice: normalizeMoneyInput(e.target.value)
                   }))
                 }
               />
@@ -462,7 +467,7 @@ export default function ClientVendorsPage() {
               רווח מחושב: <strong>{formatIls(assignProfit)}</strong>
             </p>
             {finance.targetCoupleBudget > 0 &&
-            summary.totalRevenue + Number(assignForm.couplePrice || 0) > finance.targetCoupleBudget ? (
+            summary.totalRevenue + moneyToNumber(assignForm.couplePrice) > finance.targetCoupleBudget ? (
               <p className="il-budget-warning">חריגה מתקציב היעד</p>
             ) : null}
             <div className="us-admin-field">
@@ -507,14 +512,16 @@ export default function ClientVendorsPage() {
             <div className="us-admin-field">
               <label className="us-admin-field-label">הצעת מחיר ספק (עלות)</label>
               <input
-                className="us-admin-field-input"
-                type="number"
-                min="0"
+                className="us-admin-field-input il-money-input"
+                type="text"
+                inputMode="decimal"
+                autoComplete="off"
+                placeholder="0"
                 value={editing.vendorQuoteAmount}
                 onChange={(e) =>
                   setEditing((prev) => ({
                     ...prev,
-                    vendorQuoteAmount: Math.max(0, Number(e.target.value) || 0)
+                    vendorQuoteAmount: normalizeMoneyInput(e.target.value)
                   }))
                 }
               />
@@ -522,14 +529,16 @@ export default function ClientVendorsPage() {
             <div className="us-admin-field">
               <label className="us-admin-field-label">הצעת מחיר לזוג (הכנסה)</label>
               <input
-                className="us-admin-field-input"
-                type="number"
-                min="0"
+                className="us-admin-field-input il-money-input"
+                type="text"
+                inputMode="decimal"
+                autoComplete="off"
+                placeholder="0"
                 value={editing.couplePrice}
                 onChange={(e) =>
                   setEditing((prev) => ({
                     ...prev,
-                    couplePrice: Math.max(0, Number(e.target.value) || 0)
+                    couplePrice: normalizeMoneyInput(e.target.value)
                   }))
                 }
               />

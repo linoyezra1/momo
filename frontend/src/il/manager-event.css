@@ -93,7 +93,7 @@
 
 .il-budget-summary {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
   gap: 0.85rem;
 }
 
@@ -120,6 +120,20 @@
   color: #047857;
 }
 
+.il-budget-card--target strong {
+  color: #1d4ed8;
+}
+
+.il-budget-toast {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid #86efac;
+  background: #f0fdf4;
+  color: #166534;
+  font-weight: 700;
+}
+
 .il-budget-warning {
   margin: 0;
   padding: 0.85rem 1rem;
@@ -128,6 +142,21 @@
   background: #fff8eb;
   color: #92400e;
   font-weight: 600;
+}
+
+.il-money-input,
+input.il-money-input,
+.il-budget-form input.il-money-input {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.il-money-input::-webkit-outer-spin-button,
+.il-money-input::-webkit-inner-spin-button,
+input[type="number"].il-money-input::-webkit-outer-spin-button,
+input[type="number"].il-money-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 .il-budget-form {

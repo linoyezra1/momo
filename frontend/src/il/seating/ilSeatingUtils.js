@@ -12,19 +12,16 @@ export function getTableOccupancy(guests, tableId) {
     .reduce((sum, guest) => sum + countGuestSeats(guest), 0);
 }
 
-export function filterSeatingGuests(guests, { side, group, seated, query }) {
+export function filterSeatingGuests(guests, { seated, query }) {
   return guests.filter((guest) => {
     if (!guest.isEligible) return false;
-    if (side && guest.guestSide !== side) return false;
-    if (group && guest.guestGroup !== group) return false;
     if (seated === "seated" && !guest.isSeated) return false;
     if (seated === "floating" && guest.isSeated) return false;
     const q = String(query || "").trim().toLowerCase();
     if (!q) return true;
     return (
       String(guest.fullName || "").toLowerCase().includes(q) ||
-      String(guest.phone || "").includes(q) ||
-      String(guest.guestGroup || "").toLowerCase().includes(q)
+      String(guest.phone || "").includes(q)
     );
   });
 }
@@ -52,8 +49,6 @@ export function buildSeatingExportRows(guests, tables) {
         "שם מלא": guest.fullName,
         טלפון: guest.phone,
         כמות: countGuestSeats(guest),
-        צד: guest.guestSide || "—",
-        קבוצה: guest.guestGroup || "—",
         שולחן: table?.label || "צף",
         סטטוס: guest.isSeated ? "הושב" : "ממתין לשיבוץ"
       };

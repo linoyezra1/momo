@@ -13,7 +13,7 @@
  */
 
 /**
- * @typedef {'OFFER_SENT'|'NEGOTIATING'|'BOOKED'|'REJECTED'} EventVendorStatus
+ * @typedef {'NEGOTIATING'|'BOOKED'|'REJECTED'} EventVendorStatus
  */
 
 /**
@@ -56,7 +56,6 @@ export const VENDOR_CATEGORIES = [
 ];
 
 export const EVENT_VENDOR_STATUS_LABELS = {
-  OFFER_SENT: "הצעה נשלחה",
   NEGOTIATING: "במשא ומתן",
   BOOKED: "נסגר",
   REJECTED: "לא רלוונטי"

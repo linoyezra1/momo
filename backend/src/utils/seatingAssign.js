@@ -67,32 +67,3 @@ export function buildSeatingAnalytics(guests, tables) {
     utilizationPercent: totalCapacity ? Math.round((seatedSeats / totalCapacity) * 100) : 0
   };
 }
-
-export function autoAssignGuestsToTables(guests, tables) {
-  const eligible = guests.filter((guest) => isGuestEligibleForSeating(guest) && !guest.seatingTableId);
-  const sortedTables = [...tables].sort((a, b) => String(a.label).localeCompare(String(b.label), "he"));
-  const occupancy = buildTableOccupancy(guests, tables);
-  const assignments = [];
-
-  const guestsByGroup = new Map();
-  for (const guest of eligible) {
-    const key = String(guest.guestGroup || "ללא קבוצה").trim() || "ללא קבוצה";
-    if (!guestsByGroup.has(key)) guestsByGroup.set(key, []);
-    guestsByGroup.get(key).push(guest);
-  }
-
-  for (const groupGuests of guestsByGroup.values()) {
-    for (const guest of groupGuests) {
-      const seatsNeeded = countSeatsForGuest(guest);
-      const targetTable = sortedTables.find((table) => {
-        const bucket = occupancy.get(table.tableId);
-        return bucket.seats + seatsNeeded <= table.capacity;
-      });
-      if (!targetTable) continue;
-      assignments.push({ guestId: String(guest._id), tableId: targetTable.tableId });
-      occupancy.get(targetTable.tableId).seats += seatsNeeded;
-    }
-  }
-
-  return assignments;
-}

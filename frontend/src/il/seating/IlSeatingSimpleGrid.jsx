@@ -57,6 +57,7 @@ export default function IlSeatingSimpleGrid({
                 type="button"
                 className="il-seat-table-card__edit"
                 aria-label={`עריכת שולחן ${table.label}`}
+                title="עריכת שולחן"
                 onClick={(event) => {
                   event.stopPropagation();
                   onEditTable(table.tableId);
@@ -71,8 +72,15 @@ export default function IlSeatingSimpleGrid({
                 <ul className="il-seat-table-card__guests">
                   {seatedGuests.map((guest) => (
                     <li key={guest._id}>
-                      <strong>{guest.fullName}</strong>
-                      <span>{countGuestSeats(guest)}</span>
+                      <div className="il-seat-table-card__guest-main">
+                        <strong>{guest.fullName}</strong>
+                        <span className="il-seat-table-card__guest-phone" dir="ltr">
+                          {guest.phone || "—"}
+                        </span>
+                      </div>
+                      <span className="il-seat-table-card__guest-seats" title="מספר מושבים תפוסים">
+                        {countGuestSeats(guest)}
+                      </span>
                     </li>
                   ))}
                 </ul>

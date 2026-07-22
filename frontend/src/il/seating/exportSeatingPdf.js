@@ -22,7 +22,7 @@ function drawFooter(doc, pageNumber, pageCount, pageWidth, pageHeight) {
 /**
  * Multi-page seating PDF:
  * 1) Visual canvas capture
- * 2+) Assigned guests table (name, count, category/group, table)
+ * 2+) Assigned guests table (name, seats, phone, table)
  */
 export async function exportSeatingPdf({
   canvasElement,
@@ -72,12 +72,12 @@ export async function exportSeatingPdf({
     .map((guest) => ({
       name: guest.fullName || "",
       count: countGuestSeats(guest),
-      category: guest.guestGroup || guest.guestSide || "—",
+      phone: guest.phone || "—",
       table: tableMap.get(guest.seatingTableId)?.label || "—"
     }));
 
   const colWidths = [70, 25, 55, 40];
-  const headers = ["שם מלא", "כמות", "קטגוריה", "שולחן"];
+  const headers = ["שם מלא", "מושבים", "טלפון", "שולחן"];
   const rowHeight = 9;
   const startY = 40;
   const usableHeight = pageHeight - startY - 18;
@@ -118,7 +118,7 @@ export async function exportSeatingPdf({
         doc.setFillColor(250, 248, 246);
         doc.rect(tableStartX, y - 6, colWidths.reduce((a, b) => a + b, 0), rowHeight, "F");
       }
-      const values = [row.name, String(row.count), row.category, String(row.table)];
+      const values = [row.name, String(row.count), row.phone, String(row.table)];
       let cellX = tableStartX;
       values.forEach((value, index) => {
         const align = index === 0 ? "right" : "center";
