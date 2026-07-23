@@ -13,12 +13,15 @@ import {
  *    {{1}} couple name · {{2}} event id for /event/{{2}}
  *
  * 2) get_login_credentials — Quick Reply (Approved UTILITY)
- *    Env: TWILIO_GET_LOGIN_CREDENTIALS_CONTENT_SID
+ *    SID: HXb15c22c3378d40bc83152a03e14711b4
+ *    Sent ~1 minute after welcome (TWILIO_CREDENTIALS_QR_DELAY_MS, default 60000)
  *    Button: "🔑 לקבלת פרטי הגישה" · payload GET_CREDENTIALS
  *    → webhook sends free-text session credentials (whatsappAccessDetailsService)
  */
 
 const WELCOME_CONTENT_SID_DEFAULT = "HX97878ac790cd66e73459d9fa3529a0f3";
+const LOGIN_CREDENTIALS_CONTENT_SID_DEFAULT = "HXb15c22c3378d40bc83152a03e14711b4";
+const CREDENTIALS_QR_DELAY_MS_DEFAULT = 60_000;
 
 export function getAdminWelcomeDisplayName() {
   return String(process.env.ADMIN_DISPLAY_NAME || "").trim() || "momoEVENT";
@@ -31,7 +34,17 @@ export function getWelcomeContentSid() {
 }
 
 export function getLoginCredentialsContentSid() {
-  return String(process.env.TWILIO_GET_LOGIN_CREDENTIALS_CONTENT_SID || "").trim();
+  return String(
+    process.env.TWILIO_GET_LOGIN_CREDENTIALS_CONTENT_SID ||
+      LOGIN_CREDENTIALS_CONTENT_SID_DEFAULT ||
+      ""
+  ).trim();
+}
+
+export function getCredentialsQuickReplyDelayMs() {
+  const raw = Number(process.env.TWILIO_CREDENTIALS_QR_DELAY_MS);
+  if (Number.isFinite(raw) && raw >= 0) return Math.min(raw, 10 * 60_000);
+  return CREDENTIALS_QR_DELAY_MS_DEFAULT;
 }
 
 /** Extract `/event/:id` path segment for CTA button variable {{2}}. */
@@ -103,7 +116,7 @@ async function sendWelcomeTemplate({
 
 /**
  * Second message: approved Quick Reply template with GET_CREDENTIALS button.
- * Requires TWILIO_GET_LOGIN_CREDENTIALS_CONTENT_SID after Meta approval.
+ * Scheduled ~1 minute after welcome so the couple can read the first message first.
  */
 async function sendCredentialsQuickReplyTemplate({
   to,
@@ -137,8 +150,58 @@ async function sendCredentialsQuickReplyTemplate({
   };
 }
 
+function scheduleCredentialsQuickReply(common, delayMs) {
+  const contentSid = getLoginCredentialsContentSid();
+  if (!contentSid.startsWith("HX")) {
+    console.warn(
+      `[WHATSAPP] Skipping scheduled get_login_credentials — template SID missing (user=${common.username || common.userId || "unknown"})`
+    );
+    return {
+      sent: false,
+      scheduled: false,
+      reason: "credentials_qr_template_missing",
+      delayMs: 0,
+      contentSid: ""
+    };
+  }
+
+  const waitMs = Math.max(0, Number(delayMs) || 0);
+  console.log(
+    `[WHATSAPP] Scheduling get_login_credentials in ${waitMs}ms for ${common.contactPhone || "unknown"} (user=${common.username || common.userId || "unknown"})`
+  );
+
+  setTimeout(() => {
+    sendCredentialsQuickReplyTemplate(common)
+      .then((result) => {
+        if (result.ok) {
+          console.log(
+            `[WHATSAPP] get_login_credentials sent after delay\nphone: ${common.contactPhone || "unknown"}\nsid: ${result.sid || "-"}\nuser: ${common.username || common.userId || "unknown"}`
+          );
+        } else {
+          console.warn(
+            `[WHATSAPP] get_login_credentials delayed send skipped: ${result.reason || "unknown"}`
+          );
+        }
+      })
+      .catch((error) => {
+        console.error(
+          `[WHATSAPP] get_login_credentials delayed send failed for ${common.contactPhone || "unknown"}: ${error?.message || error}`
+        );
+      });
+  }, waitMs);
+
+  return {
+    sent: false,
+    scheduled: true,
+    reason: null,
+    delayMs: waitMs,
+    contentSid,
+    sid: ""
+  };
+}
+
 /**
- * Sends welcome CTA template, then credentials Quick Reply template.
+ * Sends welcome CTA template, then schedules credentials Quick Reply (~1 min later).
  * Falls back to free-text only if TWILIO_COUPLE_ACCESS_ALLOW_FREE_TEXT=true (local/dev).
  */
 export async function sendEventManagerWelcomeWhatsApp({
@@ -213,11 +276,12 @@ export async function sendEventManagerWelcomeWhatsApp({
         sid: result?.sid || "",
         to,
         mode: "free_text",
-        credentialsQuickReply: { sent: false, reason: "free_text_fallback" }
+        credentialsQuickReply: { sent: false, scheduled: false, reason: "free_text_fallback" }
       };
     }
 
-    const credentialsQr = await sendCredentialsQuickReplyTemplate(common);
+    const delayMs = getCredentialsQuickReplyDelayMs();
+    const credentialsQr = scheduleCredentialsQuickReply(common, delayMs);
 
     return {
       sent: true,
@@ -226,9 +290,11 @@ export async function sendEventManagerWelcomeWhatsApp({
       mode: "content_template",
       contentSid: welcome.contentSid,
       credentialsQuickReply: {
-        sent: Boolean(credentialsQr.ok),
-        reason: credentialsQr.ok ? null : credentialsQr.reason,
-        sid: credentialsQr.sid || "",
+        sent: false,
+        scheduled: Boolean(credentialsQr.scheduled),
+        reason: credentialsQr.reason,
+        delayMs: credentialsQr.delayMs,
+        sid: "",
         contentSid: credentialsQr.contentSid || ""
       }
     };

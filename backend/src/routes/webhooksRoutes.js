@@ -38,42 +38,61 @@ function hasValidTwilioSignature(req) {
   return twilio.validateRequest(authToken, signature, getWebhookRequestUrl(req), req.body);
 }
 
-/**
- * Inbound WhatsApp:
- * 1) Couple Quick Reply → session credentials (GET_CREDENTIALS)
- * 2) Guest RSVP button / reply flow
- */
-router.post("/twilio-whatsapp", async (req, res) => {
-  if (!hasValidTwilioSignature(req)) {
-    console.warn("[Twilio WhatsApp] Rejected inbound webhook: invalid Twilio signature");
-    return res.status(403).send("Invalid Twilio signature");
-  }
+function ackTwilio(res) {
+  return res.type("text/xml").status(200).send("<Response></Response>");
+}
 
+/**
+ * Process inbound WhatsApp after HTTP 200 was already sent (avoids Twilio retries).
+ */
+async function processInboundWhatsApp(req) {
   const inbound = {
     from: req.body.From,
     body: req.body.Body,
     buttonPayload: req.body.ButtonPayload,
     buttonText: req.body.ButtonText,
     interactiveData: req.body.InteractiveData,
+    messageSid: req.body.MessageSid,
     origin: getClientBaseUrl(req)
   };
 
+  console.log(
+    `[Twilio WhatsApp] Inbound: ${req.body.MessageSid || "unknown"} from ${req.body.From || "unknown"} payload=${req.body.ButtonPayload || "-"} text=${req.body.ButtonText || req.body.Body || "-"}`
+  );
+
+  const accessResult = await handleGetAccessDetailsRequest(inbound);
+  if (accessResult.handled) {
+    return accessResult;
+  }
+
+  return handleIncomingWhatsAppRsvp(inbound);
+}
+
+/**
+ * Inbound WhatsApp:
+ * 1) Couple Quick Reply → session credentials (GET_CREDENTIALS)
+ * 2) Guest RSVP button / reply flow
+ *
+ * Responds 200 immediately, then processes asynchronously.
+ */
+async function twilioWhatsAppWebhook(req, res) {
+  if (!hasValidTwilioSignature(req)) {
+    console.warn("[Twilio WhatsApp] Rejected inbound webhook: invalid Twilio signature");
+    return res.status(403).send("Invalid Twilio signature");
+  }
+
+  // Acknowledge first — Twilio retries on slow/non-2xx responses.
+  ackTwilio(res);
+
   try {
-    console.log(
-      `[Twilio WhatsApp] Inbound: ${req.body.MessageSid || "unknown"} from ${req.body.From || "unknown"} payload=${req.body.ButtonPayload || "-"} text=${req.body.ButtonText || req.body.Body || "-"}`
-    );
-
-    const accessResult = await handleGetAccessDetailsRequest(inbound);
-    if (accessResult.handled) {
-      return res.type("text/xml").status(200).send("<Response></Response>");
-    }
-
-    await handleIncomingWhatsAppRsvp(inbound);
-    return res.type("text/xml").status(200).send("<Response></Response>");
+    await processInboundWhatsApp(req);
   } catch (error) {
     console.error("[Twilio WhatsApp] Incoming interaction failed:", error?.message || error);
-    return res.status(500).send("Failed to process WhatsApp interaction");
   }
-});
+}
+
+router.post("/twilio-whatsapp", twilioWhatsAppWebhook);
+/** Alias for ops / docs that expect /api/webhooks/whatsapp */
+router.post("/whatsapp", twilioWhatsAppWebhook);
 
 export default router;

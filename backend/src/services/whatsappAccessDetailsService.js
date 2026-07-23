@@ -1,14 +1,14 @@
 /**
  * WhatsApp session reply: couple requests login credentials via Quick Reply.
  *
- * Primary action: GET_CREDENTIALS (template get_login_credentials)
- * Button text: 🔑 לקבלת פרטי הגישה
- *
- * Legacy aliases still accepted: GET_ACCESS_DETAILS / קבלת פרטי גישה
+ * Template: get_login_credentials
+ * SID: HXb15c22c3378d40bc83152a03e14711b4
+ * Button: 🔑 לקבלת פרטי הגישה · payload GET_CREDENTIALS
  *
  * Response is always a free-text session message inside the 24h customer window —
  * never another Content Template.
  */
+import SystemAuditLog from "../models/SystemAuditLog.js";
 import User from "../models/User.js";
 import { getClientBaseUrl } from "../utils/clientUrl.js";
 import { normalizePhone, phoneLookupVariants } from "../utils/guestPhone.js";
@@ -25,8 +25,10 @@ export const CREDENTIALS_BUTTON_TEXT = "🔑 לקבלת פרטי הגישה";
 export const CREDENTIALS_BUTTON_TEXT_PLAIN = "לקבלת פרטי הגישה";
 export const ACCESS_DETAILS_BUTTON_TEXT = "קבלת פרטי גישה";
 
-const MSG_USER_NOT_FOUND =
-  "לא מצאנו חשבון המשויך למספר זה.\nאנא פנו לתמיכה.";
+const SUPPORT_PHONE =
+  String(process.env.MOMOEVENT_SUPPORT_PHONE || "0535314055").trim() || "0535314055";
+
+const MSG_USER_NOT_FOUND = `שלום! המספר ממנו פנית אינו משויך לחשבון פעיל במערכת momoEVENT. ליצירת קשר עם התמיכה: ${SUPPORT_PHONE}.`;
 
 const MSG_NO_CREDENTIALS =
   "החשבון שלך קיים אך טרם הוגדרו פרטי גישה.\nצוות התמיכה יעדכן אותך.";
@@ -95,6 +97,8 @@ export function isAccessDetailsRequest({ payload, text } = {}) {
   }
   if (t === CREDENTIALS_BUTTON_TEXT || plain === CREDENTIALS_BUTTON_TEXT_PLAIN) return true;
   if (t === ACCESS_DETAILS_BUTTON_TEXT || plain === ACCESS_DETAILS_BUTTON_TEXT) return true;
+  // Soft match: Hebrew title without exact emoji spacing
+  if (plain.includes("לקבלת פרטי הגישה") || plain.includes("קבלת פרטי גישה")) return true;
   return false;
 }
 
@@ -122,25 +126,23 @@ function buildLoginUrl(origin) {
     /\/+$/,
     ""
   );
-  // Prefer production short path used in approved copy; locally keep same path (/login → /client/login).
   if (base.includes("momoevent.up.railway.app")) {
     return PRODUCTION_LOGIN_URL;
   }
   return `${base}/login`;
 }
 
-export function buildAccessDetailsMessage({ username, password, loginUrl, eventLabel }) {
+export function buildAccessDetailsMessage({ username, password, loginUrl }) {
   const user = String(username || "").trim() || "—";
   const pass = String(password || "").trim() || "—";
   const url = String(loginUrl || "").trim() || PRODUCTION_LOGIN_URL;
-  const eventLine = eventLabel ? `\nאירוע: ${eventLabel}\n` : "\n";
 
   return `הנה פרטי הגישה האישיים שלכם למערכת momoEVENT 🔑
-${eventLine}
+
 שם משתמש: ${user}
 קוד גישה: ${pass}
 
-קישור התחברות: ${url}`;
+כניסה למערכת: ${url}`;
 }
 
 export function buildMultiAccountAccessDetailsMessage({ accounts, loginUrl }) {
@@ -157,7 +159,31 @@ export function buildMultiAccountAccessDetailsMessage({ accounts, loginUrl }) {
 
 ${blocks.join("\n\n")}
 
-קישור התחברות: ${url}`;
+כניסה למערכת: ${url}`;
+}
+
+async function recordCredentialsAudit({
+  phone,
+  userId = null,
+  status,
+  description,
+  metadata = {}
+}) {
+  try {
+    await SystemAuditLog.create({
+      source: "WHATSAPP_QUICK_REPLY",
+      action: CREDENTIALS_ACTION_ID,
+      status,
+      phone: String(phone || "").trim(),
+      userId: userId || null,
+      description,
+      metadata
+    });
+  } catch (error) {
+    console.error(
+      `[WHATSAPP] Failed to write SystemAuditLog: ${error?.message || error}`
+    );
+  }
 }
 
 /**
@@ -212,7 +238,8 @@ export async function handleGetAccessDetailsRequest({
   buttonPayload,
   buttonText,
   interactiveData,
-  origin
+  origin,
+  messageSid
 } = {}) {
   const { payload, text } = extractWhatsAppButtonIdentity({
     body,
@@ -225,10 +252,23 @@ export async function handleGetAccessDetailsRequest({
     return { handled: false, reason: "not_access_details" };
   }
 
-  const inboundPhone = String(from || "").replace(/^whatsapp:/i, "").trim();
+  const inboundPhoneRaw = String(from || "").replace(/^whatsapp:/i, "").trim();
+  const inboundPhoneNormalized = normalizePhone(inboundPhoneRaw);
+  const inboundPhone = inboundPhoneNormalized || inboundPhoneRaw;
   const timestamp = new Date().toISOString();
   const loginUrl = buildLoginUrl(origin);
   const actionId = CREDENTIALS_ACTION_ID;
+  const auditMeta = {
+    messageSid: messageSid || "",
+    buttonPayload: payload,
+    buttonText: text,
+    from: from || "",
+    timestamp
+  };
+
+  console.log(
+    `[WHATSAPP] Access details requested\nphone: ${inboundPhone || "unknown"}\npayload: ${payload || "-"}\ntext: ${text || "-"}\ntimestamp: ${timestamp}`
+  );
 
   const users = await findUsersByWhatsAppPhone(from);
 
@@ -236,9 +276,15 @@ export async function handleGetAccessDetailsRequest({
     console.warn(
       `[WHATSAPP] Access details failed - user not found\nphone: ${inboundPhone || "unknown"}\ntimestamp: ${timestamp}`
     );
+    await recordCredentialsAudit({
+      phone: inboundPhone,
+      status: "user_not_found",
+      description: "בקשת פרטי גישה — מספר לא משויך לחשבון",
+      metadata: auditMeta
+    });
     try {
       await sendSessionReply({
-        toPhone: inboundPhone,
+        toPhone: inboundPhoneRaw || inboundPhone,
         body: MSG_USER_NOT_FOUND
       });
     } catch (error) {
@@ -255,8 +301,15 @@ export async function handleGetAccessDetailsRequest({
     console.warn(
       `[WHATSAPP] Access details failed - credentials missing\nphone: ${inboundPhone}\nuser_id: ${first._id}\nevent_id: ${first._id}\ntimestamp: ${timestamp}`
     );
+    await recordCredentialsAudit({
+      phone: inboundPhone,
+      userId: first._id,
+      status: "credentials_missing",
+      description: "בקשת פרטי גישה — חשבון ללא קוד גישה שמור",
+      metadata: { ...auditMeta, userIds: users.map((u) => String(u._id)) }
+    });
     await sendSessionReply({
-      toPhone: inboundPhone,
+      toPhone: inboundPhoneRaw || inboundPhone,
       body: MSG_NO_CREDENTIALS,
       userId: first._id
     });
@@ -265,7 +318,7 @@ export async function handleGetAccessDetailsRequest({
 
   const primary = withCredentials[0];
   console.log(
-    `[WHATSAPP] Access details requested\nphone: ${inboundPhone}\nuser_id: ${primary._id}\nevent_id: ${primary._id}\ntimestamp: ${timestamp}`
+    `[WHATSAPP] Access details matched\nphone: ${inboundPhone}\nuser_id: ${primary._id}\nevent_id: ${primary._id}\ntimestamp: ${timestamp}`
   );
 
   let messageBody;
@@ -273,8 +326,7 @@ export async function handleGetAccessDetailsRequest({
     messageBody = buildAccessDetailsMessage({
       username: primary.username,
       password: primary.loginPassword,
-      loginUrl,
-      eventLabel: eventDisplayLabel(primary.event)
+      loginUrl
     });
   } else {
     messageBody = buildMultiAccountAccessDetailsMessage({
@@ -288,9 +340,21 @@ export async function handleGetAccessDetailsRequest({
   }
 
   await sendSessionReply({
-    toPhone: inboundPhone,
+    toPhone: inboundPhoneRaw || inboundPhone,
     body: messageBody,
     userId: primary._id
+  });
+
+  await recordCredentialsAudit({
+    phone: inboundPhone,
+    userId: primary._id,
+    status: "sent",
+    description: "פרטי גישה נשלחו בוואטסאפ (session free-text)",
+    metadata: {
+      ...auditMeta,
+      userIds: withCredentials.map((u) => String(u._id)),
+      accountCount: withCredentials.length
+    }
   });
 
   console.log(
