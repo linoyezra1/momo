@@ -1,6 +1,8 @@
 import express from "express";
 import bcrypt from "bcryptjs";
 import User from "../models/User.js";
+import Guest from "../models/Guest.js";
+import EventVendor from "../models/EventVendor.js";
 import { buildClientUrl } from "../utils/clientUrl.js";
 import { normalizeEventPayload, normalizePaymentPayload, validateEvent } from "../utils/eventPayload.js";
 import { normalizePhone } from "../utils/guestPhone.js";
@@ -60,9 +62,56 @@ router.get("/clients", async (req, res) => {
     ).sort({
       createdAt: -1
     });
+
+    const userIds = users.map((user) => user._id);
+
+    const [guestAgg, vendorAgg] = await Promise.all([
+      userIds.length
+        ? Guest.aggregate([
+            { $match: { userId: { $in: userIds } } },
+            {
+              $group: {
+                _id: "$userId",
+                totalInvited: { $sum: { $max: ["$attendeesCount", 0] } },
+                totalComing: {
+                  $sum: {
+                    $cond: [{ $eq: ["$status", "מגיע"] }, { $max: ["$attendeesCount", 0] }, 0]
+                  }
+                },
+                guestCount: { $sum: 1 }
+              }
+            }
+          ])
+        : [],
+      userIds.length
+        ? EventVendor.aggregate([
+            { $match: { eventId: { $in: userIds } } },
+            {
+              $group: {
+                _id: "$eventId",
+                vendorCount: { $sum: 1 },
+                bookedCount: {
+                  $sum: { $cond: [{ $eq: ["$status", "BOOKED"] }, 1, 0] }
+                },
+                totalQuote: {
+                  $sum: {
+                    $max: [{ $ifNull: ["$vendorQuoteAmount", "$quoteAmount"] }, 0]
+                  }
+                }
+              }
+            }
+          ])
+        : []
+    ]);
+
+    const guestByUser = new Map(guestAgg.map((row) => [String(row._id), row]));
+    const vendorByUser = new Map(vendorAgg.map((row) => [String(row._id), row]));
+
     const clients = users.map((user) => {
       const links = buildClientLinks(user._id, req);
       const payment = normalizePaymentPayload(user.payment || {});
+      const guestStats = guestByUser.get(String(user._id));
+      const vendorStats = vendorByUser.get(String(user._id));
       return {
         userId: user._id,
         username: user.username,
@@ -72,6 +121,14 @@ router.get("/clients", async (req, res) => {
         payment,
         managedBy: user.managedBy,
         createdAt: user.createdAt,
+        stats: {
+          totalInvited: Number(guestStats?.totalInvited) || 0,
+          totalComing: Number(guestStats?.totalComing) || 0,
+          guestCount: Number(guestStats?.guestCount) || 0,
+          vendorCount: Number(vendorStats?.vendorCount) || 0,
+          bookedVendors: Number(vendorStats?.bookedCount) || 0,
+          totalVendorQuote: Number(vendorStats?.totalQuote) || 0
+        },
         ...links
       };
     });

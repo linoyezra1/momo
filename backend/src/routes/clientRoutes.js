@@ -25,6 +25,7 @@ import {
   recordClientGuestUpdate,
   recordGuestAuditLog
 } from "../services/guestAuditService.js";
+import { resolveMaxPhoneRounds } from "../utils/phoneRounds.js";
 
 const router = express.Router();
 
@@ -169,7 +170,7 @@ router.get("/:userId/audit-logs", async (req, res) => {
 router.get("/:userId/guests", async (req, res) => {
   try {
     const { userId } = req.params;
-    const user = await User.findById(userId).select("event username");
+    const user = await User.findById(userId).select("event username deal.includedFeatures");
     if (!user) {
       return res.status(404).json({ message: "Client not found" });
     }
@@ -199,7 +200,10 @@ router.get("/:userId/guests", async (req, res) => {
       }
     );
 
-    return res.json({ summary, guests, event: user.event, username: user.username });
+    const event = user.event?.toObject ? user.event.toObject() : { ...(user.event || {}) };
+    event.maxPhoneRounds = resolveMaxPhoneRounds(user);
+
+    return res.json({ summary, guests, event, username: user.username });
   } catch (error) {
     return res.status(500).json({ message: "Failed to load guests", error: error.message });
   }

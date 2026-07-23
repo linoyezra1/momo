@@ -7,6 +7,10 @@ import Lead from "../models/Lead.js";
 import { buildClientUrl } from "../utils/clientUrl.js";
 import { normalizePhone } from "../utils/guestPhone.js";
 import {
+  applyPhoneRoundsToDealFeatures,
+  maxPhoneRoundsFromDealFeatures
+} from "../utils/phoneRounds.js";
+import {
   requireAdmin,
   signAdminToken,
   validateAdminCredentials,
@@ -254,11 +258,14 @@ function serializeDeal(deal, payment = {}) {
 
 function applyDealToUser(user, rawDeal) {
   const deal = normalizeDealPayload(rawDeal, user.deal || {});
+  const maxFromDeal = maxPhoneRoundsFromDealFeatures(deal.includedFeatures);
+  deal.includedFeatures = applyPhoneRoundsToDealFeatures(maxFromDeal, deal.includedFeatures);
   user.deal = deal;
   const premiumButtonsEnabled = Boolean(
     deal.includedFeatures.isPremiumWhatsappButtonsEnabled
   );
   user.set("event.isPremiumWhatsappButtonsEnabled", premiumButtonsEnabled);
+  user.set("event.maxPhoneRounds", maxFromDeal);
   user.markModified("event");
   // Keep legacy payment in sync for revenue totals / older UI
   user.payment = {
@@ -417,6 +424,10 @@ router.patch("/clients/:userId", async (req, res) => {
       const synchronizedDeal = normalizeDealPayload({}, user.deal || {});
       synchronizedDeal.includedFeatures.isPremiumWhatsappButtonsEnabled =
         normalizedEvent.isPremiumWhatsappButtonsEnabled === true;
+      synchronizedDeal.includedFeatures = applyPhoneRoundsToDealFeatures(
+        normalizedEvent.maxPhoneRounds,
+        synchronizedDeal.includedFeatures
+      );
       user.deal = synchronizedDeal;
     }
 

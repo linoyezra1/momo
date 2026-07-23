@@ -9,6 +9,7 @@ import {
   validateAgentCredentials,
   verifyAgentToken
 } from "../middleware/agentAuth.js";
+import { resolveMaxPhoneRounds } from "../utils/phoneRounds.js";
 
 const router = express.Router();
 
@@ -24,14 +25,6 @@ function buildEventLabel(event) {
     return event.batMitzvahName || event.parentName1 || "בת מצווה";
   }
   return event.eventNames || event.eventType || "אירוע";
-}
-
-function resolveMaxPhoneRounds(user) {
-  const configured = Number(user?.event?.maxPhoneRounds);
-  if (Number.isInteger(configured) && configured >= 0 && configured <= 4) {
-    return configured;
-  }
-  return 0;
 }
 
 function getWhatsAppRoundsSent(guest) {
@@ -121,7 +114,7 @@ router.get("/:userId/audit-logs", async (req, res) => {
 router.get("/:userId/guests", async (req, res) => {
   try {
     const { userId } = req.params;
-    const user = await User.findById(userId).select("event username");
+    const user = await User.findById(userId).select("event username deal.includedFeatures");
     if (!user) {
       return res.status(404).json({ message: "Client not found" });
     }
@@ -173,7 +166,7 @@ router.patch("/:userId/guests/:guestId/phone-rsvp", async (req, res) => {
       return res.status(400).json({ message: "יש לבחור תוצאת שיחה תקינה" });
     }
 
-    const user = await User.findById(userId).select("event.maxPhoneRounds");
+    const user = await User.findById(userId).select("event.maxPhoneRounds deal.includedFeatures");
     if (!user) {
       return res.status(404).json({ message: "Client not found" });
     }
