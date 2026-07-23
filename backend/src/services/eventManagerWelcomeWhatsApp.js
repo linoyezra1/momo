@@ -118,6 +118,47 @@ async function sendWelcomeTemplate({
  * Second message: approved Quick Reply template with GET_CREDENTIALS button.
  * Scheduled ~1 minute after welcome so the couple can read the first message first.
  */
+export async function sendLoginCredentialsQuickReply({
+  contactPhone,
+  userId,
+  username,
+  senderLabel
+}) {
+  if (!isTwilioConfigured()) {
+    return { sent: false, reason: "twilio_not_configured" };
+  }
+
+  const to = toTwilioWhatsAppAddress(contactPhone);
+  if (!to) {
+    return { sent: false, reason: "invalid_phone" };
+  }
+
+  try {
+    const result = await sendCredentialsQuickReplyTemplate({
+      to,
+      contactPhone,
+      userId,
+      username,
+      senderLabel: senderLabel || username
+    });
+    if (!result.ok) {
+      return { sent: false, reason: result.reason || "template_missing", contentSid: result.contentSid || "" };
+    }
+    return {
+      sent: true,
+      sid: result.sid || "",
+      contentSid: result.contentSid || "",
+      to
+    };
+  } catch (error) {
+    return {
+      sent: false,
+      reason: "send_failed",
+      error: error?.message || "WhatsApp send failed"
+    };
+  }
+}
+
 async function sendCredentialsQuickReplyTemplate({
   to,
   contactPhone,

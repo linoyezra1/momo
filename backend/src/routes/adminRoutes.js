@@ -18,7 +18,8 @@ import {
 } from "../middleware/adminAuth.js";
 import {
   getAdminWelcomeDisplayName,
-  sendEventManagerWelcomeWhatsApp
+  sendEventManagerWelcomeWhatsApp,
+  sendLoginCredentialsQuickReply
 } from "../services/eventManagerWelcomeWhatsApp.js";
 
 const router = express.Router();
@@ -505,6 +506,59 @@ router.patch("/clients/:userId/deal", async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ message: error.message || "Failed to update deal" });
+  }
+});
+
+/** Manual resend: get_login_credentials Quick Reply template (GET_CREDENTIALS). */
+router.post("/clients/:userId/send-credentials", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await User.findById(userId).select(
+      "username contactPhone event.brideName event.eventNames"
+    );
+    if (!user) {
+      return res.status(404).json({ message: "Client not found" });
+    }
+
+    const phone = String(user.contactPhone || "").trim();
+    if (!phone) {
+      return res.status(400).json({
+        message: "ללקוח אין מספר טלפון שמור — עדכנו טלפון איש קשר לפני שליחה"
+      });
+    }
+
+    const result = await sendLoginCredentialsQuickReply({
+      contactPhone: phone,
+      userId: user._id,
+      username: user.username,
+      senderLabel: `admin:${user.username}`
+    });
+
+    if (!result.sent) {
+      const reasonMessages = {
+        twilio_not_configured: "Twilio לא מוגדר בשרת",
+        invalid_phone: "מספר הטלפון אינו תקין לשליחת וואטסאפ",
+        credentials_qr_template_missing: "חסר SID לתבנית get_login_credentials",
+        template_missing: "חסר SID לתבנית get_login_credentials",
+        send_failed: result.error || "שליחת ההודעה נכשלה"
+      };
+      return res.status(400).json({
+        message: reasonMessages[result.reason] || "שליחת הרשאות נכשלה",
+        reason: result.reason || "send_failed"
+      });
+    }
+
+    return res.json({
+      message: "תבנית פרטי הגישה נשלחה בוואטסאפ",
+      sent: true,
+      sid: result.sid || "",
+      contentSid: result.contentSid || "",
+      phone
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message || "Failed to send credentials WhatsApp"
+    });
   }
 });
 

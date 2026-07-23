@@ -187,6 +187,8 @@ export default function AdminPage() {
   const [clientQuotaDraft, setClientQuotaDraft] = useState({ code: "", total_credits: "" });
   const [clientQuotaMessage, setClientQuotaMessage] = useState("");
   const [welcomeNotice, setWelcomeNotice] = useState("");
+  const [credentialsSending, setCredentialsSending] = useState(false);
+  const [credentialsNotice, setCredentialsNotice] = useState("");
   const [leads, setLeads] = useState([]);
   const [leadsLoading, setLeadsLoading] = useState(false);
   const [leadsError, setLeadsError] = useState("");
@@ -369,6 +371,7 @@ ${publicEventUrl}`
     }
     setDealDraft(dealDraftFromClient(selectedClient));
     setDealSaved(false);
+    setCredentialsNotice("");
   }, [selectedClient]);
 
   const onDealFieldChange = (event) => {
@@ -426,6 +429,27 @@ ${publicEventUrl}`
       setError(dealErr.response?.data?.message || "שמירת פרטי העסקה נכשלה");
     } finally {
       setDealSaving(false);
+    }
+  };
+
+  const sendCredentialsWhatsApp = async () => {
+    if (!selectedClientId || !selectedClient) return;
+    if (!String(selectedClient.contactPhone || "").trim()) {
+      setCredentialsNotice("");
+      setError("ללקוח אין מספר טלפון שמור — עדכנו טלפון איש קשר לפני שליחה");
+      return;
+    }
+    setCredentialsSending(true);
+    setCredentialsNotice("");
+    setError("");
+    try {
+      const response = await api.post(`/admin/clients/${selectedClientId}/send-credentials`);
+      setCredentialsNotice(response.data?.message || "תבנית פרטי הגישה נשלחה בוואטסאפ");
+      window.setTimeout(() => setCredentialsNotice(""), 4000);
+    } catch (sendErr) {
+      setError(sendErr.response?.data?.message || "שליחת הרשאות נכשלה");
+    } finally {
+      setCredentialsSending(false);
     }
   };
 
@@ -835,6 +859,26 @@ ${publicEventUrl}`
                     </div>
 
                     <div className="us-admin-detail-item">
+                      <span className="us-admin-detail-label">טלפון איש קשר</span>
+                      <div className="us-admin-link-row">
+                        <span className="us-admin-detail-value us-admin-detail-value--mono" dir="ltr">
+                          {selectedClient.contactPhone || "—"}
+                        </span>
+                        {selectedClient.contactPhone ? (
+                          <button
+                            className="us-admin-btn us-admin-btn--xs"
+                            type="button"
+                            onClick={() => copyFieldValue("phone", selectedClient.contactPhone)}
+                            aria-label="העתקת טלפון"
+                          >
+                            <Copy size={14} />
+                            {copiedField === "phone" ? "הועתק" : ""}
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className="us-admin-detail-item">
                       <span className="us-admin-detail-label">שם משתמש</span>
                       <div className="us-admin-link-row">
                         <span className="us-admin-detail-value us-admin-detail-value--mono">{selectedClient.username}</span>
@@ -1093,6 +1137,28 @@ ${publicEventUrl}`
                       onClick={saveDeal}
                     >
                       {dealSaving ? "שומר…" : dealSaved ? "נשמר" : "שמירת פרטי עסקה"}
+                    </button>
+                  </div>
+
+                  <div className="us-admin-share-block">
+                    <p className="us-admin-share-title">שליחת הרשאות בוואטסאפ</p>
+                    <p className="us-admin-field-hint">
+                      שולח לזוג את תבנית Quick Reply לקבלת פרטי גישה (`get_login_credentials`).
+                      לאחר לחיצה על הכפתור בהודעה — יישלחו שם משתמש וקוד גישה אוטומטית.
+                    </p>
+                    {credentialsNotice ? <p className="us-admin-message">{credentialsNotice}</p> : null}
+                    <button
+                      className="us-admin-btn us-admin-btn--primary"
+                      type="button"
+                      disabled={credentialsSending || !selectedClient.contactPhone}
+                      onClick={sendCredentialsWhatsApp}
+                      title={
+                        selectedClient.contactPhone
+                          ? "שליחת תבנית פרטי גישה בוואטסאפ"
+                          : "חסר מספר טלפון ללקוח"
+                      }
+                    >
+                      {credentialsSending ? "שולח…" : "שלח הרשאות"}
                     </button>
                   </div>
 
