@@ -59,10 +59,11 @@ export default function App() {
           </EventManagerProtectedRoute>
         }
       >
-        <Route index element={<ClientDashboardPage />} />
+        <Route index element={<Navigate to="vendors" replace />} />
         <Route path="vendors" element={<ClientVendorsPage />} />
-        <Route path="seating" element={<IlSeatingPage />} />
         <Route path="budget" element={<ManagerBudgetPage />} />
+        <Route path="seating" element={<IlSeatingPage />} />
+        <Route path="guests" element={<ClientDashboardPage />} />
         <Route path="audit-log" element={<ClientAuditLogPage />} />
       </Route>
       <Route path="/agent/login" element={<AgentLoginPage />} />

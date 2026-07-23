@@ -22,10 +22,12 @@ export function useEventWorkspace() {
     const basePath = isManagerEvent
       ? `/manager/events/${userId}`
       : `/client/dashboard/${userId}`;
+    const guestsPath = isManagerEvent ? `${basePath}/guests` : basePath;
     return {
       userId,
       isManagerEvent,
       basePath,
+      guestsPath,
       backPath: isManagerEvent ? "/manager" : basePath,
       backLabel: isManagerEvent ? "חזור לרשימת הזוגות" : "חזרה לדף הראשי"
     };

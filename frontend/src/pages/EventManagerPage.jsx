@@ -230,7 +230,7 @@ export default function EventManagerPage() {
   }
 
   function openEvent(userId) {
-    navigate(`/manager/events/${userId}`);
+    navigate(`/manager/events/${userId}/vendors`);
   }
 
   function logout() {

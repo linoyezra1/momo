@@ -13,7 +13,7 @@ import {
 } from "../utils/vendors.js";
 import "../us/admin-portal.css";
 import "../il/vendors.css";
-import "../il/manager-event.css";
+import "../il/manager-dashboard.css";
 
 const emptyVendorForm = {
   name: "",
@@ -135,27 +135,28 @@ export default function EventManagerVendorsPage() {
   const categoryPills = useMemo(() => ["all", ...VENDOR_CATEGORIES], []);
 
   return (
-    <div className="us-admin-portal us-admin-shell" dir="rtl" lang="he">
-      <div className="us-admin-container">
-        <header className="us-admin-header">
+    <div className="mgr-dash" dir="rtl" lang="he">
+      <div className="mgr-dash__container">
+        <header className="mgr-dash__header">
           <div>
-            <Link className="il-vendor-back" to="/manager">
-              ← חזרה לניהול אירועים
+            <Link className="mgr-dash__back" to="/manager">
+              ← חזרה ללוח אירועים
             </Link>
-            <h1>מאגר ספקים</h1>
-            <p>ספריית ספקים גלובלית לכל האירועים שבניהולך</p>
+            <p className="mgr-dash__eyebrow">momoEVENT · Partner</p>
+            <h1 className="mgr-dash__title">מאגר ספקים</h1>
+            <p className="mgr-dash__subtitle">ספריית ספקים גלובלית לכל האירועים שבניהולך</p>
           </div>
-          <div className="us-admin-toolbar">
-            <button className="us-admin-btn us-admin-btn--primary" type="button" onClick={openCreate}>
+          <div className="mgr-dash__header-actions">
+            <button className="mgr-dash__btn mgr-dash__btn--primary" type="button" onClick={openCreate}>
               <Plus size={16} aria-hidden="true" />
               ספק חדש
             </button>
           </div>
         </header>
 
-        {error ? <p className="us-admin-message us-admin-message--error">{error}</p> : null}
+        {error ? <p className="mgr-dash__message mgr-dash__message--error">{error}</p> : null}
 
-        <div className="il-vendor-toolbar">
+        <div className="mgr-dash__toolbar">
           <label className="il-vendor-search">
             <Search size={15} aria-hidden="true" />
             <input
@@ -163,14 +164,15 @@ export default function EventManagerVendorsPage() {
               placeholder="חיפוש שם, איש קשר או טלפון…"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
+              aria-label="חיפוש ספקים"
             />
           </label>
-          <div className="il-vendor-pills" role="group" aria-label="סינון לפי קטגוריה">
+          <div className="mgr-dash__filters" role="group" aria-label="סינון לפי קטגוריה">
             {categoryPills.map((item) => (
               <button
                 key={item}
                 type="button"
-                className={`il-vendor-pill${category === item ? " is-active" : ""}`}
+                className={`mgr-dash__chip${category === item ? " is-active" : ""}`}
                 onClick={() => setCategory(item)}
               >
                 {item === "all" ? "הכל" : item}
@@ -179,59 +181,57 @@ export default function EventManagerVendorsPage() {
           </div>
         </div>
 
-        <div className="us-admin-card">
-          <div className="us-admin-card-body">
-            {loading ? <p>טוען ספקים…</p> : null}
-            {!loading && !vendors.length ? <p>לא נמצאו ספקים. הוסיפו ספק ראשון למאגר.</p> : null}
-            {!loading && vendors.length ? (
-              <div className="il-vendor-grid">
-                {vendors.map((vendor) => {
-                  const tel = buildTelHref(vendor.phone);
-                  const wa = buildWhatsAppHref(vendor.phone);
-                  return (
-                    <article key={vendor.id} className="il-vendor-card">
-                      <button type="button" className="il-vendor-card__main" onClick={() => openDrawer(vendor.id)}>
-                        <span className="il-vendor-card__category">{vendor.category}</span>
-                        <strong>{vendor.name}</strong>
-                        <span>{vendor.contactName || "ללא איש קשר"}</span>
-                        <span dir="ltr">{vendor.phone || "—"}</span>
-                      </button>
-                      <div className="il-vendor-card__actions il-guest-actions">
-                        {wa ? (
-                          <IconActionButton
-                            as="a"
-                            className="il-icon-action--whatsapp"
-                            href={wa}
-                            target="_blank"
-                            rel="noreferrer"
-                            tooltip="וואטסאפ"
-                          >
-                            <WhatsAppIcon size={16} />
-                          </IconActionButton>
-                        ) : null}
-                        {tel ? (
-                          <IconActionButton as="a" className="il-icon-action--phone" href={tel} tooltip="חיוג">
-                            <Phone size={14} />
-                          </IconActionButton>
-                        ) : null}
-                        <IconActionButton tooltip="עריכה" onClick={() => openEdit(vendor)}>
-                          <Pencil size={14} />
-                        </IconActionButton>
-                        <IconActionButton
-                          className="il-icon-action--danger"
-                          tooltip="מחיקה"
-                          onClick={() => deleteVendor(vendor)}
-                        >
-                          <Trash2 size={14} />
-                        </IconActionButton>
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            ) : null}
+        {loading ? <p className="mgr-dash__empty">טוען ספקים…</p> : null}
+        {!loading && !vendors.length ? (
+          <p className="mgr-dash__empty">לא נמצאו ספקים. הוסיפו ספק ראשון למאגר.</p>
+        ) : null}
+        {!loading && vendors.length ? (
+          <div className="il-vendor-grid">
+            {vendors.map((vendor) => {
+              const tel = buildTelHref(vendor.phone);
+              const wa = buildWhatsAppHref(vendor.phone);
+              return (
+                <article key={vendor.id} className="il-vendor-card">
+                  <button type="button" className="il-vendor-card__main" onClick={() => openDrawer(vendor.id)}>
+                    <span className="il-vendor-card__category">{vendor.category}</span>
+                    <strong>{vendor.name}</strong>
+                    <span>{vendor.contactName || "ללא איש קשר"}</span>
+                    <span dir="ltr">{vendor.phone || "—"}</span>
+                  </button>
+                  <div className="il-vendor-card__actions il-guest-actions">
+                    {wa ? (
+                      <IconActionButton
+                        as="a"
+                        className="il-icon-action--whatsapp"
+                        href={wa}
+                        target="_blank"
+                        rel="noreferrer"
+                        tooltip="וואטסאפ"
+                      >
+                        <WhatsAppIcon size={16} />
+                      </IconActionButton>
+                    ) : null}
+                    {tel ? (
+                      <IconActionButton as="a" className="il-icon-action--phone" href={tel} tooltip="חיוג">
+                        <Phone size={14} />
+                      </IconActionButton>
+                    ) : null}
+                    <IconActionButton tooltip="עריכה" onClick={() => openEdit(vendor)}>
+                      <Pencil size={14} />
+                    </IconActionButton>
+                    <IconActionButton
+                      className="il-icon-action--danger"
+                      tooltip="מחיקה"
+                      onClick={() => deleteVendor(vendor)}
+                    >
+                      <Trash2 size={14} />
+                    </IconActionButton>
+                  </div>
+                </article>
+              );
+            })}
           </div>
-        </div>
+        ) : null}
       </div>
 
       {showForm ? (

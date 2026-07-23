@@ -1,13 +1,16 @@
 @import "tailwindcss";
 
+/* Shared manager Partner shell — burgundy brand aligned with momoEVENT */
 .mgr-dash {
-  --mgr-ink: #0f172a;
-  --mgr-muted: #64748b;
-  --mgr-accent: #0f766e;
-  --mgr-accent-soft: #ccfbf1;
-  --mgr-card: #ffffff;
-  --mgr-border: #e2e8f0;
-  --mgr-bg: #f8fafc;
+  --mgr-ink: #4a2e2b;
+  --mgr-muted: #8a6f6b;
+  --mgr-accent: #9b5a5a;
+  --mgr-accent-strong: #7e4545;
+  --mgr-accent-soft: rgb(213 126 126 / 16%);
+  --mgr-rose: #d57e7e;
+  --mgr-card: #fffefb;
+  --mgr-border: #e8e0d8;
+  --mgr-bg: #fdfbf7;
 
   min-height: 100vh;
   min-height: 100dvh;
@@ -15,9 +18,9 @@
   text-align: right;
   color: var(--mgr-ink);
   background:
-    radial-gradient(900px 420px at 95% -8%, rgb(15 118 110 / 10%), transparent 65%),
-    radial-gradient(720px 380px at 0% 0%, rgb(30 64 175 / 6%), transparent 60%),
-    linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    radial-gradient(900px 420px at 95% -8%, rgb(213 126 126 / 14%), transparent 65%),
+    radial-gradient(720px 380px at 0% 0%, rgb(212 175 55 / 10%), transparent 60%),
+    linear-gradient(180deg, #fffdfa 0%, #f8f0ee 100%);
   font-family: "Heebo", "Segoe UI", Tahoma, Arial, sans-serif;
 }
 
@@ -36,19 +39,26 @@
   margin-bottom: 1.35rem;
 }
 
-.mgr-dash__eyebrow {
-  margin: 0;
+.mgr-dash__back {
+  display: inline-block;
+  margin-bottom: 0.55rem;
   color: var(--mgr-muted);
-  font-size: 0.82rem;
+  font-size: 0.88rem;
   font-weight: 600;
-  letter-spacing: 0.02em;
+  text-decoration: none;
+}
+
+.mgr-dash__back:hover {
+  color: var(--mgr-accent-strong);
 }
 
 .mgr-dash__title {
   margin: 0.2rem 0 0;
-  font-size: clamp(1.55rem, 3vw, 2rem);
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  font-family: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+  font-size: clamp(1.75rem, 3.4vw, 2.35rem);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--mgr-ink);
 }
 
 .mgr-dash__subtitle {
@@ -83,8 +93,8 @@
 }
 
 .mgr-dash__btn:hover {
-  border-color: #94a3b8;
-  box-shadow: 0 6px 16px rgb(15 23 42 / 6%);
+  border-color: rgb(213 126 126 / 45%);
+  box-shadow: 0 6px 16px rgb(74 46 43 / 6%);
 }
 
 .mgr-dash__btn--primary {
@@ -94,7 +104,7 @@
 }
 
 .mgr-dash__btn--primary:hover {
-  background: #0d9488;
+  background: var(--mgr-accent-strong);
   border-color: transparent;
 }
 
@@ -106,8 +116,8 @@
   padding: 0.95rem 1rem;
   border: 1px solid var(--mgr-border);
   border-radius: 1rem;
-  background: rgb(255 255 255 / 88%);
-  box-shadow: 0 8px 24px rgb(15 23 42 / 4%);
+  background: rgb(255 254 251 / 92%);
+  box-shadow: 0 8px 24px rgb(74 46 43 / 4%);
 }
 
 .mgr-dash__search {
@@ -123,9 +133,9 @@
 }
 
 .mgr-dash__search:focus {
-  outline: 2px solid rgb(15 118 110 / 35%);
+  outline: 2px solid rgb(213 126 126 / 35%);
   outline-offset: 1px;
-  border-color: #5eead4;
+  border-color: var(--mgr-rose);
 }
 
 .mgr-dash__filters {
@@ -149,14 +159,14 @@
 }
 
 .mgr-dash__chip:hover {
-  border-color: #94a3b8;
+  border-color: rgb(213 126 126 / 45%);
   color: var(--mgr-ink);
 }
 
 .mgr-dash__chip.is-active {
   border-color: transparent;
   background: var(--mgr-accent-soft);
-  color: #0f766e;
+  color: var(--mgr-accent-strong);
 }
 
 .mgr-dash__grid {
@@ -186,7 +196,7 @@
   border: 1px solid var(--mgr-border);
   border-radius: 1.05rem;
   background: var(--mgr-card);
-  box-shadow: 0 10px 28px rgb(15 23 42 / 5%);
+  box-shadow: 0 10px 28px rgb(74 46 43 / 5%);
   cursor: pointer;
   text-align: right;
   transition:
@@ -197,12 +207,12 @@
 
 .mgr-event-card:hover {
   transform: translateY(-4px);
-  border-color: #2dd4bf;
-  box-shadow: 0 18px 40px rgb(15 23 42 / 10%);
+  border-color: rgb(213 126 126 / 55%);
+  box-shadow: 0 18px 40px rgb(74 46 43 / 10%);
 }
 
 .mgr-event-card:focus-visible {
-  outline: 2px solid #14b8a6;
+  outline: 2px solid var(--mgr-rose);
   outline-offset: 2px;
 }
 
@@ -219,6 +229,7 @@
   font-weight: 800;
   letter-spacing: -0.01em;
   line-height: 1.3;
+  color: var(--mgr-ink);
 }
 
 .mgr-event-card__meta {
@@ -246,13 +257,13 @@
 }
 
 .mgr-badge--type {
-  background: #e0f2fe;
-  color: #0369a1;
+  background: rgb(213 126 126 / 16%);
+  color: #7e4545;
 }
 
 .mgr-badge--soon {
-  background: #ecfdf5;
-  color: #047857;
+  background: rgb(212 175 55 / 18%);
+  color: #8a6f2e;
 }
 
 .mgr-badge--today {
@@ -261,8 +272,8 @@
 }
 
 .mgr-badge--past {
-  background: #f1f5f9;
-  color: #64748b;
+  background: #f1ebe8;
+  color: #8a6f6b;
 }
 
 .mgr-event-card__stats {
@@ -291,13 +302,13 @@
   height: 0.45rem;
   overflow: hidden;
   border-radius: 999px;
-  background: #e2e8f0;
+  background: #efe7e2;
 }
 
 .mgr-progress__bar {
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #0d9488, #14b8a6);
+  background: linear-gradient(90deg, #9b5a5a, #d57e7e);
   transition: width 0.35s ease;
 }
 
@@ -308,7 +319,7 @@
   gap: 0.65rem;
   margin-top: auto;
   padding-top: 0.35rem;
-  border-top: 1px solid #f1f5f9;
+  border-top: 1px solid #f1ebe8;
 }
 
 .mgr-event-card__quick {
@@ -332,12 +343,13 @@
 }
 
 .mgr-icon-btn:hover:not(:disabled) {
-  border-color: #99f6e4;
-  background: #f0fdfa;
-  color: #0f766e;
+  border-color: rgb(213 126 126 / 45%);
+  background: rgb(213 126 126 / 10%);
+  color: var(--mgr-accent-strong);
 }
 
-.mgr-icon-btn:disabled {
+.mgr-icon-btn:disabled,
+.mgr-icon-btn[aria-disabled="true"] {
   opacity: 0.4;
   cursor: not-allowed;
 }
@@ -369,12 +381,60 @@
 }
 
 .mgr-dash__message--ok {
-  border-color: #a7f3d0;
-  background: #ecfdf5;
-  color: #065f46;
+  border-color: rgb(213 126 126 / 35%);
+  background: rgb(213 126 126 / 10%);
+  color: #7e4545;
 }
 
 /* Keep wizard modal styles from admin portal when embedded */
 .mgr-dash .us-admin-modal-backdrop {
   z-index: 40;
+}
+
+/* Vendors page sits inside the same shell */
+.mgr-dash .il-vendor-toolbar {
+  margin-bottom: 0;
+}
+
+.mgr-dash .il-vendor-search {
+  max-width: none;
+  width: 100%;
+  min-height: 2.75rem;
+  border-radius: 0.75rem;
+  border-color: var(--mgr-border);
+  color: var(--mgr-muted);
+}
+
+.mgr-dash .il-vendor-search input {
+  color: var(--mgr-ink);
+  font-family: inherit;
+}
+
+.mgr-dash .il-vendor-pill.is-active {
+  background: var(--mgr-accent);
+  border-color: var(--mgr-accent);
+}
+
+.mgr-dash .il-vendor-card {
+  border-color: var(--mgr-border);
+  background: var(--mgr-card);
+  border-radius: 1.05rem;
+  box-shadow: 0 10px 28px rgb(74 46 43 / 5%);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.mgr-dash .il-vendor-card:hover {
+  transform: translateY(-3px);
+  border-color: rgb(213 126 126 / 45%);
+  box-shadow: 0 16px 36px rgb(74 46 43 / 9%);
+}
+
+.mgr-dash .il-vendor-card__main strong {
+  color: var(--mgr-ink);
+  font-family: inherit;
+}
+
+.mgr-dash .il-vendor-card__category {
+  background: var(--mgr-accent-soft);
+  color: var(--mgr-accent-strong);
 }

@@ -5,10 +5,10 @@ import "../il/il-portal.css";
 import "../il/manager-event.css";
 
 const TABS = [
-  { to: ".", end: true, label: "רשימת מוזמנים", icon: ClipboardList, emoji: "📋" },
-  { to: "vendors", end: false, label: "ספקי אירוע", icon: Handshake, emoji: "🤝" },
+  { to: "vendors", end: false, label: "רשימת ספקים", icon: Handshake, emoji: "🤝" },
+  { to: "budget", end: false, label: "תקציב ורווחיות", icon: Wallet, emoji: "💰" },
   { to: "seating", end: false, label: "סידורי הושבה", icon: Armchair, emoji: "🪑" },
-  { to: "budget", end: false, label: "תקציב ורווחיות", icon: Wallet, emoji: "💰" }
+  { to: "guests", end: false, label: "רשימת מוזמנים", icon: ClipboardList, emoji: "📋" }
 ];
 
 export default function EventManagerEventLayout() {
