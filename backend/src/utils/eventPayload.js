@@ -1,3 +1,5 @@
+import { withDefaultEventImage } from "./defaultEventImage.js";
+
 export function normalizeEventPayload(rawEvent) {
   const eventType = String(rawEvent?.eventType || "").trim() || "חתונה";
   const groomName = String(rawEvent?.groomName || "").trim();
@@ -14,7 +16,7 @@ export function normalizeEventPayload(rawEvent) {
     eventDate: String(rawEvent?.eventDate || "").trim(),
     eventDateHebrew: eventType === "ברית" ? String(rawEvent?.eventDateHebrew || "").trim() : "",
     eventTime: String(rawEvent?.eventTime || "").trim(),
-    imageDataUrl: String(rawEvent?.imageDataUrl || "").trim(),
+    imageDataUrl: withDefaultEventImage(rawEvent?.imageDataUrl),
     groomName,
     brideName,
     batMitzvahName,

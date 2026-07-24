@@ -8,6 +8,8 @@ import {
   EVENT_VENDOR_STATUS_LABELS,
   EVENT_VENDOR_STATUS_OPTIONS,
   VENDOR_CATEGORIES,
+  vendorCategorySelectValue,
+  vendorCustomCategoryValue,
   buildTelHref,
   buildWhatsAppHref,
   formatIls
@@ -31,6 +33,7 @@ const emptyAssignForm = {
   createVendor: {
     name: "",
     category: "אחר",
+    customCategory: "",
     contactName: "",
     phone: "",
     email: "",
@@ -73,19 +76,13 @@ export default function ClientVendorsPage() {
   const listBase = isManagerEvent
     ? `/manager/clients/${userId}/event-vendors`
     : `/client/${userId}/event-vendors`;
-  const catalogUrl = isManagerEvent
-    ? "/manager/vendors"
-    : `/client/${userId}/event-vendors/catalog`;
 
   const loadPage = useCallback(async () => {
     setLoading(true);
     setError("");
     setAccessDenied(false);
     try {
-      const [listRes, catalogRes] = await Promise.all([
-        api.get(listBase),
-        api.get(catalogUrl)
-      ]);
+      const listRes = await api.get(listBase);
       setEntries(listRes.data.eventVendors || []);
       setSummary(
         listRes.data.summary || {
@@ -102,7 +99,13 @@ export default function ClientVendorsPage() {
       setFinance(listRes.data.finance || { targetCoupleBudget: 0 });
       setBudgetWarning(listRes.data.budgetWarning || { exceeded: false, message: "" });
       setEventLabel(listRes.data.eventLabel || "");
-      setCatalog(catalogRes.data.vendors || []);
+
+      if (isManagerEvent) {
+        const catalogRes = await api.get("/manager/vendors");
+        setCatalog(catalogRes.data.vendors || []);
+      } else {
+        setCatalog([]);
+      }
     } catch (loadError) {
       if (loadError.response?.status === 403) {
         setAccessDenied(true);
@@ -113,7 +116,7 @@ export default function ClientVendorsPage() {
     } finally {
       setLoading(false);
     }
-  }, [catalogUrl, listBase]);
+  }, [isManagerEvent, listBase]);
 
   useEffect(() => {
     loadPage();
@@ -132,6 +135,7 @@ export default function ClientVendorsPage() {
   const openAssign = () => {
     setAssignForm({
       ...emptyAssignForm,
+      mode: isCoupleView ? "new" : "existing",
       createVendor: { ...emptyAssignForm.createVendor }
     });
     setShowAssign(true);
@@ -147,7 +151,8 @@ export default function ClientVendorsPage() {
             agreedPrice: moneyToNumber(assignForm.agreedPrice),
             status: assignForm.status,
             eventNotes: assignForm.eventNotes,
-            attachmentUrl: assignForm.attachmentUrl
+            attachmentUrl: assignForm.attachmentUrl,
+            createVendor: assignForm.createVendor
           }
         : {
             vendorQuoteAmount: moneyToNumber(assignForm.vendorQuoteAmount),
@@ -157,15 +162,21 @@ export default function ClientVendorsPage() {
             attachmentUrl: assignForm.attachmentUrl
           };
 
-      if (assignForm.mode === "existing") {
-        if (!assignForm.vendorId) {
-          setError("יש לבחור ספק מהמאגר");
-          setSaving(false);
-          return;
+      if (!isCoupleView) {
+        if (assignForm.mode === "existing") {
+          if (!assignForm.vendorId) {
+            setError("יש לבחור ספק מהמאגר");
+            setSaving(false);
+            return;
+          }
+          payload.vendorId = assignForm.vendorId;
+        } else {
+          payload.createVendor = assignForm.createVendor;
         }
-        payload.vendorId = assignForm.vendorId;
-      } else {
-        payload.createVendor = assignForm.createVendor;
+      } else if (!String(assignForm.createVendor?.name || "").trim()) {
+        setError("שם הספק הוא שדה חובה");
+        setSaving(false);
+        return;
       }
 
       const { data } = await api.post(listBase, payload);
@@ -453,18 +464,20 @@ export default function ClientVendorsPage() {
         <div className="us-modal-backdrop" role="presentation">
           <form className="us-modal-card" onSubmit={submitAssign} dir="rtl">
             <h2 className="us-modal-title">הוספת ספק לאירוע</h2>
-            <div className="us-admin-field">
-              <label className="us-admin-field-label">מקור ספק</label>
-              <select
-                className="us-admin-field-input"
-                value={assignForm.mode}
-                onChange={(e) => setAssignForm((prev) => ({ ...prev, mode: e.target.value }))}
-              >
-                <option value="existing">מהמאגר</option>
-                <option value="new">ספק חדש</option>
-              </select>
-            </div>
-            {assignForm.mode === "existing" ? (
+            {isCoupleView ? null : (
+              <div className="us-admin-field">
+                <label className="us-admin-field-label">מקור ספק</label>
+                <select
+                  className="us-admin-field-input"
+                  value={assignForm.mode}
+                  onChange={(e) => setAssignForm((prev) => ({ ...prev, mode: e.target.value }))}
+                >
+                  <option value="existing">מהמאגר</option>
+                  <option value="new">ספק חדש</option>
+                </select>
+              </div>
+            )}
+            {!isCoupleView && assignForm.mode === "existing" ? (
               <div className="us-admin-field">
                 <label className="us-admin-field-label">ספק</label>
                 <select
@@ -501,11 +514,16 @@ export default function ClientVendorsPage() {
                   <label className="us-admin-field-label">קטגוריה</label>
                   <select
                     className="us-admin-field-input"
-                    value={assignForm.createVendor.category}
+                    value={vendorCategorySelectValue(assignForm.createVendor.category)}
                     onChange={(e) =>
                       setAssignForm((prev) => ({
                         ...prev,
-                        createVendor: { ...prev.createVendor, category: e.target.value }
+                        createVendor: {
+                          ...prev.createVendor,
+                          category: e.target.value,
+                          customCategory:
+                            e.target.value === "אחר" ? prev.createVendor.customCategory : ""
+                        }
                       }))
                     }
                   >
@@ -516,6 +534,22 @@ export default function ClientVendorsPage() {
                     ))}
                   </select>
                 </div>
+                {vendorCategorySelectValue(assignForm.createVendor.category) === "אחר" ? (
+                  <div className="us-admin-field">
+                    <label className="us-admin-field-label">קטגוריה חופשית</label>
+                    <input
+                      className="us-admin-field-input"
+                      placeholder="לדוגמה: רב, הפעלת ילדים…"
+                      value={assignForm.createVendor.customCategory}
+                      onChange={(e) =>
+                        setAssignForm((prev) => ({
+                          ...prev,
+                          createVendor: { ...prev.createVendor, customCategory: e.target.value }
+                        }))
+                      }
+                    />
+                  </div>
+                ) : null}
                 <div className="us-admin-field">
                   <label className="us-admin-field-label">טלפון</label>
                   <input

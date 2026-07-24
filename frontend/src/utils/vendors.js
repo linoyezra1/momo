@@ -55,6 +55,19 @@ export const VENDOR_CATEGORIES = [
   "אחר"
 ];
 
+/** Select value for presets; free-text categories map to "אחר". */
+export function vendorCategorySelectValue(category) {
+  const value = String(category || "").trim();
+  return VENDOR_CATEGORIES.includes(value) ? value : "אחר";
+}
+
+/** Free-text shown only when stored category is not a preset (or editing אחר). */
+export function vendorCustomCategoryValue(category) {
+  const value = String(category || "").trim();
+  if (!value || VENDOR_CATEGORIES.includes(value)) return "";
+  return value;
+}
+
 export const EVENT_VENDOR_STATUS_LABELS = {
   NEGOTIATING: "במשא ומתן",
   BOOKED: "נסגר",

@@ -7,6 +7,8 @@ import WhatsAppIcon from "../components/WhatsAppIcon";
 import {
   EVENT_VENDOR_STATUS_LABELS,
   VENDOR_CATEGORIES,
+  vendorCategorySelectValue,
+  vendorCustomCategoryValue,
   buildTelHref,
   buildWhatsAppHref,
   formatIls
@@ -18,6 +20,7 @@ import "../il/manager-dashboard.css";
 const emptyVendorForm = {
   name: "",
   category: "אחר",
+  customCategory: "",
   contactName: "",
   phone: "",
   email: "",
@@ -67,15 +70,17 @@ export default function EventManagerVendorsPage() {
 
   const openCreate = () => {
     setEditingId("");
-    setForm(emptyVendorForm);
+    setForm({ ...emptyVendorForm });
     setShowForm(true);
   };
 
   const openEdit = (vendor) => {
+    const stored = vendor.category || "אחר";
     setEditingId(vendor.id);
     setForm({
       name: vendor.name || "",
-      category: vendor.category || "אחר",
+      category: vendorCategorySelectValue(stored),
+      customCategory: vendorCustomCategoryValue(stored),
       contactName: vendor.contactName || "",
       phone: vendor.phone || "",
       email: vendor.email || "",
@@ -89,10 +94,19 @@ export default function EventManagerVendorsPage() {
     setSaving(true);
     setError("");
     try {
+      const payload = {
+        name: form.name,
+        category: form.category,
+        customCategory: form.category === "אחר" ? form.customCategory : "",
+        contactName: form.contactName,
+        phone: form.phone,
+        email: form.email,
+        notes: form.notes
+      };
       if (editingId) {
-        await api.patch(`/manager/vendors/${editingId}`, form);
+        await api.patch(`/manager/vendors/${editingId}`, payload);
       } else {
-        await api.post("/manager/vendors", form);
+        await api.post("/manager/vendors", payload);
       }
       setShowForm(false);
       await loadVendors();
@@ -250,7 +264,16 @@ export default function EventManagerVendorsPage() {
               </label>
               <label>
                 <span>קטגוריה</span>
-                <select value={form.category} onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))}>
+                <select
+                  value={vendorCategorySelectValue(form.category)}
+                  onChange={(e) =>
+                    setForm((p) => ({
+                      ...p,
+                      category: e.target.value,
+                      customCategory: e.target.value === "אחר" ? p.customCategory : ""
+                    }))
+                  }
+                >
                   {VENDOR_CATEGORIES.map((item) => (
                     <option key={item} value={item}>
                       {item}
@@ -258,6 +281,16 @@ export default function EventManagerVendorsPage() {
                   ))}
                 </select>
               </label>
+              {vendorCategorySelectValue(form.category) === "אחר" ? (
+                <label>
+                  <span>קטגוריה חופשית</span>
+                  <input
+                    placeholder="לדוגמה: רב, הפעלת ילדים…"
+                    value={form.customCategory}
+                    onChange={(e) => setForm((p) => ({ ...p, customCategory: e.target.value }))}
+                  />
+                </label>
+              ) : null}
               <label>
                 <span>איש קשר</span>
                 <input value={form.contactName} onChange={(e) => setForm((p) => ({ ...p, contactName: e.target.value }))} />

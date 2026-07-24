@@ -13,13 +13,33 @@ export const VENDOR_CATEGORIES = [
   "אחר"
 ];
 
+const MAX_CATEGORY_LEN = 80;
+
+/** Preset or free-text when "אחר" (+ optional customCategory). */
+export function resolveVendorCategory(body = {}) {
+  const preset = String(body.category || "אחר").trim() || "אחר";
+  const custom = String(body.customCategory || "").trim();
+
+  let category = preset;
+  if (preset === "אחר" && custom) {
+    category = custom;
+  } else if (!VENDOR_CATEGORIES.includes(preset)) {
+    // Already a free-text value stored on the vendor
+    category = preset;
+  }
+
+  category = category.slice(0, MAX_CATEGORY_LEN).trim();
+  return category || "אחר";
+}
+
 const vendorSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
     category: {
       type: String,
-      enum: VENDOR_CATEGORIES,
+      trim: true,
       default: "אחר",
+      maxlength: MAX_CATEGORY_LEN,
       index: true
     },
     contactName: { type: String, trim: true, default: "" },

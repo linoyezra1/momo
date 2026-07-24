@@ -5,6 +5,7 @@ import api from "../api";
 import { clearAdminToken } from "../utils/adminAuth";
 import { buildClientOnboardingMessage } from "../utils/clientOnboardingMessage";
 import { formatIsraeliDate } from "../utils/dateFormat";
+import { DEFAULT_EVENT_IMAGE_URL, withDefaultEventImage } from "../utils/defaultEventImage.js";
 import "../us/admin-portal.css";
 
 const PACKAGE_TYPE_OPTIONS = [
@@ -96,7 +97,7 @@ const initialForm = {
   eventTime: "",
   maxPhoneRounds: 0,
   isPremiumWhatsappButtonsEnabled: false,
-  imageDataUrl: ""
+  imageDataUrl: DEFAULT_EVENT_IMAGE_URL
 };
 
 function toAppUrl(linkOrPath) {
@@ -461,7 +462,7 @@ ${publicEventUrl}`
   const onImageChange = (event) => {
     const file = event.target.files?.[0];
     if (!file) {
-      setForm((prev) => ({ ...prev, imageDataUrl: "" }));
+      setForm((prev) => ({ ...prev, imageDataUrl: DEFAULT_EVENT_IMAGE_URL }));
       return;
     }
     if (!file.type.startsWith("image/")) {
@@ -477,7 +478,7 @@ ${publicEventUrl}`
     const reader = new FileReader();
     reader.onload = () => {
       const resultData = typeof reader.result === "string" ? reader.result : "";
-      setForm((prev) => ({ ...prev, imageDataUrl: resultData }));
+      setForm((prev) => ({ ...prev, imageDataUrl: resultData || DEFAULT_EVENT_IMAGE_URL }));
     };
     reader.onerror = () => setError("נכשלה קריאת קובץ התמונה");
     reader.readAsDataURL(file);
@@ -528,7 +529,7 @@ ${publicEventUrl}`
           eventTime: form.eventTime,
           maxPhoneRounds: Number(form.maxPhoneRounds) || 0,
           isPremiumWhatsappButtonsEnabled: Boolean(form.isPremiumWhatsappButtonsEnabled),
-          imageDataUrl: form.imageDataUrl
+          imageDataUrl: withDefaultEventImage(form.imageDataUrl)
         }
       };
       if (wizardMode === "create" || form.password.trim()) {
@@ -618,7 +619,7 @@ ${publicEventUrl}`
       eventTime: client.event?.eventTime || "",
       maxPhoneRounds: Number(client.event?.maxPhoneRounds) || 0,
       isPremiumWhatsappButtonsEnabled: Boolean(client.event?.isPremiumWhatsappButtonsEnabled),
-      imageDataUrl: client.event?.imageDataUrl || ""
+      imageDataUrl: withDefaultEventImage(client.event?.imageDataUrl)
     });
     setShowCreateWizard(true);
   };

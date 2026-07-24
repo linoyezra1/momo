@@ -1,6 +1,6 @@
 import express from "express";
 import User from "../models/User.js";
-import Vendor, { VENDOR_CATEGORIES } from "../models/Vendor.js";
+import Vendor, { VENDOR_CATEGORIES, resolveVendorCategory } from "../models/Vendor.js";
 import EventVendor, { EVENT_VENDOR_STATUSES } from "../models/EventVendor.js";
 import { requireEventManager } from "../middleware/eventManagerAuth.js";
 import {
@@ -58,10 +58,9 @@ const SAMPLE_VENDORS = [
 ];
 
 function sanitizeVendorPayload(body = {}) {
-  const category = String(body.category || "אחר").trim();
   return {
     name: String(body.name || "").trim(),
-    category: VENDOR_CATEGORIES.includes(category) ? category : "אחר",
+    category: resolveVendorCategory(body),
     contactName: String(body.contactName || "").trim(),
     phone: String(body.phone || "").trim(),
     email: String(body.email || "").trim(),
@@ -133,7 +132,7 @@ router.get("/vendors", requireEventManager, async (req, res) => {
     const q = String(req.query.q || "").trim();
     const category = String(req.query.category || "").trim();
     const filter = {};
-    if (category && category !== "all" && VENDOR_CATEGORIES.includes(category)) {
+    if (category && category !== "all") {
       filter.category = category;
     }
     if (q) {

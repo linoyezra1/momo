@@ -1,6 +1,6 @@
 import express from "express";
 import User from "../models/User.js";
-import Vendor, { VENDOR_CATEGORIES } from "../models/Vendor.js";
+import Vendor, { VENDOR_CATEGORIES, resolveVendorCategory } from "../models/Vendor.js";
 import EventVendor, { EVENT_VENDOR_STATUSES } from "../models/EventVendor.js";
 import {
   coupleCanManageVendors,
@@ -52,10 +52,9 @@ async function loadCoupleForVendors(userId) {
 }
 
 function sanitizeVendorPayload(body = {}) {
-  const category = String(body.category || "אחר").trim();
   return {
     name: String(body.name || "").trim(),
-    category: VENDOR_CATEGORIES.includes(category) ? category : "אחר",
+    category: resolveVendorCategory(body),
     contactName: String(body.contactName || "").trim(),
     phone: String(body.phone || "").trim(),
     email: String(body.email || "").trim(),
@@ -69,9 +68,10 @@ router.get("/:userId/event-vendors/catalog", async (req, res) => {
     const loaded = await loadCoupleForVendors(userId);
     if (loaded.error) return res.status(loaded.error.status).json({ message: loaded.error.message });
 
-    const vendors = await Vendor.find({}).sort({ name: 1 });
-    return res.json({
-      vendors: vendors.map(serializeVendor),
+    // Couples must not browse the shared vendor catalog — create-only.
+    return res.status(403).json({
+      message: "אין גישה למאגר הספקים. ניתן להוסיף ספק חדש בלבד",
+      vendors: [],
       categories: VENDOR_CATEGORIES,
       statuses: EVENT_VENDOR_STATUSES
     });
@@ -118,25 +118,25 @@ router.post("/:userId/event-vendors", async (req, res) => {
     const loaded = await loadCoupleForVendors(userId);
     if (loaded.error) return res.status(loaded.error.status).json({ message: loaded.error.message });
 
-    let vendorId = String(req.body?.vendorId || "").trim();
+    if (String(req.body?.vendorId || "").trim()) {
+      return res.status(403).json({
+        message: "אין גישה למאגר הספקים. יש ליצור ספק חדש בלבד"
+      });
+    }
+
     const createVendor = req.body?.createVendor;
+    if (!createVendor || typeof createVendor !== "object") {
+      return res.status(400).json({ message: "יש ליצור ספק חדש" });
+    }
+
+    const vendorPayload = sanitizeVendorPayload(createVendor);
+    if (!vendorPayload.name) {
+      return res.status(400).json({ message: "שם הספק הוא שדה חובה" });
+    }
+
     const finance = sanitizeCoupleEventVendorPayload(req.body);
-
-    if (!vendorId && createVendor && typeof createVendor === "object") {
-      const vendorPayload = sanitizeVendorPayload(createVendor);
-      if (!vendorPayload.name) {
-        return res.status(400).json({ message: "שם הספק הוא שדה חובה" });
-      }
-      const vendor = await Vendor.create(vendorPayload);
-      vendorId = String(vendor._id);
-    }
-
-    if (!vendorId) {
-      return res.status(400).json({ message: "יש לבחור ספק או ליצור ספק חדש" });
-    }
-
-    const vendor = await Vendor.findById(vendorId);
-    if (!vendor) return res.status(404).json({ message: "הספק לא נמצא" });
+    const vendor = await Vendor.create(vendorPayload);
+    const vendorId = String(vendor._id);
 
     const existing = await EventVendor.findOne({ eventId: userId, vendorId });
     if (existing) {

@@ -1,3 +1,5 @@
+import { withDefaultEventImage } from "./defaultEventImage.js";
+
 const EVENT_TYPES = ["חתונה", "ברית", "בת מצווה", "אחר"];
 
 function cleanText(value) {
@@ -36,7 +38,7 @@ export function normalizeIlEventUpdatePayload(body) {
     eventTime,
     receptionTime: cleanText(body?.receptionTime),
     welcomeText: cleanText(body?.welcomeText),
-    imageDataUrl: cleanText(body?.imageDataUrl)
+    imageDataUrl: withDefaultEventImage(body?.imageDataUrl)
   };
 
   if (eventType === "חתונה") {
