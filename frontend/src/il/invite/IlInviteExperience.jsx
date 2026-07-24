@@ -10,7 +10,6 @@ import {
   getWelcomeText,
   getWeddingNames
 } from "./ilInviteUtils.js";
-import { withDefaultEventImage } from "../../utils/defaultEventImage.js";
 import "./il-invite.css";
 
 const initialRsvp = {
@@ -119,11 +118,11 @@ export default function IlInviteExperience({
     <div className={`il-invite-page${previewMode ? " il-invite-page--preview" : ""}`} dir="rtl" lang="he">
       <div className="il-invite-shell">
         <header className="il-invite-cover">
-          <img
-            className="il-invite-cover__img"
-            src={withDefaultEventImage(event.imageDataUrl)}
-            alt=""
-          />
+          {event.imageDataUrl ? (
+            <img className="il-invite-cover__img" src={event.imageDataUrl} alt="" />
+          ) : (
+            <div className="il-invite-cover__placeholder" aria-hidden="true" />
+          )}
         </header>
 
         <main className="il-invite-body">

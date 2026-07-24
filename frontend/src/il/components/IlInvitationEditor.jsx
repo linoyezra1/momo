@@ -8,7 +8,6 @@ import {
   eventInfoToForm,
   formToEventUpdatePayload
 } from "../../utils/ilEventPreview.js";
-import { DEFAULT_EVENT_IMAGE_URL } from "../../utils/defaultEventImage.js";
 import IlInvitationPreview from "./IlInvitationPreview.jsx";
 import IlEditorField, { ilEditorInputClass, ilEditorSelectClass } from "./IlEditorField.jsx";
 import "../../us/client-portal.css";
@@ -43,7 +42,7 @@ export default function IlInvitationEditor({ userId, eventInfo, onClose, onSaved
   function onImageChange(event) {
     const file = event.target.files?.[0];
     if (!file) {
-      setForm((prev) => ({ ...prev, imageDataUrl: DEFAULT_EVENT_IMAGE_URL }));
+      setForm((prev) => ({ ...prev, imageDataUrl: "" }));
       return;
     }
     if (!file.type.startsWith("image/")) {
@@ -57,7 +56,7 @@ export default function IlInvitationEditor({ userId, eventInfo, onClose, onSaved
     const reader = new FileReader();
     reader.onload = () => {
       const resultData = typeof reader.result === "string" ? reader.result : "";
-      setForm((prev) => ({ ...prev, imageDataUrl: resultData || DEFAULT_EVENT_IMAGE_URL }));
+      setForm((prev) => ({ ...prev, imageDataUrl: resultData }));
     };
     reader.onerror = () => setToast("נכשלה קריאת קובץ התמונה");
     reader.readAsDataURL(file);

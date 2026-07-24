@@ -4,7 +4,6 @@ import { MessageCircle, Pencil, Phone, Plus, Trash2, X } from "lucide-react";
 import api from "../api";
 import { clearEventManagerToken } from "../utils/eventManagerAuth";
 import { formatIsraeliDate, parseIsoDateParts } from "../utils/dateFormat";
-import { DEFAULT_EVENT_IMAGE_URL, withDefaultEventImage } from "../utils/defaultEventImage.js";
 import { buildTelHref, buildWhatsAppHref, formatIls } from "../utils/vendors";
 import "../us/admin-portal.css";
 import "../il/manager-dashboard.css";
@@ -25,7 +24,7 @@ const initialForm = {
   eventDate: "",
   eventDateHebrew: "",
   eventTime: "",
-  imageDataUrl: DEFAULT_EVENT_IMAGE_URL
+  imageDataUrl: ""
 };
 
 const FILTERS = [
@@ -161,7 +160,7 @@ export default function EventManagerPage() {
       eventDate: ev.eventDate || "",
       eventDateHebrew: ev.eventDateHebrew || "",
       eventTime: ev.eventTime || "",
-      imageDataUrl: withDefaultEventImage(ev.imageDataUrl)
+      imageDataUrl: ev.imageDataUrl || ""
     });
     setError("");
     setShowCreateWizard(true);
@@ -189,7 +188,7 @@ export default function EventManagerPage() {
           eventDate: form.eventDate,
           eventDateHebrew: form.eventDateHebrew,
           eventTime: form.eventTime,
-          imageDataUrl: withDefaultEventImage(form.imageDataUrl)
+          imageDataUrl: form.imageDataUrl
         }
       };
 

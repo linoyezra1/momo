@@ -1,5 +1,3 @@
-import { withDefaultEventImage } from "./defaultEventImage.js";
-
 const EVENT_TYPES = ["חתונה", "ברית", "בת מצווה", "אחר"];
 
 export const DEFAULT_WELCOME_TEXT =
@@ -27,7 +25,7 @@ export function eventInfoToForm(event) {
     eventTime: source.eventTime || "",
     receptionTime: source.receptionTime || "",
     welcomeText: source.welcomeText || DEFAULT_WELCOME_TEXT,
-    imageDataUrl: withDefaultEventImage(source.imageDataUrl)
+    imageDataUrl: source.imageDataUrl || ""
   };
 }
 
@@ -48,7 +46,7 @@ export function formToEventUpdatePayload(form) {
     eventTime: form.eventTime,
     receptionTime: form.receptionTime,
     welcomeText: form.welcomeText,
-    imageDataUrl: withDefaultEventImage(form.imageDataUrl)
+    imageDataUrl: form.imageDataUrl
   };
 }
 
@@ -69,6 +67,6 @@ export function eventFormToPreviewPayload(form) {
     eventTime: cleanText(form.eventTime),
     receptionTime: cleanText(form.receptionTime),
     welcomeText: cleanText(form.welcomeText) || DEFAULT_WELCOME_TEXT,
-    imageDataUrl: withDefaultEventImage(form.imageDataUrl)
+    imageDataUrl: cleanText(form.imageDataUrl)
   };
 }

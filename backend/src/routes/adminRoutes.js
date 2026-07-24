@@ -21,7 +21,6 @@ import {
   sendEventManagerWelcomeWhatsApp,
   sendLoginCredentialsQuickReply
 } from "../services/eventManagerWelcomeWhatsApp.js";
-import { withDefaultEventImage } from "../utils/defaultEventImage.js";
 
 const router = express.Router();
 
@@ -82,7 +81,7 @@ function normalizeEventPayload(rawEvent) {
     eventTime: String(rawEvent?.eventTime || "").trim(),
     maxPhoneRounds,
     isPremiumWhatsappButtonsEnabled: rawEvent?.isPremiumWhatsappButtonsEnabled === true,
-    imageDataUrl: withDefaultEventImage(rawEvent?.imageDataUrl),
+    imageDataUrl: String(rawEvent?.imageDataUrl || "").trim(),
     groomName,
     brideName,
     batMitzvahName,
