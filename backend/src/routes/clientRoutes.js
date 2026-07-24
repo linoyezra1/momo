@@ -26,6 +26,7 @@ import {
   recordGuestAuditLog
 } from "../services/guestAuditService.js";
 import { resolveMaxPhoneRounds } from "../utils/phoneRounds.js";
+import { coupleCanManageVendors, coupleHasEventManager } from "../utils/coupleVendors.js";
 
 const router = express.Router();
 
@@ -88,10 +89,16 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
+    const hasEventManager = coupleHasEventManager(user);
     return res.json({
       userId: user._id,
       username: user.username,
-      event: user.event
+      event: user.event,
+      managedBy: user.managedBy || "admin",
+      hasEventManager,
+      /** Alias for product language: assigned event manager */
+      eventManagerId: hasEventManager ? "assigned" : null,
+      canManageVendors: coupleCanManageVendors(user)
     });
   } catch (error) {
     return res.status(500).json({ message: "Login failed", error: error.message });
@@ -170,7 +177,7 @@ router.get("/:userId/audit-logs", async (req, res) => {
 router.get("/:userId/guests", async (req, res) => {
   try {
     const { userId } = req.params;
-    const user = await User.findById(userId).select("event username deal.includedFeatures");
+    const user = await User.findById(userId).select("event username deal.includedFeatures managedBy");
     if (!user) {
       return res.status(404).json({ message: "Client not found" });
     }
@@ -180,7 +187,7 @@ router.get("/:userId/guests", async (req, res) => {
       (acc, guest) => {
         const count = Math.max(0, Number(guest.attendeesCount || 0));
         acc.totalInvited += count;
-        if (guest.status === "מגיע") {
+        if (guest.status === "מגיע" || guest.status === "הגיע לאירוע") {
           acc.totalComing += count;
         } else if (guest.status === "לא מגיע") {
           acc.totalNotComing += count;
@@ -203,7 +210,17 @@ router.get("/:userId/guests", async (req, res) => {
     const event = user.event?.toObject ? user.event.toObject() : { ...(user.event || {}) };
     event.maxPhoneRounds = resolveMaxPhoneRounds(user);
 
-    return res.json({ summary, guests, event, username: user.username });
+    const hasEventManager = coupleHasEventManager(user);
+    return res.json({
+      summary,
+      guests,
+      event,
+      username: user.username,
+      managedBy: user.managedBy || "admin",
+      hasEventManager,
+      eventManagerId: hasEventManager ? "assigned" : null,
+      canManageVendors: coupleCanManageVendors(user)
+    });
   } catch (error) {
     return res.status(500).json({ message: "Failed to load guests", error: error.message });
   }
@@ -715,7 +732,7 @@ router.patch("/:userId/guests/:guestId", async (req, res) => {
       update.seatingTableId = String(req.body.seatingTableId || "").trim();
     }
     if (typeof status !== "undefined") {
-      if (!["מגיע", "לא מגיע", "אולי", "לא ידוע"].includes(status)) {
+      if (!["מגיע", "לא מגיע", "אולי", "לא ידוע", "הגיע לאירוע"].includes(status)) {
         return res.status(400).json({ message: "Invalid status" });
       }
       update.status = status;

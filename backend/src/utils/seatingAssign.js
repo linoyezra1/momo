@@ -1,4 +1,4 @@
-const ATTENDING_STATUSES = new Set(["מגיע", "אולי"]);
+const ATTENDING_STATUSES = new Set(["מגיע", "אולי", "הגיע לאירוע"]);
 
 export function isGuestEligibleForSeating(guest) {
   return ATTENDING_STATUSES.has(guest?.status);

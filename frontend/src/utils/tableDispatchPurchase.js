@@ -1,6 +1,19 @@
 import { toWhatsAppPhone } from "./vendors.js";
 
-export const TABLE_DISPATCH_SALES_PHONE = "0535314055";
+/** Official momoEVENT sales / support phone (coupons + table dispatch + help). */
+export const MOMOEVENT_SUPPORT_PHONE = "0585915109";
+
+/** @deprecated use MOMOEVENT_SUPPORT_PHONE */
+export const TABLE_DISPATCH_SALES_PHONE = MOMOEVENT_SUPPORT_PHONE;
+
+export function buildSupportWhatsAppUrl(prefilledText = "") {
+  const phone = toWhatsAppPhone(MOMOEVENT_SUPPORT_PHONE);
+  if (!phone) return "";
+  const text = String(prefilledText || "").trim();
+  return text
+    ? `https://wa.me/${phone}?text=${encodeURIComponent(text)}`
+    : `https://wa.me/${phone}`;
+}
 
 function buildEventDisplayName(event = {}) {
   if (!event) return "האירוע שלי";
@@ -47,6 +60,20 @@ export function buildTableDispatchPurchaseWhatsAppUrl({
   if (eventId) lines.push(`מזהה אירוע: ${eventId}`);
   lines.push("", "אשמח לקבל פרטים להפעלה ורכישה. תודה!");
 
-  const phone = toWhatsAppPhone(TABLE_DISPATCH_SALES_PHONE);
-  return `https://wa.me/${phone}?text=${encodeURIComponent(lines.join("\n"))}`;
+  return buildSupportWhatsAppUrl(lines.join("\n"));
+}
+
+/**
+ * Pre-filled WhatsApp for purchasing regular WhatsApp bulk-invite coupons.
+ */
+export function buildWhatsAppCouponPurchaseUrl({ event, eventLabel, eventId } = {}) {
+  const label = eventLabel || buildEventDisplayName(event);
+  const lines = [
+    "שלום, מעוניינים לרכוש קופון לשליחת אישורי הגעה ב-WhatsApp (תפוצה רחבה).",
+    "",
+    `שם האירוע: ${label}`
+  ];
+  if (eventId) lines.push(`מזהה אירוע: ${eventId}`);
+  lines.push("", "אשמח לקבל פרטים וקוד רכישה. תודה!");
+  return buildSupportWhatsAppUrl(lines.join("\n"));
 }

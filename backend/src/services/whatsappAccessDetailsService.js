@@ -26,7 +26,7 @@ export const CREDENTIALS_BUTTON_TEXT_PLAIN = "לקבלת פרטי הגישה";
 export const ACCESS_DETAILS_BUTTON_TEXT = "קבלת פרטי גישה";
 
 const SUPPORT_PHONE =
-  String(process.env.MOMOEVENT_SUPPORT_PHONE || "0535314055").trim() || "0535314055";
+  String(process.env.MOMOEVENT_SUPPORT_PHONE || "0585915109").trim() || "0585915109";
 
 const MSG_USER_NOT_FOUND = `שלום! המספר ממנו פנית אינו משויך לחשבון פעיל במערכת momoEVENT. ליצירת קשר עם התמיכה: ${SUPPORT_PHONE}.`;
 
@@ -34,6 +34,9 @@ const MSG_NO_CREDENTIALS =
   "החשבון שלך קיים אך טרם הוגדרו פרטי גישה.\nצוות התמיכה יעדכן אותך.";
 
 const PRODUCTION_LOGIN_URL = "https://momoevent.up.railway.app/login";
+
+const CREDENTIALS_SUPPORT_FOOTER = `לכל שאלה מוזמנים לפנות אלינו
+מומו אישורי הגעה בטלפון: ${SUPPORT_PHONE}`;
 
 function normalizedInteractionValue(value) {
   return String(value || "").trim();
@@ -142,7 +145,9 @@ export function buildAccessDetailsMessage({ username, password, loginUrl }) {
 שם משתמש: ${user}
 קוד גישה: ${pass}
 
-כניסה למערכת: ${url}`;
+כניסה למערכת: ${url}
+
+${CREDENTIALS_SUPPORT_FOOTER}`;
 }
 
 export function buildMultiAccountAccessDetailsMessage({ accounts, loginUrl }) {
@@ -159,7 +164,9 @@ export function buildMultiAccountAccessDetailsMessage({ accounts, loginUrl }) {
 
 ${blocks.join("\n\n")}
 
-כניסה למערכת: ${url}`;
+כניסה למערכת: ${url}
+
+${CREDENTIALS_SUPPORT_FOOTER}`;
 }
 
 async function recordCredentialsAudit({

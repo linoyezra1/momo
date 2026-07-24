@@ -84,6 +84,7 @@ export function guestForSeating(guest) {
       ? `מוזמן זה אושב אך עודכן שלא יגיע בתאריך ${formatDeclineDate(declinedAt) || "לא ידוע"}`
       : "",
     hostessArrivedAt: guest.hostessArrivedAt || null,
+    arrivalMarkedBy: guest.arrivalMarkedBy || "",
     updatedAt: guest.updatedAt
   };
 }
@@ -112,7 +113,7 @@ async function dispatchTableMessages({ user, paymentCode }) {
   const guests = await Guest.find({
     userId: user._id,
     seatingTableId: { $ne: "" },
-    status: { $in: ["מגיע", "אולי"] }
+    status: { $in: ["מגיע", "אולי", "הגיע לאירוע"] }
   });
 
   if (!guests.length) {

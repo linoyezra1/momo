@@ -8,6 +8,12 @@ import {
   canSendTableWhatsApp,
   sendTableNumberWhatsApp
 } from "../services/tableNumberWhatsApp.js";
+import {
+  HOSTESS_ARRIVED_STATUS,
+  HOSTESS_MARKED_BY,
+  recordHostessAudit
+} from "../services/hostessAuditService.js";
+import { publishDashboardEvent } from "../services/dashboardEvents.js";
 import { guestForSeating } from "./seatingRoutes.js";
 
 const router = express.Router();
@@ -63,23 +69,55 @@ router.post("/:eventId/guests/:guestId/arrive", async (req, res) => {
     const user = await User.findById(eventId).select("_id event");
     if (!user) return res.status(404).json({ message: "האירוע לא נמצא" });
 
-    const guest = await Guest.findOneAndUpdate(
-      { _id: guestId, userId: eventId },
-      { hostessArrivedAt: new Date() },
-      { new: true }
-    );
-    if (!guest) return res.status(404).json({ message: "המוזמן לא נמצא" });
+    const existing = await Guest.findOne({ _id: guestId, userId: eventId });
+    if (!existing) return res.status(404).json({ message: "המוזמן לא נמצא" });
+
+    const previousStatus = existing.status;
+    const arrivedAt = new Date();
+
+    existing.status = HOSTESS_ARRIVED_STATUS;
+    existing.hostessArrivedAt = arrivedAt;
+    existing.arrivalMarkedBy = HOSTESS_MARKED_BY;
+    if (existing.declinedWhileSeatedAt) {
+      existing.declinedWhileSeatedAt = undefined;
+    }
+    await existing.save();
 
     const layout = await SeatingLayout.findOne({ userId: eventId });
-    const table = (layout?.tables || []).find((item) => item.tableId === guest.seatingTableId);
-    const tableLabel = table?.label || (guest.seatingTableId ? "?" : "");
+    const table = (layout?.tables || []).find((item) => item.tableId === existing.seatingTableId);
+    const tableLabel = table?.label || (existing.seatingTableId ? "?" : "");
+
+    await recordHostessAudit({
+      userId: eventId,
+      action: "HOSTESS_ARRIVED",
+      status: "ok",
+      phone: existing.phone,
+      description: `${existing.fullName} סומן כ'הגיע לאירוע' על ידי דיילת אירוע`,
+      metadata: {
+        guestId: String(existing._id),
+        guestName: existing.fullName,
+        previousStatus,
+        nextStatus: HOSTESS_ARRIVED_STATUS,
+        markedBy: HOSTESS_MARKED_BY,
+        markedByLabel: "סומן על ידי דיילת אירוע",
+        tableLabel,
+        hostessArrivedAt: arrivedAt.toISOString()
+      }
+    });
+
+    publishDashboardEvent(eventId, {
+      type: "guest-hostess-arrived",
+      guestId: String(existing._id)
+    });
 
     return res.json({
-      guest: guestForSeating(guest),
+      guest: guestForSeating(existing),
       tableLabel,
+      status: HOSTESS_ARRIVED_STATUS,
+      markedBy: HOSTESS_MARKED_BY,
       message: tableLabel
-        ? `${guest.fullName} יושב/ת בשולחן ${tableLabel}`
-        : `${guest.fullName} עדיין לא משובץ/ת לשולחן`
+        ? `${existing.fullName} יושב/ת בשולחן ${tableLabel}`
+        : `${existing.fullName} עדיין לא משובץ/ת לשולחן`
     });
   } catch (error) {
     return res.status(500).json({ message: error.message || "סימון הגעה נכשל" });
@@ -113,22 +151,53 @@ router.post("/:eventId/guests/:guestId/send-table-whatsapp", async (req, res) =>
 
     const layout = await SeatingLayout.findOne({ userId: eventId });
     const table = (layout?.tables || []).find((item) => item.tableId === guest.seatingTableId);
+    const tableLabel = table?.label || guest.seatingTableId;
     const result = await sendTableNumberWhatsApp({
       user,
       guest,
-      tableLabel: table?.label || guest.seatingTableId
+      tableLabel
     });
 
     if (!result.ok) {
+      await recordHostessAudit({
+        userId: eventId,
+        action: "HOSTESS_TABLE_WHATSAPP",
+        status: "failed",
+        phone: guest.phone,
+        description: `שליחת מספר שולחן ל-${guest.fullName} נכשלה`,
+        metadata: {
+          guestId: String(guest._id),
+          guestName: guest.fullName,
+          tableLabel,
+          markedBy: HOSTESS_MARKED_BY,
+          reason: result.reason || "send_failed"
+        }
+      });
       return res.status(400).json({
         success: false,
         message: result.message || mapTwilioErrorMessage(result.error)
       });
     }
 
+    await recordHostessAudit({
+      userId: eventId,
+      action: "HOSTESS_TABLE_WHATSAPP",
+      status: "ok",
+      phone: guest.phone,
+      description: `נשלח מספר שולחן (${tableLabel}) ב-WhatsApp ל${guest.fullName} על ידי דיילת אירוע`,
+      metadata: {
+        guestId: String(guest._id),
+        guestName: guest.fullName,
+        tableLabel,
+        markedBy: HOSTESS_MARKED_BY,
+        markedByLabel: "סומן על ידי דיילת אירוע"
+      }
+    });
+
     return res.json({
       success: true,
-      message: `מספר השולחן נשלח ל-${guest.fullName} ב-WhatsApp`
+      tableLabel,
+      message: "נשלח בהצלחה! ✉️"
     });
   } catch (error) {
     return res.status(500).json({

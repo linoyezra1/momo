@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
-import { MessageCircle, Search, UserCheck } from "lucide-react";
+import { MessageCircle, Search, UserCheck, X } from "lucide-react";
 import api from "../api";
 import TableDispatchFeatureLockedNotice from "../components/TableDispatchFeatureLockedNotice.jsx";
 import "../us/client-portal.css";
@@ -19,7 +19,7 @@ export default function HostessPage() {
   const [canSendTableWhatsApp, setCanSendTableWhatsApp] = useState(false);
   const [arriveModal, setArriveModal] = useState(null);
   const [lockedModal, setLockedModal] = useState(false);
-  const [actionToast, setActionToast] = useState("");
+  const [toast, setToast] = useState(null);
   const [busyGuestId, setBusyGuestId] = useState("");
 
   const loadHostess = useCallback(async () => {
@@ -44,10 +44,14 @@ export default function HostessPage() {
   }, [loadHostess]);
 
   useEffect(() => {
-    if (!actionToast) return undefined;
-    const timer = window.setTimeout(() => setActionToast(""), 2800);
+    if (!toast?.autoDismiss) return undefined;
+    const timer = window.setTimeout(() => setToast(null), toast.durationMs || 3200);
     return () => window.clearTimeout(timer);
-  }, [actionToast]);
+  }, [toast]);
+
+  const showToast = (message, { tone = "success", autoDismiss = true, durationMs = 3200 } = {}) => {
+    setToast({ message, tone, autoDismiss, durationMs });
+  };
 
   const filteredGuests = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -63,20 +67,42 @@ export default function HostessPage() {
 
   const markArrived = async (guest) => {
     setBusyGuestId(guest._id);
+    const previous = { ...guest };
+    setGuests((prev) =>
+      prev.map((item) =>
+        item._id === guest._id
+          ? {
+              ...item,
+              status: "הגיע לאירוע",
+              hostessArrivedAt: new Date().toISOString(),
+              arrivalMarkedBy: "HOSTESS"
+            }
+          : item
+      )
+    );
     try {
       const { data } = await api.post(`/hostess/${eventId}/guests/${guest._id}/arrive`);
+      setGuests((prev) =>
+        prev.map((item) =>
+          item._id === guest._id
+            ? {
+                ...item,
+                ...(data.guest || {}),
+                tableLabel: data.tableLabel || item.tableLabel,
+                status: data.status || data.guest?.status || "הגיע לאירוע",
+                arrivalMarkedBy: data.markedBy || "HOSTESS"
+              }
+            : item
+        )
+      );
       setArriveModal({
         fullName: guest.fullName,
         tableLabel: data.tableLabel || guest.tableLabel || "",
         message: data.message
       });
-      setGuests((prev) =>
-        prev.map((item) =>
-          item._id === guest._id ? { ...item, hostessArrivedAt: new Date().toISOString() } : item
-        )
-      );
     } catch (arriveError) {
-      setActionToast(arriveError.response?.data?.message || "סימון הגעה נכשל");
+      setGuests((prev) => prev.map((item) => (item._id === guest._id ? previous : item)));
+      showToast(arriveError.response?.data?.message || "סימון הגעה נכשל", { tone: "error" });
     } finally {
       setBusyGuestId("");
     }
@@ -90,12 +116,12 @@ export default function HostessPage() {
     setBusyGuestId(guest._id);
     try {
       const { data } = await api.post(`/hostess/${eventId}/guests/${guest._id}/send-table-whatsapp`);
-      setActionToast(data.message || "ההודעה נשלחה");
+      showToast(data.message || "נשלח בהצלחה! ✉️", { tone: "success", durationMs: 4000 });
     } catch (sendError) {
       if (sendError.response?.data?.code === "feature_disabled") {
         setLockedModal(true);
       } else {
-        setActionToast(sendError.response?.data?.message || "שליחת WhatsApp נכשלה");
+        showToast(sendError.response?.data?.message || "שליחת WhatsApp נכשלה", { tone: "error" });
       }
     } finally {
       setBusyGuestId("");
@@ -125,45 +151,68 @@ export default function HostessPage() {
       </label>
 
       {error ? <p className="us-error-message">{error}</p> : null}
-      {actionToast ? <p className="il-hostess-toast" role="status">{actionToast}</p> : null}
       {loading ? <p>טוען…</p> : null}
 
       <ul className="il-hostess-list">
         {!loading && !filteredGuests.length ? (
           <li className="il-hostess-empty">לא נמצאו מוזמנים</li>
         ) : null}
-        {filteredGuests.map((guest) => (
-          <li key={guest._id} className="il-hostess-card">
-            <div className="il-hostess-card__info">
-              <strong>{guest.fullName}</strong>
-              <span dir="ltr">{guest.phone || "—"}</span>
-              <span>
-                {guest.tableLabel ? `שולחן ${guest.tableLabel}` : "ללא שולחן"} · {guest.status}
-              </span>
-            </div>
-            <div className="il-hostess-card__actions">
-              <button
-                type="button"
-                className="us-btn us-btn--primary"
-                disabled={busyGuestId === guest._id}
-                onClick={() => markArrived(guest)}
-              >
-                <UserCheck size={16} aria-hidden="true" />
-                המוזמן הגיע
-              </button>
-              <button
-                type="button"
-                className="us-btn"
-                disabled={busyGuestId === guest._id}
-                onClick={() => sendTableWhatsApp(guest)}
-              >
-                <MessageCircle size={16} aria-hidden="true" />
-                שלח מס׳ שולחן ב-WhatsApp
-              </button>
-            </div>
-          </li>
-        ))}
+        {filteredGuests.map((guest) => {
+          const arrived = guest.status === "הגיע לאירוע" || Boolean(guest.hostessArrivedAt);
+          return (
+            <li key={guest._id} className={`il-hostess-card${arrived ? " is-arrived" : ""}`}>
+              <div className="il-hostess-card__info">
+                <strong>{guest.fullName}</strong>
+                <span dir="ltr">{guest.phone || "—"}</span>
+                <span>
+                  {guest.tableLabel ? `שולחן ${guest.tableLabel}` : "ללא שולחן"} · {guest.status}
+                </span>
+                {arrived ? (
+                  <span className="il-hostess-arrived-badge">הגיע לאירוע · דיילת</span>
+                ) : null}
+              </div>
+              <div className="il-hostess-card__actions">
+                <button
+                  type="button"
+                  className="us-btn us-btn--primary"
+                  disabled={busyGuestId === guest._id}
+                  onClick={() => markArrived(guest)}
+                >
+                  <UserCheck size={16} aria-hidden="true" />
+                  {arrived ? "עדכון הגעה" : "המוזמן הגיע"}
+                </button>
+                <button
+                  type="button"
+                  className="us-btn"
+                  disabled={busyGuestId === guest._id}
+                  onClick={() => sendTableWhatsApp(guest)}
+                >
+                  <MessageCircle size={16} aria-hidden="true" />
+                  שלח מס׳ שולחן ב-WhatsApp
+                </button>
+              </div>
+            </li>
+          );
+        })}
       </ul>
+
+      {toast ? (
+        <div
+          className={`il-hostess-toast-popup il-hostess-toast-popup--${toast.tone}`}
+          role="status"
+          aria-live="polite"
+        >
+          <span>{toast.message}</span>
+          <button
+            type="button"
+            className="il-hostess-toast-popup__close"
+            aria-label="סגירה"
+            onClick={() => setToast(null)}
+          >
+            <X size={16} />
+          </button>
+        </div>
+      ) : null}
 
       {arriveModal ? (
         <div className="us-modal-backdrop" role="presentation" onClick={() => setArriveModal(null)}>
@@ -179,6 +228,7 @@ export default function HostessPage() {
                 ? `${arriveModal.fullName} יושב/ת בשולחן ${arriveModal.tableLabel}`
                 : arriveModal.message}
             </p>
+            <p className="il-hostess-modal__meta">סטטוס עודכן ל־הגיע לאירוע · סומן על ידי דיילת אירוע</p>
             <button className="us-btn us-btn--primary" type="button" onClick={() => setArriveModal(null)}>
               סגור
             </button>

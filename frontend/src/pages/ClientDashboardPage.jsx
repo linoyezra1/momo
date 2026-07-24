@@ -11,6 +11,10 @@ import { formatFailedRowLabel, mergeFailedRows, parseExcelGuestRows } from "../u
 import { getAuditLogLastReadAt } from "../utils/auditLogUnread.js";
 import { useEventWorkspace } from "../utils/useEventWorkspace.js";
 import { buildTelHref } from "../utils/vendors.js";
+import {
+  MOMOEVENT_SUPPORT_PHONE,
+  buildWhatsAppCouponPurchaseUrl
+} from "../utils/tableDispatchPurchase.js";
 import IlInvitationEditor from "../il/components/IlInvitationEditor.jsx";
 import IlWhatsAppInviteEditor from "../il/components/IlWhatsAppInviteEditor.jsx";
 import ContactImportModal from "../components/ContactImportModal.jsx";
@@ -29,6 +33,7 @@ const initialGuest = {
 
 const STATUS_OPTIONS = [
   { value: "מגיע", label: "מגיע" },
+  { value: "הגיע לאירוע", label: "הגיע לאירוע" },
   { value: "לא מגיע", label: "לא מגיע" },
   { value: "אולי", label: "אולי" },
   { value: "לא ידוע", label: "לא ידוע" }
@@ -36,7 +41,7 @@ const STATUS_OPTIONS = [
 
 const STATUS_FILTER_OPTIONS = [
   { value: "all", label: "הכל" },
-  { value: "מגיע", label: "מגיע" },
+  { value: "מגיע", label: "מגיע / הגיע" },
   { value: "לא מגיע", label: "לא מגיע" },
   { value: "אולי", label: "אולי" },
   { value: "לא ידוע", label: "לא ידוע" }
@@ -60,7 +65,7 @@ function parseAttendeesCount(raw) {
 }
 
 function getGuestRowClass(status) {
-  if (status === "מגיע") return "il-row-coming";
+  if (status === "מגיע" || status === "הגיע לאירוע") return "il-row-coming";
   if (status === "לא מגיע") return "il-row-not-coming";
   if (status === "אולי") return "il-row-maybe";
   return "il-row-unknown";
@@ -194,6 +199,7 @@ export default function ClientDashboardPage() {
   const [importSummary, setImportSummary] = useState(null);
   const [guests, setGuests] = useState([]);
   const [eventInfo, setEventInfo] = useState(null);
+  const [canManageVendors, setCanManageVendors] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [manualGuest, setManualGuest] = useState(initialGuest);
   const [editingGuestId, setEditingGuestId] = useState("");
@@ -244,6 +250,8 @@ export default function ClientDashboardPage() {
 
     if (statusFilter === "לא ידוע") {
       list = list.filter((guest) => isUnknownGuestStatus(guest.status));
+    } else if (statusFilter === "מגיע") {
+      list = list.filter((guest) => guest.status === "מגיע" || guest.status === "הגיע לאירוע");
     } else if (statusFilter !== "all") {
       list = list.filter((guest) => guest.status === statusFilter);
     }
@@ -287,6 +295,9 @@ export default function ClientDashboardPage() {
     setSummary(response.data.summary);
     setGuests(response.data.guests);
     setEventInfo(response.data.event || null);
+    setCanManageVendors(
+      isManagerEvent ? true : Boolean(response.data.canManageVendors)
+    );
     await loadWhatsappQuota();
   };
 
@@ -1028,13 +1039,13 @@ export default function ClientDashboardPage() {
                     >
                       מערכת הושבה
                     </Link>
-                    {isManagerEvent ? (
+                    {isManagerEvent || canManageVendors ? (
                       <Link
                         role="menuitem"
                         to={`${basePath}/vendors`}
                         onClick={() => setActionsMenuOpen(false)}
                       >
-                        ספקי אירוע
+                        {isManagerEvent ? "ספקי אירוע" : "ניהול ספקים"}
                       </Link>
                     ) : null}
                     <button
@@ -1631,7 +1642,30 @@ export default function ClientDashboardPage() {
             <form className="us-modal-card il-bulk-whatsapp-modal" onSubmit={sendBulkWhatsApp}>
               <h2 className="us-modal-title">תפוצה רחבה — WhatsApp</h2>
               <p className="il-bulk-whatsapp-intro">
-                על מנת לשלוח הודעות אישורי הגעה בתפוצה רחבה יש לרכוש את השירות. פנו למנהל המערכת וספקו קוד.
+                על מנת לשלוח הודעות אישורי הגעה בתפוצה רחבה יש לרכוש קופון. פנו למנהל המערכת או בטלפון{" "}
+                <a
+                  href={buildWhatsAppCouponPurchaseUrl({
+                    event: eventInfo,
+                    eventId: userId
+                  })}
+                  target="_blank"
+                  rel="noreferrer"
+                  dir="ltr"
+                >
+                  {MOMOEVENT_SUPPORT_PHONE}
+                </a>
+                {" · "}
+                <a
+                  href={buildWhatsAppCouponPurchaseUrl({
+                    event: eventInfo,
+                    eventId: userId
+                  })}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  לחצו כאן
+                </a>
+                .
                 <br />
                 <strong>שימו לב:</strong> המספר נשלח מחברת momoEVENT.
               </p>

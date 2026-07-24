@@ -11,7 +11,7 @@ const callHistoryEntrySchema = new mongoose.Schema(
     },
     rsvpStatus: {
       type: String,
-      enum: ["מגיע", "לא מגיע", "אולי", "לא ידוע"],
+      enum: ["מגיע", "לא מגיע", "אולי", "לא ידוע", "הגיע לאירוע"],
       required: true
     },
     attendeesCount: { type: Number, min: 0, default: 0 },
@@ -35,7 +35,7 @@ const guestSchema = new mongoose.Schema(
     giftAmount: { type: Number, min: 0, default: 0 },
     status: {
       type: String,
-      enum: ["מגיע", "לא מגיע", "אולי", "לא ידוע"],
+      enum: ["מגיע", "לא מגיע", "אולי", "לא ידוע", "הגיע לאירוע"],
       required: true
     },
     source: {
@@ -54,6 +54,8 @@ const guestSchema = new mongoose.Schema(
     declinedWhileSeatedAt: { type: Date, default: null },
     /** Hostess marked guest as arrived on event day */
     hostessArrivedAt: { type: Date, default: null },
+    /** Who marked arrival — e.g. HOSTESS */
+    arrivalMarkedBy: { type: String, trim: true, default: "" },
     reminderRound: { type: Number, min: 0, default: 0 },
     whatsappRoundsSentCount: { type: Number, min: 0, default: 0 },
     whatsappConversationState: {

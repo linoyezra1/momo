@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { Pencil, Phone, Plus, Trash2 } from "lucide-react";
 import api from "../api";
 import IconActionButton from "../components/IconActionButton.jsx";
@@ -24,6 +24,7 @@ const emptyAssignForm = {
   vendorId: "",
   vendorQuoteAmount: "",
   couplePrice: "",
+  agreedPrice: "",
   status: "NEGOTIATING",
   eventNotes: "",
   attachmentUrl: "",
@@ -42,7 +43,9 @@ function calcProfit(vendorQuoteAmount, couplePrice) {
 }
 
 export default function ClientVendorsPage() {
-  const { userId, isManagerEvent } = useEventWorkspace();
+  const { userId, isManagerEvent, backPath, backLabel } = useEventWorkspace();
+  const isCoupleView = !isManagerEvent;
+
   const [eventLabel, setEventLabel] = useState("");
   const [entries, setEntries] = useState([]);
   const [summary, setSummary] = useState({
@@ -50,7 +53,10 @@ export default function ClientVendorsPage() {
     totalBooked: 0,
     totalCost: 0,
     totalRevenue: 0,
-    totalProfit: 0
+    totalProfit: 0,
+    totalAgreed: 0,
+    vendorCount: 0,
+    bookedCount: 0
   });
   const [finance, setFinance] = useState({ targetCoupleBudget: 0 });
   const [budgetWarning, setBudgetWarning] = useState({ exceeded: false, message: "" });
@@ -58,19 +64,27 @@ export default function ClientVendorsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [accessDenied, setAccessDenied] = useState(false);
 
   const [showAssign, setShowAssign] = useState(false);
   const [assignForm, setAssignForm] = useState(emptyAssignForm);
   const [editing, setEditing] = useState(null);
 
+  const listBase = isManagerEvent
+    ? `/manager/clients/${userId}/event-vendors`
+    : `/client/${userId}/event-vendors`;
+  const catalogUrl = isManagerEvent
+    ? "/manager/vendors"
+    : `/client/${userId}/event-vendors/catalog`;
+
   const loadPage = useCallback(async () => {
-    if (!isManagerEvent) return;
     setLoading(true);
     setError("");
+    setAccessDenied(false);
     try {
       const [listRes, catalogRes] = await Promise.all([
-        api.get(`/manager/clients/${userId}/event-vendors`),
-        api.get("/manager/vendors")
+        api.get(listBase),
+        api.get(catalogUrl)
       ]);
       setEntries(listRes.data.eventVendors || []);
       setSummary(
@@ -79,7 +93,10 @@ export default function ClientVendorsPage() {
           totalBooked: 0,
           totalCost: 0,
           totalRevenue: 0,
-          totalProfit: 0
+          totalProfit: 0,
+          totalAgreed: 0,
+          vendorCount: 0,
+          bookedCount: 0
         }
       );
       setFinance(listRes.data.finance || { targetCoupleBudget: 0 });
@@ -87,11 +104,16 @@ export default function ClientVendorsPage() {
       setEventLabel(listRes.data.eventLabel || "");
       setCatalog(catalogRes.data.vendors || []);
     } catch (loadError) {
-      setError(loadError.response?.data?.message || "טעינת ספקי האירוע נכשלה");
+      if (loadError.response?.status === 403) {
+        setAccessDenied(true);
+        setError(loadError.response?.data?.message || "אין הרשאה לניהול ספקים");
+      } else {
+        setError(loadError.response?.data?.message || "טעינת ספקי האירוע נכשלה");
+      }
     } finally {
       setLoading(false);
     }
-  }, [isManagerEvent, userId]);
+  }, [catalogUrl, listBase]);
 
   useEffect(() => {
     loadPage();
@@ -120,13 +142,20 @@ export default function ClientVendorsPage() {
     setSaving(true);
     setError("");
     try {
-      const payload = {
-        vendorQuoteAmount: moneyToNumber(assignForm.vendorQuoteAmount),
-        couplePrice: moneyToNumber(assignForm.couplePrice),
-        status: assignForm.status,
-        eventNotes: assignForm.eventNotes,
-        attachmentUrl: assignForm.attachmentUrl
-      };
+      const payload = isCoupleView
+        ? {
+            agreedPrice: moneyToNumber(assignForm.agreedPrice),
+            status: assignForm.status,
+            eventNotes: assignForm.eventNotes,
+            attachmentUrl: assignForm.attachmentUrl
+          }
+        : {
+            vendorQuoteAmount: moneyToNumber(assignForm.vendorQuoteAmount),
+            couplePrice: moneyToNumber(assignForm.couplePrice),
+            status: assignForm.status,
+            eventNotes: assignForm.eventNotes,
+            attachmentUrl: assignForm.attachmentUrl
+          };
 
       if (assignForm.mode === "existing") {
         if (!assignForm.vendorId) {
@@ -139,7 +168,7 @@ export default function ClientVendorsPage() {
         payload.createVendor = assignForm.createVendor;
       }
 
-      const { data } = await api.post(`/manager/clients/${userId}/event-vendors`, payload);
+      const { data } = await api.post(listBase, payload);
       if (data.budgetWarning?.exceeded) {
         setBudgetWarning(data.budgetWarning);
       }
@@ -153,6 +182,16 @@ export default function ClientVendorsPage() {
   };
 
   const openEdit = (entry) => {
+    if (isCoupleView) {
+      setEditing({
+        id: entry.id,
+        agreedPrice: moneyFromStored(entry.agreedPrice ?? entry.couplePrice),
+        status: entry.status === "OFFER_SENT" ? "NEGOTIATING" : entry.status,
+        eventNotes: entry.eventNotes || "",
+        attachmentUrl: entry.attachmentUrl || ""
+      });
+      return;
+    }
     setEditing({
       id: entry.id,
       vendorQuoteAmount: moneyFromStored(entry.vendorQuoteAmount ?? entry.quoteAmount),
@@ -169,13 +208,21 @@ export default function ClientVendorsPage() {
     setSaving(true);
     setError("");
     try {
-      const { data } = await api.patch(`/manager/clients/${userId}/event-vendors/${editing.id}`, {
-        vendorQuoteAmount: moneyToNumber(editing.vendorQuoteAmount),
-        couplePrice: moneyToNumber(editing.couplePrice),
-        status: editing.status,
-        eventNotes: editing.eventNotes,
-        attachmentUrl: editing.attachmentUrl
-      });
+      const body = isCoupleView
+        ? {
+            agreedPrice: moneyToNumber(editing.agreedPrice),
+            status: editing.status,
+            eventNotes: editing.eventNotes,
+            attachmentUrl: editing.attachmentUrl
+          }
+        : {
+            vendorQuoteAmount: moneyToNumber(editing.vendorQuoteAmount),
+            couplePrice: moneyToNumber(editing.couplePrice),
+            status: editing.status,
+            eventNotes: editing.eventNotes,
+            attachmentUrl: editing.attachmentUrl
+          };
+      const { data } = await api.patch(`${listBase}/${editing.id}`, body);
       if (data.budgetWarning?.exceeded) {
         setBudgetWarning(data.budgetWarning);
       }
@@ -191,32 +238,45 @@ export default function ClientVendorsPage() {
   const removeEntry = async (entry) => {
     if (!window.confirm(`להסיר את "${entry.vendor?.name || "הספק"}" מהאירוע?`)) return;
     try {
-      await api.delete(`/manager/clients/${userId}/event-vendors/${entry.id}`);
+      await api.delete(`${listBase}/${entry.id}`);
       await loadPage();
     } catch (deleteError) {
       setError(deleteError.response?.data?.message || "הסרת הספק נכשלה");
     }
   };
 
-  if (!isManagerEvent) {
+  if (accessDenied && isCoupleView) {
     return <Navigate to={`/client/dashboard/${userId}`} replace />;
   }
 
   const assignProfit = calcProfit(assignForm.vendorQuoteAmount, assignForm.couplePrice);
-  const editProfit = editing
+  const editProfit = editing && !isCoupleView
     ? calcProfit(editing.vendorQuoteAmount, editing.couplePrice)
     : 0;
 
-  return (
-    <div className="il-vendor-embedded" dir="rtl" lang="he">
+  const pageBody = (
+    <div className={isCoupleView ? "il-vendor-embedded us-dashboard-content" : "il-vendor-embedded"} dir="rtl" lang="he">
       <header className="il-audit-log-page__header" style={{ marginBottom: "1rem" }}>
         <div className="il-audit-log-page__intro">
-          <h1>ספקי אירוע</h1>
-          <p>{eventLabel ? `ניהול ספקים עבור ${eventLabel}` : "ניהול ספקים והצעות מחיר לאירוע"}</p>
+          <h1>{isCoupleView ? "ניהול ספקים" : "ספקי אירוע"}</h1>
+          <p>
+            {eventLabel
+              ? isCoupleView
+                ? `מעקב ספקים עבור ${eventLabel}`
+                : `ניהול ספקים עבור ${eventLabel}`
+              : isCoupleView
+                ? "מעקב ספקים, סטטוס ומחיר מוסכם"
+                : "ניהול ספקים והצעות מחיר לאירוע"}
+          </p>
         </div>
+        {isCoupleView ? (
+          <Link className="us-btn" to={backPath}>
+            {backLabel}
+          </Link>
+        ) : null}
       </header>
 
-      {budgetWarning.exceeded ? (
+      {!isCoupleView && budgetWarning.exceeded ? (
         <p className="il-budget-warning" role="status">
           {budgetWarning.message}
           {finance.targetCoupleBudget
@@ -226,18 +286,37 @@ export default function ClientVendorsPage() {
       ) : null}
 
       <div className="il-vendor-summary-bar">
-        <div>
-          <span>עלות ספקים</span>
-          <strong>{formatIls(summary.totalCost ?? summary.totalProposed)}</strong>
-        </div>
-        <div>
-          <span>מחיר לזוג</span>
-          <strong>{formatIls(summary.totalRevenue || 0)}</strong>
-        </div>
-        <div>
-          <span>רווח</span>
-          <strong>{formatIls(summary.totalProfit || 0)}</strong>
-        </div>
+        {isCoupleView ? (
+          <>
+            <div>
+              <span>ספקים</span>
+              <strong>{summary.vendorCount ?? entries.length}</strong>
+            </div>
+            <div>
+              <span>הוזמנו</span>
+              <strong>{summary.bookedCount ?? 0}</strong>
+            </div>
+            <div>
+              <span>סה״כ מחיר מוסכם</span>
+              <strong>{formatIls(summary.totalAgreed || 0)}</strong>
+            </div>
+          </>
+        ) : (
+          <>
+            <div>
+              <span>עלות ספקים</span>
+              <strong>{formatIls(summary.totalCost ?? summary.totalProposed)}</strong>
+            </div>
+            <div>
+              <span>מחיר לזוג</span>
+              <strong>{formatIls(summary.totalRevenue || 0)}</strong>
+            </div>
+            <div>
+              <span>רווח</span>
+              <strong>{formatIls(summary.totalProfit || 0)}</strong>
+            </div>
+          </>
+        )}
         <button className="us-btn us-btn--primary il-add-guest-btn" type="button" onClick={openAssign}>
           <Plus size={16} aria-hidden="true" />
           הוספת ספק לאירוע
@@ -253,17 +332,23 @@ export default function ClientVendorsPage() {
             <tr>
               <th>ספק וקטגוריה</th>
               <th>איש קשר</th>
-              <th>הצעת מחיר ספק</th>
-              <th>הצעת מחיר לזוג</th>
-              <th>רווח</th>
+              {isCoupleView ? <th>מחיר מוסכם</th> : null}
+              {!isCoupleView ? (
+                <>
+                  <th>הצעת מחיר ספק</th>
+                  <th>הצעת מחיר לזוג</th>
+                  <th>רווח</th>
+                </>
+              ) : null}
               <th>סטטוס</th>
+              {isCoupleView ? <th>הערות / חוזה</th> : null}
               <th>פעולות</th>
             </tr>
           </thead>
           <tbody>
             {!loading && !entries.length ? (
               <tr>
-                <td colSpan={7} className="us-table-empty">
+                <td colSpan={isCoupleView ? 6 : 7} className="us-table-empty">
                   עדיין לא שויכו ספקים לאירוע
                 </td>
               </tr>
@@ -275,6 +360,7 @@ export default function ClientVendorsPage() {
               const cost = entry.vendorQuoteAmount ?? entry.quoteAmount ?? 0;
               const revenue = entry.couplePrice || 0;
               const profit = entry.profit ?? calcProfit(cost, revenue);
+              const agreed = entry.agreedPrice ?? entry.couplePrice ?? 0;
               return (
                 <tr key={entry.id}>
                   <td data-label="ספק">
@@ -287,20 +373,36 @@ export default function ClientVendorsPage() {
                       <span dir="ltr">{vendor.phone || "—"}</span>
                     </div>
                   </td>
-                  <td data-label="הצעת מחיר ספק">
-                    <strong>{formatIls(cost)}</strong>
-                  </td>
-                  <td data-label="הצעת מחיר לזוג">
-                    <strong>{formatIls(revenue)}</strong>
-                  </td>
-                  <td data-label="רווח">
-                    <strong>{formatIls(profit)}</strong>
-                  </td>
+                  {isCoupleView ? (
+                    <td data-label="מחיר מוסכם">
+                      <strong>{formatIls(agreed)}</strong>
+                    </td>
+                  ) : null}
+                  {!isCoupleView ? (
+                    <>
+                      <td data-label="הצעת מחיר ספק">
+                        <strong>{formatIls(cost)}</strong>
+                      </td>
+                      <td data-label="הצעת מחיר לזוג">
+                        <strong>{formatIls(revenue)}</strong>
+                      </td>
+                      <td data-label="רווח">
+                        <strong>{formatIls(profit)}</strong>
+                      </td>
+                    </>
+                  ) : null}
                   <td data-label="סטטוס">
                     <span className={`il-vendor-status is-${entry.status}`}>
                       {EVENT_VENDOR_STATUS_LABELS[entry.status] || entry.status}
                     </span>
                   </td>
+                  {isCoupleView ? (
+                    <td data-label="הערות">
+                      <span className="il-vendor-table__sub">
+                        {entry.eventNotes || entry.attachmentUrl || "—"}
+                      </span>
+                    </td>
+                  ) : null}
                   <td data-label="פעולות">
                     <div className="il-guest-actions">
                       {wa ? (
@@ -349,7 +451,7 @@ export default function ClientVendorsPage() {
 
       {showAssign ? (
         <div className="us-modal-backdrop" role="presentation">
-          <form className="us-modal-card" onSubmit={submitAssign}>
+          <form className="us-modal-card" onSubmit={submitAssign} dir="rtl">
             <h2 className="us-modal-title">הוספת ספק לאירוע</h2>
             <div className="us-admin-field">
               <label className="us-admin-field-label">מקור ספק</label>
@@ -429,47 +531,69 @@ export default function ClientVendorsPage() {
                 </div>
               </>
             )}
-            <div className="us-admin-field">
-              <label className="us-admin-field-label">הצעת מחיר ספק (עלות)</label>
-              <input
-                className="us-admin-field-input il-money-input"
-                type="text"
-                inputMode="decimal"
-                autoComplete="off"
-                placeholder="0"
-                value={assignForm.vendorQuoteAmount}
-                onChange={(e) =>
-                  setAssignForm((prev) => ({
-                    ...prev,
-                    vendorQuoteAmount: normalizeMoneyInput(e.target.value)
-                  }))
-                }
-              />
-            </div>
-            <div className="us-admin-field">
-              <label className="us-admin-field-label">הצעת מחיר לזוג (הכנסה)</label>
-              <input
-                className="us-admin-field-input il-money-input"
-                type="text"
-                inputMode="decimal"
-                autoComplete="off"
-                placeholder="0"
-                value={assignForm.couplePrice}
-                onChange={(e) =>
-                  setAssignForm((prev) => ({
-                    ...prev,
-                    couplePrice: normalizeMoneyInput(e.target.value)
-                  }))
-                }
-              />
-            </div>
-            <p>
-              רווח מחושב: <strong>{formatIls(assignProfit)}</strong>
-            </p>
-            {finance.targetCoupleBudget > 0 &&
-            summary.totalRevenue + moneyToNumber(assignForm.couplePrice) > finance.targetCoupleBudget ? (
-              <p className="il-budget-warning">חריגה מתקציב היעד</p>
-            ) : null}
+            {isCoupleView ? (
+              <div className="us-admin-field">
+                <label className="us-admin-field-label">מחיר מוסכם / תקציב</label>
+                <input
+                  className="us-admin-field-input il-money-input"
+                  type="text"
+                  inputMode="decimal"
+                  autoComplete="off"
+                  placeholder="0"
+                  value={assignForm.agreedPrice}
+                  onChange={(e) =>
+                    setAssignForm((prev) => ({
+                      ...prev,
+                      agreedPrice: normalizeMoneyInput(e.target.value)
+                    }))
+                  }
+                />
+              </div>
+            ) : (
+              <>
+                <div className="us-admin-field">
+                  <label className="us-admin-field-label">הצעת מחיר ספק (עלות)</label>
+                  <input
+                    className="us-admin-field-input il-money-input"
+                    type="text"
+                    inputMode="decimal"
+                    autoComplete="off"
+                    placeholder="0"
+                    value={assignForm.vendorQuoteAmount}
+                    onChange={(e) =>
+                      setAssignForm((prev) => ({
+                        ...prev,
+                        vendorQuoteAmount: normalizeMoneyInput(e.target.value)
+                      }))
+                    }
+                  />
+                </div>
+                <div className="us-admin-field">
+                  <label className="us-admin-field-label">הצעת מחיר לזוג (הכנסה)</label>
+                  <input
+                    className="us-admin-field-input il-money-input"
+                    type="text"
+                    inputMode="decimal"
+                    autoComplete="off"
+                    placeholder="0"
+                    value={assignForm.couplePrice}
+                    onChange={(e) =>
+                      setAssignForm((prev) => ({
+                        ...prev,
+                        couplePrice: normalizeMoneyInput(e.target.value)
+                      }))
+                    }
+                  />
+                </div>
+                <p>
+                  רווח מחושב: <strong>{formatIls(assignProfit)}</strong>
+                </p>
+                {finance.targetCoupleBudget > 0 &&
+                summary.totalRevenue + moneyToNumber(assignForm.couplePrice) > finance.targetCoupleBudget ? (
+                  <p className="il-budget-warning">חריגה מתקציב היעד</p>
+                ) : null}
+              </>
+            )}
             <div className="us-admin-field">
               <label className="us-admin-field-label">סטטוס</label>
               <select
@@ -485,7 +609,7 @@ export default function ClientVendorsPage() {
               </select>
             </div>
             <div className="us-admin-field">
-              <label className="us-admin-field-label">הערות</label>
+              <label className="us-admin-field-label">הערות / חוזה</label>
               <textarea
                 className="us-admin-field-input"
                 rows={2}
@@ -507,45 +631,67 @@ export default function ClientVendorsPage() {
 
       {editing ? (
         <div className="us-modal-backdrop" role="presentation">
-          <form className="us-modal-card" onSubmit={saveEdit}>
-            <h2 className="us-modal-title">עריכת הצעת מחיר</h2>
-            <div className="us-admin-field">
-              <label className="us-admin-field-label">הצעת מחיר ספק (עלות)</label>
-              <input
-                className="us-admin-field-input il-money-input"
-                type="text"
-                inputMode="decimal"
-                autoComplete="off"
-                placeholder="0"
-                value={editing.vendorQuoteAmount}
-                onChange={(e) =>
-                  setEditing((prev) => ({
-                    ...prev,
-                    vendorQuoteAmount: normalizeMoneyInput(e.target.value)
-                  }))
-                }
-              />
-            </div>
-            <div className="us-admin-field">
-              <label className="us-admin-field-label">הצעת מחיר לזוג (הכנסה)</label>
-              <input
-                className="us-admin-field-input il-money-input"
-                type="text"
-                inputMode="decimal"
-                autoComplete="off"
-                placeholder="0"
-                value={editing.couplePrice}
-                onChange={(e) =>
-                  setEditing((prev) => ({
-                    ...prev,
-                    couplePrice: normalizeMoneyInput(e.target.value)
-                  }))
-                }
-              />
-            </div>
-            <p>
-              רווח מחושב: <strong>{formatIls(editProfit)}</strong>
-            </p>
+          <form className="us-modal-card" onSubmit={saveEdit} dir="rtl">
+            <h2 className="us-modal-title">{isCoupleView ? "עריכת ספק" : "עריכת הצעת מחיר"}</h2>
+            {isCoupleView ? (
+              <div className="us-admin-field">
+                <label className="us-admin-field-label">מחיר מוסכם / תקציב</label>
+                <input
+                  className="us-admin-field-input il-money-input"
+                  type="text"
+                  inputMode="decimal"
+                  autoComplete="off"
+                  placeholder="0"
+                  value={editing.agreedPrice}
+                  onChange={(e) =>
+                    setEditing((prev) => ({
+                      ...prev,
+                      agreedPrice: normalizeMoneyInput(e.target.value)
+                    }))
+                  }
+                />
+              </div>
+            ) : (
+              <>
+                <div className="us-admin-field">
+                  <label className="us-admin-field-label">הצעת מחיר ספק (עלות)</label>
+                  <input
+                    className="us-admin-field-input il-money-input"
+                    type="text"
+                    inputMode="decimal"
+                    autoComplete="off"
+                    placeholder="0"
+                    value={editing.vendorQuoteAmount}
+                    onChange={(e) =>
+                      setEditing((prev) => ({
+                        ...prev,
+                        vendorQuoteAmount: normalizeMoneyInput(e.target.value)
+                      }))
+                    }
+                  />
+                </div>
+                <div className="us-admin-field">
+                  <label className="us-admin-field-label">הצעת מחיר לזוג (הכנסה)</label>
+                  <input
+                    className="us-admin-field-input il-money-input"
+                    type="text"
+                    inputMode="decimal"
+                    autoComplete="off"
+                    placeholder="0"
+                    value={editing.couplePrice}
+                    onChange={(e) =>
+                      setEditing((prev) => ({
+                        ...prev,
+                        couplePrice: normalizeMoneyInput(e.target.value)
+                      }))
+                    }
+                  />
+                </div>
+                <p>
+                  רווח מחושב: <strong>{formatIls(editProfit)}</strong>
+                </p>
+              </>
+            )}
             <div className="us-admin-field">
               <label className="us-admin-field-label">סטטוס</label>
               <select
@@ -561,7 +707,7 @@ export default function ClientVendorsPage() {
               </select>
             </div>
             <div className="us-admin-field">
-              <label className="us-admin-field-label">הערות</label>
+              <label className="us-admin-field-label">הערות / חוזה</label>
               <textarea
                 className="us-admin-field-input"
                 rows={2}
@@ -582,4 +728,14 @@ export default function ClientVendorsPage() {
       ) : null}
     </div>
   );
+
+  if (isCoupleView) {
+    return (
+      <div className="il-client-portal us-dashboard" dir="rtl" lang="he">
+        {pageBody}
+      </div>
+    );
+  }
+
+  return pageBody;
 }

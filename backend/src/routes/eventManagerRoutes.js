@@ -75,7 +75,11 @@ router.get("/clients", async (req, res) => {
                 totalInvited: { $sum: { $max: ["$attendeesCount", 0] } },
                 totalComing: {
                   $sum: {
-                    $cond: [{ $eq: ["$status", "מגיע"] }, { $max: ["$attendeesCount", 0] }, 0]
+                    $cond: [
+                      { $in: ["$status", ["מגיע", "הגיע לאירוע"]] },
+                      { $max: ["$attendeesCount", 0] },
+                      0
+                    ]
                   }
                 },
                 guestCount: { $sum: 1 }

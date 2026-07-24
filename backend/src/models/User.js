@@ -123,6 +123,7 @@ const userSchema = new mongoose.Schema(
     tableDispatch: { type: tableDispatchSchema, default: () => ({}) },
     managedBy: {
       type: String,
+      /** admin = unmanaged couple (self-serve vendors); eventManager = EM assigned (vendors/budget via manager only) */
       enum: ["admin", "eventManager"],
       default: "admin",
       index: true
