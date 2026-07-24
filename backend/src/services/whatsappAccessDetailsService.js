@@ -11,6 +11,7 @@
 import SystemAuditLog from "../models/SystemAuditLog.js";
 import User from "../models/User.js";
 import { getClientBaseUrl } from "../utils/clientUrl.js";
+import { coupleCanManageVendors } from "../utils/coupleVendors.js";
 import { normalizePhone, phoneLookupVariants } from "../utils/guestPhone.js";
 import {
   sendTwilioWhatsAppMessage,
@@ -33,10 +34,8 @@ const MSG_USER_NOT_FOUND = `שלום! המספר ממנו פנית אינו מש
 const MSG_NO_CREDENTIALS =
   "החשבון שלך קיים אך טרם הוגדרו פרטי גישה.\nצוות התמיכה יעדכן אותך.";
 
-const PRODUCTION_LOGIN_URL = "https://momoevent.up.railway.app/login";
-
-const CREDENTIALS_SUPPORT_FOOTER = `לכל שאלה מוזמנים לפנות אלינו
-מומו אישורי הגעה בטלפון: ${SUPPORT_PHONE}`;
+/** Canonical couple login (user draft had /clinet/ — corrected). */
+const PRODUCTION_LOGIN_URL = "https://momoevent.up.railway.app/client/login";
 
 function normalizedInteractionValue(value) {
   return String(value || "").trim();
@@ -124,6 +123,20 @@ function eventDisplayLabel(event = {}) {
   return String(event.eventNames || event.eventType || "אירוע").trim() || "אירוע";
 }
 
+/** Prefer bride / primary contact name for "שלום {כלה}". */
+export function credentialsGreetingName(event = {}) {
+  if (event.eventType === "חתונה") {
+    return String(event.brideName || event.groomName || "").trim();
+  }
+  if (event.eventType === "ברית") {
+    return String(event.parentName1 || event.parentName2 || "").trim();
+  }
+  if (event.eventType === "בת מצווה") {
+    return String(event.parentName1 || event.batMitzvahName || "").trim();
+  }
+  return String(event.eventNames || "").trim();
+}
+
 function buildLoginUrl(origin) {
   const base = String(origin || getClientBaseUrl() || "https://momoevent.up.railway.app").replace(
     /\/+$/,
@@ -132,41 +145,91 @@ function buildLoginUrl(origin) {
   if (base.includes("momoevent.up.railway.app")) {
     return PRODUCTION_LOGIN_URL;
   }
-  return `${base}/login`;
+  return `${base}/client/login`;
 }
 
-export function buildAccessDetailsMessage({ username, password, loginUrl }) {
+function featuresBlock({ includeVendors = true } = {}) {
+  const lines = [
+    "✅ עריכת ההזמנה הדיגיטלית המעוצבת שלכם",
+    "✅ העלאת מוזמנים מהירה מאנשי קשר או קובץ אקסל",
+    "✅ שליחת הודעות WhatsApp ללא הגבלה (נשלח מהמספר האישי שלכם)",
+    "במידה ומעוניינים שיגיע ממס טלפון החברה יש לרכוש את השירות",
+    "✅ ניהול ומעקב בזמן אמת אחרי אישורי הגעה"
+  ];
+  if (includeVendors) {
+    lines.push("✅ מערכת לניהול ספקים ותקציב האירוע");
+  }
+  lines.push(
+    "✅ מערכת סידורי הושבה חכמה לאלו שאישרו",
+    "✅ מערכת דיילת הושבה ליום האירוע"
+  );
+  return lines.join("\n");
+}
+
+export function buildAccessDetailsMessage({
+  username,
+  password,
+  loginUrl,
+  brideName,
+  includeVendors = true
+} = {}) {
+  const name = String(brideName || "").trim();
+  const greeting = name ? `שלום ${name}! 👋` : "שלום! 👋";
   const user = String(username || "").trim() || "—";
   const pass = String(password || "").trim() || "—";
   const url = String(loginUrl || "").trim() || PRODUCTION_LOGIN_URL;
 
-  return `הנה פרטי הגישה האישיים שלכם למערכת momoEVENT 🔑
+  return `${greeting}
 
-שם משתמש: ${user}
-קוד גישה: ${pass}
+איזה כיף! הכל מוכן עבורכם ב-momoEVENT אישורי הגעה 🎉
+
+הנה פרטי הגישה האישיים שלכם:
+👤 שם משתמש: ${user}
+🔑 קוד גישה: ${pass}
+
+מעכשיו, תוכלו לנהל הכל בקלות במקום אחד:
+${featuresBlock({ includeVendors })}
 
 כניסה למערכת: ${url}
 
-${CREDENTIALS_SUPPORT_FOOTER}`;
+אנחנו כאן לכל שאלה, תרגישו חופשי לפנות אלינו בווצאפ ${SUPPORT_PHONE} 📱
+
+במזל טוב,
+צוות momoEVENT`;
 }
 
-export function buildMultiAccountAccessDetailsMessage({ accounts, loginUrl }) {
+export function buildMultiAccountAccessDetailsMessage({
+  accounts,
+  loginUrl,
+  brideName,
+  includeVendors = true
+} = {}) {
+  const name = String(brideName || "").trim();
+  const greeting = name ? `שלום ${name}! 👋` : "שלום! 👋";
   const url = String(loginUrl || "").trim() || PRODUCTION_LOGIN_URL;
   const blocks = accounts.map((account, index) => {
     return `—— חשבון ${index + 1}: ${account.eventLabel} ——
-שם משתמש: ${account.username}
-קוד גישה: ${account.password}`;
+👤 שם משתמש: ${account.username}
+🔑 קוד גישה: ${account.password}`;
   });
 
-  return `הנה פרטי הגישה האישיים שלכם למערכת momoEVENT 🔑
+  return `${greeting}
+
+איזה כיף! הכל מוכן עבורכם ב-momoEVENT אישורי הגעה 🎉
 
 נמצאו כמה חשבונות המשויכים למספר זה:
 
 ${blocks.join("\n\n")}
 
+מעכשיו, תוכלו לנהל הכל בקלות במקום אחד:
+${featuresBlock({ includeVendors })}
+
 כניסה למערכת: ${url}
 
-${CREDENTIALS_SUPPORT_FOOTER}`;
+אנחנו כאן לכל שאלה, תרגישו חופשי לפנות אלינו בווצאפ ${SUPPORT_PHONE} 📱
+
+במזל טוב,
+צוות momoEVENT`;
 }
 
 async function recordCredentialsAudit({
@@ -212,7 +275,7 @@ export async function findUsersByWhatsAppPhone(fromOrPhone) {
       ...(national.length >= 9 ? [{ contactPhone: { $regex: `${national}$` } }] : [])
     ]
   })
-    .select("username loginPassword contactPhone event createdAt updatedAt")
+    .select("username loginPassword contactPhone event managedBy createdAt updatedAt")
     .sort({ createdAt: -1 })
     .lean()
     .exec();
@@ -328,16 +391,23 @@ export async function handleGetAccessDetailsRequest({
     `[WHATSAPP] Access details matched\nphone: ${inboundPhone}\nuser_id: ${primary._id}\nevent_id: ${primary._id}\ntimestamp: ${timestamp}`
   );
 
+  const brideName = credentialsGreetingName(primary.event);
+  const includeVendors = coupleCanManageVendors(primary);
+
   let messageBody;
   if (withCredentials.length === 1) {
     messageBody = buildAccessDetailsMessage({
       username: primary.username,
       password: primary.loginPassword,
-      loginUrl
+      loginUrl,
+      brideName,
+      includeVendors
     });
   } else {
     messageBody = buildMultiAccountAccessDetailsMessage({
       loginUrl,
+      brideName,
+      includeVendors,
       accounts: withCredentials.map((user) => ({
         eventLabel: eventDisplayLabel(user.event),
         username: user.username,
