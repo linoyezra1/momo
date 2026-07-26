@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api";
+import { normalizeCredential } from "../utils/loginCredentials.js";
 import "../us/client-portal.css";
 import "../il/il-portal.css";
 
@@ -16,10 +17,36 @@ export default function ClientLoginPage() {
     setError("");
     setLoading(true);
     try {
-      const response = await api.post("/client/login", { username, password });
+      const cleanUsername = normalizeCredential(username);
+      const cleanPassword = normalizeCredential(password);
+      if (!cleanUsername || !cleanPassword) {
+        setError("יש להזין שם משתמש וסיסמה");
+        return;
+      }
+
+      const response = await api.post("/client/login", {
+        username: cleanUsername,
+        password: cleanPassword
+      });
       navigate(`/client/dashboard/${response.data.userId}`, { state: response.data });
-    } catch {
-      setError("שם משתמש או סיסמה שגויים");
+    } catch (loginError) {
+      const status = loginError.response?.status;
+      const serverMessage = String(loginError.response?.data?.message || "").trim();
+      if (!loginError.response) {
+        setError("לא ניתן להתחבר לשרת כרגע. בדקו את החיבור לאינטרנט ונסו שוב.");
+      } else if (status === 401 || status === 400) {
+        setError(
+          !serverMessage ||
+            serverMessage === "Invalid credentials" ||
+            serverMessage === "Username and password are required"
+            ? "שם משתמש או סיסמה שגויים"
+            : serverMessage
+        );
+      } else if (status >= 500) {
+        setError("שגיאת שרת זמנית. נסו שוב בעוד רגע.");
+      } else {
+        setError(serverMessage || "שם משתמש או סיסמה שגויים");
+      }
     } finally {
       setLoading(false);
     }
@@ -39,7 +66,12 @@ export default function ClientLoginPage() {
             <input
               id="login-username"
               className="us-field-input"
+              name="username"
               autoComplete="username"
+              autoCapitalize="off"
+              autoCorrect="off"
+              spellCheck={false}
+              inputMode="text"
               value={username}
               onChange={(event) => setUsername(event.target.value)}
               required
@@ -52,6 +84,7 @@ export default function ClientLoginPage() {
             <input
               id="login-password"
               className="us-field-input"
+              name="password"
               type="password"
               autoComplete="current-password"
               value={password}

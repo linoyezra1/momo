@@ -6,6 +6,7 @@ import EventVendor from "../models/EventVendor.js";
 import { buildClientUrl } from "../utils/clientUrl.js";
 import { normalizeEventPayload, normalizePaymentPayload, validateEvent } from "../utils/eventPayload.js";
 import { normalizePhone } from "../utils/guestPhone.js";
+import { normalizeCredential } from "../utils/loginCredentials.js";
 import { sendEventManagerWelcomeWhatsApp } from "../services/eventManagerWelcomeWhatsApp.js";
 import {
   requireEventManager,
@@ -151,7 +152,10 @@ router.post("/create-client", async (req, res) => {
     }
     const { username, password, event, contactPhone } = req.body;
 
-    if (!username?.trim() || !password?.trim() || !event) {
+    const normalizedUsername = normalizeCredential(username);
+    const plainPassword = normalizeCredential(password);
+
+    if (!normalizedUsername || !plainPassword || !event) {
       return res.status(400).json({ message: "יש למלא שם משתמש וסיסמה" });
     }
     const normalizedEvent = normalizeEventPayload(event);
@@ -166,16 +170,15 @@ router.post("/create-client", async (req, res) => {
       return res.status(400).json({ message: "יש להזין מספר טלפון של הכלה (איש קשר)" });
     }
 
-    const existing = await User.findOne({ username: username.trim() });
+    const existing = await User.findOne({ username: normalizedUsername });
     if (existing) {
       return res.status(409).json({ message: "Username already exists" });
     }
 
-    const plainPassword = String(password);
     const passwordHash = await bcrypt.hash(plainPassword, 10);
 
     const user = await User.create({
-      username: username.trim(),
+      username: normalizedUsername,
       passwordHash,
       loginPassword: plainPassword,
       contactPhone: phone,
@@ -225,17 +228,24 @@ router.patch("/clients/:userId", async (req, res) => {
       return res.status(404).json({ message: "Client not found" });
     }
 
-    if (username && username.trim() !== user.username) {
-      const existing = await User.findOne({ username: username.trim() }).select("_id");
-      if (existing) {
-        return res.status(409).json({ message: "Username already exists" });
+    if (username) {
+      const nextUsername = normalizeCredential(username);
+      if (nextUsername && nextUsername !== user.username) {
+        const existing = await User.findOne({ username: nextUsername }).select("_id");
+        if (existing) {
+          return res.status(409).json({ message: "Username already exists" });
+        }
+        user.username = nextUsername;
       }
-      user.username = username.trim();
     }
 
     if (password) {
-      user.passwordHash = await bcrypt.hash(password, 10);
-      user.loginPassword = String(password);
+      const plainPassword = normalizeCredential(password);
+      if (!plainPassword) {
+        return res.status(400).json({ message: "סיסמה אינה תקינה" });
+      }
+      user.passwordHash = await bcrypt.hash(plainPassword, 10);
+      user.loginPassword = plainPassword;
     }
 
     if (contactPhone != null || req.body?.bridePhone != null) {

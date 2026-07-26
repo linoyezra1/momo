@@ -27,6 +27,7 @@ import {
 } from "../services/guestAuditService.js";
 import { resolveMaxPhoneRounds } from "../utils/phoneRounds.js";
 import { coupleCanManageVendors, coupleHasEventManager } from "../utils/coupleVendors.js";
+import { normalizeLoginCredentials, normalizeCredential } from "../utils/loginCredentials.js";
 
 const router = express.Router();
 
@@ -74,17 +75,29 @@ function resolveSourceAfterExcelOverwrite(existingSource) {
 
 router.post("/login", async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { username, password } = normalizeLoginCredentials(req.body || {});
     if (!username || !password) {
       return res.status(400).json({ message: "Username and password are required" });
     }
 
-    const user = await User.findOne({ username: username.trim() });
+    const user = await User.findOne({ username });
     if (!user) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    const isMatch = await bcrypt.compare(password, user.passwordHash);
+    let isMatch = await bcrypt.compare(password, user.passwordHash);
+
+    // Heal legacy desync: hash was created from untrimmed password while loginPassword was trimmed.
+    if (!isMatch) {
+      const storedPlain = normalizeCredential(user.loginPassword);
+      if (storedPlain && storedPlain === password) {
+        user.passwordHash = await bcrypt.hash(password, 10);
+        user.loginPassword = password;
+        await user.save();
+        isMatch = true;
+      }
+    }
+
     if (!isMatch) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
