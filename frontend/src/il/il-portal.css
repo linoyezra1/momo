@@ -1,7 +1,7 @@
 .il-client-portal {
   direction: rtl;
   text-align: right;
-  font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+  font-family: var(--momo-font-sans, "Heebo", "Segoe UI", Tahoma, Arial, sans-serif);
 }
 
 .us-client-portal.il-client-portal,
@@ -33,9 +33,9 @@
 
 .il-dash-header__intro h1 {
   margin: 0;
-  font-family: "Cormorant Garamond", Georgia, serif;
+  font-family: var(--momo-font-sans, "Heebo", "Segoe UI", Tahoma, Arial, sans-serif);
   font-size: clamp(1.65rem, 3.4vw, 2.25rem);
-  font-weight: 500;
+  font-weight: 700;
   color: var(--us-espresso);
   letter-spacing: 0.02em;
 }
@@ -894,6 +894,8 @@
   font-size: 0.78rem;
   font-weight: 600;
   color: var(--us-espresso);
+  text-align: right;
+  direction: rtl;
 }
 
 .il-editor-input,
@@ -907,6 +909,21 @@
   font-size: 0.95rem;
   color: var(--us-text);
   caret-color: var(--us-espresso);
+  text-align: right;
+}
+
+.il-editor-input[dir="ltr"],
+.il-editor-input[type="tel"],
+.il-editor-input[type="time"],
+.il-editor-input[type="date"],
+.il-editor-input[type="number"] {
+  direction: ltr;
+  text-align: left;
+}
+
+.il-editor-input,
+.il-editor-select,
+.il-editor-file {
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 

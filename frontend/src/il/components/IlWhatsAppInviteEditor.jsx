@@ -122,9 +122,7 @@ export default function IlWhatsAppInviteEditor({
           </div>
         </div>
       </div>
-      <p className="il-wa-hint">
-        השדות הבהירים ניתנים לעריכה. ברכה, קישור וסמלילים נעולים לפי תבנית WhatsApp המאושרת.
-      </p>
+      <p className="il-wa-hint">השדות הבהירים ניתנים לעריכה.</p>
     </div>
   );
 }

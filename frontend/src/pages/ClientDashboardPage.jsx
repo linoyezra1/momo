@@ -590,7 +590,7 @@ export default function ClientDashboardPage() {
     if (source === "excel") return "קובץ אקסל";
     if (source === "excel_and_form") return "הועלה מאקסל ואישר עצמית";
     if (source === "form" || source === "public") return "אישור הגעה עצמי";
-    if (source === "CONTACTS_IMPORT") return "ייבוא מאנשי קשר";
+    if (source === "contacts" || source === "CONTACTS_IMPORT") return "אנשי קשר";
     return "ידני";
   };
 
@@ -1244,20 +1244,18 @@ export default function ClientDashboardPage() {
                         guest.fullName
                       )}
                     </td>
-                    <td data-label="טלפון" dir="ltr">
+                    <td data-label="טלפון">
                       {editingGuestId === guest._id ? (
                         <input
                           className="us-inline-input"
-                          type="tel"
-                          inputMode="tel"
+                          dir="ltr"
                           value={editingValues.phone}
                           onChange={(event) =>
                             setEditingValues((prev) => ({ ...prev, phone: event.target.value }))
                           }
-                          required
                         />
                       ) : (
-                        guest.phone
+                        <span dir="ltr">{guest.phone}</span>
                       )}
                     </td>
                     <td data-label="כמה מגיעים">
@@ -1668,6 +1666,8 @@ export default function ClientDashboardPage() {
                 .
                 <br />
                 <strong>שימו לב:</strong> המספר נשלח מחברת momoEVENT.
+                <br />
+                המספר נשלח מחברת מומו. ניתן לשלוח את ההזמנות באופן חינמי מהווצאפ האישי שלכם על ידי לחיצה על האייקון ווצאפ.
               </p>
               {whatsappQuotas.length ? (
                 <div className="il-bulk-whatsapp-quota">

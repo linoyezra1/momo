@@ -3,6 +3,7 @@
   padding: 1.25rem 1rem 2.5rem;
   background: #fff;
   color: #1f2937;
+  font-family: var(--momo-font-sans, "Heebo", "Segoe UI", Tahoma, Arial, sans-serif);
 }
 
 .il-hostess-header h1 {
@@ -100,15 +101,30 @@
   background: rgb(255 255 255 / 85%);
 }
 
-@keyframes il-hostess-toast-in {
+.il-hostess-toast-popup--right {
+  left: auto;
+  right: 1.25rem;
+  bottom: 1.5rem;
+  transform: none;
+}
+
+.il-hostess-toast-popup--right.il-hostess-toast-popup--success {
+  gap: 0.65rem;
+}
+
+@keyframes il-hostess-toast-in-right {
   from {
     opacity: 0;
-    transform: translate(-50%, 12px);
+    transform: translateX(12px);
   }
   to {
     opacity: 1;
-    transform: translate(-50%, 0);
+    transform: translateX(0);
   }
+}
+
+.il-hostess-toast-popup--right {
+  animation: il-hostess-toast-in-right 0.28s ease;
 }
 
 .il-hostess-card.is-arrived {

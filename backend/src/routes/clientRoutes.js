@@ -364,8 +364,8 @@ router.post("/:userId/guests/contacts-import", async (req, res) => {
           attendeesCount,
           giftAmount: 0,
           status: "לא ידוע",
-          source: "CONTACTS_IMPORT",
-          guestGroup
+          source: "contacts",
+          guestGroup: ""
         });
 
         await recordGuestAuditLog({
@@ -377,7 +377,7 @@ router.post("/:userId/guests/contacts-import", async (req, res) => {
           channel: "import",
           action: "guest_created",
           description: buildGuestCreatedDescription(guest),
-          metadata: { source: "CONTACTS_IMPORT" },
+          metadata: { source: "contacts" },
           changes: {
             status: { to: guest.status },
             attendeesCount: { to: guest.attendeesCount }

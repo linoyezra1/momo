@@ -98,6 +98,17 @@
   color: #fff;
 }
 
+.il-seat-instruction-note {
+  margin: 0 0 0.85rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 0.55rem;
+  background: #fff8f1;
+  border: 1px solid #f3e0c8;
+  color: #6b4a2f;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
 .il-seat-toast,
 .il-seat-saving {
   margin: 0 0 0.75rem;
@@ -106,6 +117,31 @@
   background: #eef6ff;
   color: #1e4a7a;
   font-size: 0.9rem;
+}
+
+.il-seat-schedule-note__edit {
+  border: 0;
+  background: transparent;
+  color: #1e4a7a;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+}
+
+.il-seat-canvas-fullscreen-host:fullscreen,
+.il-seat-canvas-fullscreen-host:-webkit-full-screen {
+  width: 100vw;
+  height: 100vh;
+  padding: 1rem;
+  background: #fff;
+  box-sizing: border-box;
+}
+
+.il-seat-canvas-fullscreen-host:fullscreen .il-seat-canvas-wrap,
+.il-seat-canvas-fullscreen-host:-webkit-full-screen .il-seat-canvas-wrap {
+  height: calc(100vh - 2rem);
 }
 
 .il-seat-kpi-bar {

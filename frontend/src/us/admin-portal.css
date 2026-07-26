@@ -13,7 +13,7 @@
 }
 
 .us-admin-portal {
-  font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+  font-family: var(--momo-font-sans, "Heebo", "Segoe UI", Tahoma, Arial, sans-serif);
   color: var(--us-text);
   direction: rtl;
   text-align: right;

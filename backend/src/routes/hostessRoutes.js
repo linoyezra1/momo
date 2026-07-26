@@ -3,7 +3,12 @@ import User from "../models/User.js";
 import Guest from "../models/Guest.js";
 import SeatingLayout from "../models/SeatingLayout.js";
 import { isTwilioConfigured } from "../utils/twilioWhatsApp.js";
-import { mapTwilioErrorMessage } from "../services/bulkWhatsAppService.js";
+import {
+  findValidActivationCode,
+  mapTwilioErrorMessage,
+  releaseActivationCredits,
+  reserveActivationCredits
+} from "../services/bulkWhatsAppService.js";
 import {
   canSendTableWhatsApp,
   sendTableNumberWhatsApp
@@ -15,6 +20,7 @@ import {
 } from "../services/hostessAuditService.js";
 import { publishDashboardEvent } from "../services/dashboardEvents.js";
 import { guestForSeating } from "./seatingRoutes.js";
+import { buildSeatingAnalytics, buildSeatingWarnings } from "../utils/seatingAssign.js";
 
 const router = express.Router();
 
@@ -31,6 +37,27 @@ function buildEventLabel(event = {}) {
   return event.eventNames || "אירוע";
 }
 
+function countGuestSeats(guest) {
+  return Math.max(1, Number(guest?.attendeesCount) || 1);
+}
+
+function buildTablesWithAvailability(tables = [], guests = []) {
+  return (tables || []).map((table) => {
+    const seated = guests.filter((guest) => guest.seatingTableId === table.tableId);
+    const occupied = seated.reduce((sum, guest) => sum + countGuestSeats(guest), 0);
+    const capacity = Math.max(0, Number(table.capacity) || 0);
+    const remaining = Math.max(0, capacity - occupied);
+    return {
+      tableId: table.tableId,
+      label: table.label,
+      shape: table.shape,
+      capacity,
+      occupied,
+      remaining
+    };
+  });
+}
+
 router.get("/:eventId", async (req, res) => {
   try {
     const { eventId } = req.params;
@@ -38,8 +65,17 @@ router.get("/:eventId", async (req, res) => {
     if (!user) return res.status(404).json({ message: "האירוע לא נמצא" });
 
     const layout = await SeatingLayout.findOne({ userId: eventId });
-    const tableById = new Map((layout?.tables || []).map((table) => [table.tableId, table]));
+    const tables = layout?.tables || [];
+    const tableById = new Map(tables.map((table) => [table.tableId, table]));
     const guests = await Guest.find({ userId: eventId }).sort({ fullName: 1 });
+    const guestPayload = guests.map((guest) => {
+      const base = guestForSeating(guest);
+      const table = tableById.get(guest.seatingTableId);
+      return {
+        ...base,
+        tableLabel: table?.label || (guest.seatingTableId ? "?" : "")
+      };
+    });
 
     return res.json({
       eventId: String(user._id),
@@ -49,14 +85,8 @@ router.get("/:eventId", async (req, res) => {
       features: {
         canSendTableWhatsApp: canSendTableWhatsApp(user)
       },
-      guests: guests.map((guest) => {
-        const base = guestForSeating(guest);
-        const table = tableById.get(guest.seatingTableId);
-        return {
-          ...base,
-          tableLabel: table?.label || (guest.seatingTableId ? "?" : "")
-        };
-      })
+      tables: buildTablesWithAvailability(tables, guests),
+      guests: guestPayload
     });
   } catch (error) {
     return res.status(500).json({ message: error.message || "טעינת מסך דיילת נכשלה" });
@@ -124,9 +154,84 @@ router.post("/:eventId/guests/:guestId/arrive", async (req, res) => {
   }
 });
 
+router.post("/:eventId/guests/:guestId/assign-table", async (req, res) => {
+  try {
+    const { eventId, guestId } = req.params;
+    const tableId = String(req.body?.tableId || "").trim();
+    if (!tableId) {
+      return res.status(400).json({ message: "יש לבחור שולחן" });
+    }
+
+    const user = await User.findById(eventId).select("_id");
+    if (!user) return res.status(404).json({ message: "האירוע לא נמצא" });
+
+    const guest = await Guest.findOne({ _id: guestId, userId: eventId });
+    if (!guest) return res.status(404).json({ message: "המוזמן לא נמצא" });
+
+    const layout = await SeatingLayout.findOne({ userId: eventId });
+    const table = (layout?.tables || []).find((item) => item.tableId === tableId);
+    if (!table) return res.status(404).json({ message: "השולחן לא נמצא" });
+
+    const allGuests = await Guest.find({ userId: eventId });
+    const occupied = allGuests
+      .filter((item) => item.seatingTableId === tableId && String(item._id) !== String(guest._id))
+      .reduce((sum, item) => sum + countGuestSeats(item), 0);
+    const needed = countGuestSeats(guest);
+    const capacity = Math.max(0, Number(table.capacity) || 0);
+    if (occupied + needed > capacity) {
+      return res.status(400).json({
+        message: `אין מספיק מקומות פנויים בשולחן ${table.label || tableId}`
+      });
+    }
+
+    guest.seatingTableId = tableId;
+    if (guest.declinedWhileSeatedAt) guest.declinedWhileSeatedAt = undefined;
+    await guest.save();
+
+    const refreshed = await Guest.find({ userId: eventId });
+    const tables = layout?.tables || [];
+
+    await recordHostessAudit({
+      userId: eventId,
+      action: "HOSTESS_ASSIGN_TABLE",
+      status: "ok",
+      phone: guest.phone,
+      description: `${guest.fullName} שובץ/ה לשולחן ${table.label || tableId} על ידי דיילת`,
+      metadata: {
+        guestId: String(guest._id),
+        guestName: guest.fullName,
+        tableId,
+        tableLabel: table.label || tableId,
+        markedBy: HOSTESS_MARKED_BY
+      }
+    });
+
+    publishDashboardEvent(eventId, {
+      type: "guest-seating-updated",
+      guestId: String(guest._id)
+    });
+
+    return res.json({
+      success: true,
+      guest: {
+        ...guestForSeating(guest),
+        tableLabel: table.label || tableId
+      },
+      tableLabel: table.label || tableId,
+      tables: buildTablesWithAvailability(tables, refreshed),
+      warnings: buildSeatingWarnings(refreshed, tables),
+      analytics: buildSeatingAnalytics(refreshed, tables),
+      message: `שובץ/ה לשולחן ${table.label || tableId}`
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "שיבוץ לשולחן נכשל" });
+  }
+});
+
 router.post("/:eventId/guests/:guestId/send-table-whatsapp", async (req, res) => {
   try {
     const { eventId, guestId } = req.params;
+    const paymentCode = String(req.body?.paymentCode || req.body?.couponCode || "").trim();
     const user = await User.findById(eventId);
     if (!user) return res.status(404).json({ message: "האירוע לא נמצא" });
 
@@ -134,8 +239,7 @@ router.post("/:eventId/guests/:guestId/send-table-whatsapp", async (req, res) =>
       return res.status(403).json({
         success: false,
         code: "feature_disabled",
-        message:
-          "שליחת מספר שולחן ב-WhatsApp דורשת הפעלה ע״י מנהל המערכת ורכישת קופון מתאים"
+        message: "השירות כרוך בעלות נוספת, יש לפנות לתמיכה בטלפון"
       });
     }
 
@@ -143,10 +247,23 @@ router.post("/:eventId/guests/:guestId/send-table-whatsapp", async (req, res) =>
       return res.status(503).json({ message: "שירות שליחת הודעות לא מוגדר בשרת" });
     }
 
+    const { codeRecord, error: codeError } = await findValidActivationCode(paymentCode);
+    if (codeError === "missing_code") {
+      return res.status(400).json({ message: "יש להזין קוד קופון לרכישה זו" });
+    }
+    if (codeError === "invalid_code" || codeError === "expired_code") {
+      return res.status(400).json({ message: "קוד הקופון אינו תקין או שפג תוקפו" });
+    }
+
     const guest = await Guest.findOne({ _id: guestId, userId: eventId });
     if (!guest) return res.status(404).json({ message: "המוזמן לא נמצא" });
     if (!guest.seatingTableId) {
       return res.status(400).json({ message: "המוזמן עדיין לא משובץ לשולחן" });
+    }
+
+    const reserved = await reserveActivationCredits(codeRecord, 1);
+    if (!reserved.ok) {
+      return res.status(400).json({ success: false, message: reserved.message });
     }
 
     const layout = await SeatingLayout.findOne({ userId: eventId });
@@ -159,6 +276,7 @@ router.post("/:eventId/guests/:guestId/send-table-whatsapp", async (req, res) =>
     });
 
     if (!result.ok) {
+      await releaseActivationCredits(reserved.codeRecord._id, 1);
       await recordHostessAudit({
         userId: eventId,
         action: "HOSTESS_TABLE_WHATSAPP",
@@ -179,6 +297,15 @@ router.post("/:eventId/guests/:guestId/send-table-whatsapp", async (req, res) =>
       });
     }
 
+    if (!reserved.codeRecord.redeemedByUserId) {
+      try {
+        reserved.codeRecord.redeemedByUserId = user._id;
+        await reserved.codeRecord.save();
+      } catch {
+        /* non-fatal */
+      }
+    }
+
     await recordHostessAudit({
       userId: eventId,
       action: "HOSTESS_TABLE_WHATSAPP",
@@ -197,7 +324,7 @@ router.post("/:eventId/guests/:guestId/send-table-whatsapp", async (req, res) =>
     return res.json({
       success: true,
       tableLabel,
-      message: "נשלח בהצלחה! ✉️"
+      message: "נשלח בהצלחה! ✓"
     });
   } catch (error) {
     return res.status(500).json({

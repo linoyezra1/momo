@@ -345,15 +345,39 @@ router.post("/:userId/seating/send-table-messages", async (req, res) => {
       return res.status(400).json({ message: "יש להזין קוד קופון לרכישה זו" });
     }
 
+    const { codeRecord, error: codeError } = await findValidActivationCode(paymentCode);
+    if (codeError === "missing_code") {
+      return res.status(400).json({ message: "יש להזין קוד קופון לרכישה זו" });
+    }
+    if (codeError === "invalid_code" || codeError === "expired_code") {
+      return res.status(400).json({ message: "קוד הקופון אינו תקין או שפג תוקפו" });
+    }
+
     if (!sendNow) {
       const scheduledAt = new Date(scheduledAtRaw);
       if (Number.isNaN(scheduledAt.getTime())) {
         return res.status(400).json({ message: "שעת השליחה אינה תקינה" });
       }
       if (scheduledAt.getTime() > Date.now() + 60 * 1000) {
+        const seatedCount = await Guest.countDocuments({
+          userId,
+          seatingTableId: { $ne: "" },
+          status: { $in: ["מגיע", "אולי", "הגיע לאירוע"] }
+        });
+        if (!seatedCount) {
+          return res.status(400).json({
+            message: "אין אורחים משובצים לשולחן עם סטטוס מגיע/אולי"
+          });
+        }
+        if (Number(codeRecord.remaining_credits || 0) < seatedCount) {
+          return res.status(400).json({
+            message: `קנית מכסה בסך של ${codeRecord.total_credits} הודעות. נשארו לך ${codeRecord.remaining_credits} הודעות לניצול.`
+          });
+        }
+
         user.tableDispatch = {
           scheduledAt,
-          paymentCode,
+          paymentCode: String(codeRecord.code || paymentCode).trim().toUpperCase(),
           status: "scheduled",
           lastSentAt: user.tableDispatch?.lastSentAt || null,
           lastError: "",

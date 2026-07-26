@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ChevronDown, CircleHelp, Send } from "lucide-react";
+import { ChevronDown, CircleHelp, Maximize2, Minimize2, Send } from "lucide-react";
 import api from "../api";
 import IlSeatingGuestPanel from "../il/seating/IlSeatingGuestPanel.jsx";
 import IlSeatingSimpleGrid from "../il/seating/IlSeatingSimpleGrid.jsx";
+import IlSeatingCanvas from "../il/seating/IlSeatingCanvas.jsx";
 import IlSeatingTableEditModal from "../il/seating/IlSeatingTableEditModal.jsx";
 import { TABLE_SHAPES } from "../il/seating/seatingConstants.js";
 import { buildSeatingExportRows, filterSeatingGuests, makeSeatingId } from "../il/seating/ilSeatingUtils.js";
@@ -22,12 +23,22 @@ function defaultDispatchDateTimeLocal() {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+function toLocalDateTimeValue(iso) {
+  if (!iso) return defaultDispatchDateTimeLocal();
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return defaultDispatchDateTimeLocal();
+  const pad = (value) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
 export default function IlSeatingPage() {
   const { userId } = useParams();
   const { isManagerEvent, backPath, backLabel, basePath } = useEventWorkspace();
+  const canvasRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [tables, setTables] = useState([]);
+  const [venueElements, setVenueElements] = useState([]);
   const [guests, setGuests] = useState([]);
   const [analytics, setAnalytics] = useState(null);
   const [warnings, setWarnings] = useState([]);
@@ -47,6 +58,8 @@ export default function IlSeatingPage() {
   const [canSendTableWhatsApp, setCanSendTableWhatsApp] = useState(false);
   const [tableDispatch, setTableDispatch] = useState(null);
   const [eventInfo, setEventInfo] = useState(null);
+  const [viewMode, setViewMode] = useState("simple");
+  const [canvasFullscreen, setCanvasFullscreen] = useState(false);
 
   const tableLabelById = useMemo(
     () => new Map(tables.map((table) => [table.tableId, table.label])),
@@ -89,6 +102,7 @@ export default function IlSeatingPage() {
     try {
       const response = await api.get(`/client/${userId}/seating`);
       setTables(response.data.layout?.tables || response.data.tables || []);
+      setVenueElements(response.data.layout?.venueElements || response.data.venueElements || []);
       setGuests(response.data.guests || []);
       setAnalytics(response.data.analytics || null);
       setWarnings((response.data.warnings || []).filter((item) => item.type === "overfill"));
@@ -115,12 +129,14 @@ export default function IlSeatingPage() {
   const saveLayout = useCallback(
     async (patch) => {
       const nextTables = patch.tables ?? tables;
+      const nextVenueElements = patch.venueElements ?? venueElements;
       setTables(nextTables);
+      setVenueElements(nextVenueElements);
       setSaving(true);
       try {
         const response = await api.put(`/client/${userId}/seating/layout`, {
           tables: nextTables,
-          venueElements: []
+          venueElements: nextVenueElements
         });
         setWarnings((response.data.warnings || []).filter((item) => item.type === "overfill"));
       } catch (saveError) {
@@ -129,7 +145,7 @@ export default function IlSeatingPage() {
         setSaving(false);
       }
     },
-    [tables, userId]
+    [tables, userId, venueElements]
   );
 
   async function assignGuests(guestIds, tableId) {
@@ -248,13 +264,41 @@ export default function IlSeatingPage() {
     setToast("השולחן נמחק");
   }
 
-  function openDispatchModal() {
+  function openDispatchModal({ preserveSchedule = false } = {}) {
     setDispatchError("");
     setCouponCode("");
-    setScheduledAt(defaultDispatchDateTimeLocal());
+    if (preserveSchedule && tableDispatch?.status === "scheduled") {
+      setScheduledAt(toLocalDateTimeValue(tableDispatch.scheduledAt));
+    } else {
+      setScheduledAt(defaultDispatchDateTimeLocal());
+    }
     setDispatchOpen(true);
     setActionsOpen(false);
   }
+
+  async function toggleCanvasFullscreen() {
+    const node = canvasRef.current?.closest?.(".il-seat-canvas-fullscreen-host") || canvasRef.current;
+    if (!node) return;
+    try {
+      if (!document.fullscreenElement) {
+        await node.requestFullscreen?.();
+        setCanvasFullscreen(true);
+      } else {
+        await document.exitFullscreen?.();
+        setCanvasFullscreen(false);
+      }
+    } catch {
+      setToast("לא ניתן להפעיל מסך מלא בדפדפן זה");
+    }
+  }
+
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      setCanvasFullscreen(Boolean(document.fullscreenElement));
+    };
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
+  }, []);
 
   async function submitTableDispatch(event) {
     event.preventDefault();
@@ -298,25 +342,45 @@ export default function IlSeatingPage() {
   }
 
   return (
-    <div className="il-seat-page il-client-portal is-simple-view il-seat-page--white" dir="rtl" lang="he">
+    <div
+      className={`il-seat-page il-client-portal il-seat-page--white${viewMode === "simple" ? " is-simple-view" : " is-canvas-view"}`}
+      dir="rtl"
+      lang="he"
+    >
       <header className="il-seat-header">
         <div>
           <h1>מערכת הושבה — momoEVENT</h1>
-          <p>גררו אורחים לשולחנות · תצוגה נקייה וקלה</p>
+          <p>גררו אורחים לשולחנות · ניהול הושבה לאירוע</p>
         </div>
         <div className="il-seat-header__actions">
+          <div className="il-seat-view-toggle" role="group" aria-label="בחירת תצוגה">
+            <button
+              type="button"
+              className={viewMode === "simple" ? "is-active" : ""}
+              onClick={() => setViewMode("simple")}
+            >
+              תצוגת שולחנות
+            </button>
+            <button
+              type="button"
+              className={viewMode === "canvas" ? "is-active" : ""}
+              onClick={() => setViewMode("canvas")}
+            >
+              תצוגת קאנבס האולם
+            </button>
+          </div>
           <button
             type="button"
             className="il-seat-help-btn"
             onClick={() => setHelpOpen(true)}
-            aria-label="עזרה לדיילת"
+            aria-label="עזרה לדיילת דיגיטלית"
             title="עזרה"
           >
             <CircleHelp size={18} aria-hidden="true" />
             ?
           </button>
           <Link className="us-btn" to={`/hostess/${userId}`} target="_blank" rel="noreferrer">
-            מסך דיילת
+            דיילת דיגיטלית
           </Link>
           {!isManagerEvent ? (
             <Link className="us-btn" to={backPath}>
@@ -330,6 +394,10 @@ export default function IlSeatingPage() {
         </div>
       </header>
 
+      <p className="il-seat-instruction-note" role="note">
+        אורחים שיופיעו ברשימה בסטטוס &quot;מגיע&quot; או &quot;אולי&quot; הם אורחים שאישרו הגעה.
+      </p>
+
       {error ? <p className="us-error-message">{error}</p> : null}
       {toast ? <p className="il-seat-toast">{toast}</p> : null}
       {saving ? <p className="il-seat-saving">שומר פריסה…</p> : null}
@@ -337,6 +405,14 @@ export default function IlSeatingPage() {
         <p className="il-seat-schedule-note" role="status">
           שליחת מספרי שולחן מתוזמנת ל-
           {new Date(tableDispatch.scheduledAt).toLocaleString("he-IL")}
+          {" · "}
+          <button
+            type="button"
+            className="il-seat-schedule-note__edit"
+            onClick={() => openDispatchModal({ preserveSchedule: true })}
+          >
+            עדכון זמן שליחה
+          </button>
         </p>
       ) : null}
 
@@ -373,13 +449,25 @@ export default function IlSeatingPage() {
         <div className="il-seat-toolbox" aria-label="הוספת שולחנות">
           <div className="il-seat-toolbox__group">
             <span>שולחנות</span>
-            {TABLE_SHAPES.filter((shape) => shape.value !== "head").map((shape) => (
-              <button key={shape.value} type="button" onClick={() => addTable(shape.value)}>
-                {shape.label}
+            {viewMode === "canvas" ? (
+              TABLE_SHAPES.filter((shape) => shape.value !== "head").map((shape) => (
+                <button key={shape.value} type="button" onClick={() => addTable(shape.value)}>
+                  {shape.label}
+                </button>
+              ))
+            ) : (
+              <button type="button" onClick={() => addTable("round")}>
+                הוסף שולחן
               </button>
-            ))}
+            )}
           </div>
-          <button type="button" className="il-seat-toolbox__primary" onClick={openDispatchModal}>
+          {viewMode === "canvas" ? (
+            <button type="button" className="il-seat-toolbox__primary" onClick={toggleCanvasFullscreen}>
+              {canvasFullscreen ? <Minimize2 size={15} aria-hidden="true" /> : <Maximize2 size={15} aria-hidden="true" />}
+              {canvasFullscreen ? "יציאה ממסך מלא" : "מסך מלא"}
+            </button>
+          ) : null}
+          <button type="button" className="il-seat-toolbox__primary" onClick={() => openDispatchModal()}>
             <Send size={15} aria-hidden="true" />
             שלח למוזמן מס׳ שולחן
           </button>
@@ -422,15 +510,32 @@ export default function IlSeatingPage() {
           compact
         />
 
-        <IlSeatingSimpleGrid
-          tables={tables}
-          guests={eligibleGuests}
-          activeTableId={activeTableId}
-          onSelectTable={setActiveTableId}
-          onEditTable={setEditingTableId}
-          onDropGuestsOnTable={(tableId, guestIds) => assignGuests(guestIds, tableId)}
-          onUnassignGuest={(guestId) => unassignGuestIds([guestId])}
-        />
+        {viewMode === "simple" ? (
+          <IlSeatingSimpleGrid
+            tables={tables}
+            guests={eligibleGuests}
+            activeTableId={activeTableId}
+            onSelectTable={setActiveTableId}
+            onEditTable={setEditingTableId}
+            onDropGuestsOnTable={(tableId, guestIds) => assignGuests(guestIds, tableId)}
+            onUnassignGuest={(guestId) => unassignGuestIds([guestId])}
+          />
+        ) : (
+          <div className="il-seat-canvas-fullscreen-host">
+            <IlSeatingCanvas
+              tables={tables}
+              venueElements={venueElements}
+              guests={eligibleGuests}
+              warnings={warnings}
+              activeTableId={activeTableId}
+              onLayoutChange={saveLayout}
+              onSelectTable={setActiveTableId}
+              onEditTable={setEditingTableId}
+              onDropGuestsOnTable={(tableId, guestIds) => assignGuests(guestIds, tableId)}
+              canvasRef={canvasRef}
+            />
+          </div>
+        )}
       </div>
 
       {editingTable ? (
@@ -452,7 +557,10 @@ export default function IlSeatingPage() {
             dir="rtl"
             onClick={(event) => event.stopPropagation()}
           >
-            <h2 className="us-modal-title">הושבה חכמה</h2>
+            <h2 className="us-modal-title">דיילת דיגיטלית</h2>
+            <p>
+              שימו מישהו מטעמכם על העמדה והוא מחפש את המוזמן ויודע איפה הוא יושב.
+            </p>
             <p>
               הדיילת מחפשת את המוזמן ← לוחצת הגיע ← קופצת הודעה איפה יושב ← המוזמן מוכוון לשולחן.
             </p>
@@ -471,10 +579,15 @@ export default function IlSeatingPage() {
             onClick={(event) => event.stopPropagation()}
             onSubmit={submitTableDispatch}
           >
-            <h2 className="us-modal-title">שלח למוזמן מס׳ שולחן</h2>
+            <h2 className="us-modal-title">
+              {tableDispatch?.status === "scheduled" ? "עדכון שליחת מס׳ שולחן" : "שלח למוזמן מס׳ שולחן"}
+            </h2>
             <p>
-              דיילות דיגיטלית — נשלח למוזמנים בשעה שתבחרו את מספר השולחן שלהם ב-WhatsApp, כדי
+              דיילת דיגיטלית — נשלח למוזמנים בשעה שתבחרו את מספר השולחן שלהם ב-WhatsApp, כדי
               להכווין אותם במהירות ביום האירוע.
+              {tableDispatch?.status === "scheduled"
+                ? " בעדכון לוח הזמנים יש להזין מחדש קוד קופון תקף."
+                : ""}
             </p>
             {!canSendTableWhatsApp ? (
               <TableDispatchFeatureLockedNotice event={eventInfo} eventId={userId} />

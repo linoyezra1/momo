@@ -297,6 +297,8 @@
   font-size: 0.82rem;
   font-weight: 500;
   color: var(--il-ink-soft);
+  text-align: right;
+  direction: rtl;
 }
 
 .il-invite-field__input {
@@ -313,6 +315,7 @@
 .il-invite-field__input--ltr {
   direction: ltr;
   text-align: left;
+  margin-inline-start: 0;
 }
 
 .il-invite-stepper {

@@ -8,7 +8,13 @@ export function resolvePerformerLabel({ actor, channel, metadata = {} }) {
   }
   if (actor === "guest" && channel === "whatsapp") return "האורח (וואטסאפ)";
   if (actor === "guest" && channel === "web") return "האורח (קישור)";
-  if (actor === "client" && channel === "import") return "הזוג (ייבוא אקסל)";
+  if (actor === "client" && channel === "import") {
+    const source = String(metadata.source || "").trim();
+    if (source === "contacts" || source === "CONTACTS_IMPORT") {
+      return "הזוג (ייבוא מאנשי קשר)";
+    }
+    return "הזוג (ייבוא אקסל)";
+  }
   if (actor === "client") return "הזוג";
   return "מערכת";
 }

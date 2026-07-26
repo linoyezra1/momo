@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Contact, QrCode, X } from "lucide-react";
 import {
-  CONTACT_GROUP_OPTIONS,
   isContactsPickerSupported,
   isLikelyValidIsraeliMobile,
   mapDeviceContactsToReviewRows,
@@ -30,7 +29,6 @@ export default function ContactImportModal({
   const supported = useMemo(() => isContactsPickerSupported(), []);
   const [step, setStep] = useState(supported ? "idle" : "unsupported");
   const [rows, setRows] = useState([]);
-  const [bulkGroup, setBulkGroup] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState("");
@@ -130,7 +128,7 @@ export default function ContactImportModal({
       .map((row) => ({
         fullName: row.fullName.trim(),
         phone: row.phone,
-        guestGroup: bulkGroup
+        guestGroup: ""
       }))
       .filter((row) => row.fullName && row.phone);
 
@@ -230,16 +228,6 @@ export default function ContactImportModal({
                   onChange={toggleAllValid}
                 />
                 בחירת כל התקינים
-              </label>
-              <label className="il-contacts-group">
-                <span>קבוצה לכולם</span>
-                <select value={bulkGroup} onChange={(event) => setBulkGroup(event.target.value)}>
-                  {CONTACT_GROUP_OPTIONS.map((option) => (
-                    <option key={option.value || "none"} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
               </label>
             </div>
 

@@ -17,7 +17,7 @@
   direction: rtl;
   text-align: right;
   color: var(--landing-ink);
-  font-family: "Heebo", "Rubik", "Segoe UI", Tahoma, Arial, sans-serif;
+  font-family: var(--momo-font-sans, "Heebo", "Segoe UI", Tahoma, Arial, sans-serif);
   background:
     radial-gradient(980px 520px at 8% -10%, rgb(169 111 104 / 12%), transparent 68%),
     radial-gradient(860px 480px at 92% -8%, rgb(212 175 55 / 10%), transparent 70%),
