@@ -1024,66 +1024,17 @@
   gap: 0.75rem;
 }
 
-.il-status-history {
-  margin: 0 0 0.15rem;
-  padding: 0.85rem;
-  border: 1px solid rgb(148 163 184 / 35%);
-  border-radius: 0.7rem;
-  background: #f8fafc;
-}
-
-.il-status-history__header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.75rem;
-  margin-bottom: 0.55rem;
-}
-
-.il-status-history__header strong {
-  font-size: 0.9rem;
-  color: #334155;
-}
-
-.il-status-history__header span {
-  font-size: 0.78rem;
-  color: #64748b;
-}
-
-.il-status-history__timeline {
+.il-status-history-log {
   margin: 0;
-  padding: 0;
-  list-style: none;
-  display: grid;
-  gap: 0.45rem;
+  padding: 0.85rem;
 }
 
-.il-status-history__item {
-  padding: 0.55rem 0.7rem;
-  border-radius: 0.5rem;
-  border: 1px solid rgb(226 232 240 / 95%);
-  background: #fff;
+.il-status-history-log .il-audit-log__header h2 {
+  margin-bottom: 0.65rem;
 }
 
-.il-status-history__line {
-  display: block;
-  font-size: 0.86rem;
-  line-height: 1.45;
-  color: #1e293b;
-}
-
-.il-status-history__note {
-  display: block;
-  margin-top: 0.25rem;
-  font-size: 0.78rem;
-  color: #64748b;
-}
-
-.il-call-history__hint {
-  margin: 0 0 0.65rem;
-  font-size: 0.78rem;
-  line-height: 1.4;
-  color: #6b5b45;
+.il-status-history-log .il-audit-log__table-wrap {
+  max-height: 16rem;
 }
 
 .il-phone-rsvp-summary {
@@ -1365,14 +1316,8 @@
     padding: 0.65rem;
   }
 
-  .il-status-history {
+  .il-status-history-log {
     padding: 0.65rem;
-  }
-
-  .il-status-history__header {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 0.2rem;
   }
 
   .il-call-history__header {

@@ -117,24 +117,44 @@ function hasGuestDetailRecord(guest) {
   return hasPhoneRsvpRecord(guest) || getGuestStatusHistory(guest).length > 0;
 }
 
-function formatStatusHistoryTimestamp(value) {
-  if (!value) return "";
+function formatStatusHistoryDateTime(value) {
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  const day = String(date.getDate()).padStart(2, "0");
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const year = date.getFullYear();
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  return `${day}/${month}/${year} ${hours}:${minutes}`;
+  if (Number.isNaN(date.getTime())) {
+    return { dateLabel: "—", timeLabel: "" };
+  }
+  return {
+    dateLabel: date.toLocaleDateString("he-IL", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric"
+    }),
+    timeLabel: date.toLocaleTimeString("he-IL", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false
+    })
+  };
 }
 
-function formatStatusHistoryLine(entry) {
-  const when = formatStatusHistoryTimestamp(entry?.updatedAt);
+function statusHistoryBadgeClass(source) {
+  if (source === "rep") return "il-audit-log__badge--agent";
+  if (source === "public_link" || source === "whatsapp") return "il-audit-log__badge--guest";
+  if (source === "couple" || source === "excel" || source === "manual" || source === "admin") {
+    return "il-audit-log__badge--client";
+  }
+  return "il-audit-log__badge--system";
+}
+
+function StatusHistoryDescription({ entry }) {
   const status = entry?.status || "—";
-  const by = entry?.updatedBy || "מערכת";
-  const prefix = when ? `${when} - ` : "";
-  return `${prefix}עודכן ל"${status}" ע"י ${by}`;
+  const note = String(entry?.note || "").trim();
+  return (
+    <>
+      סטטוס עודכן ל-
+      <strong className="il-audit-log__em">{status}</strong>
+      {note ? <span className="il-audit-log__note"> · הערה: &quot;{note}&quot;</span> : null}
+    </>
+  );
 }
 
 function formatCallStatusLabel(callStatus) {
@@ -1425,28 +1445,55 @@ export default function ClientDashboardPage() {
                           <td colSpan={guestTableColumnCount}>
                             <div className="il-guest-detail-panels">
                               {statusHistory.length ? (
-                                <div className="il-status-history">
-                                  <div className="il-status-history__header">
-                                    <strong>היסטוריית סטטוס הגעה</strong>
-                                    <span>{statusHistory.length} עדכונים</span>
+                                <div
+                                  className="il-audit-log il-status-history-log"
+                                  dir="rtl"
+                                  lang="he"
+                                  aria-label="היסטוריית סטטוס הגעה"
+                                >
+                                  <div className="il-audit-log__header">
+                                    <h2>היסטוריית סטטוס הגעה</h2>
                                   </div>
-                                  <ol className="il-status-history__timeline">
-                                    {statusHistory.map((entry, index) => (
-                                      <li
-                                        className="il-status-history__item"
-                                        key={`${entry.updatedAt || index}-${entry.status}-${index}`}
-                                      >
-                                        <span className="il-status-history__line">
-                                          {formatStatusHistoryLine(entry)}
-                                        </span>
-                                        {entry.note?.trim() ? (
-                                          <span className="il-status-history__note">
-                                            הערה: {entry.note.trim()}
-                                          </span>
-                                        ) : null}
-                                      </li>
-                                    ))}
-                                  </ol>
+                                  <div className="il-audit-log__table-wrap">
+                                    <table className="il-audit-log__table">
+                                      <thead>
+                                        <tr>
+                                          <th scope="col">תאריך ושעה</th>
+                                          <th scope="col">העדכון</th>
+                                          <th scope="col">בוצע על ידי</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {statusHistory.map((entry, index) => {
+                                          const { dateLabel, timeLabel } = formatStatusHistoryDateTime(
+                                            entry.updatedAt
+                                          );
+                                          return (
+                                            <tr
+                                              key={`${entry.updatedAt || index}-${entry.status}-${index}`}
+                                            >
+                                              <td className="il-audit-log__datetime">
+                                                <span className="il-audit-log__date">{dateLabel}</span>
+                                                <span className="il-audit-log__time">{timeLabel}</span>
+                                              </td>
+                                              <td className="il-audit-log__description">
+                                                <StatusHistoryDescription entry={entry} />
+                                              </td>
+                                              <td className="il-audit-log__performer">
+                                                <span
+                                                  className={`il-audit-log__badge ${statusHistoryBadgeClass(
+                                                    entry.source
+                                                  )}`}
+                                                >
+                                                  {entry.updatedBy || "מערכת"}
+                                                </span>
+                                              </td>
+                                            </tr>
+                                          );
+                                        })}
+                                      </tbody>
+                                    </table>
+                                  </div>
                                 </div>
                               ) : null}
 
@@ -1456,10 +1503,6 @@ export default function ClientDashboardPage() {
                                     <strong>היסטוריית שיחות טלפוניות (נציג)</strong>
                                     <span>{getGuestCallHistory(guest).length} ניסיונות</span>
                                   </div>
-                                  <p className="il-call-history__hint">
-                                    תשובת הנציג נשמרת כרשומת שיחה. הסטטוס הראשי בטבלה משקף את העדכון
-                                    האחרון מכל המקורות (וואטסאפ / קישור / נציג / אקסל).
-                                  </p>
                                   <div className="il-call-history__timeline">
                                     {getGuestCallHistory(guest).map((entry, index) => (
                                       <article
