@@ -27,7 +27,12 @@ import {
 } from "../services/guestAuditService.js";
 import { resolveMaxPhoneRounds } from "../utils/phoneRounds.js";
 import { coupleCanManageVendors, coupleHasEventManager } from "../utils/coupleVendors.js";
-import { normalizeLoginCredentials, normalizeCredential } from "../utils/loginCredentials.js";
+import {
+  applyCouplePassword,
+  normalizeLoginCredentials,
+  normalizeLoginPassword,
+  normalizeLoginUsername
+} from "../utils/loginCredentials.js";
 
 const router = express.Router();
 
@@ -75,7 +80,11 @@ function resolveSourceAfterExcelOverwrite(existingSource) {
 
 router.post("/login", async (req, res) => {
   try {
-    const { username, password } = normalizeLoginCredentials(req.body || {});
+    // Defense-in-depth: WhatsApp paste often includes trailing \n/\r on password.
+    const { username, password } = normalizeLoginCredentials({
+      username: req.body?.username,
+      password: req.body?.password
+    });
     if (!username || !password) {
       return res.status(400).json({ message: "Username and password are required" });
     }
@@ -87,12 +96,16 @@ router.post("/login", async (req, res) => {
 
     let isMatch = await bcrypt.compare(password, user.passwordHash);
 
-    // Heal legacy desync: hash was created from untrimmed password while loginPassword was trimmed.
+    // Heal corrupted legacy hashes: if typed password matches stored plaintext
+    // loginPassword (or username when used as passcode), re-hash from the clean string.
     if (!isMatch) {
-      const storedPlain = normalizeCredential(user.loginPassword);
-      if (storedPlain && storedPlain === password) {
-        user.passwordHash = await bcrypt.hash(password, 10);
-        user.loginPassword = password;
+      const healCandidates = [
+        normalizeLoginPassword(user.loginPassword),
+        normalizeLoginUsername(user.username)
+      ].filter((value, index, arr) => value && arr.indexOf(value) === index);
+
+      if (healCandidates.includes(password)) {
+        await applyCouplePassword(user, password, bcrypt);
         await user.save();
         isMatch = true;
       }

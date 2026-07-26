@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api";
-import { normalizeCredential } from "../utils/loginCredentials.js";
+import {
+  normalizeLoginPassword,
+  normalizeLoginUsername
+} from "../utils/loginCredentials.js";
 import "../us/client-portal.css";
 import "../il/il-portal.css";
 
@@ -17,8 +20,12 @@ export default function ClientLoginPage() {
     setError("");
     setLoading(true);
     try {
-      const cleanUsername = normalizeCredential(username);
-      const cleanPassword = normalizeCredential(password);
+      const cleanUsername = normalizeLoginUsername(username);
+      const cleanPassword = normalizeLoginPassword(password);
+      // Reflect cleaned values in the form (removes hidden WhatsApp newlines from the UI too)
+      setUsername(cleanUsername);
+      setPassword(cleanPassword);
+
       if (!cleanUsername || !cleanPassword) {
         setError("יש להזין שם משתמש וסיסמה");
         return;
@@ -74,6 +81,12 @@ export default function ClientLoginPage() {
               inputMode="text"
               value={username}
               onChange={(event) => setUsername(event.target.value)}
+              onBlur={() => setUsername((prev) => normalizeLoginUsername(prev))}
+              onPaste={(event) => {
+                event.preventDefault();
+                const text = event.clipboardData?.getData("text") || "";
+                setUsername(normalizeLoginUsername(text));
+              }}
               required
             />
           </div>
@@ -89,6 +102,12 @@ export default function ClientLoginPage() {
               autoComplete="current-password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
+              onBlur={() => setPassword((prev) => normalizeLoginPassword(prev))}
+              onPaste={(event) => {
+                event.preventDefault();
+                const text = event.clipboardData?.getData("text") || "";
+                setPassword(normalizeLoginPassword(text));
+              }}
               required
             />
           </div>

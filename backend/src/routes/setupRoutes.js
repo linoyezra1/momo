@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import User from "../models/User.js";
 import { normalizeSetupPayload, validateSetupPayload } from "../utils/usEvent.js";
 import { buildClientUrl } from "../utils/clientUrl.js";
+import { buildCouplePasswordFields, normalizeLoginUsername } from "../utils/loginCredentials.js";
 
 const router = express.Router();
 
@@ -34,14 +35,16 @@ router.post("/setup", async (req, res) => {
       return res.status(409).json({ message: "An account with this email already exists" });
     }
 
-    const username = payload.contactEmail;
-    const password = payload.contactEmail;
-    const passwordHash = await bcrypt.hash(password, 10);
+    const username = normalizeLoginUsername(payload.contactEmail) || String(payload.contactEmail || "").trim();
+    const { plainPassword, passwordHash } = await buildCouplePasswordFields(
+      payload.contactEmail,
+      bcrypt
+    );
 
     const user = await User.create({
       username,
       passwordHash,
-      loginPassword: password,
+      loginPassword: plainPassword,
       etsyOrderId: payload.etsyOrderId,
       slug: payload.slug,
       contactEmail: payload.contactEmail,

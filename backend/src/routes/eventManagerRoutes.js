@@ -6,7 +6,12 @@ import EventVendor from "../models/EventVendor.js";
 import { buildClientUrl } from "../utils/clientUrl.js";
 import { normalizeEventPayload, normalizePaymentPayload, validateEvent } from "../utils/eventPayload.js";
 import { normalizePhone } from "../utils/guestPhone.js";
-import { normalizeCredential } from "../utils/loginCredentials.js";
+import {
+  applyCouplePassword,
+  buildCouplePasswordFields,
+  normalizeLoginPassword,
+  normalizeLoginUsername
+} from "../utils/loginCredentials.js";
 import { sendEventManagerWelcomeWhatsApp } from "../services/eventManagerWelcomeWhatsApp.js";
 import {
   requireEventManager,
@@ -152,12 +157,11 @@ router.post("/create-client", async (req, res) => {
     }
     const { username, password, event, contactPhone } = req.body;
 
-    const normalizedUsername = normalizeCredential(username);
-    const plainPassword = normalizeCredential(password);
-
-    if (!normalizedUsername || !plainPassword || !event) {
+    const normalizedUsername = normalizeLoginUsername(username);
+    if (!normalizedUsername || !normalizeLoginPassword(password) || !event) {
       return res.status(400).json({ message: "יש למלא שם משתמש וסיסמה" });
     }
+    const { plainPassword, passwordHash } = await buildCouplePasswordFields(password, bcrypt);
     const normalizedEvent = normalizeEventPayload(event);
     const eventValidationError = validateEvent(normalizedEvent);
     if (eventValidationError) {
@@ -174,8 +178,6 @@ router.post("/create-client", async (req, res) => {
     if (existing) {
       return res.status(409).json({ message: "Username already exists" });
     }
-
-    const passwordHash = await bcrypt.hash(plainPassword, 10);
 
     const user = await User.create({
       username: normalizedUsername,
@@ -229,7 +231,7 @@ router.patch("/clients/:userId", async (req, res) => {
     }
 
     if (username) {
-      const nextUsername = normalizeCredential(username);
+      const nextUsername = normalizeLoginUsername(username);
       if (nextUsername && nextUsername !== user.username) {
         const existing = await User.findOne({ username: nextUsername }).select("_id");
         if (existing) {
@@ -240,12 +242,11 @@ router.patch("/clients/:userId", async (req, res) => {
     }
 
     if (password) {
-      const plainPassword = normalizeCredential(password);
-      if (!plainPassword) {
+      try {
+        await applyCouplePassword(user, password, bcrypt);
+      } catch {
         return res.status(400).json({ message: "סיסמה אינה תקינה" });
       }
-      user.passwordHash = await bcrypt.hash(plainPassword, 10);
-      user.loginPassword = plainPassword;
     }
 
     if (contactPhone != null || req.body?.bridePhone != null) {
