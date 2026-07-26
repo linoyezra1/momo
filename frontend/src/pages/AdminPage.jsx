@@ -538,10 +538,15 @@ ${publicEventUrl}`
         wizardMode === "edit"
           ? await api.patch(`/admin/clients/${editingClientId}`, payload)
           : await api.post("/admin/create-client", payload);
-      setResult(response.data);
-      setCreatedEvent(payload.event);
-      setSelectedClientId(response.data.userId);
+
+      const savedUserId = response.data?.userId;
+      if (savedUserId) {
+        setSelectedClientId(savedUserId);
+      }
+
       if (wizardMode === "create") {
+        setResult(response.data);
+        setCreatedEvent(payload.event);
         if (response.data?.welcomeWhatsApp?.sent) {
           setWelcomeNotice("הודעת וואטסאפ עם פרטי הגישה נשלחה לכלה");
         } else if (response.data?.welcomeWhatsApp?.reason === "twilio_not_configured") {
@@ -552,8 +557,12 @@ ${publicEventUrl}`
           setWelcomeNotice("החשבון נוצר, אך שליחת הודעת הוואטסאפ נכשלה");
         }
       } else {
-        setWelcomeNotice("");
+        // Edit PATCH has no credentials — do not mount the create success card (white screen).
+        setResult(null);
+        setCreatedEvent(null);
+        setWelcomeNotice("השינויים נשמרו בהצלחה");
       }
+
       setForm(initialForm);
       setShowCreateWizard(false);
       setWizardMode("create");
@@ -681,6 +690,7 @@ ${publicEventUrl}`
         </div>
 
         {error ? <p className="us-admin-message us-admin-message--error">{error}</p> : null}
+        {!result && welcomeNotice ? <p className="us-admin-message">{welcomeNotice}</p> : null}
 
         <div className="us-admin-stats">
           <div className="us-admin-stat-card">
@@ -1482,11 +1492,15 @@ ${publicEventUrl}`
               <div className="us-admin-detail-grid">
                 <div className="us-admin-detail-item">
                   <span className="us-admin-detail-label">שם משתמש</span>
-                  <span className="us-admin-detail-value">{result.credentials.username}</span>
+                  <span className="us-admin-detail-value">
+                    {result.credentials?.username || result.username || "—"}
+                  </span>
                 </div>
                 <div className="us-admin-detail-item">
                   <span className="us-admin-detail-label">סיסמה</span>
-                  <span className="us-admin-detail-value us-admin-detail-value--mono">{result.credentials.password}</span>
+                  <span className="us-admin-detail-value us-admin-detail-value--mono">
+                    {result.credentials?.password || result.loginPassword || "—"}
+                  </span>
                 </div>
                 <div className="us-admin-detail-item us-admin-detail-item--wide">
                   <span className="us-admin-detail-label">קישור דשבורד</span>
