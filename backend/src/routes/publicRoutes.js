@@ -4,6 +4,12 @@ import Guest from "../models/Guest.js";
 import Lead from "../models/Lead.js";
 import { normalizePhone, resolveSourceAfterSelfRsvp } from "../utils/guestPhone.js";
 import { recordGuestSelfUpdate } from "../services/guestAuditService.js";
+import {
+  STATUS_HISTORY_LABELS,
+  STATUS_HISTORY_SOURCES,
+  initialStatusHistoryEntry,
+  statusHistoryPushEntry
+} from "../utils/guestStatusHistory.js";
 
 const router = express.Router();
 
@@ -84,18 +90,29 @@ router.post("/event/:eventId/rsvp", async (req, res) => {
         status: existing.status,
         attendeesCount: existing.attendeesCount
       };
-      const updated = await Guest.findByIdAndUpdate(
-        existing._id,
-        {
+      const updateOps = {
+        $set: {
           fullName: fullName.trim(),
           phone: normalizedPhone,
           attendeesCount: Math.max(0, Number(attendeesCount || 1)),
           status,
           confirmationMethod: "web",
           source: resolveSourceAfterSelfRsvp(existing)
-        },
-        { new: true, runValidators: true }
-      );
+        }
+      };
+      const historyEntry = statusHistoryPushEntry({
+        previousStatus: existing.status,
+        nextStatus: status,
+        updatedBy: STATUS_HISTORY_LABELS[STATUS_HISTORY_SOURCES.PUBLIC_LINK],
+        source: STATUS_HISTORY_SOURCES.PUBLIC_LINK
+      });
+      if (historyEntry) {
+        updateOps.$push = { statusHistory: historyEntry };
+      }
+      const updated = await Guest.findByIdAndUpdate(existing._id, updateOps, {
+        new: true,
+        runValidators: true
+      });
       await recordGuestSelfUpdate({
         guest: updated,
         before,
@@ -111,7 +128,14 @@ router.post("/event/:eventId/rsvp", async (req, res) => {
       attendeesCount: Math.max(0, Number(attendeesCount || 1)),
       status,
       confirmationMethod: "web",
-      source: "form"
+      source: "form",
+      statusHistory: [
+        initialStatusHistoryEntry({
+          status,
+          updatedBy: STATUS_HISTORY_LABELS[STATUS_HISTORY_SOURCES.PUBLIC_LINK],
+          source: STATUS_HISTORY_SOURCES.PUBLIC_LINK
+        })
+      ]
     });
 
     return res.status(201).json({ message: "RSVP saved", guestId: guest._id, updated: false });

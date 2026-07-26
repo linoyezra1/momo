@@ -33,6 +33,12 @@ import {
   normalizeLoginPassword,
   normalizeLoginUsername
 } from "../utils/loginCredentials.js";
+import {
+  STATUS_HISTORY_LABELS,
+  STATUS_HISTORY_SOURCES,
+  initialStatusHistoryEntry,
+  statusHistoryPushEntry
+} from "../utils/guestStatusHistory.js";
 
 const router = express.Router();
 
@@ -278,18 +284,29 @@ router.post("/:userId/guests/manual", async (req, res) => {
           message: "מוזמן עם מספר טלפון זה כבר אישר הגעה בעצמו במערכת"
         });
       }
-      const guest = await Guest.findByIdAndUpdate(
-        existing._id,
-        {
+      const updateOps = {
+        $set: {
           fullName: fullName.trim(),
           phone: normalizedPhone,
           attendeesCount: Number(attendeesCount || 1),
           giftAmount: Math.max(0, Number(giftAmount || 0)),
           status,
           source: "manual"
-        },
-        { new: true, runValidators: true }
-      );
+        }
+      };
+      const historyEntry = statusHistoryPushEntry({
+        previousStatus: existing.status,
+        nextStatus: status,
+        updatedBy: STATUS_HISTORY_LABELS[STATUS_HISTORY_SOURCES.MANUAL],
+        source: STATUS_HISTORY_SOURCES.MANUAL
+      });
+      if (historyEntry) {
+        updateOps.$push = { statusHistory: historyEntry };
+      }
+      const guest = await Guest.findByIdAndUpdate(existing._id, updateOps, {
+        new: true,
+        runValidators: true
+      });
       await recordClientGuestUpdate({
         userId,
         before: existing,
@@ -306,7 +323,14 @@ router.post("/:userId/guests/manual", async (req, res) => {
       attendeesCount: Number(attendeesCount || 1),
       giftAmount: Math.max(0, Number(giftAmount || 0)),
       status,
-      source: "manual"
+      source: "manual",
+      statusHistory: [
+        initialStatusHistoryEntry({
+          status,
+          updatedBy: STATUS_HISTORY_LABELS[STATUS_HISTORY_SOURCES.MANUAL],
+          source: STATUS_HISTORY_SOURCES.MANUAL
+        })
+      ]
     });
 
     await recordGuestAuditLog({
@@ -391,7 +415,14 @@ router.post("/:userId/guests/contacts-import", async (req, res) => {
           giftAmount: 0,
           status: "לא ידוע",
           source: "contacts",
-          guestGroup: ""
+          guestGroup: "",
+          statusHistory: [
+            initialStatusHistoryEntry({
+              status: "לא ידוע",
+              updatedBy: "הזוג (ייבוא מאנשי קשר)",
+              source: STATUS_HISTORY_SOURCES.EXCEL
+            })
+          ]
         });
 
         await recordGuestAuditLog({
@@ -595,7 +626,16 @@ router.post("/:userId/guests/import", async (req, res) => {
       }
 
       try {
-        await Guest.create(doc);
+        await Guest.create({
+          ...doc,
+          statusHistory: [
+            initialStatusHistoryEntry({
+              status: doc.status || "לא ידוע",
+              updatedBy: STATUS_HISTORY_LABELS[STATUS_HISTORY_SOURCES.EXCEL],
+              source: STATUS_HISTORY_SOURCES.EXCEL
+            })
+          ]
+        });
         seenInsertPhones.add(doc.phone);
         insertedCount += 1;
       } catch (createError) {
@@ -649,17 +689,28 @@ router.post("/:userId/guests/import", async (req, res) => {
       }
 
       try {
-        const updatedGuest = await Guest.findByIdAndUpdate(
-          existing._id,
-          {
+        const updateOps = {
+          $set: {
             fullName: doc.fullName,
             attendeesCount: doc.attendeesCount,
             giftAmount: Math.max(0, Number(doc.giftAmount || 0)),
             status: doc.status,
             source: resolveSourceAfterExcelOverwrite(existing.source)
-          },
-          { new: true, runValidators: true }
-        );
+          }
+        };
+        const historyEntry = statusHistoryPushEntry({
+          previousStatus: existing.status,
+          nextStatus: doc.status,
+          updatedBy: STATUS_HISTORY_LABELS[STATUS_HISTORY_SOURCES.EXCEL],
+          source: STATUS_HISTORY_SOURCES.EXCEL
+        });
+        if (historyEntry) {
+          updateOps.$push = { statusHistory: historyEntry };
+        }
+        const updatedGuest = await Guest.findByIdAndUpdate(existing._id, updateOps, {
+          new: true,
+          runValidators: true
+        });
         if (updatedGuest) {
           await recordClientGuestUpdate({
             userId,
@@ -780,7 +831,20 @@ router.patch("/:userId/guests/:guestId", async (req, res) => {
       }
     }
 
-    const guest = await Guest.findOneAndUpdate({ _id: guestId, userId }, update, {
+    const updateOps = { $set: update };
+    if (typeof status !== "undefined") {
+      const historyEntry = statusHistoryPushEntry({
+        previousStatus: existingGuest.status,
+        nextStatus: status,
+        updatedBy: STATUS_HISTORY_LABELS[STATUS_HISTORY_SOURCES.COUPLE],
+        source: STATUS_HISTORY_SOURCES.COUPLE
+      });
+      if (historyEntry) {
+        updateOps.$push = { statusHistory: historyEntry };
+      }
+    }
+
+    const guest = await Guest.findOneAndUpdate({ _id: guestId, userId }, updateOps, {
       new: true,
       runValidators: true
     });

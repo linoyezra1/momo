@@ -104,6 +104,39 @@ function hasPhoneRsvpRecord(guest) {
   return Boolean(guest?.callHistory?.length || guest?.callTimestamp);
 }
 
+function getGuestStatusHistory(guest) {
+  if (!Array.isArray(guest?.statusHistory) || !guest.statusHistory.length) return [];
+  return [...guest.statusHistory].sort((a, b) => {
+    const aTime = new Date(a?.updatedAt || 0).getTime();
+    const bTime = new Date(b?.updatedAt || 0).getTime();
+    return bTime - aTime;
+  });
+}
+
+function hasGuestDetailRecord(guest) {
+  return hasPhoneRsvpRecord(guest) || getGuestStatusHistory(guest).length > 0;
+}
+
+function formatStatusHistoryTimestamp(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${day}/${month}/${year} ${hours}:${minutes}`;
+}
+
+function formatStatusHistoryLine(entry) {
+  const when = formatStatusHistoryTimestamp(entry?.updatedAt);
+  const status = entry?.status || "—";
+  const by = entry?.updatedBy || "מערכת";
+  const prefix = when ? `${when} - ` : "";
+  return `${prefix}עודכן ל"${status}" ע"י ${by}`;
+}
+
 function formatCallStatusLabel(callStatus) {
   if (callStatus === "answered") return "ענה";
   if (callStatus === "no_answer") return "לא ענה";
@@ -1202,6 +1235,8 @@ export default function ClientDashboardPage() {
                 filteredGuests.map((guest) => {
                   const isDetailExpanded = expandedGuestDetailIds.has(guest._id);
                   const showPhoneDetails = hasPhoneRsvpRecord(guest);
+                  const statusHistory = getGuestStatusHistory(guest);
+                  const showDetailExpand = hasGuestDetailRecord(guest);
                   const phoneTreatment = phoneServiceEnabled
                     ? getPhoneTreatmentBadge(guest, maxPhoneRounds)
                     : null;
@@ -1217,13 +1252,13 @@ export default function ClientDashboardPage() {
                           />
                         </td>
                         <td data-label="פרטים" className="il-col-expand">
-                          {showPhoneDetails ? (
+                          {showDetailExpand ? (
                             <button
                               type="button"
                               className={`il-row-expand-btn${isDetailExpanded ? " is-open" : ""}`}
                               onClick={() => toggleGuestDetails(guest._id)}
                               aria-expanded={isDetailExpanded}
-                              aria-label={`פרטי אישור טלפוני עבור ${guest.fullName}`}
+                              aria-label={`היסטוריית סטטוס ופרטי שיחות עבור ${guest.fullName}`}
                             >
                               <ChevronDown size={16} aria-hidden="true" />
                             </button>
@@ -1385,48 +1420,82 @@ export default function ClientDashboardPage() {
                       ) : null}
                     </td>
                       </tr>
-                      {showPhoneDetails && isDetailExpanded ? (
+                      {showDetailExpand && isDetailExpanded ? (
                         <tr className="il-guest-detail-row">
                           <td colSpan={guestTableColumnCount}>
-                            <div className="il-call-history">
-                              <div className="il-call-history__header">
-                                <strong>היסטוריית שיחות טלפוניות</strong>
-                                <span>{getGuestCallHistory(guest).length} ניסיונות</span>
-                              </div>
-                              <div className="il-call-history__timeline">
-                                {getGuestCallHistory(guest).map((entry, index) => (
-                                  <article
-                                    className="il-call-history__item"
-                                    key={`${entry.attemptNumber || index}-${index}`}
-                                  >
-                                    <span className="il-call-history__marker" aria-hidden="true">
-                                      {entry.attemptNumber || index + 1}
-                                    </span>
-                                    <div className="il-call-history__grid">
-                                      <div>
-                                        <span>סבב חיוג</span>
-                                        <strong>{entry.callRound || entry.attemptNumber || index + 1}</strong>
-                                      </div>
-                                      <div>
-                                        <span>סטטוס שיחה</span>
-                                        <strong>{formatCallStatusLabel(entry.callStatus)}</strong>
-                                      </div>
-                                      <div>
-                                        <span>האם מגיע?</span>
-                                        <strong>{entry.rsvpStatus || "—"}</strong>
-                                      </div>
-                                      <div>
-                                        <span>כמות אורחים</span>
-                                        <strong>{entry.attendeesCount ?? "—"}</strong>
-                                      </div>
-                                      <div className="il-call-history__notes">
-                                        <span>הערות נציג</span>
-                                        <strong>{entry.agentNotes?.trim() || "—"}</strong>
-                                      </div>
-                                    </div>
-                                  </article>
-                                ))}
-                              </div>
+                            <div className="il-guest-detail-panels">
+                              {statusHistory.length ? (
+                                <div className="il-status-history">
+                                  <div className="il-status-history__header">
+                                    <strong>היסטוריית סטטוס הגעה</strong>
+                                    <span>{statusHistory.length} עדכונים</span>
+                                  </div>
+                                  <ol className="il-status-history__timeline">
+                                    {statusHistory.map((entry, index) => (
+                                      <li
+                                        className="il-status-history__item"
+                                        key={`${entry.updatedAt || index}-${entry.status}-${index}`}
+                                      >
+                                        <span className="il-status-history__line">
+                                          {formatStatusHistoryLine(entry)}
+                                        </span>
+                                        {entry.note?.trim() ? (
+                                          <span className="il-status-history__note">
+                                            הערה: {entry.note.trim()}
+                                          </span>
+                                        ) : null}
+                                      </li>
+                                    ))}
+                                  </ol>
+                                </div>
+                              ) : null}
+
+                              {showPhoneDetails ? (
+                                <div className="il-call-history">
+                                  <div className="il-call-history__header">
+                                    <strong>היסטוריית שיחות טלפוניות (נציג)</strong>
+                                    <span>{getGuestCallHistory(guest).length} ניסיונות</span>
+                                  </div>
+                                  <p className="il-call-history__hint">
+                                    תשובת הנציג נשמרת כרשומת שיחה. הסטטוס הראשי בטבלה משקף את העדכון
+                                    האחרון מכל המקורות (וואטסאפ / קישור / נציג / אקסל).
+                                  </p>
+                                  <div className="il-call-history__timeline">
+                                    {getGuestCallHistory(guest).map((entry, index) => (
+                                      <article
+                                        className="il-call-history__item"
+                                        key={`${entry.attemptNumber || index}-${index}`}
+                                      >
+                                        <span className="il-call-history__marker" aria-hidden="true">
+                                          {entry.attemptNumber || index + 1}
+                                        </span>
+                                        <div className="il-call-history__grid">
+                                          <div>
+                                            <span>סבב חיוג</span>
+                                            <strong>{entry.callRound || entry.attemptNumber || index + 1}</strong>
+                                          </div>
+                                          <div>
+                                            <span>סטטוס שיחה</span>
+                                            <strong>{formatCallStatusLabel(entry.callStatus)}</strong>
+                                          </div>
+                                          <div>
+                                            <span>תשובת נציג בשיחה</span>
+                                            <strong>{entry.rsvpStatus || "—"}</strong>
+                                          </div>
+                                          <div>
+                                            <span>כמות אורחים</span>
+                                            <strong>{entry.attendeesCount ?? "—"}</strong>
+                                          </div>
+                                          <div className="il-call-history__notes">
+                                            <span>הערות נציג</span>
+                                            <strong>{entry.agentNotes?.trim() || "—"}</strong>
+                                          </div>
+                                        </div>
+                                      </article>
+                                    ))}
+                                  </div>
+                                </div>
+                              ) : null}
                             </div>
                           </td>
                         </tr>

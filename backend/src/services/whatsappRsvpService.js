@@ -13,6 +13,11 @@ import {
   buildWhatsAppTemplateDefaults
 } from "../utils/whatsappMessage.js";
 import { resolveWhatsAppInviteParagraphs } from "../utils/whatsappInviteCopy.js";
+import {
+  STATUS_HISTORY_LABELS,
+  STATUS_HISTORY_SOURCES,
+  pushStatusHistoryOnGuest
+} from "../utils/guestStatusHistory.js";
 
 const RSVP_YES_TEXT = "כן אני אגיע";
 const RSVP_NO_TEXT = "לצערי לא אוכל";
@@ -120,6 +125,12 @@ async function saveRsvp(guest, { status, attendeesCount }) {
     attendeesCount: guest.attendeesCount
   };
 
+  pushStatusHistoryOnGuest(guest, {
+    previousStatus: before.status,
+    status,
+    updatedBy: STATUS_HISTORY_LABELS[STATUS_HISTORY_SOURCES.WHATSAPP],
+    source: STATUS_HISTORY_SOURCES.WHATSAPP
+  });
   guest.status = status;
   if (attendeesCount !== undefined) {
     guest.attendeesCount = attendeesCount;

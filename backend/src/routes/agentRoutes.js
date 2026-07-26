@@ -10,6 +10,10 @@ import {
   verifyAgentToken
 } from "../middleware/agentAuth.js";
 import { resolveMaxPhoneRounds } from "../utils/phoneRounds.js";
+import {
+  STATUS_HISTORY_SOURCES,
+  statusHistoryPushEntry
+} from "../utils/guestStatusHistory.js";
 
 const router = express.Router();
 
@@ -224,6 +228,20 @@ router.patch("/:userId/guests/:guestId/phone-rsvp", async (req, res) => {
       calledAt: update.callTimestamp
     };
 
+    const pushOps = { callHistory: historyEntry };
+    if (hasStatusUpdate) {
+      const statusEntry = statusHistoryPushEntry({
+        previousStatus: existingGuest.status,
+        nextStatus: update.status,
+        updatedBy: `נציג טלפוני — סבב ${Math.min(nextAttempt, 4)}`,
+        source: STATUS_HISTORY_SOURCES.REP,
+        note: update.agentNotes
+      });
+      if (statusEntry) {
+        pushOps.statusHistory = statusEntry;
+      }
+    }
+
     const guest = await Guest.findOneAndUpdate(
       {
         _id: guestId,
@@ -237,7 +255,7 @@ router.patch("/:userId/guests/:guestId/phone-rsvp", async (req, res) => {
       {
         $set: update,
         $inc: { phoneAttemptsCount: 1 },
-        $push: { callHistory: historyEntry }
+        $push: pushOps
       },
       {
         new: true,

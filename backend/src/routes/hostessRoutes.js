@@ -21,6 +21,11 @@ import {
 import { publishDashboardEvent } from "../services/dashboardEvents.js";
 import { guestForSeating } from "./seatingRoutes.js";
 import { buildSeatingAnalytics, buildSeatingWarnings } from "../utils/seatingAssign.js";
+import {
+  STATUS_HISTORY_LABELS,
+  STATUS_HISTORY_SOURCES,
+  pushStatusHistoryOnGuest
+} from "../utils/guestStatusHistory.js";
 
 const router = express.Router();
 
@@ -105,6 +110,14 @@ router.post("/:eventId/guests/:guestId/arrive", async (req, res) => {
     const previousStatus = existing.status;
     const arrivedAt = new Date();
 
+    pushStatusHistoryOnGuest(existing, {
+      previousStatus,
+      status: HOSTESS_ARRIVED_STATUS,
+      updatedBy: STATUS_HISTORY_LABELS[STATUS_HISTORY_SOURCES.HOSTESS],
+      source: STATUS_HISTORY_SOURCES.HOSTESS,
+      note: "סומן כהגיע לאירוע",
+      updatedAt: arrivedAt
+    });
     existing.status = HOSTESS_ARRIVED_STATUS;
     existing.hostessArrivedAt = arrivedAt;
     existing.arrivalMarkedBy = HOSTESS_MARKED_BY;

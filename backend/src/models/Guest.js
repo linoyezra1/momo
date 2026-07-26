@@ -21,6 +21,25 @@ const callHistoryEntrySchema = new mongoose.Schema(
   { _id: false }
 );
 
+const statusHistoryEntrySchema = new mongoose.Schema(
+  {
+    status: {
+      type: String,
+      enum: ["מגיע", "לא מגיע", "אולי", "לא ידוע", "הגיע לאירוע"],
+      required: true
+    },
+    updatedBy: { type: String, trim: true, default: "מערכת" },
+    source: {
+      type: String,
+      enum: ["rep", "public_link", "whatsapp", "excel", "couple", "hostess", "manual", "admin", "system"],
+      default: "system"
+    },
+    note: { type: String, trim: true, default: "" },
+    updatedAt: { type: Date, default: Date.now }
+  },
+  { _id: false }
+);
+
 const guestSchema = new mongoose.Schema(
   {
     userId: {
@@ -78,7 +97,9 @@ const guestSchema = new mongoose.Schema(
     phoneAttemptsCount: { type: Number, min: 0, default: 0 },
     agentNotes: { type: String, trim: true, default: "" },
     callTimestamp: { type: Date, default: null },
-    callHistory: { type: [callHistoryEntrySchema], default: [] }
+    callHistory: { type: [callHistoryEntrySchema], default: [] },
+    /** Append-only primary RSVP status timeline (all channels) */
+    statusHistory: { type: [statusHistoryEntrySchema], default: [] }
   },
   { timestamps: true }
 );
