@@ -28,6 +28,7 @@ function performerBadgeClass(entry) {
   if (entry.actor === "agent") return "il-audit-log__badge--agent";
   if (entry.actor === "guest") return "il-audit-log__badge--guest";
   if (entry.actor === "client") return "il-audit-log__badge--client";
+  if (entry.actor === "hostess") return "il-audit-log__badge--hostess";
   return "il-audit-log__badge--system";
 }
 
@@ -191,6 +192,24 @@ function renderStructuredDescription(entry) {
     return (
       <>
         הוספת מוזמן: <Bold>{status}</Bold>
+        <GuestCountPart status={status} count={count} />
+      </>
+    );
+  }
+
+  if (entry.actor === "hostess" && entry.action === "guest_created" && status) {
+    return (
+      <>
+        הוספת מוזמן ע״י דיילת (לא היה ברשימת המוזמנים): <Bold>{status}</Bold>
+        <GuestCountPart status={status} count={count} />
+      </>
+    );
+  }
+
+  if (entry.actor === "hostess" && status) {
+    return (
+      <>
+        עודכן ע״י דיילת אירוע: <Bold>{status}</Bold>
         <GuestCountPart status={status} count={count} />
       </>
     );

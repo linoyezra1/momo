@@ -16,6 +16,7 @@ export function resolvePerformerLabel({ actor, channel, metadata = {} }) {
     return "הזוג (ייבוא אקסל)";
   }
   if (actor === "client") return "הזוג";
+  if (actor === "hostess" || channel === "hostess") return "דיילת אירוע";
   return "מערכת";
 }
 
@@ -72,6 +73,20 @@ export function buildGuestCreatedDescription(guest = {}) {
   const status = guest.status || "לא ידוע";
   const count = Number(guest.attendeesCount);
   return `הוספת מוזמן: **${status}**${formatGuestCountPart(status, Number.isFinite(count) ? count : undefined)}`;
+}
+
+export function buildHostessGuestCreatedDescription(guest = {}) {
+  const status = guest.status || "הגיע לאירוע";
+  const count = Number(guest.attendeesCount);
+  return `הוספת מוזמן ע״י דיילת (לא היה ברשימת המוזמנים): **${status}**${formatGuestCountPart(
+    status,
+    Number.isFinite(count) ? count : undefined
+  )}`;
+}
+
+export function buildHostessArrivedDescription(guest = {}) {
+  const status = guest.status || "הגיע לאירוע";
+  return `עודכן ע״י דיילת אירוע: **${status}**`;
 }
 
 function resolveActionFromChanges(before = {}, after = {}, fallback = "guest_updated") {

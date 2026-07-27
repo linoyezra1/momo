@@ -926,6 +926,11 @@
   background: rgba(249, 115, 22, 0.12);
 }
 
+.il-audit-log__badge--hostess {
+  color: #7e4545;
+  background: rgba(213, 126, 126, 0.16);
+}
+
 .il-audit-log__badge--system {
   color: #475569;
   background: rgba(148, 163, 184, 0.18);

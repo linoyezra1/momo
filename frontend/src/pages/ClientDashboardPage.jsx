@@ -142,6 +142,7 @@ function statusHistoryBadgeClass(source) {
   if (source === "couple" || source === "excel" || source === "manual" || source === "admin") {
     return "il-audit-log__badge--client";
   }
+  if (source === "hostess") return "il-audit-log__badge--hostess";
   return "il-audit-log__badge--system";
 }
 

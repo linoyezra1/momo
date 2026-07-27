@@ -24,8 +24,15 @@ import { buildSeatingAnalytics, buildSeatingWarnings } from "../utils/seatingAss
 import {
   STATUS_HISTORY_LABELS,
   STATUS_HISTORY_SOURCES,
+  initialStatusHistoryEntry,
   pushStatusHistoryOnGuest
 } from "../utils/guestStatusHistory.js";
+import { normalizePhone } from "../utils/guestPhone.js";
+import {
+  buildHostessArrivedDescription,
+  buildHostessGuestCreatedDescription,
+  recordGuestAuditLog
+} from "../services/guestAuditService.js";
 
 const router = express.Router();
 
@@ -98,6 +105,114 @@ router.get("/:eventId", async (req, res) => {
   }
 });
 
+router.post("/:eventId/guests", async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const fullName = String(req.body?.fullName || "").trim();
+    const rawPhone = String(req.body?.phone || "").trim();
+    const attendeesCount = Math.max(1, Math.min(20, Number(req.body?.attendeesCount) || 1));
+
+    if (!fullName) {
+      return res.status(400).json({ message: "יש להזין שם מלא" });
+    }
+
+    const user = await User.findById(eventId).select("_id event");
+    if (!user) return res.status(404).json({ message: "האירוע לא נמצא" });
+
+    let phone = "";
+    if (rawPhone) {
+      phone = normalizePhone(rawPhone);
+      if (!phone) {
+        return res.status(400).json({ message: "מספר טלפון לא תקין" });
+      }
+      const existing = await Guest.findOne({ userId: eventId, phone });
+      if (existing) {
+        return res.status(409).json({
+          message: "מוזמן עם מספר טלפון זה כבר קיים ברשימה",
+          guestId: String(existing._id)
+        });
+      }
+    }
+
+    const status = HOSTESS_ARRIVED_STATUS;
+    const arrivedAt = new Date();
+    const guest = await Guest.create({
+      userId: eventId,
+      fullName,
+      phone,
+      attendeesCount,
+      giftAmount: 0,
+      status,
+      source: "manual",
+      hostessArrivedAt: arrivedAt,
+      arrivalMarkedBy: HOSTESS_MARKED_BY,
+      statusHistory: [
+        initialStatusHistoryEntry({
+          status,
+          updatedBy: STATUS_HISTORY_LABELS[STATUS_HISTORY_SOURCES.HOSTESS],
+          source: STATUS_HISTORY_SOURCES.HOSTESS,
+          note: "נוסף ע״י דיילת — לא היה ברשימת המוזמנים"
+        })
+      ]
+    });
+
+    await recordHostessAudit({
+      userId: eventId,
+      action: "HOSTESS_ADD_GUEST",
+      status: "ok",
+      phone: guest.phone,
+      description: `${guest.fullName} נוסף/ה ע״י דיילת (לא היה ברשימת המוזמנים) · הגיע לאירוע`,
+      metadata: {
+        guestId: String(guest._id),
+        guestName: guest.fullName,
+        attendeesCount: guest.attendeesCount,
+        nextStatus: status,
+        markedBy: HOSTESS_MARKED_BY,
+        hostessArrivedAt: arrivedAt.toISOString()
+      }
+    });
+
+    await recordGuestAuditLog({
+      userId: eventId,
+      guestId: guest._id,
+      guestName: guest.fullName,
+      guestPhone: guest.phone,
+      actor: "hostess",
+      channel: "hostess",
+      action: "guest_created",
+      description: buildHostessGuestCreatedDescription(guest),
+      performerLabel: "דיילת אירוע",
+      metadata: {
+        note: "לא היה ברשימת המוזמנים",
+        markedBy: HOSTESS_MARKED_BY
+      },
+      changes: {
+        status: { to: guest.status },
+        attendeesCount: { to: guest.attendeesCount }
+      }
+    });
+
+    publishDashboardEvent(eventId, {
+      type: "guest-created",
+      guestId: String(guest._id)
+    });
+
+    const layout = await SeatingLayout.findOne({ userId: eventId });
+    const allGuests = await Guest.find({ userId: eventId });
+
+    return res.status(201).json({
+      guest: {
+        ...guestForSeating(guest),
+        tableLabel: ""
+      },
+      tables: buildTablesWithAvailability(layout?.tables || [], allGuests),
+      message: "המוזמן נוסף בהצלחה"
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "הוספת מוזמן נכשלה" });
+  }
+});
+
 router.post("/:eventId/guests/:guestId/arrive", async (req, res) => {
   try {
     const { eventId, guestId } = req.params;
@@ -145,6 +260,25 @@ router.post("/:eventId/guests/:guestId/arrive", async (req, res) => {
         markedByLabel: "סומן על ידי דיילת אירוע",
         tableLabel,
         hostessArrivedAt: arrivedAt.toISOString()
+      }
+    });
+
+    await recordGuestAuditLog({
+      userId: eventId,
+      guestId: existing._id,
+      guestName: existing.fullName,
+      guestPhone: existing.phone,
+      actor: "hostess",
+      channel: "hostess",
+      action: "status_change",
+      description: buildHostessArrivedDescription(existing),
+      performerLabel: "דיילת אירוע",
+      metadata: {
+        markedBy: HOSTESS_MARKED_BY,
+        tableLabel
+      },
+      changes: {
+        status: { from: previousStatus, to: HOSTESS_ARRIVED_STATUS }
       }
     });
 
@@ -270,6 +404,9 @@ router.post("/:eventId/guests/:guestId/send-table-whatsapp", async (req, res) =>
 
     const guest = await Guest.findOne({ _id: guestId, userId: eventId });
     if (!guest) return res.status(404).json({ message: "המוזמן לא נמצא" });
+    if (!normalizePhone(guest.phone)) {
+      return res.status(400).json({ message: "למוזמן אין מספר טלפון — לא ניתן לשלוח WhatsApp" });
+    }
     if (!guest.seatingTableId) {
       return res.status(400).json({ message: "המוזמן עדיין לא משובץ לשולחן" });
     }

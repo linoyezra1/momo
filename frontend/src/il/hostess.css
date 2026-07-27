@@ -499,6 +499,13 @@
   box-shadow: 0 24px 60px rgb(74 46 43 / 22%);
 }
 
+.il-hostess-page .il-hostess-modal--arrive,
+.il-hostess-page .us-modal-card.il-hostess-modal--arrive {
+  max-width: min(36rem, calc(100vw - 2rem));
+  padding: 2rem 1.75rem 1.75rem;
+  text-align: center;
+}
+
 .il-hostess-modal__head {
   display: flex;
   align-items: flex-start;
@@ -513,6 +520,11 @@
   font-weight: 700;
   font-family: "Rubik", var(--momo-font-sans, "Heebo", sans-serif);
   color: var(--hostess-fg);
+}
+
+.il-hostess-page .il-hostess-modal--arrive h2 {
+  font-size: clamp(1.6rem, 2.4vw, 2.1rem);
+  line-height: 1.25;
 }
 
 .il-hostess-modal__close {
@@ -539,6 +551,14 @@
   font-size: 0.875rem;
 }
 
+.il-hostess-page .il-hostess-modal--arrive .il-hostess-modal__lead {
+  margin-top: 1rem;
+  color: var(--hostess-fg);
+  font-size: clamp(1.35rem, 2.2vw, 1.85rem);
+  font-weight: 700;
+  line-height: 1.4;
+}
+
 .il-hostess-page .il-hostess-modal p strong {
   color: var(--hostess-fg);
   font-weight: 600;
@@ -548,6 +568,46 @@
   margin-top: 0.5rem !important;
   color: var(--hostess-muted-fg) !important;
   font-size: 0.8rem !important;
+}
+
+.il-hostess-page .il-hostess-modal--arrive .il-hostess-modal__meta {
+  margin-top: 0.85rem !important;
+  font-size: clamp(1rem, 1.5vw, 1.2rem) !important;
+  line-height: 1.5;
+}
+
+.il-hostess-page .il-hostess-modal--arrive .us-modal-actions {
+  margin-top: 1.5rem;
+}
+
+.il-hostess-page .il-hostess-modal--arrive .il-hostess-btn--block {
+  height: 3rem;
+  font-size: 1.05rem;
+}
+
+@media (min-width: 768px) {
+  .il-hostess-page .il-hostess-modal--arrive,
+  .il-hostess-page .us-modal-card.il-hostess-modal--arrive {
+    max-width: 42rem;
+    padding: 2.75rem 2.5rem 2.25rem;
+  }
+
+  .il-hostess-page .il-hostess-modal--arrive h2 {
+    font-size: 2.35rem;
+  }
+
+  .il-hostess-page .il-hostess-modal--arrive .il-hostess-modal__lead {
+    font-size: 2rem;
+  }
+
+  .il-hostess-page .il-hostess-modal--arrive .il-hostess-modal__meta {
+    font-size: 1.25rem !important;
+  }
+
+  .il-hostess-page .il-hostess-modal--arrive .il-hostess-btn--block {
+    height: 3.25rem;
+    font-size: 1.15rem;
+  }
 }
 
 .il-hostess-page .il-hostess-modal a {
@@ -672,6 +732,17 @@
 .il-hostess-table-hint svg {
   flex-shrink: 0;
   color: var(--hostess-accent);
+}
+
+.il-hostess-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.il-hostess-toolbar .il-hostess-btn {
+  height: 2.35rem;
+  font-size: 0.8rem;
 }
 
 .il-hostess-wa-locked {

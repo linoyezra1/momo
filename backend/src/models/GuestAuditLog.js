@@ -18,12 +18,12 @@ const guestAuditLogSchema = new mongoose.Schema(
     guestPhone: { type: String, trim: true, default: "" },
     actor: {
       type: String,
-      enum: ["agent", "guest", "client", "system"],
+      enum: ["agent", "guest", "client", "system", "hostess"],
       required: true
     },
     channel: {
       type: String,
-      enum: ["phone", "whatsapp", "web", "dashboard", "import"],
+      enum: ["phone", "whatsapp", "web", "dashboard", "import", "hostess"],
       required: true
     },
     action: {

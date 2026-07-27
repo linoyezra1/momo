@@ -49,7 +49,7 @@ const guestSchema = new mongoose.Schema(
       index: true
     },
     fullName: { type: String, required: true, trim: true },
-    phone: { type: String, required: true, trim: true },
+    phone: { type: String, required: false, trim: true, default: "" },
     attendeesCount: { type: Number, required: true, min: 0, default: 1 },
     giftAmount: { type: Number, min: 0, default: 0 },
     status: {

@@ -5,6 +5,7 @@ import {
   Check,
   CircleCheck,
   MapPin,
+  Plus,
   Search,
   Send,
   Users,
@@ -27,6 +28,16 @@ function isGuestArrived(guest) {
   return guest.status === "הגיע לאירוע" || Boolean(guest.hostessArrivedAt);
 }
 
+function guestHasPhone(guest) {
+  return Boolean(String(guest?.phone || "").trim());
+}
+
+const emptyAddGuestForm = {
+  fullName: "",
+  phone: "",
+  attendeesCount: 1
+};
+
 export default function HostessPage() {
   const { eventId } = useParams();
   const [loading, setLoading] = useState(true);
@@ -46,6 +57,10 @@ export default function HostessPage() {
   const [couponGuest, setCouponGuest] = useState(null);
   const [couponCode, setCouponCode] = useState("");
   const [couponError, setCouponError] = useState("");
+  const [addGuestOpen, setAddGuestOpen] = useState(false);
+  const [addGuestForm, setAddGuestForm] = useState(emptyAddGuestForm);
+  const [addGuestError, setAddGuestError] = useState("");
+  const [addingGuest, setAddingGuest] = useState(false);
 
   const loadHostess = useCallback(async () => {
     setLoading(true);
@@ -143,6 +158,10 @@ export default function HostessPage() {
 
   const openWhatsAppFlow = (guest) => {
     if (!canSendTableWhatsApp) return;
+    if (!guestHasPhone(guest)) {
+      showToast("למוזמן אין מספר טלפון — לא ניתן לשלוח WhatsApp", { tone: "error" });
+      return;
+    }
     if (!guest.seatingTableId && !guest.tableLabel) {
       showToast("יש לשבץ את המוזמן לשולחן לפני שליחת מספר שולחן", { tone: "error" });
       return;
@@ -150,6 +169,56 @@ export default function HostessPage() {
     setCouponError("");
     setCouponCode("");
     setCouponGuest(guest);
+  };
+
+  const openAddGuestModal = () => {
+    setAddGuestForm(emptyAddGuestForm);
+    setAddGuestError("");
+    setAddGuestOpen(true);
+  };
+
+  const closeAddGuestModal = () => {
+    if (addingGuest) return;
+    setAddGuestOpen(false);
+    setAddGuestError("");
+  };
+
+  const submitAddGuest = async (submitEvent) => {
+    submitEvent.preventDefault();
+    const fullName = String(addGuestForm.fullName || "").trim();
+    if (!fullName) {
+      setAddGuestError("יש להזין שם מלא");
+      return;
+    }
+    setAddingGuest(true);
+    setAddGuestError("");
+    try {
+      const { data } = await api.post(`/hostess/${eventId}/guests`, {
+        fullName,
+        phone: String(addGuestForm.phone || "").trim(),
+        attendeesCount: Math.max(1, Number(addGuestForm.attendeesCount) || 1)
+      });
+      const created = data.guest;
+      if (created) {
+        setGuests((prev) =>
+          [...prev, created].sort((a, b) =>
+            String(a.fullName || "").localeCompare(String(b.fullName || ""), "he")
+          )
+        );
+      }
+      if (Array.isArray(data.tables)) setTables(data.tables);
+      setAddGuestOpen(false);
+      setAddGuestForm(emptyAddGuestForm);
+      showToast(data.message || "המוזמן נוסף בהצלחה", { tone: "success" });
+      if (created && !created.seatingTableId) {
+        setSelectedTableId("");
+        setSeatGuest(created);
+      }
+    } catch (addError) {
+      setAddGuestError(addError.response?.data?.message || "הוספת מוזמן נכשלה");
+    } finally {
+      setAddingGuest(false);
+    }
   };
 
   const sendTableWhatsApp = async (guest, code) => {
@@ -210,7 +279,8 @@ export default function HostessPage() {
       setSeatSuccess({
         guestId: seatGuest._id,
         fullName: seatGuest.fullName,
-        tableLabel: data.tableLabel || selectedTableId
+        tableLabel: data.tableLabel || selectedTableId,
+        phone: seatGuest.phone || ""
       });
     } catch (assignError) {
       showToast(assignError.response?.data?.message || "שיבוץ לשולחן נכשל", { tone: "error" });
@@ -271,6 +341,13 @@ export default function HostessPage() {
             />
           ) : null}
 
+          <div className="il-hostess-toolbar">
+            <button type="button" className="il-hostess-btn il-hostess-btn--secondary" onClick={openAddGuestModal}>
+              <Plus size={14} aria-hidden="true" />
+              הוסף מוזמן שלא אישר הגעה
+            </button>
+          </div>
+
           <ul className="il-hostess-list">
             {!loading && !filteredGuests.length ? (
               <li className="il-hostess-empty">לא נמצאו מוזמנים</li>
@@ -324,7 +401,7 @@ export default function HostessPage() {
                         הושבה בשולחן ריק
                       </button>
                     ) : null}
-                    {canSendTableWhatsApp ? (
+                    {canSendTableWhatsApp && guestHasPhone(guest) ? (
                       <button
                         type="button"
                         className="il-hostess-btn il-hostess-btn--ghost"
@@ -365,13 +442,13 @@ export default function HostessPage() {
       {arriveModal ? (
         <div className="us-modal-backdrop" role="presentation" onClick={() => setArriveModal(null)}>
           <div
-            className="us-modal-card il-hostess-modal"
+            className="us-modal-card il-hostess-modal il-hostess-modal--arrive"
             role="dialog"
             aria-modal="true"
             onClick={(event) => event.stopPropagation()}
           >
             <h2>המוזמן הגיע</h2>
-            <p>
+            <p className="il-hostess-modal__lead">
               {arriveModal.tableLabel
                 ? `${arriveModal.fullName} יושב/ת בשולחן ${arriveModal.tableLabel}`
                 : arriveModal.message}
@@ -480,7 +557,7 @@ export default function HostessPage() {
               {seatSuccess.fullName} שובץ/ה לשולחן <strong>{seatSuccess.tableLabel}</strong>
             </p>
             <div className="us-modal-actions">
-              {canSendTableWhatsApp ? (
+              {canSendTableWhatsApp && guestHasPhone(guests.find((item) => item._id === seatSuccess.guestId) || seatSuccess) ? (
                 <button
                   className="il-hostess-btn il-hostess-btn--primary"
                   type="button"
@@ -489,7 +566,8 @@ export default function HostessPage() {
                       _id: seatSuccess.guestId,
                       fullName: seatSuccess.fullName,
                       tableLabel: seatSuccess.tableLabel,
-                      seatingTableId: "assigned"
+                      seatingTableId: "assigned",
+                      phone: seatSuccess.phone || ""
                     };
                     setSeatSuccess(null);
                     openWhatsAppFlow(guest);
@@ -497,14 +575,14 @@ export default function HostessPage() {
                 >
                   שלח לו בוואטסאפ
                 </button>
-              ) : (
+              ) : !canSendTableWhatsApp ? (
                 <TableDispatchFeatureLockedNotice
                   event={eventInfo}
                   eventLabel={eventLabel}
                   eventId={eventId}
                   className="il-hostess-wa-locked"
                 />
-              )}
+              ) : null}
               <button
                 className="il-hostess-btn il-hostess-btn--outline"
                 type="button"
@@ -562,6 +640,99 @@ export default function HostessPage() {
                 className="il-hostess-btn il-hostess-btn--outline"
                 type="button"
                 onClick={() => setCouponGuest(null)}
+              >
+                ביטול
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
+
+      {addGuestOpen ? (
+        <div className="us-modal-backdrop" role="presentation" onClick={closeAddGuestModal}>
+          <form
+            className="us-modal-card il-hostess-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="הוספת מוזמן שלא אישר הגעה"
+            onClick={(event) => event.stopPropagation()}
+            onSubmit={submitAddGuest}
+          >
+            <div className="il-hostess-modal__head">
+              <div>
+                <h2>הוסף מוזמן שלא אישר הגעה</h2>
+                <p>טלפון אופציונלי. הסטטוס יישמר כהגיע · לא היה ברשימת המוזמנים. אחרי ההוספה תוכלו לשבץ לשולחן פנוי.</p>
+              </div>
+              <button
+                type="button"
+                className="il-hostess-modal__close"
+                aria-label="סגירה"
+                onClick={closeAddGuestModal}
+              >
+                <X size={20} aria-hidden="true" />
+              </button>
+            </div>
+
+            <label className="il-hostess-field">
+              שם מלא
+              <input
+                value={addGuestForm.fullName}
+                onChange={(event) =>
+                  setAddGuestForm((prev) => ({ ...prev, fullName: event.target.value }))
+                }
+                placeholder="שם המוזמן"
+                autoComplete="name"
+                required
+                autoFocus
+              />
+            </label>
+
+            <label className="il-hostess-field">
+              טלפון (אופציונלי)
+              <input
+                value={addGuestForm.phone}
+                onChange={(event) =>
+                  setAddGuestForm((prev) => ({ ...prev, phone: event.target.value }))
+                }
+                placeholder="050-0000000"
+                inputMode="tel"
+                autoComplete="tel"
+                dir="ltr"
+              />
+            </label>
+
+            <label className="il-hostess-field">
+              כמות מגיעים
+              <input
+                type="number"
+                min="1"
+                max="20"
+                value={addGuestForm.attendeesCount}
+                onChange={(event) =>
+                  setAddGuestForm((prev) => ({
+                    ...prev,
+                    attendeesCount: Math.max(1, Number(event.target.value) || 1)
+                  }))
+                }
+                required
+              />
+            </label>
+
+            {addGuestError ? (
+              <p className="il-hostess-status-line il-hostess-status-line--error" style={{ marginTop: "0.75rem" }}>
+                {addGuestError}
+              </p>
+            ) : null}
+
+            <div className="us-modal-actions">
+              <button className="il-hostess-btn il-hostess-btn--primary" type="submit" disabled={addingGuest}>
+                {addingGuest ? "מוסיף…" : "הוספה"}
+              </button>
+              <button
+                className="il-hostess-btn il-hostess-btn--outline"
+                type="button"
+                disabled={addingGuest}
+                onClick={closeAddGuestModal}
               >
                 ביטול
               </button>
