@@ -146,7 +146,9 @@ export default function HostessPage() {
         fullName: guest.fullName,
         tableLabel: data.tableLabel || guest.tableLabel || "",
         message: data.message,
-        guestId: guest._id
+        guestId: guest._id,
+        phone: guest.phone || data.guest?.phone || "",
+        seatingTableId: data.guest?.seatingTableId || guest.seatingTableId || ""
       });
     } catch (arriveError) {
       setGuests((prev) => prev.map((item) => (item._id === guest._id ? previous : item)));
@@ -453,14 +455,39 @@ export default function HostessPage() {
                 ? `${arriveModal.fullName} יושב/ת בשולחן ${arriveModal.tableLabel}`
                 : arriveModal.message}
             </p>
-            <p className="il-hostess-modal__meta">סטטוס עודכן ל־הגיע לאירוע · סומן על ידי דיילת אירוע</p>
-            <div className="us-modal-actions">
+            <div className="us-modal-actions il-hostess-modal__arrive-actions">
+              {canSendTableWhatsApp ? (
+                <button
+                  className="il-hostess-btn il-hostess-btn--primary"
+                  type="button"
+                  onClick={() => {
+                    const guest = guests.find((item) => item._id === arriveModal.guestId) || {
+                      _id: arriveModal.guestId,
+                      fullName: arriveModal.fullName,
+                      tableLabel: arriveModal.tableLabel,
+                      seatingTableId: arriveModal.seatingTableId || (arriveModal.tableLabel ? "assigned" : ""),
+                      phone: arriveModal.phone || ""
+                    };
+                    setArriveModal(null);
+                    openWhatsAppFlow(guest);
+                  }}
+                >
+                  שלח לו מס׳ שולחן בוואטסאפ
+                </button>
+              ) : (
+                <TableDispatchFeatureLockedNotice
+                  event={eventInfo}
+                  eventLabel={eventLabel}
+                  eventId={eventId}
+                  className="il-hostess-wa-locked"
+                />
+              )}
               <button
-                className="il-hostess-btn il-hostess-btn--primary il-hostess-btn--block"
+                className="il-hostess-btn il-hostess-btn--outline"
                 type="button"
                 onClick={() => setArriveModal(null)}
               >
-                סגור
+                סגירה
               </button>
             </div>
           </div>

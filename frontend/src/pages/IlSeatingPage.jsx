@@ -394,10 +394,6 @@ export default function IlSeatingPage() {
         </div>
       </header>
 
-      <p className="il-seat-instruction-note" role="note">
-        אורחים שיופיעו ברשימה בסטטוס &quot;מגיע&quot; או &quot;אולי&quot; הם אורחים שאישרו הגעה.
-      </p>
-
       {error ? <p className="us-error-message">{error}</p> : null}
       {toast ? <p className="il-seat-toast">{toast}</p> : null}
       {saving ? <p className="il-seat-saving">שומר פריסה…</p> : null}
