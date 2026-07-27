@@ -1,31 +1,27 @@
-import { Hero } from "@/components/hero"
-import { Countdown } from "@/components/countdown"
-import { Schedule } from "@/components/schedule"
-import { Venue } from "@/components/venue"
-import { Accommodation } from "@/components/accommodation"
-import { Details } from "@/components/details"
-import { Rsvp } from "@/components/rsvp"
-import { Footer } from "@/components/footer"
-import { eventData } from "@/lib/event-data"
+import { SiteHeader } from '@/components/momo/site-header'
+import { Hero } from '@/components/momo/hero'
+import { Showcase } from '@/components/momo/showcase'
+import { WhyFree } from '@/components/momo/why-free'
+import { Features } from '@/components/momo/features'
+import { Seating } from '@/components/momo/seating'
+import { Hostess } from '@/components/momo/hostess'
+import { Whatsapp } from '@/components/momo/whatsapp'
+import { Pricing } from '@/components/momo/pricing'
+import { SiteFooter } from '@/components/momo/site-footer'
 
 export default function Page() {
   return (
-    <main
-      className="min-h-screen bg-background bg-repeat-y"
-      style={{
-        backgroundImage: `url('${eventData.images.hero_bg}')`,
-        backgroundSize: "100% auto",
-        backgroundPosition: "top center",
-      }}
-    >
+    <main className="min-h-screen bg-background">
+      <SiteHeader />
       <Hero />
-      <Countdown />
-      <Schedule />
-      <Venue />
-      <Accommodation />
-      <Details />
-      <Rsvp />
-      <Footer />
+      <Showcase />
+      <WhyFree />
+      <Features />
+      <Seating />
+      <Hostess />
+      <Whatsapp />
+      <Pricing />
+      <SiteFooter />
     </main>
   )
 }

@@ -1,31 +1,28 @@
 import { Analytics } from '@vercel/analytics/next'
-import type { Metadata } from 'next'
-import { Cormorant_Garamond, Montserrat, Great_Vibes } from 'next/font/google'
+import type { Metadata, Viewport } from 'next'
+import { Heebo, Rubik } from 'next/font/google'
 import './globals.css'
 
-const cormorant = Cormorant_Garamond({
-  variable: '--font-serif',
-  subsets: ['latin'],
-  weight: ['300', '400', '500', '600', '700'],
+const heebo = Heebo({
+  subsets: ['hebrew', 'latin'],
+  variable: '--font-heebo',
 })
 
-const montserrat = Montserrat({
-  variable: '--font-sans',
-  subsets: ['latin'],
-  weight: ['300', '400', '500', '600'],
-})
-
-const greatVibes = Great_Vibes({
-  variable: '--font-script',
-  subsets: ['latin'],
-  weight: ['400'],
+const rubik = Rubik({
+  subsets: ['hebrew', 'latin'],
+  variable: '--font-rubik',
 })
 
 export const metadata: Metadata = {
-  title: 'Bella & Mark — We Do',
+  title: 'מומו — אישורי הגעה והזמנות דיגיטליות בחינם',
   description:
-    'Join Emma and Lucas for their wedding celebration at Oheka Castle on Saturday, July 22, 2027.',
+    'מומו היא מערכת חינמית לאישורי הגעה, הזמנה דיגיטלית, ניהול מוזמנים, סידורי הושבה ודיילת דיגיטלית — הכל במקום אחד, נגיש לכל כיס.',
   generator: 'v0.app',
+}
+
+export const viewport: Viewport = {
+  colorScheme: 'light',
+  themeColor: '#fdfbf7',
 }
 
 export default function RootLayout({
@@ -35,8 +32,9 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
-      className={`${cormorant.variable} ${montserrat.variable} ${greatVibes.variable} bg-background`}
+      lang="he"
+      dir="rtl"
+      className={`light ${heebo.variable} ${rubik.variable} bg-background`}
     >
       <body className="font-sans antialiased">
         {children}
