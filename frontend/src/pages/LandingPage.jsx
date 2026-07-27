@@ -38,36 +38,96 @@ const NAV_LINKS = [
   { label: "מחירים", href: "#pricing" }
 ];
 
-const FEATURES = [
+const FEATURE_SECTIONS = [
   {
+    id: "feature-guests",
     icon: Users,
-    title: "ניהול מוזמנים",
-    text: "כל רשימת המוזמנים במקום אחד. ייבוא וייצוא קובצי אקסל (Excel) של מוזמנים, וגם העלאה ישר מאנשי הקשר בטלפון."
+    badge: "ניהול מוזמנים",
+    title: "כל המוזמנים במקום אחד",
+    text: "רואים מי מגיע, מי עדיין לא ענה, וכמה אורחים בכל סטטוס — בלי אקסלים מפוזרים ובלי בלאגן. אפשר לחפש, לסנן ולערוך בקלות, והכל מתעדכן בזמן אמת.",
+    points: [
+      "רשימה חיה עם סטטוסים: מגיע / לא מגיע / אולי / לא ידוע",
+      "ייבוא וייצוא קובצי אקסל (Excel) של מוזמנים",
+      "עריכה מהירה של שם, טלפון וכמות אורחים"
+    ],
+    image: "/images/dashboard-bg.png",
+    imageAlt: "מסך ניהול מוזמנים במומו",
+    imageFirst: true
   },
   {
+    id: "feature-invitation",
     icon: ImageIcon,
-    title: "הזמנה דיגיטלית",
-    text: "עורכים את ההזמנה אונליין והיא מתעדכנת מיד. מוסיפים תמונה שלכם או את ההזמנה שלכם, ומשתפים בקלות."
+    badge: "הזמנה דיגיטלית",
+    title: "הזמנה שמתעדכנת אונליין",
+    text: "מעצבים את ההזמנה פעם אחת, משתפים לינק — ואם משהו משתנה (שעה, מיקום, טקסט) פשוט מעדכנים והאורחים רואים את הגרסה העדכנית. בלי להדפיס מחדש ובלי לשלוח שוב הכל מההתחלה.",
+    points: [
+      "עורכים פרטי אירוע, טקסטים ותמונה בקלות",
+      "לינק אחד להזמנה + אישור הגעה",
+      "השינויים עולים מיד — בלי להפיץ גרסה חדשה ידנית"
+    ],
+    image: "/images/hero-invitation.png",
+    imageAlt: "הזמנה דיגיטלית על הטלפון",
+    imageFirst: false
   },
   {
+    id: "feature-import",
     icon: ClipboardList,
-    title: "העלאה מאנשי הקשר",
-    text: "רק רוצים להתחיל את הרשימה הראשונית? מסמנים אנשי קשר ומעלים אותם ישר למערכת. בנוסף: ייבוא וייצוא קובצי אקסל (Excel) של מוזמנים."
+    badge: "ייבוא מוזמנים",
+    title: "מעלים רשימה בלחיצה",
+    text: "רוצים להתחיל מהר? מושכים מאנשי הקשר בטלפון, או מעלים קובץ אקסל מוכן. המערכת מסדרת כפילויות ושומרת את הרשימה מוכנה לעבודה.",
+    points: [
+      "ייבוא מאנשי הקשר בפלאפון — להתחלת רשימה ראשונית",
+      "ייבוא וייצוא קובצי אקסל (Excel) של מוזמנים",
+      "זיהוי כפילויות לפי מספר טלפון"
+    ],
+    image: "/images/suite.png",
+    imageAlt: "ייבוא מוזמנים מאנשי קשר ומאקסל",
+    imageFirst: true
   },
   {
+    id: "feature-vendors",
     icon: Wallet,
-    title: "ניהול ספקים ותקציב",
-    text: "קיבלתם כמה הצעות מחיר? במקום לשמור באנשי הקשר, מכניסים הכל למערכת. היא שומרת לכם את כל הפרטים וההצעות."
+    badge: "ספקים ותקציב",
+    title: "ספקים והצעות מחיר — לא בוואטסאפ",
+    text: "במקום 4 הצעות מחיר שזרוקות בצ'אטים ובאנשי קשר, מכניסים למומו את הספקים, הסכומים וההערות. הכל מסודר במקום אחד, כדי שתוכלו להשוות ולהחליט ברוגע.",
+    points: [
+      "שמירת ספקים, קטגוריות והצעות מחיר",
+      "מעקב תקציב והוצאות לצד האירוע",
+      "פחות חיפושים בוואטסאפ — יותר סדר"
+    ],
+    image: "/images/venue.png",
+    imageAlt: "ניהול ספקים ותקציב במומו",
+    imageFirst: false
   },
   {
+    id: "feature-whatsapp",
     icon: MessageCircle,
-    title: "הודעות וואטסאפ ללא הגבלה",
-    text: "שולחים הזמנה אישית עם השם של המוזמן — ישירות מהוואטסאפ האישי שלכם, בלי הגבלה ובלי עלות."
+    badge: "וואטסאפ בחינם",
+    title: "שולחים מהמספר האישי שלכם",
+    text: "בשירות החינמי שולחים הזמנה אישית עם שם המוזמן — ישירות מהוואטסאפ האישי שלכם. בלי הגבלה ובלי עלות. למי שצריך שליחה כמותית מהחברה — יש אפשרות בתשלום.",
+    points: [
+      "הודעה אישית עם שם האורח",
+      "יוצאת מהמספר שלכם — לא ממספר חברה אנונימי",
+      "ללא הגבלה בשירות החינמי"
+    ],
+    image: "/images/Please.png",
+    imageAlt: "שליחת הזמנה בוואטסאפ",
+    imageFirst: true
   },
   {
+    id: "feature-audit",
     icon: Bell,
-    title: "לוג עדכונים מלא",
-    text: "רואים בדיוק מי אישר, מתי, ומה עדכן. כי לפעמים האורחים משנים את דעתם — ואתם תמיד יודעים מה קורה."
+    badge: "לוג עדכונים",
+    title: "רואים מי שינה — ומתי",
+    text: "אורחים אוהבים לשנות דעה. הלוג מראה בדיוק מי אישר, מתי, ומה עודכן — מוואטסאפ, מהקישור, או מעדכון ידני. ככה תמיד יודעים מה קורה.",
+    points: [
+      "מעקב בזמן אמת אחרי שינויי סטטוס",
+      "מקור העדכון ברור (אורח / נציג / זוג)",
+      "תצוגה נוחה גם בנייד וגם במחשב"
+    ],
+    image: "/images/demo-invitation.png",
+    imageAlt: "לוג עדכונים בזמן אמת",
+    imageFirst: false
   }
 ];
 
@@ -177,7 +237,7 @@ function FreeSignupButton({ className = "", children = "הרשמה בחינם", 
       href={FREE_SIGNUP_WHATSAPP_LINK}
       target="_blank"
       rel="noreferrer"
-      className={className}
+      className={`text-white hover:text-white ${className}`.trim()}
       {...props}
     >
       {children}
@@ -220,7 +280,7 @@ export default function LandingPage() {
           </nav>
 
           <div className="flex items-center gap-2">
-            <FreeSignupButton className="hidden rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 sm:inline-flex">
+            <FreeSignupButton className="hidden rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90 sm:inline-flex">
               הרשמה בחינם
             </FreeSignupButton>
             <button
@@ -247,7 +307,7 @@ export default function LandingPage() {
                 </a>
               ))}
               <FreeSignupButton
-                className="mt-2 flex w-full items-center justify-center rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground"
+                className="mt-2 flex w-full items-center justify-center rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-white"
                 onClick={() => setMenuOpen(false)}
               >
                 הרשמה בחינם
@@ -284,7 +344,7 @@ export default function LandingPage() {
               </p>
 
               <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row md:justify-start">
-                <FreeSignupButton className="inline-flex w-full items-center justify-center rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 sm:w-auto">
+                <FreeSignupButton className="inline-flex w-full items-center justify-center rounded-full bg-primary px-6 py-3 text-sm font-semibold text-white hover:bg-primary/90 sm:w-auto">
                   הרשמה בחינם
                 </FreeSignupButton>
                 <a
@@ -327,44 +387,82 @@ export default function LandingPage() {
             <p className="mx-auto mt-5 max-w-2xl text-pretty text-lg leading-relaxed text-muted-foreground">
               כי ככה זה צריך להיות. כשמתחתנים יש כל כך הרבה הוצאות, ואישורי ההגעה פשוט צריכים להיות
               נגישים לכל אחד. אצלנו כל הבסיס חינמי — ומשלמים רק אם רוצים תוספות כמו שליחת הודעות
-              מהמערכת או אישורי הגעה טלפוניים.{" "}
-              <strong className="font-bold text-primary">
-                יש לשים לב שזה נשלח מהווצאפ האישי שלכם
-              </strong>
-              .
+              מהמערכת או אישורי הגעה טלפוניים. בשירות החינמי זה נשלח מהווצאפ האישי שלכם.
             </p>
           </div>
         </section>
 
         <LandingShowcase />
 
-        <section id="features" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-16 md:py-24">
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-balance font-serif text-3xl font-bold text-primary md:text-4xl">
-              הפיצ&apos;רים במערכת החינמית
-            </h2>
-            <p className="mt-4 text-pretty text-lg leading-relaxed text-muted-foreground">
-              לא רק אישורי הגעה — מערכת שלמה שמלווה אתכם מהרגע שהתחלתם ועד היום עצמו.
-            </p>
+        <section id="features" className="scroll-mt-20">
+          <div className="mx-auto max-w-6xl px-4 pt-16 md:pt-24">
+            <div className="mx-auto max-w-2xl text-center">
+              <h2 className="text-balance font-serif text-3xl font-bold text-primary md:text-4xl">
+                הפיצ&apos;רים במערכת החינמית
+              </h2>
+              <p className="mt-4 text-pretty text-lg leading-relaxed text-muted-foreground">
+                לא רק אישורי הגעה — מערכת שלמה שמלווה אתכם מהרגע שהתחלתם ועד היום עצמו. לכל פיצ׳ר יש
+                הסבר מפורט והמחשה.
+              </p>
+            </div>
           </div>
 
-          <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {FEATURES.map((feature) => {
-              const Icon = feature.icon;
-              return (
-                <div
-                  key={feature.title}
-                  className="rounded-2xl border border-border bg-card p-6 transition-shadow hover:shadow-sm"
-                >
-                  <span className="flex size-12 items-center justify-center rounded-xl bg-accent/12 text-accent">
-                    <Icon className="size-6" />
-                  </span>
-                  <h3 className="mt-5 font-serif text-xl font-semibold text-primary">{feature.title}</h3>
-                  <p className="mt-2 leading-relaxed text-muted-foreground">{feature.text}</p>
+          {FEATURE_SECTIONS.map((feature, index) => {
+            const Icon = feature.icon;
+            const altBg = index % 2 === 1;
+            return (
+              <section
+                key={feature.id}
+                id={feature.id}
+                className={`scroll-mt-20 ${altBg ? "border-y border-border bg-secondary/50" : ""}`}
+              >
+                <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 md:grid-cols-2 md:py-20">
+                  <div
+                    className={`relative ${
+                      feature.imageFirst ? "order-2 md:order-1" : "order-2 md:order-2"
+                    }`}
+                  >
+                    <div className="absolute -inset-4 -z-10 rounded-[2.5rem] bg-accent/10" />
+                    <div className="overflow-hidden rounded-[2rem] border border-border bg-card shadow-sm">
+                      <img
+                        src={feature.image}
+                        alt={feature.imageAlt}
+                        className="h-full w-full object-cover"
+                        width={720}
+                        height={560}
+                        loading="lazy"
+                      />
+                    </div>
+                  </div>
+
+                  <div
+                    className={`text-center md:text-right ${
+                      feature.imageFirst ? "order-1 md:order-2" : "order-1 md:order-1"
+                    }`}
+                  >
+                    <span className="inline-flex items-center gap-2 rounded-full bg-accent/12 px-4 py-1.5 text-sm font-medium text-accent">
+                      <Icon className="size-4" />
+                      {feature.badge}
+                    </span>
+                    <h3 className="mt-5 text-balance font-serif text-3xl font-bold text-primary md:text-4xl">
+                      {feature.title}
+                    </h3>
+                    <p className="mt-4 text-pretty text-lg leading-relaxed text-muted-foreground">
+                      {feature.text}
+                    </p>
+                    <ul className="mt-6 space-y-3 text-right">
+                      {feature.points.map((point) => (
+                        <li key={point} className="flex items-start gap-3">
+                          <span className="mt-2 size-2 shrink-0 rounded-full bg-accent" />
+                          <span className="leading-relaxed text-foreground">{point}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
-              );
-            })}
-          </div>
+              </section>
+            );
+          })}
         </section>
 
         <section id="seating" className="scroll-mt-20 border-y border-border bg-secondary/50">
@@ -525,7 +623,7 @@ export default function LandingPage() {
 
                 {plan.price === "0" ? (
                   <FreeSignupButton
-                    className="mt-6 inline-flex w-full items-center justify-center rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                    className="mt-6 inline-flex w-full items-center justify-center rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary/90"
                   >
                     {plan.cta}
                   </FreeSignupButton>
@@ -536,8 +634,8 @@ export default function LandingPage() {
                     rel="noreferrer"
                     className={`mt-6 inline-flex w-full items-center justify-center rounded-full px-4 py-2.5 text-sm font-semibold ${
                       plan.highlight
-                        ? "bg-accent text-accent-foreground hover:bg-accent/90"
-                        : "bg-primary text-primary-foreground hover:bg-primary/90"
+                        ? "bg-accent text-white hover:bg-accent/90 hover:text-white"
+                        : "bg-primary text-white hover:bg-primary/90 hover:text-white"
                     }`}
                   >
                     {plan.cta}
@@ -564,17 +662,17 @@ export default function LandingPage() {
         </section>
 
         <section className="mx-auto max-w-6xl px-4 pb-16">
-          <div className="rounded-3xl bg-primary px-6 py-14 text-center text-primary-foreground md:px-12">
-            <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-accent text-accent-foreground">
+          <div className="rounded-3xl bg-primary px-6 py-14 text-center text-white md:px-12">
+            <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-accent text-white">
               <PartyPopper className="size-6" />
             </span>
-            <h2 className="mt-5 text-balance font-serif text-3xl font-bold md:text-4xl">
+            <h2 className="mt-5 text-balance font-serif text-3xl font-bold text-white md:text-4xl">
               מוכנים להתחיל לתכנן?
             </h2>
-            <p className="mx-auto mt-3 max-w-md text-pretty leading-relaxed text-primary-foreground/80">
+            <p className="mx-auto mt-3 max-w-md text-pretty leading-relaxed text-white/80">
               נרשמים בחינם, מעלים את המוזמנים ומתחילים לשלוח הזמנות. בלי כרטיס אשראי ובלי התחייבות.
             </p>
-            <FreeSignupButton className="mt-7 inline-flex items-center justify-center rounded-full bg-accent px-6 py-3 text-sm font-semibold text-accent-foreground hover:bg-accent/90">
+            <FreeSignupButton className="mt-7 inline-flex items-center justify-center rounded-full bg-accent px-6 py-3 text-sm font-semibold text-white hover:bg-accent/90 hover:text-white">
               הרשמה בחינם עם מומו
             </FreeSignupButton>
           </div>

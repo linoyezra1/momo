@@ -32,6 +32,18 @@
   -webkit-font-smoothing: antialiased;
 }
 
+/* Brown / primary action buttons: always white label (never accent pink) */
+.landing-page a.bg-primary,
+.landing-page button.bg-primary,
+.landing-page .bg-primary {
+  color: #ffffff;
+}
+
+.landing-page a.bg-primary:hover,
+.landing-page button.bg-primary:hover {
+  color: #ffffff;
+}
+
 .landing-page .font-serif {
   font-family: var(--font-landing-serif);
 }

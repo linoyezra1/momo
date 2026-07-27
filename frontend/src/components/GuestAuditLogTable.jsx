@@ -82,6 +82,63 @@ function getCountFromEntry(entry) {
   return typeof count === "number" ? count : null;
 }
 
+function statusBadgeClass(status) {
+  if (status === "מגיע" || status === "הגיע לאירוע") return "il-audit-log__status--coming";
+  if (status === "אולי") return "il-audit-log__status--maybe";
+  if (status === "לא מגיע") return "il-audit-log__status--declined";
+  return "il-audit-log__status--unknown";
+}
+
+function formatGuestCountLabel(status, count) {
+  if (status === "לא מגיע") return "לא מגיע";
+  if (typeof count !== "number") return null;
+  if (count === 1) return "1 אורח";
+  return `${count} אורחים`;
+}
+
+function formatRelativeTime(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const diffMs = Date.now() - date.getTime();
+  const minutes = Math.floor(diffMs / 60000);
+  if (minutes < 1) return "עכשיו";
+  if (minutes < 60) return `לפני ${minutes} דק׳`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `לפני ${hours} שע׳`;
+  const { dateLabel, timeLabel } = formatAuditDateTime(value);
+  return timeLabel ? `${dateLabel} · ${timeLabel}` : dateLabel;
+}
+
+function AuditMobileCard({ entry }) {
+  const status = getStatusFromEntry(entry);
+  const count = getCountFromEntry(entry);
+  const countLabel = formatGuestCountLabel(status, count);
+  const timeLabel = formatRelativeTime(entry.createdAt);
+  const metaParts = [countLabel, timeLabel].filter(Boolean);
+
+  return (
+    <article className="il-audit-log__card">
+      <div className="il-audit-log__card-main">
+        <strong className="il-audit-log__card-name">{entry.guestName || "—"}</strong>
+        {metaParts.length ? (
+          <span className="il-audit-log__card-meta">{metaParts.join(" · ")}</span>
+        ) : (
+          <span className="il-audit-log__card-meta">
+            <AuditDescription entry={entry} />
+          </span>
+        )}
+      </div>
+      {status ? (
+        <span className={`il-audit-log__status ${statusBadgeClass(status)}`}>{status}</span>
+      ) : (
+        <span className={`il-audit-log__badge ${performerBadgeClass(entry)}`}>
+          {entry.performerLabel || "עדכון"}
+        </span>
+      )}
+    </article>
+  );
+}
+
 function renderStructuredDescription(entry) {
   const status = getStatusFromEntry(entry);
   const count = getCountFromEntry(entry);
@@ -250,6 +307,18 @@ export default function GuestAuditLogTable({
       ) : null}
 
       {error ? <p className="il-audit-log__error">{error}</p> : null}
+
+      <div className="il-audit-log__cards" aria-label="רשימת עדכונים לנייד">
+        {loading && !entries.length ? (
+          <p className="il-audit-log__empty">טוען עדכונים…</p>
+        ) : null}
+        {!loading && !entries.length ? (
+          <p className="il-audit-log__empty">אין עדכונים עדיין</p>
+        ) : null}
+        {entries.map((entry) => (
+          <AuditMobileCard key={`card-${entry._id}`} entry={entry} />
+        ))}
+      </div>
 
       <div className="il-audit-log__table-wrap">
         <table className="il-audit-log__table">

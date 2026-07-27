@@ -6,7 +6,6 @@ import {
   Check,
   CheckCheck,
   MapPin,
-  Send,
   UserRound,
   Users
 } from "lucide-react";
@@ -268,16 +267,12 @@ export default function LandingShowcase() {
     <section id="showcase" className="scroll-mt-20">
       <div className="mx-auto max-w-6xl px-4 py-16 md:py-24">
         <div className="mx-auto max-w-2xl text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-1.5 text-sm text-muted-foreground">
-            <Send className="size-4 text-accent" />
-            ככה זה נראה באמת
-          </span>
-          <h2 className="mt-5 text-balance font-serif text-3xl font-bold text-primary md:text-4xl">
+          <h2 className="text-balance font-serif text-3xl font-bold text-primary md:text-4xl">
             דוגמאות חיות מהמערכת
           </h2>
           <p className="mt-4 text-pretty text-lg leading-relaxed text-muted-foreground">
-            ההזמנה הדיגיטלית, כפתורי האישור בוואטסאפ, ולוג עדכונים שמתעדכן לכם בזמן אמת. הכל פשוט
-            וברור.
+            ההזמנה הדיגיטלית, ההזמנה בוואטסאפ — וההבדל בין וואטסאפ שנשלח מהחברה לבין וואטסאפ שנשלח
+            בחינם מהמספר האישי שלכם.
           </p>
         </div>
 
