@@ -1,14 +1,15 @@
-import {
-  TABLE_DISPATCH_SALES_PHONE,
-  buildTableDispatchPurchaseWhatsAppUrl
-} from "../utils/tableDispatchPurchase.js";
+import { buildTableDispatchPurchaseWhatsAppUrl } from "../utils/tableDispatchPurchase.js";
+
+const DEFAULT_MESSAGE =
+  "לאירוע זה אין את האפשרות לשלוח מספר שולחן בוואטסאפ. לרכישת השירות ניתן ליצור קשר בוואטסאפ.";
 
 export default function TableDispatchFeatureLockedNotice({
   event,
   eventLabel,
   eventType,
   eventId,
-  className = "il-budget-warning"
+  className = "il-budget-warning",
+  message = DEFAULT_MESSAGE
 }) {
   const href = buildTableDispatchPurchaseWhatsAppUrl({
     event,
@@ -17,17 +18,19 @@ export default function TableDispatchFeatureLockedNotice({
     eventId
   });
 
+  const [beforeLink, afterLink = ""] = String(message).split("ליצור קשר בוואטסאפ");
+
   return (
     <p className={className} role="status">
-      הפיצ׳ר אינו פעיל לאירוע זה. לרכישת הפיצ׳ר אנא{" "}
-      <a href={href} target="_blank" rel="noreferrer">
-        לחצו כאן
-      </a>
-      {" "}או בטלפון{" "}
-      <a href={href} target="_blank" rel="noreferrer" dir="ltr">
-        {TABLE_DISPATCH_SALES_PHONE}
-      </a>
-      .
+      {beforeLink}
+      {href ? (
+        <a href={href} target="_blank" rel="noreferrer">
+          ליצור קשר בוואטסאפ
+        </a>
+      ) : (
+        "ליצור קשר בוואטסאפ"
+      )}
+      {afterLink}
     </p>
   );
 }

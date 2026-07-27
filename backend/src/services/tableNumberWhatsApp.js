@@ -93,10 +93,9 @@ export function buildTableNumberFreeText({ guestName, eventType, tableLabel, hos
 
 export function canSendTableWhatsApp(user) {
   const features = user?.deal?.includedFeatures || {};
-  if (typeof features.canSendTableWhatsApp === "boolean") {
-    return features.canSendTableWhatsApp;
-  }
-  return features.eventDayTableNumber !== false;
+  if (features.canSendTableWhatsApp === true) return true;
+  if (features.eventDayTableNumber === true) return true;
+  return false;
 }
 
 /**

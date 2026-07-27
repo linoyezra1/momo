@@ -591,35 +591,40 @@ export default function IlSeatingPage() {
             </p>
             {!canSendTableWhatsApp ? (
               <TableDispatchFeatureLockedNotice event={eventInfo} eventId={userId} />
-            ) : null}
-            <label className="us-admin-field-label" style={{ display: "block", marginBottom: "0.75rem" }}>
-              שעת שליחה
-              <input
-                className="us-admin-field-input"
-                type="datetime-local"
-                value={scheduledAt}
-                onChange={(event) => setScheduledAt(event.target.value)}
-                required
-              />
-            </label>
-            <label className="us-admin-field-label" style={{ display: "block", marginBottom: "0.75rem" }}>
-              הכנס קוד קופון לרכישה זו
-              <input
-                className="us-admin-field-input"
-                value={couponCode}
-                onChange={(event) => setCouponCode(event.target.value)}
-                placeholder="קוד קופון"
-                autoComplete="off"
-                required
-              />
-            </label>
+            ) : (
+              <>
+                <label className="us-admin-field-label" style={{ display: "block", marginBottom: "0.75rem" }}>
+                  שעת שליחה
+                  <input
+                    className="us-admin-field-input"
+                    type="datetime-local"
+                    value={scheduledAt}
+                    onChange={(event) => setScheduledAt(event.target.value)}
+                    required
+                  />
+                </label>
+                <label className="us-admin-field-label" style={{ display: "block", marginBottom: "0.75rem" }}>
+                  הכנס קוד קופון לרכישה זו
+                  <input
+                    className="us-admin-field-input"
+                    value={couponCode}
+                    onChange={(event) => setCouponCode(event.target.value)}
+                    placeholder="קוד קופון"
+                    autoComplete="off"
+                    required
+                  />
+                </label>
+              </>
+            )}
             {dispatchError ? <p className="us-error-message">{dispatchError}</p> : null}
             <div className="us-modal-actions">
-              <button className="us-btn us-btn--primary" type="submit" disabled={dispatchSaving}>
-                {dispatchSaving ? "שולח…" : "אישור ושליחה"}
-              </button>
+              {canSendTableWhatsApp ? (
+                <button className="us-btn us-btn--primary" type="submit" disabled={dispatchSaving}>
+                  {dispatchSaving ? "שולח…" : "אישור ושליחה"}
+                </button>
+              ) : null}
               <button className="us-btn" type="button" onClick={() => setDispatchOpen(false)}>
-                ביטול
+                {canSendTableWhatsApp ? "ביטול" : "סגור"}
               </button>
             </div>
           </form>

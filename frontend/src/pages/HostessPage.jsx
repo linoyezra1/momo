@@ -11,7 +11,7 @@ import {
   X
 } from "lucide-react";
 import api from "../api";
-import { MOMOEVENT_SUPPORT_PHONE } from "../utils/tableDispatchPurchase.js";
+import TableDispatchFeatureLockedNotice from "../components/TableDispatchFeatureLockedNotice.jsx";
 import "../us/client-portal.css";
 import "../il/il-portal.css";
 import "../il/hostess.css";
@@ -32,15 +32,16 @@ export default function HostessPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [eventLabel, setEventLabel] = useState("");
+  const [eventInfo, setEventInfo] = useState(null);
   const [guests, setGuests] = useState([]);
   const [tables, setTables] = useState([]);
   const [query, setQuery] = useState("");
   const [canSendTableWhatsApp, setCanSendTableWhatsApp] = useState(false);
   const [arriveModal, setArriveModal] = useState(null);
-  const [lockedModal, setLockedModal] = useState(false);
   const [toast, setToast] = useState(null);
   const [busyGuestId, setBusyGuestId] = useState("");
   const [seatGuest, setSeatGuest] = useState(null);
+  const [selectedTableId, setSelectedTableId] = useState("");
   const [seatSuccess, setSeatSuccess] = useState(null);
   const [couponGuest, setCouponGuest] = useState(null);
   const [couponCode, setCouponCode] = useState("");
@@ -52,6 +53,7 @@ export default function HostessPage() {
     try {
       const { data } = await api.get(`/hostess/${eventId}`);
       setEventLabel(data.eventLabel || "");
+      setEventInfo(data.event || null);
       setGuests(data.guests || []);
       setTables(data.tables || []);
       setCanSendTableWhatsApp(Boolean(data.features?.canSendTableWhatsApp));
@@ -140,10 +142,7 @@ export default function HostessPage() {
   };
 
   const openWhatsAppFlow = (guest) => {
-    if (!canSendTableWhatsApp) {
-      setLockedModal(true);
-      return;
-    }
+    if (!canSendTableWhatsApp) return;
     if (!guest.seatingTableId && !guest.tableLabel) {
       showToast("יש לשבץ את המוזמן לשולחן לפני שליחת מספר שולחן", { tone: "error" });
       return;
@@ -167,7 +166,7 @@ export default function HostessPage() {
     } catch (sendError) {
       if (sendError.response?.data?.code === "feature_disabled") {
         setCouponGuest(null);
-        setLockedModal(true);
+        setCanSendTableWhatsApp(false);
       } else {
         setCouponError(sendError.response?.data?.message || "שליחת WhatsApp נכשלה");
       }
@@ -177,15 +176,21 @@ export default function HostessPage() {
   };
 
   const openSeatModal = (guest) => {
+    setSelectedTableId("");
     setSeatGuest(guest);
   };
 
-  const assignTable = async (tableId) => {
-    if (!seatGuest || !tableId) return;
+  const closeSeatModal = () => {
+    setSeatGuest(null);
+    setSelectedTableId("");
+  };
+
+  const confirmSeatAtTable = async () => {
+    if (!seatGuest || !selectedTableId) return;
     setBusyGuestId(seatGuest._id);
     try {
       const { data } = await api.post(`/hostess/${eventId}/guests/${seatGuest._id}/assign-table`, {
-        tableId
+        tableId: selectedTableId
       });
       setGuests((prev) =>
         prev.map((item) =>
@@ -193,18 +198,19 @@ export default function HostessPage() {
             ? {
                 ...item,
                 ...(data.guest || {}),
-                seatingTableId: tableId,
-                tableLabel: data.tableLabel || tableId
+                seatingTableId: selectedTableId,
+                tableLabel: data.tableLabel || selectedTableId
               }
             : item
         )
       );
       if (Array.isArray(data.tables)) setTables(data.tables);
       setSeatGuest(null);
+      setSelectedTableId("");
       setSeatSuccess({
         guestId: seatGuest._id,
         fullName: seatGuest.fullName,
-        tableLabel: data.tableLabel || tableId
+        tableLabel: data.tableLabel || selectedTableId
       });
     } catch (assignError) {
       showToast(assignError.response?.data?.message || "שיבוץ לשולחן נכשל", { tone: "error" });
@@ -217,43 +223,53 @@ export default function HostessPage() {
     <div className="il-hostess-page" dir="rtl" lang="he">
       <div className="il-hostess-shell">
         <header className="il-hostess-header">
-          <div className="il-hostess-header__top">
-            <div>
-              <p className="il-hostess-eyebrow">שלום, דיילת</p>
-              <h1>קבלת פנים · {eventLabel || "דיילת דיגיטלית"}</h1>
+          <div className="il-hostess-header__inner">
+            <div className="il-hostess-header__top">
+              <div>
+                <p className="il-hostess-eyebrow">שלום, דיילת</p>
+                <h1>קבלת פנים · {eventLabel || "דיילת דיגיטלית"}</h1>
+              </div>
+              <div className="il-hostess-arrived-count" aria-label={`${arrivedCount} הגיעו`}>
+                <span className="il-hostess-arrived-count__num">{arrivedCount}</span>
+                <span className="il-hostess-arrived-count__label">הגיעו</span>
+              </div>
             </div>
-            <div className="il-hostess-arrived-count" aria-label={`${arrivedCount} הגיעו`}>
-              <span className="il-hostess-arrived-count__num">{arrivedCount}</span>
-              <span className="il-hostess-arrived-count__label">הגיעו</span>
-            </div>
-          </div>
 
-          <label className="il-hostess-search">
-            <Search size={16} aria-hidden="true" />
-            <input
-              type="search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="חיפוש לפי שם או טלפון..."
-              autoFocus
-              aria-label="חיפוש מוזמנים"
-            />
-            {query ? (
-              <button
-                type="button"
-                className="il-hostess-search__clear"
-                aria-label="נקה חיפוש"
-                onClick={() => setQuery("")}
-              >
-                <X size={16} aria-hidden="true" />
-              </button>
-            ) : null}
-          </label>
+            <label className="il-hostess-search">
+              <Search size={16} aria-hidden="true" />
+              <input
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="חיפוש לפי שם או טלפון..."
+                autoFocus
+                aria-label="חיפוש מוזמנים"
+              />
+              {query ? (
+                <button
+                  type="button"
+                  className="il-hostess-search__clear"
+                  aria-label="נקה חיפוש"
+                  onClick={() => setQuery("")}
+                >
+                  <X size={16} aria-hidden="true" />
+                </button>
+              ) : null}
+            </label>
+          </div>
         </header>
 
         <div className="il-hostess-body">
           {error ? <p className="il-hostess-status-line il-hostess-status-line--error">{error}</p> : null}
           {loading ? <p className="il-hostess-status-line">טוען…</p> : null}
+          {!loading && !canSendTableWhatsApp ? (
+            <TableDispatchFeatureLockedNotice
+              event={eventInfo}
+              eventLabel={eventLabel}
+              eventId={eventId}
+              className="il-hostess-wa-locked"
+            />
+          ) : null}
 
           <ul className="il-hostess-list">
             {!loading && !filteredGuests.length ? (
@@ -308,15 +324,17 @@ export default function HostessPage() {
                         הושבה בשולחן ריק
                       </button>
                     ) : null}
-                    <button
-                      type="button"
-                      className="il-hostess-btn il-hostess-btn--ghost"
-                      disabled={busyGuestId === guest._id}
-                      onClick={() => openWhatsAppFlow(guest)}
-                    >
-                      <Send size={14} aria-hidden="true" />
-                      שלח מס׳ שולחן ב-WhatsApp
-                    </button>
+                    {canSendTableWhatsApp ? (
+                      <button
+                        type="button"
+                        className="il-hostess-btn il-hostess-btn--ghost"
+                        disabled={busyGuestId === guest._id}
+                        onClick={() => openWhatsAppFlow(guest)}
+                      >
+                        <Send size={14} aria-hidden="true" />
+                        שלח מס׳ שולחן ב-WhatsApp
+                      </button>
+                    ) : null}
                   </div>
                 </li>
               );
@@ -373,9 +391,9 @@ export default function HostessPage() {
       ) : null}
 
       {seatGuest ? (
-        <div className="us-modal-backdrop" role="presentation" onClick={() => setSeatGuest(null)}>
+        <div className="us-modal-backdrop" role="presentation" onClick={closeSeatModal}>
           <div
-            className="us-modal-card il-hostess-modal"
+            className="us-modal-card il-hostess-modal il-hostess-modal--seat"
             role="dialog"
             aria-modal="true"
             aria-label={`בחירת שולחן עבור ${seatGuest.fullName}`}
@@ -392,7 +410,7 @@ export default function HostessPage() {
                 type="button"
                 className="il-hostess-modal__close"
                 aria-label="סגירה"
-                onClick={() => setSeatGuest(null)}
+                onClick={closeSeatModal}
               >
                 <X size={20} aria-hidden="true" />
               </button>
@@ -406,13 +424,15 @@ export default function HostessPage() {
               <div className="il-hostess-table-grid">
                 {tables.map((table) => {
                   const full = Number(table.remaining) < seatNeeded;
+                  const selected = selectedTableId === table.tableId;
                   return (
                     <button
                       key={table.tableId}
                       type="button"
-                      className="il-hostess-table-cell"
+                      className={`il-hostess-table-cell${selected ? " is-selected" : ""}`}
                       disabled={full || busyGuestId === seatGuest._id}
-                      onClick={() => assignTable(table.tableId)}
+                      aria-pressed={selected}
+                      onClick={() => setSelectedTableId(table.tableId)}
                     >
                       <span className="il-hostess-table-cell__num">{table.label}</span>
                       <span className="il-hostess-table-cell__meta">
@@ -427,8 +447,22 @@ export default function HostessPage() {
 
             <p className="il-hostess-table-hint">
               <MapPin size={14} aria-hidden="true" />
-              רק שולחנות עם מקום פנוי ניתנים לבחירה
+              בחרו שולחן ואז לחצו אישור לשיבוץ
             </p>
+
+            <div className="us-modal-actions">
+              <button
+                className="il-hostess-btn il-hostess-btn--primary"
+                type="button"
+                disabled={!selectedTableId || busyGuestId === seatGuest._id}
+                onClick={confirmSeatAtTable}
+              >
+                אישור שיבוץ
+              </button>
+              <button className="il-hostess-btn il-hostess-btn--outline" type="button" onClick={closeSeatModal}>
+                ביטול
+              </button>
+            </div>
           </div>
         </div>
       ) : null}
@@ -446,22 +480,31 @@ export default function HostessPage() {
               {seatSuccess.fullName} שובץ/ה לשולחן <strong>{seatSuccess.tableLabel}</strong>
             </p>
             <div className="us-modal-actions">
-              <button
-                className="il-hostess-btn il-hostess-btn--primary"
-                type="button"
-                onClick={() => {
-                  const guest = guests.find((item) => item._id === seatSuccess.guestId) || {
-                    _id: seatSuccess.guestId,
-                    fullName: seatSuccess.fullName,
-                    tableLabel: seatSuccess.tableLabel,
-                    seatingTableId: "assigned"
-                  };
-                  setSeatSuccess(null);
-                  openWhatsAppFlow(guest);
-                }}
-              >
-                שלח לו בוואטסאפ
-              </button>
+              {canSendTableWhatsApp ? (
+                <button
+                  className="il-hostess-btn il-hostess-btn--primary"
+                  type="button"
+                  onClick={() => {
+                    const guest = guests.find((item) => item._id === seatSuccess.guestId) || {
+                      _id: seatSuccess.guestId,
+                      fullName: seatSuccess.fullName,
+                      tableLabel: seatSuccess.tableLabel,
+                      seatingTableId: "assigned"
+                    };
+                    setSeatSuccess(null);
+                    openWhatsAppFlow(guest);
+                  }}
+                >
+                  שלח לו בוואטסאפ
+                </button>
+              ) : (
+                <TableDispatchFeatureLockedNotice
+                  event={eventInfo}
+                  eventLabel={eventLabel}
+                  eventId={eventId}
+                  className="il-hostess-wa-locked"
+                />
+              )}
               <button
                 className="il-hostess-btn il-hostess-btn--outline"
                 type="button"
@@ -474,7 +517,7 @@ export default function HostessPage() {
         </div>
       ) : null}
 
-      {couponGuest ? (
+      {couponGuest && canSendTableWhatsApp ? (
         <div className="us-modal-backdrop" role="presentation" onClick={() => setCouponGuest(null)}>
           <form
             className="us-modal-card il-hostess-modal"
@@ -524,34 +567,6 @@ export default function HostessPage() {
               </button>
             </div>
           </form>
-        </div>
-      ) : null}
-
-      {lockedModal ? (
-        <div className="us-modal-backdrop" role="presentation" onClick={() => setLockedModal(false)}>
-          <div
-            className="us-modal-card il-hostess-modal"
-            role="dialog"
-            aria-modal="true"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <h2>שירות בתשלום</h2>
-            <p>
-              השירות כרוך בעלות נוספת, יש לפנות לתמיכה בטלפון{" "}
-              <a href={`tel:${MOMOEVENT_SUPPORT_PHONE}`} dir="ltr">
-                {MOMOEVENT_SUPPORT_PHONE}
-              </a>
-            </p>
-            <div className="us-modal-actions">
-              <button
-                className="il-hostess-btn il-hostess-btn--primary il-hostess-btn--block"
-                type="button"
-                onClick={() => setLockedModal(false)}
-              >
-                סגור
-              </button>
-            </div>
-          </div>
         </div>
       ) : null}
     </div>
