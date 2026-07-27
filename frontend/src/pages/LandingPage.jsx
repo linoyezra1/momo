@@ -2,14 +2,16 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowLeft,
-  BarChart3,
-  Gift,
+  ClipboardList,
+  Contact,
+  DoorOpen,
+  FileSpreadsheet,
   LogIn,
   Menu,
   MessageCircle,
-  Quote,
-  Sparkles,
-  Users,
+  RefreshCw,
+  Table2,
+  Wallet,
   X
 } from "lucide-react";
 import api from "../api";
@@ -20,52 +22,100 @@ const WHATSAPP_LINK =
   import.meta.env.VITE_MARKETING_WHATSAPP_URL ||
   "https://api.whatsapp.com/send?text=" + encodeURIComponent("שלום, אשמח לקבל פרטים על momoEVENT");
 
-const FEATURES = [
+const MOMOTO_FEATURES = [
   {
-    icon: Sparkles,
-    title: "הזמנה דיגיטלית מעוצבת",
-    text: "יצירת הזמנה מהממת עם אפשרות עריכה עצמאית של פרטי האירוע, התאריכים והמיקום בכל רגע."
+    icon: RefreshCw,
+    title: "הזמנה דיגיטלית שמתעדכנת באונליין",
+    text: "מעצבים וליטרלי מעדכנים מתי שבא לכם. תוסיפו תמונה שלכם, את ההזמנה המעוצבת, וזהו – זה באוויר.",
+    image: "/images/demo-invitation.png",
+    imageAlt: "הדגמת הזמנה דיגיטלית במומו"
   },
   {
-    icon: BarChart3,
-    title: "אישורי הגעה בזמן אמת",
-    text: "מעקב אונליין מלא עם סטטוס מגיעים / לא מגיעים / אולי המתעדכן אצלכם במסך בשניות אמת."
+    icon: ClipboardList,
+    title: "מערכת ניהול מוזמנים",
+    text: "לעשות סדר בבלאגן, בלי להסתבך."
   },
   {
-    icon: Users,
-    title: "ניהול רשימות חכם",
-    text: "ייבוא קל ומהיר מקובץ Excel, אפשרות להוספה ידנית ומנגנון אוטומטי למניעת כפילויות לפי מספר טלפון."
+    icon: Contact,
+    title: "ייבוא מוזמנים בלחיצת כפתור",
+    text: (
+      <>
+        אפשר להעלות קובץ אקסל, ואפשר פשוט <strong>למשוך מאנשי הקשר בטלפון!</strong> רוצים רק לקבל
+        פרופורציות ולהתחיל רשימה ראשונית? תתחילו ישר מהפלאפון.
+      </>
+    )
   },
   {
-    icon: Gift,
-    title: "מעקב תשלומים ומתנות",
-    text: "רישום ומעקב מסודר אחר המתנות והכספים שקיבלתם באירוע, כדי ששום דבר לא ילך לאיבוד."
+    icon: Wallet,
+    title: "ניהול ספקים ותקציב",
+    text: "מכירים את זה שיש לכם 4 הצעות מחיר מצלמים שזרוקות בווטסאפ? במקום לשמור סתם באנשי קשר, מכניסים למומו את הספקים והצעות המחיר והמערכת שומרת על הכל מסודר."
   },
   {
-    icon: MessageCircle,
-    title: "שליחה בוואטסאפ ללא הגבלה",
-    text: "פיצ'ר ייחודי לשליחת הזמנות ותזכורות ישירות מהמספר האישי שלכם ללא הגבלת כמות."
+    icon: FileSpreadsheet,
+    title: "לוג עדכונים בזמן אמת",
+    text: "כי אורחים אוהבים לשנות את דעתם... המערכת מראה לכם בדיוק מי אישר, מתי, ומה הוא עדכן."
   }
 ];
 
-const TESTIMONIALS = [
+const HOSTESS_STEPS = [
+  "שמים חבר/ה או בן משפחה בכניסה עם ממשק הדיילת.",
+  "מוזמן מגיע? הדיילת מחפשת אותו בשניה לפי שם או טלפון.",
+  "רואים מיד באיזה שולחן הוא יושב.",
+  "הוא הגיע עם פלוס אחד שלא עדכן? מושיבים אותו במקום פנוי או בשולחן רזרבה בכיף.",
+  <>
+    <strong>בונוס:</strong> אפשר לשלוח לאורח הודעת ווטסאפ בזמן אמת עם מספר השולחן שלו!
+  </>
+];
+
+const PRICING_PLANS = [
   {
-    quote:
-      "סוף סוף עשינו סדר במוזמנים בלי אקסלים אינסופיים. ההזמנה יצאה מדהימה ואישורי ההגעה זרמו אלינו בזמן אמת.",
-    names: "לינוי ודן",
-    meta: "אולם עדיה | 28.06"
+    id: "free",
+    name: "החינמי",
+    price: "0",
+    unit: "ש״ח",
+    featured: false,
+    features: [
+      "מערכת ניהול מוזמנים",
+      "העלאה מאנשי קשר / אקסל",
+      "הזמנה דיגיטלית מתעדכנת",
+      "מערכת סידורי הושבה בקנבס",
+      "ממשק דיילת דיגיטלית",
+      "ניהול ספקים ותקציב",
+      <>
+        <strong>הודעות ווטסאפ ללא הגבלה (מהמספר האישי)</strong>
+      </>
+    ]
   },
   {
-    quote:
-      "השליחה בוואטסאפ חסכה לנו שעות. הכל היה פשוט, יוקרתי ומקצועי — בדיוק כמו שרצינו שהחתונה תרגיש.",
-    names: "יצחק ורעות",
-    meta: "גן האירועים ריביירה | 14.05"
+    id: "accessible",
+    name: "נגיש לכל כיס",
+    price: "1",
+    unit: "ש״ח לרשומה",
+    featured: true,
+    features: [
+      <>
+        <strong>כל פיצ׳רי המערכת החינמית</strong>
+      </>,
+      "2 סבבי אישורי הגעה בווטסאפ עם כפתורים מהירים (מהחברה)",
+      "2 סבבי אישורי הגעה טלפוניים אנושיים!"
+    ]
   },
   {
-    quote:
-      "מעקב המתנות והסטטוסים נתנו לנו שקט מדהים. הצוות של momoEVENT זמין, נעים ומדויק — ממליצים בחום.",
-    names: "נועה ואורי",
-    meta: "אולמי פנורמה | 03.04"
+    id: "serious",
+    name: "הרציניים",
+    price: "1.8",
+    unit: "ש״ח לרשומה",
+    featured: false,
+    features: [
+      <>
+        <strong>כל פיצ׳רי המערכת החינמית</strong>
+      </>,
+      "2 סבבי ווטסאפ עם כפתורים + 2 סבבים טלפוניים אנושיים",
+      "שליחת מס׳ שולחן מתוזמן בווטסאפ",
+      "שליחת תזכורת ביום האירוע",
+      "שליחת מס׳ שולחן בזמן אמת ע״י הדיילת (ללא הגבלה)",
+      "הודעת תודה ביום למחרת"
+    ]
   }
 ];
 
@@ -142,29 +192,17 @@ export default function LandingPage() {
             {menuOpen ? <X size={22} /> : <Menu size={22} />}
           </button>
 
-          <div
-            id="landing-nav-menu"
-            className={`landing-nav-menu${menuOpen ? " is-open" : ""}`}
-          >
-            <a
-              className="landing-nav-link"
-              href="#features"
-              onClick={() => setMenuOpen(false)}
-            >
-              הפיצ&apos;רים
+          <div id="landing-nav-menu" className={`landing-nav-menu${menuOpen ? " is-open" : ""}`}>
+            <a className="landing-nav-link" href="#what-is-momo" onClick={() => setMenuOpen(false)}>
+              מה זה מומו
             </a>
-            <a
-              className="landing-nav-link"
-              href="#testimonials"
-              onClick={() => setMenuOpen(false)}
-            >
-              כותבים עלינו
+            <a className="landing-nav-link" href="#seating" onClick={() => setMenuOpen(false)}>
+              הושבה ודיילת
             </a>
-            <a
-              className="landing-nav-link"
-              href="#contact"
-              onClick={() => setMenuOpen(false)}
-            >
+            <a className="landing-nav-link" href="#pricing" onClick={() => setMenuOpen(false)}>
+              מחירון
+            </a>
+            <a className="landing-nav-link" href="#contact" onClick={() => setMenuOpen(false)}>
               יצירת קשר
             </a>
             <Link
@@ -194,21 +232,27 @@ export default function LandingPage() {
             </div>
           </div>
 
-          <p className="landing-eyebrow">RSVP & Event Guest Management</p>
-          <h1 className="landing-title">
-            momoEVENT — מערכת אישורי הגעה והזמנות דיגיטליות חכמות לאירועים
-          </h1>
-          <p className="landing-subtitle">
-            עושים לכם סדר במוזמנים בקלות ובלי כאבי ראש. משלמים רק על מה שצריכים — שקל אחד בלבד
-            לרשומה, ואתם קובעים את הכמות.
-          </p>
+          <h1 className="landing-title">מערכת אישורי הגעה וניהול אירוע בחינם.💍</h1>
+
+          <div className="landing-hero-copy">
+            <h2 className="landing-hero-question">איך יכול להיות שזה בחינם?</h2>
+            <p className="landing-subtitle">
+              כי תכל&apos;ס? ככה זה צריך להיות. כשמתחתנים ההוצאות עפות באוויר על ימין ועל שמאל, ואישורי
+              הגעה זה משהו שאמור להיות נגיש לכל כיס – בלי לעשות עליכם קופה.
+            </p>
+          </div>
 
           <div className="landing-cta-row">
             <Link className="landing-cta landing-cta--primary" to="/client/login">
-              נסו את המערכת בחינם
+              מתחילים בחינם
               <ArrowLeft size={18} aria-hidden="true" />
             </Link>
-            <a className="landing-cta landing-cta--whatsapp" href={WHATSAPP_LINK} target="_blank" rel="noreferrer">
+            <a
+              className="landing-cta landing-cta--secondary"
+              href={WHATSAPP_LINK}
+              target="_blank"
+              rel="noreferrer"
+            >
               דברו איתנו בוואטסאפ
               <MessageCircle size={18} aria-hidden="true" />
             </a>
@@ -216,30 +260,24 @@ export default function LandingPage() {
         </div>
       </header>
 
-      <section className="landing-section landing-about">
+      <section id="what-is-momo" className="landing-section landing-features">
         <div className="landing-section-inner">
-          <h2 className="landing-section-title">מי אנחנו ומה אנחנו נותנים?</h2>
-          <p className="landing-about-text">
-            momoEVENT היא מערכת טכנולוגית מתקדמת לניהול מוזמנים לאירועים — חתונות, בר/בת מצווה, בריתות
-            ועוד. היא מאפשרת לבעלי האירוע לשלוט בהכל מהנייד או המחשב, ברוגע ובביטחון: רשימות מוזמנים,
-            הזמנה דיגיטלית, אישורי הגעה, תזכורות ומעקב מתנות — הכל במקום אחד.
-          </p>
-        </div>
-      </section>
-
-      <section id="features" className="landing-section landing-features">
-        <div className="landing-section-inner">
-          <h2 className="landing-section-title">אילו פיצ&apos;רים מחכים לכם במערכת?</h2>
+          <h2 className="landing-section-title">אז מה זה Momo (מומו)?</h2>
           <div className="landing-features-grid">
-            {FEATURES.map((feature) => {
+            {MOMOTO_FEATURES.map((feature) => {
               const Icon = feature.icon;
               return (
                 <article key={feature.title} className="landing-feature-card">
                   <div className="landing-feature-icon" aria-hidden="true">
-                    <Icon size={24} />
+                    <Icon size={22} />
                   </div>
                   <h3>{feature.title}</h3>
                   <p>{feature.text}</p>
+                  {feature.image ? (
+                    <figure className="landing-media">
+                      <img src={feature.image} alt={feature.imageAlt || ""} loading="lazy" />
+                    </figure>
+                  ) : null}
                 </article>
               );
             })}
@@ -247,25 +285,100 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section id="testimonials" className="landing-section landing-testimonials">
+      <section id="seating" className="landing-section landing-seating">
         <div className="landing-section-inner">
-          <p className="landing-section-eyebrow">אמון מהשטח</p>
-          <h2 className="landing-section-title">כותבים עלינו</h2>
-          <p className="landing-section-lead">
-            זוגות שבחרו ב־momoEVENT מספרים איך החוויה הרגישה באמת — פשוטה, יוקרתית ומסודרת עד הפרט
-            האחרון.
+          <p className="landing-section-eyebrow">
+            <DoorOpen size={16} aria-hidden="true" /> סידורי הושבה
           </p>
-          <div className="landing-testimonials-grid">
-            {TESTIMONIALS.map((item) => (
-              <article key={item.names} className="landing-testimonial-card">
-                <div className="landing-testimonial-quote-icon" aria-hidden="true">
-                  <Quote size={22} strokeWidth={1.75} />
+          <h2 className="landing-section-title">סידורי הושבה והדיילת הדיגיטלית 🚪</h2>
+
+          <div className="landing-split">
+            <div className="landing-split-copy">
+              <h3>
+                <Table2 size={20} aria-hidden="true" /> מערכת סידורי הושבה בחינם!
+              </h3>
+              <p>
+                מציירים את האולם שלכם בקנבס, ופשוט גוררים את המוזמנים לשולחנות. קל, ויזואלי ובלי כאבי
+                ראש.
+              </p>
+            </div>
+            <figure className="landing-media landing-media--wide">
+              <img
+                src="/images/seating-canvas.png"
+                alt="הדגמת קנבס סידורי הושבה במומו"
+                loading="lazy"
+              />
+            </figure>
+          </div>
+
+          <article className="landing-hostess-panel">
+            <h3>הדיילת הדיגיטלית של מומו – חוסכים אלפי שקלים באולם</h3>
+            <p className="landing-hostess-lead">
+              חבל לשלם 1,500 ש&quot;ח לחברת סידורי הושבה בערב האירוע. איך זה עובד?
+            </p>
+            <ol className="landing-hostess-steps">
+              {HOSTESS_STEPS.map((step, index) => (
+                <li key={index}>{step}</li>
+              ))}
+            </ol>
+          </article>
+        </div>
+      </section>
+
+      <section id="catch" className="landing-section landing-catch">
+        <div className="landing-section-inner landing-catch-inner">
+          <h2 className="landing-section-title">רגע, אם הכל חינם – מה הקאץ&apos;? 🤔</h2>
+          <div className="landing-catch-body">
+            <p>
+              קודם כל – הגיע הזמן לעשות מהפכה בעולם החתונות! וברור שגם אנחנו צריכים להתפרנס, אז הנה
+              האמת כמו שהיא:
+            </p>
+            <p>
+              הווטסאפים החינמיים במערכת נשלחים <strong>ישירות מהווטסאפ האישי שלכם</strong>. נשלחת
+              לאורח הזמנה אישית עם השם שלו, אבל היא יוצאת מהמספר שלכם ולא ממספר חברה אנונימי.
+            </p>
+            <p className="landing-catch-personal">
+              <strong>ובנימה אישית:</strong>
+              <br />
+              בתכל&apos;ס? עדיף לשלוח לאורחים מתוך הווטסאפ שלכם. הם משקיעים, מתארגנים, שמים מעטפה, אולי
+              אפילו הורידו בייביסיטר בשבילכם... לא תרביצו להם הודעה אישית מכל הלב? 😉
+            </p>
+            <p>
+              אבל... אנחנו יודעים שלאירועים גדולים או כשאין כוח – לא לכולם זה מתאים. לכן, במידה
+              ותירצו לשלוח <strong>מווטסאפ החברה בצורה כמותית</strong> (עם כפתורים מהירים שסוגרים פינה
+              בשניות) או לעשות <strong>אישורי הגעה טלפוניים עם נציג אנושי</strong> – על זה יש תשלום.
+            </p>
+            <p>
+              והכי יפה? <strong>אפס התחייבות!</strong> לא חייבים לקנות חבילות של 500 איש אם יש לכם רק
+              30 אורחים לסגור. אפשר לקנות 36 רשומות, 12, או 102. בדיוק כמה שצריך.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section id="pricing" className="landing-section landing-pricing">
+        <div className="landing-section-inner">
+          <h2 className="landing-section-title">המחירון שלנו – שקוף, הוגן ובלי אותיות קטנות 💳</h2>
+          <div className="landing-pricing-grid">
+            {PRICING_PLANS.map((plan) => (
+              <article
+                key={plan.id}
+                className={`landing-price-card${plan.featured ? " is-featured" : ""}`}
+              >
+                {plan.featured ? <span className="landing-price-tag">הכי פופולרי</span> : null}
+                <h3>{plan.name}</h3>
+                <div className="landing-price-amount">
+                  <span className="landing-price-value">{plan.price}</span>
+                  <span className="landing-price-unit">{plan.unit}</span>
                 </div>
-                <p className="landing-testimonial-text">{item.quote}</p>
-                <div className="landing-testimonial-footer">
-                  <strong className="landing-testimonial-names">{item.names}</strong>
-                  <span className="landing-testimonial-meta">{item.meta}</span>
-                </div>
+                <ul>
+                  {plan.features.map((feature, index) => (
+                    <li key={`${plan.id}-${index}`}>{feature}</li>
+                  ))}
+                </ul>
+                <Link className="landing-cta landing-cta--primary landing-price-cta" to="/client/login">
+                  מתחילים בחינם
+                </Link>
               </article>
             ))}
           </div>
@@ -278,8 +391,7 @@ export default function LandingPage() {
             <p className="landing-section-eyebrow">צרו קשר</p>
             <h2 className="landing-section-title landing-section-title--start">דברו איתנו</h2>
             <p className="landing-contact-intro">
-              נשמח להתאים לכם את החבילה המושלמת לאירוע שלכם — בלי לחץ, בלי בלבול, ועם ליווי אישי לכל
-              אורך הדרך.
+              שאלות על החבילות, על הדיילת, או סתם רוצים לוודא שזה באמת בחינם? כתבו לנו – נחזור מהר.
             </p>
             <ul className="landing-contact-bullets">
               <li>מענה מהיר מצוות momoEVENT</li>
@@ -349,7 +461,11 @@ export default function LandingPage() {
               </p>
             ) : null}
 
-            <button className="landing-cta landing-cta--primary landing-contact-submit" type="submit" disabled={contactBusy}>
+            <button
+              className="landing-cta landing-cta--primary landing-contact-submit"
+              type="submit"
+              disabled={contactBusy}
+            >
               {contactBusy ? "שולחים…" : "שלחו לנו הודעה"}
             </button>
           </form>
@@ -357,7 +473,7 @@ export default function LandingPage() {
       </section>
 
       <footer className="landing-footer">
-        <p>momoEVENT · מערכת אישורי הגעה והזמנות דיגיטליות</p>
+        <p>momoEVENT · מערכת אישורי הגעה וניהול אירוע בחינם</p>
         <div className="landing-footer-links">
           <Link className="landing-footer-link" to="/client/login">
             התחברות ללקוחות
@@ -373,7 +489,7 @@ export default function LandingPage() {
         role="status"
         aria-live="polite"
       >
-        הודעתכם התקבלה בהצלחה! נציג ממומו איוונט יחזור אליכם בהקדם ??
+        הודעתכם התקבלה בהצלחה! נציג ממומו איוונט יחזור אליכם בהקדם
       </div>
     </div>
   );
