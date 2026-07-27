@@ -20,9 +20,9 @@ const initialRsvp = {
 };
 
 function attendeesCountForStatus(status, currentCount) {
-  if (status === "מגיע") return Math.max(1, Number(currentCount) || 1);
-  if (status === "אולי") return Math.max(1, Number(currentCount) || 1);
-  if (status === "לא מגיע") return 0;
+  if (status === "מגיע" || status === "אולי" || status === "לא מגיע") {
+    return Math.max(1, Number(currentCount) || 1);
+  }
   return currentCount;
 }
 
@@ -62,8 +62,8 @@ export default function IlInviteExperience({
   const displayNames = isWedding ? getWeddingNames(event) : getEventDisplayName(event);
   const timeline = isWedding ? getParallelTimeline(event) : [];
   const showCountdown = previewMode || rsvpStarted || Boolean(message);
-  const isAttending = form.status === "מגיע";
-  const showAttendeeStepper = isAttending;
+  const showAttendeeStepper =
+    form.status === "מגיע" || form.status === "אולי" || form.status === "לא מגיע";
 
   function onChange(changeEvent) {
     const { name, value } = changeEvent.target;
