@@ -1,11 +1,31 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Check, MessageCircle, Search, UserCheck, X } from "lucide-react";
+import {
+  Armchair,
+  Check,
+  CircleCheck,
+  MapPin,
+  Search,
+  Send,
+  Users,
+  X
+} from "lucide-react";
 import api from "../api";
 import { MOMOEVENT_SUPPORT_PHONE } from "../utils/tableDispatchPurchase.js";
 import "../us/client-portal.css";
 import "../il/il-portal.css";
 import "../il/hostess.css";
+
+function statusTagClass(status) {
+  if (status === "מגיע") return "il-hostess-tag--status-yes";
+  if (status === "אולי") return "il-hostess-tag--status-maybe";
+  if (status === "הגיע לאירוע") return "il-hostess-tag--status-arrived";
+  return "il-hostess-tag--status-default";
+}
+
+function isGuestArrived(guest) {
+  return guest.status === "הגיע לאירוע" || Boolean(guest.hostessArrivedAt);
+}
 
 export default function HostessPage() {
   const { eventId } = useParams();
@@ -21,7 +41,6 @@ export default function HostessPage() {
   const [toast, setToast] = useState(null);
   const [busyGuestId, setBusyGuestId] = useState("");
   const [seatGuest, setSeatGuest] = useState(null);
-  const [selectedTableId, setSelectedTableId] = useState("");
   const [seatSuccess, setSeatSuccess] = useState(null);
   const [couponGuest, setCouponGuest] = useState(null);
   const [couponCode, setCouponCode] = useState("");
@@ -69,11 +88,12 @@ export default function HostessPage() {
     });
   }, [guests, query]);
 
-  const availableTables = useMemo(() => {
-    if (!seatGuest) return [];
-    const needed = Math.max(1, Number(seatGuest.attendeesCount) || 1);
-    return tables.filter((table) => Number(table.remaining) >= needed);
-  }, [seatGuest, tables]);
+  const arrivedCount = useMemo(
+    () => guests.filter((guest) => isGuestArrived(guest)).length,
+    [guests]
+  );
+
+  const seatNeeded = Math.max(1, Number(seatGuest?.attendeesCount) || 1);
 
   const markArrived = async (guest) => {
     setBusyGuestId(guest._id);
@@ -157,16 +177,15 @@ export default function HostessPage() {
   };
 
   const openSeatModal = (guest) => {
-    setSelectedTableId("");
     setSeatGuest(guest);
   };
 
-  const confirmSeatAtTable = async () => {
-    if (!seatGuest || !selectedTableId) return;
+  const assignTable = async (tableId) => {
+    if (!seatGuest || !tableId) return;
     setBusyGuestId(seatGuest._id);
     try {
       const { data } = await api.post(`/hostess/${eventId}/guests/${seatGuest._id}/assign-table`, {
-        tableId: selectedTableId
+        tableId
       });
       setGuests((prev) =>
         prev.map((item) =>
@@ -174,8 +193,8 @@ export default function HostessPage() {
             ? {
                 ...item,
                 ...(data.guest || {}),
-                seatingTableId: selectedTableId,
-                tableLabel: data.tableLabel || selectedTableId
+                seatingTableId: tableId,
+                tableLabel: data.tableLabel || tableId
               }
             : item
         )
@@ -185,7 +204,7 @@ export default function HostessPage() {
       setSeatSuccess({
         guestId: seatGuest._id,
         fullName: seatGuest.fullName,
-        tableLabel: data.tableLabel || selectedTableId
+        tableLabel: data.tableLabel || tableId
       });
     } catch (assignError) {
       showToast(assignError.response?.data?.message || "שיבוץ לשולחן נכשל", { tone: "error" });
@@ -196,86 +215,119 @@ export default function HostessPage() {
 
   return (
     <div className="il-hostess-page" dir="rtl" lang="he">
-      <header className="il-hostess-header">
-        <div>
-          <p className="il-hostess-eyebrow">דיילת דיגיטלית</p>
-          <h1>{eventLabel || "דיילת דיגיטלית"}</h1>
-          <p>שימו מישהו מטעמכם על העמדה והוא מחפש את המוזמן ויודע איפה הוא יושב</p>
+      <div className="il-hostess-shell">
+        <header className="il-hostess-header">
+          <div className="il-hostess-header__top">
+            <div>
+              <p className="il-hostess-eyebrow">שלום, דיילת</p>
+              <h1>קבלת פנים · {eventLabel || "דיילת דיגיטלית"}</h1>
+            </div>
+            <div className="il-hostess-arrived-count" aria-label={`${arrivedCount} הגיעו`}>
+              <span className="il-hostess-arrived-count__num">{arrivedCount}</span>
+              <span className="il-hostess-arrived-count__label">הגיעו</span>
+            </div>
+          </div>
+
+          <label className="il-hostess-search">
+            <Search size={16} aria-hidden="true" />
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="חיפוש לפי שם או טלפון..."
+              autoFocus
+              aria-label="חיפוש מוזמנים"
+            />
+            {query ? (
+              <button
+                type="button"
+                className="il-hostess-search__clear"
+                aria-label="נקה חיפוש"
+                onClick={() => setQuery("")}
+              >
+                <X size={16} aria-hidden="true" />
+              </button>
+            ) : null}
+          </label>
+        </header>
+
+        <div className="il-hostess-body">
+          {error ? <p className="il-hostess-status-line il-hostess-status-line--error">{error}</p> : null}
+          {loading ? <p className="il-hostess-status-line">טוען…</p> : null}
+
+          <ul className="il-hostess-list">
+            {!loading && !filteredGuests.length ? (
+              <li className="il-hostess-empty">לא נמצאו מוזמנים</li>
+            ) : null}
+            {filteredGuests.map((guest) => {
+              const arrived = isGuestArrived(guest);
+              const isSeated = Boolean(guest.seatingTableId || guest.tableLabel);
+              return (
+                <li key={guest._id} className={`il-hostess-card${arrived ? " is-arrived" : ""}`}>
+                  <div className="il-hostess-card__info">
+                    <div className="il-hostess-card__name-row">
+                      <h2 className="il-hostess-card__name">{guest.fullName}</h2>
+                      {arrived ? (
+                        <span className="il-hostess-arrived-badge">
+                          <CircleCheck size={12} aria-hidden="true" />
+                          הגיע
+                        </span>
+                      ) : null}
+                    </div>
+                    <span className="il-hostess-card__phone" dir="ltr">
+                      {guest.phone || "—"}
+                    </span>
+                    <div className="il-hostess-card__tags">
+                      <span className={`il-hostess-tag ${isSeated ? "il-hostess-tag--table" : "il-hostess-tag--no-table"}`}>
+                        <Armchair size={12} aria-hidden="true" />
+                        {guest.tableLabel ? `שולחן ${guest.tableLabel}` : "ללא שולחן"}
+                      </span>
+                      <span className={`il-hostess-tag ${statusTagClass(guest.status)}`}>
+                        {guest.status || "לא ידוע"}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="il-hostess-card__actions">
+                    <button
+                      type="button"
+                      className={`il-hostess-btn ${arrived ? "il-hostess-btn--outline" : "il-hostess-btn--primary"}`}
+                      disabled={busyGuestId === guest._id}
+                      onClick={() => markArrived(guest)}
+                    >
+                      <Check size={14} aria-hidden="true" />
+                      {arrived ? "עדכון הגעה" : "המוזמן הגיע"}
+                    </button>
+                    {!isSeated ? (
+                      <button
+                        type="button"
+                        className="il-hostess-btn il-hostess-btn--secondary"
+                        disabled={busyGuestId === guest._id}
+                        onClick={() => openSeatModal(guest)}
+                      >
+                        <Armchair size={14} aria-hidden="true" />
+                        הושבה בשולחן ריק
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      className="il-hostess-btn il-hostess-btn--ghost"
+                      disabled={busyGuestId === guest._id}
+                      onClick={() => openWhatsAppFlow(guest)}
+                    >
+                      <Send size={14} aria-hidden="true" />
+                      שלח מס׳ שולחן ב-WhatsApp
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
         </div>
-      </header>
-
-      <label className="il-hostess-search">
-        <Search size={18} aria-hidden="true" />
-        <input
-          type="search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="חיפוש לפי שם, טלפון או שולחן…"
-          autoFocus
-          aria-label="חיפוש מוזמנים"
-        />
-      </label>
-
-      {error ? <p className="us-error-message">{error}</p> : null}
-      {loading ? <p>טוען…</p> : null}
-
-      <ul className="il-hostess-list">
-        {!loading && !filteredGuests.length ? (
-          <li className="il-hostess-empty">לא נמצאו מוזמנים</li>
-        ) : null}
-        {filteredGuests.map((guest) => {
-          const arrived = guest.status === "הגיע לאירוע" || Boolean(guest.hostessArrivedAt);
-          const isSeated = Boolean(guest.seatingTableId || guest.tableLabel);
-          return (
-            <li key={guest._id} className={`il-hostess-card${arrived ? " is-arrived" : ""}`}>
-              <div className="il-hostess-card__info">
-                <strong>{guest.fullName}</strong>
-                <span dir="ltr">{guest.phone || "—"}</span>
-                <span>
-                  {guest.tableLabel ? `שולחן ${guest.tableLabel}` : "ללא שולחן"} · {guest.status}
-                </span>
-                {arrived ? (
-                  <span className="il-hostess-arrived-badge">הגיע לאירוע · דיילת</span>
-                ) : null}
-              </div>
-              <div className="il-hostess-card__actions">
-                <button
-                  type="button"
-                  className="us-btn us-btn--primary"
-                  disabled={busyGuestId === guest._id}
-                  onClick={() => markArrived(guest)}
-                >
-                  <UserCheck size={16} aria-hidden="true" />
-                  {arrived ? "עדכון הגעה" : "המוזמן הגיע"}
-                </button>
-                {!isSeated ? (
-                  <button
-                    type="button"
-                    className="us-btn"
-                    disabled={busyGuestId === guest._id}
-                    onClick={() => openSeatModal(guest)}
-                  >
-                    הושבה בשולחן ריק
-                  </button>
-                ) : null}
-                <button
-                  type="button"
-                  className="us-btn"
-                  disabled={busyGuestId === guest._id}
-                  onClick={() => openWhatsAppFlow(guest)}
-                >
-                  <MessageCircle size={16} aria-hidden="true" />
-                  שלח מס׳ שולחן ב-WhatsApp
-                </button>
-              </div>
-            </li>
-          );
-        })}
-      </ul>
+      </div>
 
       {toast ? (
         <div
-          className={`il-hostess-toast-popup il-hostess-toast-popup--${toast.tone} il-hostess-toast-popup--right`}
+          className={`il-hostess-toast-popup il-hostess-toast-popup--${toast.tone}`}
           role="status"
           aria-live="polite"
         >
@@ -307,9 +359,15 @@ export default function HostessPage() {
                 : arriveModal.message}
             </p>
             <p className="il-hostess-modal__meta">סטטוס עודכן ל־הגיע לאירוע · סומן על ידי דיילת אירוע</p>
-            <button className="us-btn us-btn--primary" type="button" onClick={() => setArriveModal(null)}>
-              סגור
-            </button>
+            <div className="us-modal-actions">
+              <button
+                className="il-hostess-btn il-hostess-btn--primary il-hostess-btn--block"
+                type="button"
+                onClick={() => setArriveModal(null)}
+              >
+                סגור
+              </button>
+            </div>
           </div>
         </div>
       ) : null}
@@ -320,44 +378,57 @@ export default function HostessPage() {
             className="us-modal-card il-hostess-modal"
             role="dialog"
             aria-modal="true"
+            aria-label={`בחירת שולחן עבור ${seatGuest.fullName}`}
             onClick={(event) => event.stopPropagation()}
           >
-            <h2>הושבה בשולחן ריק</h2>
-            <p>
-              בחרו שולחן פנוי עבור <strong>{seatGuest.fullName}</strong>
-            </p>
-            {!availableTables.length ? (
-              <p className="us-error-message">אין כרגע שולחנות עם מקומות פנויים מספיק</p>
-            ) : (
-              <label className="us-admin-field-label" style={{ display: "block", marginBottom: "0.85rem" }}>
-                שולחן
-                <select
-                  className="us-admin-field-input"
-                  value={selectedTableId}
-                  onChange={(event) => setSelectedTableId(event.target.value)}
-                >
-                  <option value="">בחרו שולחן…</option>
-                  {availableTables.map((table) => (
-                    <option key={table.tableId} value={table.tableId}>
-                      שולחן {table.label} · פנויים {table.remaining}/{table.capacity}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
-            <div className="us-modal-actions">
+            <div className="il-hostess-modal__head">
+              <div>
+                <h2>בחירת שולחן</h2>
+                <p>
+                  הושבת <strong>{seatGuest.fullName}</strong> בשולחן פנוי
+                </p>
+              </div>
               <button
-                className="us-btn us-btn--primary"
                 type="button"
-                disabled={!selectedTableId || busyGuestId === seatGuest._id}
-                onClick={confirmSeatAtTable}
+                className="il-hostess-modal__close"
+                aria-label="סגירה"
+                onClick={() => setSeatGuest(null)}
               >
-                הוסף לשולחן
-              </button>
-              <button className="us-btn" type="button" onClick={() => setSeatGuest(null)}>
-                ביטול
+                <X size={20} aria-hidden="true" />
               </button>
             </div>
+
+            {!tables.length ? (
+              <p className="il-hostess-status-line il-hostess-status-line--error" style={{ marginTop: "1rem" }}>
+                אין שולחנות במערך ההושבה
+              </p>
+            ) : (
+              <div className="il-hostess-table-grid">
+                {tables.map((table) => {
+                  const full = Number(table.remaining) < seatNeeded;
+                  return (
+                    <button
+                      key={table.tableId}
+                      type="button"
+                      className="il-hostess-table-cell"
+                      disabled={full || busyGuestId === seatGuest._id}
+                      onClick={() => assignTable(table.tableId)}
+                    >
+                      <span className="il-hostess-table-cell__num">{table.label}</span>
+                      <span className="il-hostess-table-cell__meta">
+                        <Users size={12} aria-hidden="true" />
+                        {full ? "מלא" : `${table.remaining} פנויים`}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            <p className="il-hostess-table-hint">
+              <MapPin size={14} aria-hidden="true" />
+              רק שולחנות עם מקום פנוי ניתנים לבחירה
+            </p>
           </div>
         </div>
       ) : null}
@@ -376,7 +447,7 @@ export default function HostessPage() {
             </p>
             <div className="us-modal-actions">
               <button
-                className="us-btn us-btn--primary"
+                className="il-hostess-btn il-hostess-btn--primary"
                 type="button"
                 onClick={() => {
                   const guest = guests.find((item) => item._id === seatSuccess.guestId) || {
@@ -391,7 +462,11 @@ export default function HostessPage() {
               >
                 שלח לו בוואטסאפ
               </button>
-              <button className="us-btn" type="button" onClick={() => setSeatSuccess(null)}>
+              <button
+                className="il-hostess-btn il-hostess-btn--outline"
+                type="button"
+                onClick={() => setSeatSuccess(null)}
+              >
                 סגירה
               </button>
             </div>
@@ -417,10 +492,9 @@ export default function HostessPage() {
           >
             <h2>שליחת מספר שולחן</h2>
             <p>יש להזין קוד קופון פעיל לשליחת ההודעה.</p>
-            <label className="us-admin-field-label" style={{ display: "block", marginBottom: "0.75rem" }}>
+            <label className="il-hostess-field">
               קוד קופון
               <input
-                className="us-admin-field-input"
                 value={couponCode}
                 onChange={(event) => setCouponCode(event.target.value)}
                 placeholder="קוד קופון"
@@ -428,12 +502,24 @@ export default function HostessPage() {
                 required
               />
             </label>
-            {couponError ? <p className="us-error-message">{couponError}</p> : null}
+            {couponError ? (
+              <p className="il-hostess-status-line il-hostess-status-line--error" style={{ marginTop: "0.75rem" }}>
+                {couponError}
+              </p>
+            ) : null}
             <div className="us-modal-actions">
-              <button className="us-btn us-btn--primary" type="submit" disabled={busyGuestId === couponGuest._id}>
+              <button
+                className="il-hostess-btn il-hostess-btn--primary"
+                type="submit"
+                disabled={busyGuestId === couponGuest._id}
+              >
                 שליחה
               </button>
-              <button className="us-btn" type="button" onClick={() => setCouponGuest(null)}>
+              <button
+                className="il-hostess-btn il-hostess-btn--outline"
+                type="button"
+                onClick={() => setCouponGuest(null)}
+              >
                 ביטול
               </button>
             </div>
@@ -456,9 +542,15 @@ export default function HostessPage() {
                 {MOMOEVENT_SUPPORT_PHONE}
               </a>
             </p>
-            <button className="us-btn us-btn--primary" type="button" onClick={() => setLockedModal(false)}>
-              סגור
-            </button>
+            <div className="us-modal-actions">
+              <button
+                className="il-hostess-btn il-hostess-btn--primary il-hostess-btn--block"
+                type="button"
+                onClick={() => setLockedModal(false)}
+              >
+                סגור
+              </button>
+            </div>
           </div>
         </div>
       ) : null}

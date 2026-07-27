@@ -1,5 +1,7 @@
 import Image from 'next/image'
-import { UserCheck } from 'lucide-react'
+import Link from 'next/link'
+import { UserCheck, ArrowLeft } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 const steps = [
   {
@@ -51,6 +53,13 @@ export function Hostess() {
               </li>
             ))}
           </ol>
+
+          <Button asChild size="lg" className="mt-8 rounded-full">
+            <Link href="/dailet">
+              נסו את ממשק הדיילת
+              <ArrowLeft className="size-4" aria-hidden />
+            </Link>
+          </Button>
         </div>
 
         <div className="relative">
