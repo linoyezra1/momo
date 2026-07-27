@@ -12,6 +12,7 @@ import {
   MessageCircle,
   PartyPopper,
   Phone,
+  PhoneCall,
   Send,
   UserCheck,
   Users,
@@ -19,6 +20,7 @@ import {
   X
 } from "lucide-react";
 import LandingShowcase from "../landing/LandingShowcase.jsx";
+import WhatsAppIcon from "../components/WhatsAppIcon.jsx";
 import { buildSupportWhatsAppUrl } from "../utils/tableDispatchPurchase.js";
 import "../landing.css";
 
@@ -73,7 +75,7 @@ const FEATURE_SECTIONS = [
     id: "feature-import",
     icon: ClipboardList,
     badge: "ייבוא מוזמנים",
-    title: "מעלים רשימה בלחיצה",
+    title: "ייבוא מוזמנים מאנשי קשר",
     text: "רוצים להתחיל מהר? מושכים מאנשי הקשר בטלפון, או מעלים קובץ אקסל מוכן. המערכת מסדרת כפילויות ושומרת את הרשימה מוכנה לעבודה.",
     points: [
       "ייבוא מאנשי הקשר בפלאפון — להתחלת רשימה ראשונית",
@@ -88,7 +90,7 @@ const FEATURE_SECTIONS = [
     id: "feature-vendors",
     icon: Wallet,
     badge: "ספקים ותקציב",
-    title: "ספקים והצעות מחיר — לא בוואטסאפ",
+    title: "ניהול ספקים והצעות מחיר",
     text: "במקום 4 הצעות מחיר שזרוקות בצ'אטים ובאנשי קשר, מכניסים למומו את הספקים, הסכומים וההערות. הכל מסודר במקום אחד, כדי שתוכלו להשוות ולהחליט ברוגע.",
     points: [
       "שמירת ספקים, קטגוריות והצעות מחיר",
@@ -103,7 +105,7 @@ const FEATURE_SECTIONS = [
     id: "feature-whatsapp",
     icon: MessageCircle,
     badge: "וואטסאפ בחינם",
-    title: "שולחים מהמספר האישי שלכם",
+    title: "אישורי הגעה בוואטסאפ - בחינם",
     text: "בשירות החינמי שולחים הזמנה אישית עם שם המוזמן — ישירות מהוואטסאפ האישי שלכם. בלי הגבלה ובלי עלות. למי שצריך שליחה כמותית מהחברה — יש אפשרות בתשלום.",
     points: [
       "הודעה אישית עם שם האורח",
@@ -118,7 +120,7 @@ const FEATURE_SECTIONS = [
     id: "feature-audit",
     icon: Bell,
     badge: "לוג עדכונים",
-    title: "רואים מי שינה — ומתי",
+    title: "עדכונים לגבי שינוי סטטוס הגעה",
     text: "אורחים אוהבים לשנות דעה. הלוג מראה בדיוק מי אישר, מתי, ומה עודכן — מוואטסאפ, מהקישור, או מעדכון ידני. ככה תמיד יודעים מה קורה.",
     points: [
       "מעקב בזמן אמת אחרי שינויי סטטוס",
@@ -243,6 +245,21 @@ function FreeSignupButton({ className = "", children = "הרשמה בחינם", 
       {children}
     </a>
   );
+}
+
+function PricingFeatureIcon({ feature }) {
+  const text = String(feature || "");
+  const isPhone =
+    text.includes("טלפונ") || text.includes("שיח") || text.includes("חיוג");
+  const isWhatsApp = text.includes("וואטסאפ") || text.includes("ווטסאפ");
+
+  if (isPhone) {
+    return <PhoneCall className="size-3.5" aria-hidden="true" />;
+  }
+  if (isWhatsApp) {
+    return <WhatsAppIcon size={14} className="shrink-0" />;
+  }
+  return <Check className="size-3.5" aria-hidden="true" />;
 }
 
 export default function LandingPage() {
@@ -512,7 +529,7 @@ export default function LandingPage() {
                 הדיילת הדיגיטלית
               </span>
               <h2 className="mt-5 text-balance font-serif text-3xl font-bold text-primary md:text-4xl">
-                חוסכים על דיילת קבלה
+                חוסכים ולא משלמים לחברת סידורי הושבה
               </h2>
               <p className="mt-4 text-pretty text-lg leading-relaxed text-muted-foreground">
                 ממשק הדיילת של מומו מאפשר לכם לנהל את קבלת האורחים לבד, בלי לשלם לחברת סידורי הושבה.
@@ -557,7 +574,7 @@ export default function LandingPage() {
                 אם הכל חינם — מה יוצא לנו מזה?
               </h2>
               <p className="mt-4 text-pretty text-lg leading-relaxed text-muted-foreground">
-                קודם כל, מהפכה קטנה באולם החתונות. וברור שלא עובדים בחינם: מי שרוצה, יכול לשדרג ולשלוח
+                קודם כל, מהפכה בעולם החתונות!! וברור שלא עובדים בחינם: מי שרוצה, יכול לשדרג ולשלוח
                 הודעות מהמערכת או להוסיף אישורי הגעה טלפוניים.
               </p>
             </div>
@@ -579,12 +596,15 @@ export default function LandingPage() {
               })}
             </div>
 
-            <div className="mx-auto mt-10 max-w-3xl rounded-2xl border border-accent/30 bg-card p-6 text-center md:p-8">
-              <p className="text-pretty text-lg leading-relaxed text-foreground">
-                ובנימה אישית — עדיף לשלוח לאורחים הזמנה מהוואטסאפ האישי שלכם. הם משקיעים בשבילכם:
-                מתארגנים, מביאים מעטפה, אולי אפילו לוקחים בייביסיטר. אז שווה להשקיע בהם הודעה אישית.
-                ולמי שזה פחות מתאים — יש לנו גם שליחה מוואטסאפ החברה וגם אישורי הגעה טלפוניים אנושיים.
-              </p>
+            <div className="landing-speech-wrap mx-auto mt-10 max-w-3xl">
+              <div className="landing-speech-bubble" role="note">
+                <p className="landing-speech-bubble__label">בנימה אישית</p>
+                <p className="landing-speech-bubble__text">
+                  עדיף לשלוח לאורחים הזמנה מהוואטסאפ האישי שלכם. הם משקיעים בשבילכם: מתארגנים, מביאים
+                  מעטפה, אולי אפילו לוקחים בייביסיטר. אז שווה להשקיע בהם הודעה אישית. ולמי שזה פחות
+                  מתאים — יש לנו גם שליחה מוואטסאפ החברה וגם אישורי הגעה טלפוניים אנושיים.
+                </p>
+              </div>
             </div>
           </div>
         </section>
@@ -592,7 +612,7 @@ export default function LandingPage() {
         <section id="pricing" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-16 md:py-24">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-balance font-serif text-3xl font-bold text-primary md:text-4xl">
-              מחירים פשוטים, בלי אותיות קטנות
+              אתם צריכים בכל זאת לשלוח בתפוצה רחבה גם את זה יש לנו
             </h2>
             <p className="mt-4 text-pretty text-lg leading-relaxed text-muted-foreground">
               מתחילים בחינם, ומשלמים רק על מה שבאמת צריך. בלי התחייבות לתוכנית.
@@ -646,7 +666,7 @@ export default function LandingPage() {
                   {plan.features.map((feature) => (
                     <li key={feature} className="flex items-start gap-3">
                       <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-accent/15 text-accent">
-                        <Check className="size-3.5" />
+                        <PricingFeatureIcon feature={feature} />
                       </span>
                       <span className="text-sm leading-relaxed text-foreground">{feature}</span>
                     </li>
@@ -667,7 +687,7 @@ export default function LandingPage() {
               <PartyPopper className="size-6" />
             </span>
             <h2 className="mt-5 text-balance font-serif text-3xl font-bold text-white md:text-4xl">
-              מוכנים להתחיל לתכנן?
+              לא הבנתם איך הכל עובד? תתחילו לשחק עם המערכת זה בחינם...
             </h2>
             <p className="mx-auto mt-3 max-w-md text-pretty leading-relaxed text-white/80">
               נרשמים בחינם, מעלים את המוזמנים ומתחילים לשלוח הזמנות. בלי כרטיס אשראי ובלי התחייבות.
