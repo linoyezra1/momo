@@ -19,13 +19,19 @@ import {
   X
 } from "lucide-react";
 import LandingShowcase from "../landing/LandingShowcase.jsx";
+import { buildSupportWhatsAppUrl } from "../utils/tableDispatchPurchase.js";
 import "../landing.css";
+
+const FREE_SIGNUP_WHATSAPP_TEXT = "באתי מהאתר ואני רוצה לפתוח משתמש במערכת בחינם";
+const FREE_SIGNUP_WHATSAPP_LINK = buildSupportWhatsAppUrl(FREE_SIGNUP_WHATSAPP_TEXT);
 
 const WHATSAPP_LINK =
   import.meta.env.VITE_MARKETING_WHATSAPP_URL ||
+  buildSupportWhatsAppUrl("שלום, אשמח לקבל פרטים על מומו") ||
   "https://api.whatsapp.com/send?text=" + encodeURIComponent("שלום, אשמח לקבל פרטים על מומו");
 
 const NAV_LINKS = [
+  { label: "אישורי הגעה בחינם", href: "#why-free" },
   { label: "איך זה עובד", href: "#features" },
   { label: "סידורי הושבה", href: "#seating" },
   { label: "הדיילת", href: "#hostess" },
@@ -36,7 +42,7 @@ const FEATURES = [
   {
     icon: Users,
     title: "ניהול מוזמנים",
-    text: "כל רשימת המוזמנים במקום אחד. אפשר גם להעלות מוזמנים ישר מאנשי הקשר בטלפון, וגם מקובץ אקסל אם בא לכם."
+    text: "כל רשימת המוזמנים במקום אחד. ייבוא וייצוא קובצי אקסל (Excel) של מוזמנים, וגם העלאה ישר מאנשי הקשר בטלפון."
   },
   {
     icon: ImageIcon,
@@ -46,7 +52,7 @@ const FEATURES = [
   {
     icon: ClipboardList,
     title: "העלאה מאנשי הקשר",
-    text: "רק רוצים להתחיל את הרשימה הראשונית? מסמנים אנשי קשר ומעלים אותם ישר למערכת. אפשר גם מאקסל."
+    text: "רק רוצים להתחיל את הרשימה הראשונית? מסמנים אנשי קשר ומעלים אותם ישר למערכת. בנוסף: ייבוא וייצוא קובצי אקסל (Excel) של מוזמנים."
   },
   {
     icon: Wallet,
@@ -114,6 +120,7 @@ const WHATSAPP_EXTRAS = [
 
 const BASE_FEATURES = [
   "ניהול מוזמנים",
+  "ייבוא וייצוא קובצי אקסל (Excel) של מוזמנים",
   "העלאת מוזמנים מאנשי הקשר",
   "הזמנה דיגיטלית",
   "סידורי הושבה",
@@ -129,7 +136,7 @@ const PLANS = [
     unit: "₪",
     note: "כל הבסיס, בלי לשלם שקל.",
     features: BASE_FEATURES,
-    cta: "מתחילים בחינם",
+    cta: "הרשמה בחינם",
     highlight: false
   },
   {
@@ -164,11 +171,17 @@ const PLANS = [
   }
 ];
 
-function CtaLink({ to = "/client/login", className = "", children, ...props }) {
+function FreeSignupButton({ className = "", children = "הרשמה בחינם", ...props }) {
   return (
-    <Link to={to} className={className} {...props}>
+    <a
+      href={FREE_SIGNUP_WHATSAPP_LINK}
+      target="_blank"
+      rel="noreferrer"
+      className={className}
+      {...props}
+    >
       {children}
-    </Link>
+    </a>
   );
 }
 
@@ -207,9 +220,9 @@ export default function LandingPage() {
           </nav>
 
           <div className="flex items-center gap-2">
-            <CtaLink className="hidden rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 sm:inline-flex">
-              מתחילים בחינם
-            </CtaLink>
+            <FreeSignupButton className="hidden rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 sm:inline-flex">
+              הרשמה בחינם
+            </FreeSignupButton>
             <button
               type="button"
               className="inline-flex size-10 items-center justify-center rounded-full border border-border bg-card text-primary md:hidden"
@@ -233,12 +246,12 @@ export default function LandingPage() {
                   {link.label}
                 </a>
               ))}
-              <CtaLink
+              <FreeSignupButton
                 className="mt-2 flex w-full items-center justify-center rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground"
                 onClick={() => setMenuOpen(false)}
               >
-                מתחילים בחינם
-              </CtaLink>
+                הרשמה בחינם
+              </FreeSignupButton>
               <Link
                 to="/client/login"
                 className="mt-1 flex w-full items-center justify-center rounded-full px-4 py-2 text-sm text-muted-foreground"
@@ -260,26 +273,25 @@ export default function LandingPage() {
                 אישורי הגעה בחינם. באמת.
               </span>
 
-              <h1 className="mt-6 text-balance font-serif text-4xl font-bold leading-tight text-primary md:text-6xl">
-                כל החתונה שלכם
-                <br />
-                במקום אחד
+              <h1 className="mt-6 text-balance font-serif text-4xl font-bold leading-tight text-primary md:text-5xl lg:text-6xl">
+                אישורי הגעה והזמנה דיגיטלית - בחינם.
               </h1>
 
               <p className="mx-auto mt-5 max-w-md text-pretty text-lg leading-relaxed text-muted-foreground md:mx-0">
-                מומו זו מערכת חינמית לאישורי הגעה, הזמנה דיגיטלית, ניהול מוזמנים, סידורי הושבה ודיילת
-                דיגיטלית. מתחתנים, יש מלא הוצאות — ואישורי ההגעה צריכים להיות נגישים לכל כיס.
+                מומו זו מערכת חינמית לאישורי הגעה, הזמנה דיגיטלית, ניהול מוזמנים, סידורי הושבה, דיילת
+                דיגיטלית וניהול ספקים. מתחתנים, יש מלא הוצאות — ואישורי ההגעה צריכים להיות נגישים לכל
+                כיס.
               </p>
 
               <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row md:justify-start">
-                <CtaLink className="inline-flex w-full items-center justify-center rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 sm:w-auto">
-                  מתחילים בחינם
-                </CtaLink>
+                <FreeSignupButton className="inline-flex w-full items-center justify-center rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 sm:w-auto">
+                  הרשמה בחינם
+                </FreeSignupButton>
                 <a
-                  href="#pricing"
+                  href="#why-free"
                   className="inline-flex w-full items-center justify-center rounded-full border border-border bg-card px-6 py-3 text-sm font-semibold text-primary hover:bg-secondary sm:w-auto"
                 >
-                  רואים מה כלול
+                  קצת יותר פרטים...
                 </a>
               </div>
 
@@ -307,9 +319,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <LandingShowcase />
-
-        <section className="border-y border-border bg-secondary/50">
+        <section id="why-free" className="scroll-mt-20 border-y border-border bg-secondary/50">
           <div className="mx-auto max-w-4xl px-4 py-16 text-center md:py-20">
             <h2 className="font-serif text-3xl font-bold text-primary md:text-4xl">
               איך מערכת כזו יכולה להיות בחינם?
@@ -317,15 +327,21 @@ export default function LandingPage() {
             <p className="mx-auto mt-5 max-w-2xl text-pretty text-lg leading-relaxed text-muted-foreground">
               כי ככה זה צריך להיות. כשמתחתנים יש כל כך הרבה הוצאות, ואישורי ההגעה פשוט צריכים להיות
               נגישים לכל אחד. אצלנו כל הבסיס חינמי — ומשלמים רק אם רוצים תוספות כמו שליחת הודעות
-              מהמערכת או אישורי הגעה טלפוניים.
+              מהמערכת או אישורי הגעה טלפוניים.{" "}
+              <strong className="font-bold text-primary">
+                יש לשים לב שזה נשלח מהווצאפ האישי שלכם
+              </strong>
+              .
             </p>
           </div>
         </section>
 
+        <LandingShowcase />
+
         <section id="features" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-16 md:py-24">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-balance font-serif text-3xl font-bold text-primary md:text-4xl">
-              כל מה שצריך כדי לארגן חתונה
+              הפיצ&apos;רים במערכת החינמית
             </h2>
             <p className="mt-4 text-pretty text-lg leading-relaxed text-muted-foreground">
               לא רק אישורי הגעה — מערכת שלמה שמלווה אתכם מהרגע שהתחלתם ועד היום עצמו.
@@ -507,15 +523,26 @@ export default function LandingPage() {
                   <span className="mb-1 text-sm text-muted-foreground">{plan.unit}</span>
                 </div>
 
-                <CtaLink
-                  className={`mt-6 inline-flex w-full items-center justify-center rounded-full px-4 py-2.5 text-sm font-semibold ${
-                    plan.highlight
-                      ? "bg-accent text-accent-foreground hover:bg-accent/90"
-                      : "bg-primary text-primary-foreground hover:bg-primary/90"
-                  }`}
-                >
-                  {plan.cta}
-                </CtaLink>
+                {plan.price === "0" ? (
+                  <FreeSignupButton
+                    className="mt-6 inline-flex w-full items-center justify-center rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                  >
+                    {plan.cta}
+                  </FreeSignupButton>
+                ) : (
+                  <a
+                    href={WHATSAPP_LINK}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={`mt-6 inline-flex w-full items-center justify-center rounded-full px-4 py-2.5 text-sm font-semibold ${
+                      plan.highlight
+                        ? "bg-accent text-accent-foreground hover:bg-accent/90"
+                        : "bg-primary text-primary-foreground hover:bg-primary/90"
+                    }`}
+                  >
+                    {plan.cta}
+                  </a>
+                )}
 
                 <ul className="mt-7 space-y-3">
                   {plan.features.map((feature) => (
@@ -547,9 +574,9 @@ export default function LandingPage() {
             <p className="mx-auto mt-3 max-w-md text-pretty leading-relaxed text-primary-foreground/80">
               נרשמים בחינם, מעלים את המוזמנים ומתחילים לשלוח הזמנות. בלי כרטיס אשראי ובלי התחייבות.
             </p>
-            <CtaLink className="mt-7 inline-flex items-center justify-center rounded-full bg-accent px-6 py-3 text-sm font-semibold text-accent-foreground hover:bg-accent/90">
-              מתחילים בחינם עם מומו
-            </CtaLink>
+            <FreeSignupButton className="mt-7 inline-flex items-center justify-center rounded-full bg-accent px-6 py-3 text-sm font-semibold text-accent-foreground hover:bg-accent/90">
+              הרשמה בחינם עם מומו
+            </FreeSignupButton>
           </div>
         </section>
       </main>

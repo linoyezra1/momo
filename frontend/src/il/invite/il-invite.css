@@ -228,10 +228,10 @@
 }
 
 .il-invite-rsvp__btn--maybe {
-  background: linear-gradient(140deg, #fff9ef 0%, #fff4dc 100%);
-  color: #4a3b1f;
-  border-color: #d4af37;
-  box-shadow: 0 6px 18px rgb(212 175 55 / 16%);
+  background: transparent;
+  color: var(--il-ink);
+  border-color: var(--il-ink);
+  box-shadow: none;
 }
 
 .il-invite-rsvp__btn--no {
@@ -240,8 +240,8 @@
 
 .il-invite-rsvp__btn--maybe:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 10px 24px rgb(212 175 55 / 22%);
-  background: linear-gradient(140deg, #fff4dc 0%, #f7e8b8 100%);
+  box-shadow: none;
+  background: transparent;
 }
 
 .il-invite-rsvp__btn--no:hover:not(:disabled),
