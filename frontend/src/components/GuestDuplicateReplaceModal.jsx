@@ -40,7 +40,7 @@ export default function GuestDuplicateReplaceModal({
 
         <div className="us-toolbar mt-4">
           <button className="us-btn us-btn--primary" type="button" disabled={submitting} onClick={onConfirm}>
-            {submitting ? "שומר…" : "אישור להחלפה"}
+            {submitting ? "שומר…" : "אישור החלפה"}
           </button>
           <button className="us-btn" type="button" disabled={submitting} onClick={onCancel}>
             ביטול

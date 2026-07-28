@@ -98,7 +98,8 @@ export function mapDeviceContactsToReviewRows(contacts, existingGuests = []) {
     const rawPhone = pickContactPhone(contact);
     const phone = normalizeIsraeliPhone(rawPhone);
     const isInvalidPhone = !phone || !isLikelyValidIsraeliMobile(phone);
-    const isExistingDuplicate = Boolean(phone) && existingByPhone.has(phone);
+    const existingGuest = phone ? existingByPhone.get(phone) || null : null;
+    const isExistingDuplicate = Boolean(existingGuest);
     const isBatchDuplicate = Boolean(phone) && seenInBatch.has(phone);
     const isDuplicate = isExistingDuplicate || isBatchDuplicate;
 
@@ -114,7 +115,7 @@ export function mapDeviceContactsToReviewRows(contacts, existingGuests = []) {
       isExistingDuplicate,
       isBatchDuplicate,
       isInvalidPhone,
-      existingGuest: isExistingDuplicate ? existingByPhone.get(phone) : null
+      existingGuest
     });
   });
 

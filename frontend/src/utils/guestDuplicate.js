@@ -1,5 +1,10 @@
 import { normalizeIsraeliPhone } from "./phoneNormalize.js";
 
+export function isSelfConfirmedGuest(guest = {}) {
+  const source = String(guest.source || "").trim();
+  return source === "form" || source === "excel_and_form";
+}
+
 export function formatGuestDuplicateStatus(guest = {}) {
   const source = String(guest.source || "").trim();
   if (source === "form" || source === "excel_and_form") {

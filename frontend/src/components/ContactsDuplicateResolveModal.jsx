@@ -52,7 +52,7 @@ export default function ContactsDuplicateResolveModal({
                       checked={choice === "replace"}
                       onChange={() => onChoiceChange(item.phone, "replace")}
                     />{" "}
-                    אישור להחלפה
+                    אישור החלפה
                   </label>
                 </div>
               </div>

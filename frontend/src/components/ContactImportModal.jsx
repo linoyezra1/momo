@@ -102,10 +102,11 @@ export default function ContactImportModal({
           next.phone = phone;
           next.isInvalidPhone = !phone || !isLikelyValidIsraeliMobile(phone);
           const others = prev.filter((item) => item.id !== id && item.selected).map((item) => item.phone);
-          next.isExistingDuplicate = Boolean(phone) && existingByPhone.has(phone);
+          const existingGuest = phone ? existingByPhone.get(phone) || null : null;
+          next.isExistingDuplicate = Boolean(existingGuest);
           next.isBatchDuplicate = Boolean(phone) && others.includes(phone);
           next.isDuplicate = next.isExistingDuplicate || next.isBatchDuplicate;
-          next.existingGuest = next.isExistingDuplicate ? existingByPhone.get(phone) : null;
+          next.existingGuest = existingGuest;
           if (next.isBatchDuplicate || next.isInvalidPhone) next.selected = false;
         }
         return next;

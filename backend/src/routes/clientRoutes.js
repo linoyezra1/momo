@@ -279,13 +279,6 @@ router.post("/:userId/guests/manual", async (req, res) => {
 
     const existing = await Guest.findOne({ userId, phone: normalizedPhone });
     if (existing) {
-      if (isSelfConfirmedSource(existing.source)) {
-        return res.status(409).json({
-          code: "self_confirmed_guest",
-          message: "מוזמן עם מספר טלפון זה כבר אישר הגעה בעצמו במערכת"
-        });
-      }
-
       if (!confirmReplace) {
         return res.status(409).json({
           code: "duplicate_guest",
@@ -424,16 +417,6 @@ router.post("/:userId/guests/contacts-import", async (req, res) => {
             fullName,
             phone: normalizedPhone,
             reason: "קיים במערכת",
-            existingId: String(existing._id)
-          });
-          continue;
-        }
-
-        if (isSelfConfirmedSource(existing.source)) {
-          skipped.push({
-            fullName,
-            phone: normalizedPhone,
-            reason: "מוזמן זה אישר הגעה בעצמו במערכת",
             existingId: String(existing._id)
           });
           continue;
