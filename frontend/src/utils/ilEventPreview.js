@@ -1,7 +1,7 @@
-import { EVENT_TYPES } from "./eventTypeWording.js";
+import { EVENT_TYPES, getDefaultInviteWelcomeText } from "./eventTypeWording.js";
 
-export const DEFAULT_WELCOME_TEXT =
-  "שמחים ונרגשים להזמינכם לחגוג עמנו את היום המרגש בחיינו";
+/** @deprecated Prefer getDefaultInviteWelcomeText(eventType) */
+export const DEFAULT_WELCOME_TEXT = getDefaultInviteWelcomeText("חתונה");
 
 function cleanText(value) {
   return String(value ?? "").trim();
@@ -9,8 +9,9 @@ function cleanText(value) {
 
 export function eventInfoToForm(event) {
   const source = event || {};
+  const eventType = EVENT_TYPES.includes(source.eventType) ? source.eventType : "חתונה";
   return {
-    eventType: EVENT_TYPES.includes(source.eventType) ? source.eventType : "חתונה",
+    eventType,
     groomName: source.groomName || "",
     brideName: source.brideName || "",
     batMitzvahName: source.batMitzvahName || "",
@@ -24,7 +25,7 @@ export function eventInfoToForm(event) {
     eventDateHebrew: source.eventDateHebrew || "",
     eventTime: source.eventTime || "",
     receptionTime: source.receptionTime || "",
-    welcomeText: source.welcomeText || DEFAULT_WELCOME_TEXT,
+    welcomeText: source.welcomeText || getDefaultInviteWelcomeText(eventType),
     imageDataUrl: source.imageDataUrl || ""
   };
 }
@@ -51,8 +52,9 @@ export function formToEventUpdatePayload(form) {
 }
 
 export function eventFormToPreviewPayload(form) {
+  const eventType = cleanText(form.eventType) || "חתונה";
   return {
-    eventType: cleanText(form.eventType) || "חתונה",
+    eventType,
     groomName: cleanText(form.groomName),
     brideName: cleanText(form.brideName),
     batMitzvahName: cleanText(form.batMitzvahName),
@@ -66,7 +68,7 @@ export function eventFormToPreviewPayload(form) {
     eventDateHebrew: cleanText(form.eventDateHebrew),
     eventTime: cleanText(form.eventTime),
     receptionTime: cleanText(form.receptionTime),
-    welcomeText: cleanText(form.welcomeText) || DEFAULT_WELCOME_TEXT,
+    welcomeText: cleanText(form.welcomeText) || getDefaultInviteWelcomeText(eventType),
     imageDataUrl: cleanText(form.imageDataUrl)
   };
 }

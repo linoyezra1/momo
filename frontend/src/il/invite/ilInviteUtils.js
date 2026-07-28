@@ -1,4 +1,4 @@
-import { DEFAULT_WELCOME_TEXT } from "../../utils/ilEventPreview.js";
+import { getDefaultInviteWelcomeText } from "../../utils/eventTypeWording.js";
 import { formatIsraeliDate, formatIsraeliWeekdayLine, parseIsoDateParts } from "../../utils/dateFormat";
 import { getCeremonyLabel, isCoupleEventType } from "../../utils/eventTypeWording.js";
 
@@ -20,7 +20,9 @@ export function getCountdownTarget(event) {
 }
 
 export function getWelcomeText(event) {
-  return String(event?.welcomeText || "").trim() || DEFAULT_WELCOME_TEXT;
+  return (
+    String(event?.welcomeText || "").trim() || getDefaultInviteWelcomeText(event?.eventType)
+  );
 }
 
 export function getWeddingNames(event) {

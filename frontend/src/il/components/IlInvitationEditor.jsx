@@ -3,14 +3,13 @@ import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import api from "../../api.js";
 import {
-  DEFAULT_WELCOME_TEXT,
   eventFormToPreviewPayload,
   eventInfoToForm,
   formToEventUpdatePayload
 } from "../../utils/ilEventPreview.js";
+import { getDefaultInviteWelcomeText, getCeremonyLabel, isCoupleEventType } from "../../utils/eventTypeWording.js";
 import IlInvitationPreview from "./IlInvitationPreview.jsx";
 import IlEditorField, { ilEditorInputClass, ilEditorSelectClass } from "./IlEditorField.jsx";
-import { getCeremonyLabel, isCoupleEventType } from "../../utils/eventTypeWording.js";
 import "../../us/client-portal.css";
 import "../il-portal.css";
 
@@ -37,7 +36,24 @@ export default function IlInvitationEditor({ userId, eventInfo, onClose, onSaved
 
   function onChange(event) {
     const { name, value } = event.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    setForm((prev) => {
+      if (name !== "eventType") {
+        return { ...prev, [name]: value };
+      }
+      const previousDefault = getDefaultInviteWelcomeText(prev.eventType);
+      const currentWelcome = String(prev.welcomeText || "").trim();
+      const shouldReplaceWelcome =
+        !currentWelcome ||
+        currentWelcome === previousDefault ||
+        currentWelcome === getDefaultInviteWelcomeText("חתונה") ||
+        currentWelcome === getDefaultInviteWelcomeText("חינה") ||
+        currentWelcome === getDefaultInviteWelcomeText("אירוסין");
+      return {
+        ...prev,
+        eventType: value,
+        welcomeText: shouldReplaceWelcome ? getDefaultInviteWelcomeText(value) : prev.welcomeText
+      };
+    });
   }
 
   function onImageChange(event) {
@@ -142,7 +158,7 @@ export default function IlInvitationEditor({ userId, eventInfo, onClose, onSaved
                     value={form.welcomeText}
                     onChange={onChange}
                     rows={3}
-                    placeholder={DEFAULT_WELCOME_TEXT}
+                    placeholder={getDefaultInviteWelcomeText(form.eventType)}
                   />
                 </IlEditorField>
               </>

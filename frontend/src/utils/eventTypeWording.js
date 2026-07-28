@@ -60,6 +60,15 @@ export function getDefaultWelcomeParagraph(eventType) {
   return `משפחה וחברים יקרים, הנכם מוזמנים ל${type} שלנו!`;
 }
 
+/** Default digital-invite opening line (above couple names). */
+export function getDefaultInviteWelcomeText(eventType) {
+  const type = normalizeEventType(eventType);
+  if (type === "חינה" || type === "אירוסין") {
+    return `אנו שמחים להזמינכם לחגוג עמנו את טקס ה${type} של`;
+  }
+  return "שמחים ונרגשים להזמינכם לחגוג עמנו את היום המרגש בחיינו";
+}
+
 /** Timeline ceremony label for couple events. */
 export function getCeremonyLabel(eventType) {
   const type = normalizeEventType(eventType);
