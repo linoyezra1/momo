@@ -1,5 +1,6 @@
 import { DEFAULT_WELCOME_TEXT } from "../../utils/ilEventPreview.js";
 import { formatIsraeliDate, formatIsraeliWeekdayLine, parseIsoDateParts } from "../../utils/dateFormat";
+import { getCeremonyLabel, isCoupleEventType } from "../../utils/eventTypeWording.js";
 
 export function getCountdownTarget(event) {
   const parts = parseIsoDateParts(event?.eventDate);
@@ -75,7 +76,7 @@ export function getParallelTimeline(event) {
     },
     {
       key: "ceremony",
-      label: "חופה וקידושין",
+      label: getCeremonyLabel(event?.eventType),
       time: ceremonyTime,
       icon: "ceremony"
     }
@@ -83,7 +84,7 @@ export function getParallelTimeline(event) {
 }
 
 export function getEventDisplayName(event) {
-  if (event?.eventType === "חתונה") return getWeddingNames(event);
+  if (isCoupleEventType(event?.eventType)) return getWeddingNames(event);
   if (event?.eventType === "בת מצווה") return event?.batMitzvahName || "—";
   if (event?.eventNames) return event.eventNames;
   if (event?.eventType === "ברית") {

@@ -81,7 +81,7 @@ export function sanitizeWhatsAppTemplateVariable(value, fallback = "-") {
 
 const TEMPLATE_VALUE_FALLBACKS = {
   "1": "אורח/ת יקר/ה",
-  "2": "משפחה וחברים יקרים, הנכם מוזמנים לחתונה שלנו",
+  "2": "משפחה וחברים יקרים, הנכם מוזמנים לאירוע שלנו",
   "3": "פרטי האירוע יתעדכנו בקרוב",
   "4": "https://momoevent.up.railway.app",
   "5": "נתראה בשמחה"

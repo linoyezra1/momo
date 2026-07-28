@@ -10,10 +10,11 @@ import {
 } from "../../utils/ilEventPreview.js";
 import IlInvitationPreview from "./IlInvitationPreview.jsx";
 import IlEditorField, { ilEditorInputClass, ilEditorSelectClass } from "./IlEditorField.jsx";
+import { getCeremonyLabel, isCoupleEventType } from "../../utils/eventTypeWording.js";
 import "../../us/client-portal.css";
 import "../il-portal.css";
 
-const EVENT_TYPE_OPTIONS = ["חתונה", "ברית", "בת מצווה", "אחר"];
+const EVENT_TYPE_OPTIONS = ["חתונה", "חינה", "אירוסין", "ברית", "בת מצווה", "אחר"];
 
 export default function IlInvitationEditor({ userId, eventInfo, onClose, onSaved }) {
   const [form, setForm] = useState(() => eventInfoToForm(eventInfo));
@@ -109,7 +110,7 @@ export default function IlInvitationEditor({ userId, eventInfo, onClose, onSaved
               </select>
             </IlEditorField>
 
-            {form.eventType === "חתונה" ? (
+            {isCoupleEventType(form.eventType) ? (
               <>
                 <IlEditorField label="שם החתן" htmlFor="il-groomName">
                   <input
@@ -275,7 +276,7 @@ export default function IlInvitationEditor({ userId, eventInfo, onClose, onSaved
                   onChange={onChange}
                 />
               </IlEditorField>
-              {form.eventType === "חתונה" ? (
+              {isCoupleEventType(form.eventType) ? (
                 <IlEditorField label="שעת קבלת פנים" htmlFor="il-receptionTime">
                   <input
                     id="il-receptionTime"
@@ -299,8 +300,8 @@ export default function IlInvitationEditor({ userId, eventInfo, onClose, onSaved
                 </IlEditorField>
               )}
             </div>
-            {form.eventType === "חתונה" ? (
-              <IlEditorField label="שעת חופה וקידושין" htmlFor="il-eventTime">
+            {isCoupleEventType(form.eventType) ? (
+              <IlEditorField label={`שעת ${getCeremonyLabel(form.eventType)}`} htmlFor="il-eventTime">
                 <input
                   id="il-eventTime"
                   className={ilEditorInputClass}

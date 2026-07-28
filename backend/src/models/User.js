@@ -4,7 +4,7 @@ const eventSchema = new mongoose.Schema(
   {
     eventType: {
       type: String,
-      enum: ["חתונה", "ברית", "בת מצווה", "אחר"],
+      enum: ["חתונה", "חינה", "אירוסין", "ברית", "בת מצווה", "אחר"],
       required: true
     },
     groomName: { type: String, trim: true, default: "" },

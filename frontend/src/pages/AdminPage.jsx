@@ -5,6 +5,7 @@ import api from "../api";
 import { clearAdminToken } from "../utils/adminAuth";
 import { buildClientOnboardingMessage } from "../utils/clientOnboardingMessage";
 import { formatIsraeliDate } from "../utils/dateFormat";
+import { isCoupleEventType } from "../utils/eventTypeWording";
 import "../us/admin-portal.css";
 
 const PACKAGE_TYPE_OPTIONS = [
@@ -113,7 +114,7 @@ function toAppUrl(linkOrPath) {
 function buildEventDisplayText(event) {
   if (!event) return "";
   if (event.hostNames) return event.hostNames.trim();
-  if (event.eventType === "חתונה") {
+  if (isCoupleEventType(event.eventType)) {
     return `${event.groomName} & ${event.brideName}`.trim();
   }
   if (event.eventType === "ברית") {
@@ -498,7 +499,7 @@ ${publicEventUrl}`
       setError("יש למלא סיסמה");
       return;
     }
-    if (form.eventType === "חתונה" && (!form.groomName.trim() || !form.brideName.trim())) {
+    if (isCoupleEventType(form.eventType) && (!form.groomName.trim() || !form.brideName.trim())) {
       setError("יש למלא שם חתן ושם כלה");
       return;
     }
@@ -515,8 +516,8 @@ ${publicEventUrl}`
         contactPhone: form.contactPhone,
         event: {
           eventType: form.eventType,
-          groomName: form.eventType === "חתונה" ? form.groomName : "",
-          brideName: form.eventType === "חתונה" ? form.brideName : "",
+          groomName: isCoupleEventType(form.eventType) ? form.groomName : "",
+          brideName: isCoupleEventType(form.eventType) ? form.brideName : "",
           batMitzvahName: form.eventType === "בת מצווה" ? form.batMitzvahName : "",
           parentName1: form.eventType === "ברית" || form.eventType === "בת מצווה" ? form.parentName1 : "",
           parentName2: form.eventType === "ברית" || form.eventType === "בת מצווה" ? form.parentName2 : "",
@@ -1255,11 +1256,13 @@ ${publicEventUrl}`
                 </label>
                 <select id="eventType" className="us-admin-field-input" name="eventType" value={form.eventType} onChange={onChange}>
                   <option value="חתונה">חתונה</option>
+                  <option value="חינה">חינה</option>
+                  <option value="אירוסין">אירוסין</option>
                   <option value="ברית">ברית</option>
                   <option value="בת מצווה">בת מצווה</option>
                 </select>
               </div>
-              {form.eventType === "חתונה" ? (
+              {isCoupleEventType(form.eventType) ? (
                 <>
                   <div className="us-admin-field">
                     <label className="us-admin-field-label" htmlFor="groomName">

@@ -1,4 +1,5 @@
 import { toWhatsAppPhone } from "./vendors.js";
+import { getEventTypeNoun, isCoupleEventType } from "./eventTypeWording.js";
 
 /** Official momoEVENT sales / support phone (coupons + table dispatch + help). */
 export const MOMOEVENT_SUPPORT_PHONE = "0585915109";
@@ -17,11 +18,11 @@ export function buildSupportWhatsAppUrl(prefilledText = "") {
 
 function buildEventDisplayName(event = {}) {
   if (!event) return "האירוע שלי";
-  if (event.eventType === "חתונה") {
+  if (isCoupleEventType(event.eventType)) {
     const groom = String(event.groomName || "").trim();
     const bride = String(event.brideName || "").trim();
     if (groom && bride) return `${groom} ו${bride}`;
-    return groom || bride || "חתונה";
+    return groom || bride || getEventTypeNoun(event.eventType);
   }
   if (event.eventType === "ברית") {
     const p1 = String(event.parentName1 || "").trim();

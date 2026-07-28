@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useState } from "react";
+import { getCountdownTitle } from "../../utils/eventTypeWording.js";
 import { getCountdownTarget } from "./ilInviteUtils.js";
 
 function getRemaining(targetDate) {
@@ -33,7 +34,7 @@ export default function IlInviteCountdown({ event }) {
 
   return (
     <section className="il-invite-countdown" aria-label="ספירה לאחור לאירוע">
-      <p className="il-invite-countdown__title">עד החתונה</p>
+      <p className="il-invite-countdown__title">{getCountdownTitle(event?.eventType)}</p>
       <div className="il-invite-countdown__row" aria-label="ימים, שעות, דקות ושניות">
         {units.map((unit, index) => (
           <Fragment key={unit.label}>

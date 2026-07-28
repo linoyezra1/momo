@@ -31,6 +31,7 @@ import {
   sendTwilioWhatsAppMessage,
   toTwilioWhatsAppAddress
 } from "../utils/twilioWhatsApp.js";
+import { isCoupleEventType } from "../utils/eventTypeWording.js";
 
 const TABLE_NUMBER_CONTENT_SID_DEFAULT = "HX250934f85a0e9b55f2d7bc0dfa84351d";
 
@@ -42,7 +43,7 @@ export function getTableNumberContentSid() {
 
 export function buildEventHostsLabel(event = {}) {
   if (!event) return "המארחים";
-  if (event.eventType === "חתונה") {
+  if (isCoupleEventType(event.eventType)) {
     const groom = String(event.groomName || "").trim();
     const bride = String(event.brideName || "").trim();
     if (groom && bride) return `${groom} ו${bride}`;

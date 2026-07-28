@@ -1,4 +1,4 @@
-const EVENT_TYPES = ["חתונה", "ברית", "בת מצווה", "אחר"];
+import { EVENT_TYPES, isCoupleEventType } from "./eventTypeWording.js";
 
 function cleanText(value) {
   return String(value ?? "").trim();
@@ -39,7 +39,7 @@ export function normalizeIlEventUpdatePayload(body) {
     imageDataUrl: cleanText(body?.imageDataUrl)
   };
 
-  if (eventType === "חתונה") {
+  if (isCoupleEventType(eventType)) {
     payload.groomName = cleanText(body?.groomName);
     payload.brideName = cleanText(body?.brideName);
     if (!payload.groomName || !payload.brideName) {

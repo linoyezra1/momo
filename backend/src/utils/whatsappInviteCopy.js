@@ -1,7 +1,5 @@
+import { getDefaultWelcomeParagraph } from "./eventTypeWording.js";
 import { formatIsraeliDate } from "../utils/whatsappMessage.js";
-
-export const DEFAULT_WELCOME_PARAGRAPH =
-  "משפחה וחברים יקרים, הנכם מוזמנים לחתונה שלנו!";
 
 export function buildDefaultEventDetailsParagraph(event = {}) {
   const date = formatIsraeliDate(event?.eventDate);
@@ -30,7 +28,7 @@ export function buildDefaultClosingParagraph(event = {}) {
 
 export function resolveWhatsAppInviteParagraphs(event = {}) {
   const welcomeParagraph =
-    String(event?.welcomeParagraph || "").trim() || DEFAULT_WELCOME_PARAGRAPH;
+    String(event?.welcomeParagraph || "").trim() || getDefaultWelcomeParagraph(event?.eventType);
   const eventDetailsParagraph =
     String(event?.eventDetailsParagraph || "").trim() || buildDefaultEventDetailsParagraph(event);
   const closingParagraph =
@@ -42,3 +40,6 @@ export function resolveWhatsAppInviteParagraphs(event = {}) {
     closingParagraph
   };
 }
+
+/** @deprecated Prefer getDefaultWelcomeParagraph(eventType) */
+export const DEFAULT_WELCOME_PARAGRAPH = getDefaultWelcomeParagraph("חתונה");

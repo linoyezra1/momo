@@ -1,3 +1,7 @@
+import {
+  getEventTypeNoun,
+  resolveEventKind
+} from "./eventTypeWording.js";
 import { normalizePhone } from "./guestPhone.js";
 
 const RSVP_PROMPT = "נשמח אם תוכלו לאשר הגעתכם בקישור המצורף:";
@@ -28,16 +32,6 @@ function formatIsraeliWeekday(dateStr) {
   return date.toLocaleDateString("he-IL", { weekday: "long" });
 }
 
-function resolveEventKind(event) {
-  const type = String(event?.eventType || "").trim();
-  if (type === "חתונה") return "wedding";
-  if (type === "ברית") return "brit";
-  if (type === "בת מצווה") return "bat_mitzvah";
-  if (event?.groomName && event?.brideName) return "wedding";
-  if (event?.parentName1 && event?.parentName2) return "brit";
-  return "other";
-}
-
 export function buildPublicEventLink({ eventId, origin }) {
   const baseOrigin = String(origin || process.env.CLIENT_URL || "").replace(/\/$/, "");
   return `${baseOrigin}/event/${eventId}`;
@@ -53,12 +47,13 @@ export function buildWhatsAppTemplateDefaults({ event, eventId, origin }) {
   const venueLine = [venue, city, street].filter(Boolean).join(", ");
   const dateLine = [weekday, date].filter(Boolean).join(" ");
   const kind = resolveEventKind(event);
+  const eventNoun = getEventTypeNoun(event?.eventType);
 
-  if (kind === "wedding") {
+  if (kind === "couple") {
     const groom = event?.groomName || "";
     const bride = event?.brideName || "";
     return {
-      intro: `משפחה וחברים יקרים,\nהנכם מוזמנים לחתונה שלנו! 💍`,
+      intro: `משפחה וחברים יקרים,\nהנכם מוזמנים ל${eventNoun} שלנו! 💍`,
       eventDetails: [dateLine, venueLine ? `ב${venueLine} 🥂` : ""].filter(Boolean).join("\n"),
       rsvpLink: publicLink,
       signature: groom || bride ? `אוהבים,\n${groom} ו${bride}`.trim() : ""

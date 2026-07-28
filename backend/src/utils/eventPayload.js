@@ -1,3 +1,5 @@
+import { isCoupleEventType } from "./eventTypeWording.js";
+
 export function normalizeEventPayload(rawEvent) {
   const eventType = String(rawEvent?.eventType || "").trim() || "חתונה";
   const groomName = String(rawEvent?.groomName || "").trim();
@@ -22,7 +24,7 @@ export function normalizeEventPayload(rawEvent) {
     parentName2
   };
 
-  if (eventType === "חתונה") {
+  if (isCoupleEventType(eventType)) {
     return { ...baseEvent, eventNames: `${groomName} & ${brideName}`.trim() };
   }
   if (eventType === "ברית") {
@@ -35,7 +37,7 @@ export function normalizeEventPayload(rawEvent) {
 }
 
 export function validateEvent(normalizedEvent) {
-  if (normalizedEvent.eventType === "חתונה") {
+  if (isCoupleEventType(normalizedEvent.eventType)) {
     if (!normalizedEvent.groomName || !normalizedEvent.brideName) {
       return "יש למלא שם חתן ושם כלה";
     }

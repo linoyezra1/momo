@@ -10,6 +10,7 @@ import {
   getWelcomeText,
   getWeddingNames
 } from "./ilInviteUtils.js";
+import { isCoupleEventType } from "../../utils/eventTypeWording.js";
 import "./il-invite.css";
 
 const initialRsvp = {
@@ -57,10 +58,10 @@ export default function IlInviteExperience({
 
   if (!event) return null;
 
-  const isWedding = event.eventType === "חתונה";
+  const isCoupleEvent = isCoupleEventType(event.eventType);
   const welcomeText = getWelcomeText(event);
-  const displayNames = isWedding ? getWeddingNames(event) : getEventDisplayName(event);
-  const timeline = isWedding ? getParallelTimeline(event) : [];
+  const displayNames = isCoupleEvent ? getWeddingNames(event) : getEventDisplayName(event);
+  const timeline = isCoupleEvent ? getParallelTimeline(event) : [];
   const showCountdown = previewMode || rsvpStarted || Boolean(message);
   const showAttendeeStepper =
     form.status === "מגיע" || form.status === "אולי" || form.status === "לא מגיע";
@@ -126,7 +127,7 @@ export default function IlInviteExperience({
         </header>
 
         <main className="il-invite-body">
-          {isWedding ? (
+          {isCoupleEvent ? (
             <p className="il-invite-welcome">{welcomeText}</p>
           ) : null}
 
@@ -138,7 +139,7 @@ export default function IlInviteExperience({
             <p className="il-invite-venue">{getVenueLine(event)}</p>
           </div>
 
-          {isWedding && timeline.length ? (
+          {isCoupleEvent && timeline.length ? (
             <section className="il-invite-timeline" aria-label="לוח זמנים">
               {timeline.map((item) => (
                 <div key={item.key} className="il-invite-timeline__col">
@@ -148,7 +149,7 @@ export default function IlInviteExperience({
                 </div>
               ))}
             </section>
-          ) : !isWedding && event.eventTime ? (
+          ) : !isCoupleEvent && event.eventTime ? (
             <p className="il-invite-single-time">בשעה {event.eventTime}</p>
           ) : null}
 

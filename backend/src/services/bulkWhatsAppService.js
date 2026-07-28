@@ -12,6 +12,7 @@ import {
   buildWhatsAppTemplateDefaults
 } from "../utils/whatsappMessage.js";
 import { resolveWhatsAppInviteParagraphs } from "../utils/whatsappInviteCopy.js";
+import { getDefaultWelcomeParagraph } from "../utils/eventTypeWording.js";
 
 const STANDARD_INVITE_CONTENT_SID = "HXa32f37f28c9aeea9d824b1b53919c326";
 const PREMIUM_WEDDING_RSVP_CONTENT_SID = "HX9eb2ac4178732bcfd5eb3e9609f9f626";
@@ -111,7 +112,7 @@ function resolveInviteeTemplateFields({ invitee, defaults, eventId, origin, para
   const customOpeningText =
     String(paragraphs?.welcomeParagraph || "").trim() ||
     String(defaults?.intro || "").trim() ||
-    "משפחה וחברים יקרים, הנכם מוזמנים לחתונה שלנו!";
+    getDefaultWelcomeParagraph();
 
   const eventDateTimeLocation =
     String(paragraphs?.eventDetailsParagraph || "").trim() ||

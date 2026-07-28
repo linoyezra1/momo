@@ -11,6 +11,7 @@ import {
   serializeEventVendorFinance,
   serializeFinance
 } from "../utils/eventFinance.js";
+import { getEventTypeNoun, isCoupleEventType } from "../utils/eventTypeWording.js";
 
 const router = express.Router();
 
@@ -78,8 +79,8 @@ function sanitizeEventVendorPayload(body = {}) {
 
 function buildEventLabel(event) {
   if (!event) return "אירוע";
-  if (event.eventType === "חתונה") {
-    return `${event.groomName || ""} ו${event.brideName || ""}`.trim() || "חתונה";
+  if (isCoupleEventType(event.eventType)) {
+    return `${event.groomName || ""} ו${event.brideName || ""}`.trim() || getEventTypeNoun(event.eventType);
   }
   if (event.eventType === "ברית") {
     return `${event.parentName1 || ""} ו${event.parentName2 || ""}`.trim() || "ברית";

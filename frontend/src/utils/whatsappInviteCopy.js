@@ -1,7 +1,5 @@
 import { formatIsraeliDate } from "./dateFormat.js";
-
-export const DEFAULT_WELCOME_PARAGRAPH =
-  "משפחה וחברים יקרים, הנכם מוזמנים לחתונה שלנו!";
+import { getDefaultWelcomeParagraph } from "./eventTypeWording.js";
 
 export const DEFAULT_WELCOME_PLACEHOLDER = "הקלידו כאן פתיחה אישית...";
 export const DEFAULT_EVENT_DETAILS_PLACEHOLDER = "הקלידו כאן תאריך ואולם...";
@@ -42,7 +40,7 @@ export function resolveInviteCopyDefaults(event = {}) {
 
   if (noneSaved) {
     return {
-      welcomeParagraph: DEFAULT_WELCOME_PARAGRAPH,
+      welcomeParagraph: getDefaultWelcomeParagraph(event?.eventType),
       eventDetailsParagraph: buildDefaultEventDetailsParagraph(event),
       closingParagraph: buildDefaultClosingParagraph(event)
     };
@@ -54,3 +52,6 @@ export function resolveInviteCopyDefaults(event = {}) {
     closingParagraph: storedClosing
   };
 }
+
+/** @deprecated Prefer getDefaultWelcomeParagraph(eventType) */
+export const DEFAULT_WELCOME_PARAGRAPH = getDefaultWelcomeParagraph("חתונה");

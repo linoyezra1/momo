@@ -4,6 +4,7 @@ import User from "../models/User.js";
 import Guest from "../models/Guest.js";
 import ActivationCode from "../models/ActivationCode.js";
 import Lead from "../models/Lead.js";
+import { isCoupleEventType } from "../utils/eventTypeWording.js";
 import { buildClientUrl } from "../utils/clientUrl.js";
 import { normalizePhone } from "../utils/guestPhone.js";
 import {
@@ -95,7 +96,7 @@ function normalizeEventPayload(rawEvent) {
     parentName2
   };
 
-  if (eventType === "חתונה") {
+  if (isCoupleEventType(eventType)) {
     return {
       ...baseEvent,
       eventNames: `${groomName} & ${brideName}`.trim()
@@ -123,7 +124,7 @@ function normalizeEventPayload(rawEvent) {
 }
 
 function validateEvent(normalizedEvent) {
-  if (normalizedEvent.eventType === "חתונה") {
+  if (isCoupleEventType(normalizedEvent.eventType)) {
     if (!normalizedEvent.groomName || !normalizedEvent.brideName) {
       return "יש למלא שם חתן ושם כלה";
     }

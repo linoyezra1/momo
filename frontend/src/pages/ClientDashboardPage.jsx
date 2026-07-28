@@ -15,6 +15,7 @@ import {
   MOMOEVENT_SUPPORT_PHONE,
   buildWhatsAppCouponPurchaseUrl
 } from "../utils/tableDispatchPurchase.js";
+import { isCoupleEventType } from "../utils/eventTypeWording.js";
 import IlInvitationEditor from "../il/components/IlInvitationEditor.jsx";
 import IlWhatsAppInviteEditor from "../il/components/IlWhatsAppInviteEditor.jsx";
 import ContactImportModal from "../components/ContactImportModal.jsx";
@@ -221,7 +222,7 @@ function buildStatusDonutGradient(summary) {
 
 function getOwnerGreeting(event) {
   if (!event) return "שלום";
-  if (event.eventType === "חתונה") {
+  if (isCoupleEventType(event.eventType)) {
     return `שלום ${event.groomName || ""} ו${event.brideName || ""}`.trim();
   }
   if (event.eventType === "ברית") {

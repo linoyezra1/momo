@@ -1,4 +1,4 @@
-const EVENT_TYPES = ["חתונה", "ברית", "בת מצווה", "אחר"];
+import { EVENT_TYPES } from "./eventTypeWording.js";
 
 export const DEFAULT_WELCOME_TEXT =
   "שמחים ונרגשים להזמינכם לחגוג עמנו את היום המרגש בחיינו";

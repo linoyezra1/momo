@@ -5,6 +5,7 @@ import api from "../api";
 import { clearEventManagerToken } from "../utils/eventManagerAuth";
 import { formatIsraeliDate, parseIsoDateParts } from "../utils/dateFormat";
 import { buildTelHref, buildWhatsAppHref, formatIls } from "../utils/vendors";
+import { isCoupleEventType } from "../utils/eventTypeWording";
 import "../us/admin-portal.css";
 import "../il/manager-dashboard.css";
 
@@ -35,7 +36,7 @@ const FILTERS = [
 
 function buildEventDisplayText(event) {
   if (!event) return "";
-  if (event.eventType === "חתונה") return `${event.groomName} & ${event.brideName}`.trim();
+  if (isCoupleEventType(event.eventType)) return `${event.groomName} & ${event.brideName}`.trim();
   if (event.eventType === "ברית") return `${event.parentName1} ו${event.parentName2}`.trim();
   if (event.eventType === "בת מצווה") return `${event.batMitzvahName || ""}`.trim();
   return event.eventNames || "";
@@ -489,12 +490,14 @@ export default function EventManagerPage() {
                     onChange={(e) => onFormChange("eventType", e.target.value)}
                   >
                     <option value="חתונה">חתונה</option>
+                    <option value="חינה">חינה</option>
+                    <option value="אירוסין">אירוסין</option>
                     <option value="ברית">ברית</option>
                     <option value="בת מצווה">בת מצווה</option>
                     <option value="אחר">אחר</option>
                   </select>
                 </div>
-                {form.eventType === "חתונה" ? (
+                {isCoupleEventType(form.eventType) ? (
                   <>
                     <div className="us-admin-field">
                       <label className="us-admin-field-label">שם חתן</label>

@@ -1,25 +1,17 @@
 import { formatIsraeliDate, formatIsraeliWeekday } from "./dateFormat.js";
+import { getEventTypeNoun, resolveEventKind } from "./eventTypeWording.js";
 import { normalizeIsraeliPhone } from "./phoneNormalize.js";
 import { resolveInviteCopyDefaults } from "./whatsappInviteCopy.js";
 
 const RSVP_PROMPT = "נשמח אם תוכלו לאשר הגעתכם בקישור המצורף:";
 
-export function toInternationalWhatsAppPhone(phone) {  const domestic = normalizeIsraeliPhone(phone);
+export function toInternationalWhatsAppPhone(phone) {
+  const domestic = normalizeIsraeliPhone(phone);
   if (!domestic) return "";
   if (domestic.startsWith("0")) {
     return `972${domestic.slice(1)}`;
   }
   return domestic;
-}
-
-function resolveEventKind(event) {
-  const type = String(event?.eventType || "").trim();
-  if (type === "חתונה") return "wedding";
-  if (type === "ברית") return "brit";
-  if (type === "בת מצווה") return "bat_mitzvah";
-  if (event?.groomName && event?.brideName) return "wedding";
-  if (event?.parentName1 && event?.parentName2) return "brit";
-  return "other";
 }
 
 function buildPublicEventLink({ eventId, origin }) {
@@ -37,12 +29,13 @@ export function buildWhatsAppTemplateDefaults({ event, eventId, origin }) {
   const venueLine = [venue, city, street].filter(Boolean).join(", ");
   const dateLine = [weekday, date].filter(Boolean).join(" ");
   const kind = resolveEventKind(event);
+  const eventNoun = getEventTypeNoun(event?.eventType);
 
-  if (kind === "wedding") {
+  if (kind === "couple") {
     const groom = event?.groomName || "";
     const bride = event?.brideName || "";
     return {
-      intro: `משפחה וחברים יקרים,\nהנכם מוזמנים לחתונה שלנו! 💍`,
+      intro: `משפחה וחברים יקרים,\nהנכם מוזמנים ל${eventNoun} שלנו! 💍`,
       eventDetails: [dateLine, venueLine ? `ב${venueLine} 🥂` : ""].filter(Boolean).join("\n"),
       rsvpLink: publicLink,
       signature: groom || bride ? `אוהבים,\n${groom} ו${bride}`.trim() : ""
@@ -156,6 +149,7 @@ export function buildWhatsAppMessageTemplate({ event, eventId, origin }) {
     "✨ 🎉 ✨"
   ].join("\n");
 }
+
 export function personalizeWhatsAppMessage(template, guestName) {
   const name = String(guestName || "").trim();
   if (!template) return template;

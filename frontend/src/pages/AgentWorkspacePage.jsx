@@ -9,6 +9,7 @@ import WhatsAppIcon from "../components/WhatsAppIcon.jsx";
 import { formatIsraeliDate } from "../utils/dateFormat.js";
 import { normalizeIsraeliPhone } from "../utils/phoneNormalize.js";
 import { toInternationalWhatsAppPhone } from "../utils/whatsapp.js";
+import { getDefaultWelcomeParagraph, isCoupleEventType } from "../utils/eventTypeWording.js";
 import "../agent-workspace.css";
 
 function getWhatsAppRoundCount(guest) {
@@ -44,7 +45,7 @@ function buildExportFileName(eventLabel) {
 
 function buildEventHosts(event) {
   if (!event) return "—";
-  if (event.eventType === "חתונה") {
+  if (isCoupleEventType(event.eventType)) {
     return [event.brideName, event.groomName].filter(Boolean).join(" & ") || "—";
   }
   if (event.eventType === "ברית") {
@@ -63,7 +64,7 @@ function buildManualInviteMessage({ guest, event, userId }) {
     "✨ 🥂 ✨",
     `שלום ${guest.fullName || "אורח/ת יקר/ה"},`,
     "",
-    "משפחה וחברים יקרים, הנכם מוזמנים לחתונה שלנו",
+    getDefaultWelcomeParagraph(event.eventType),
     "",
     `האירוע יתקיים ב-${formatIsraeliDate(event.eventDate)} בגן האירועים "${event.venueName || ""}"`,
     "",

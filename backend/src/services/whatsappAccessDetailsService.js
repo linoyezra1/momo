@@ -13,6 +13,7 @@ import User from "../models/User.js";
 import { getClientBaseUrl } from "../utils/clientUrl.js";
 import { coupleCanManageVendors } from "../utils/coupleVendors.js";
 import { normalizePhone, phoneLookupVariants } from "../utils/guestPhone.js";
+import { getEventTypeNoun, isCoupleEventType } from "../utils/eventTypeWording.js";
 import {
   sendTwilioWhatsAppMessage,
   toTwilioWhatsAppAddress
@@ -105,11 +106,12 @@ export function isAccessDetailsRequest({ payload, text } = {}) {
 }
 
 function eventDisplayLabel(event = {}) {
-  if (event.eventType === "חתונה") {
+  if (isCoupleEventType(event.eventType)) {
     const groom = String(event.groomName || "").trim();
     const bride = String(event.brideName || "").trim();
-    if (groom && bride) return `חתונה — ${groom} ו${bride}`;
-    return bride || groom || "חתונה";
+    const noun = getEventTypeNoun(event.eventType);
+    if (groom && bride) return `${noun} — ${groom} ו${bride}`;
+    return bride || groom || noun;
   }
   if (event.eventType === "ברית") {
     const names = [event.parentName1, event.parentName2]
@@ -125,7 +127,7 @@ function eventDisplayLabel(event = {}) {
 
 /** Prefer bride / primary contact name for "שלום {כלה}". */
 export function credentialsGreetingName(event = {}) {
-  if (event.eventType === "חתונה") {
+  if (isCoupleEventType(event.eventType)) {
     return String(event.brideName || event.groomName || "").trim();
   }
   if (event.eventType === "ברית") {
