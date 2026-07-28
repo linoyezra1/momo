@@ -19,6 +19,7 @@ import IlInvitationEditor from "../il/components/IlInvitationEditor.jsx";
 import IlWhatsAppInviteEditor from "../il/components/IlWhatsAppInviteEditor.jsx";
 import ContactImportModal from "../components/ContactImportModal.jsx";
 import GuestDuplicateReplaceModal from "../components/GuestDuplicateReplaceModal.jsx";
+import ExcelDuplicateResolveModal from "../components/ExcelDuplicateResolveModal.jsx";
 import "../us/client-portal.css";
 import "../il/il-portal.css";
 import "../il/contacts-import.css";
@@ -1597,64 +1598,16 @@ export default function ClientDashboardPage() {
         </div>
 
         {showConflictModal ? (
-          <div className="us-modal-backdrop" role="presentation">
-            <div className="us-modal-card">
-              <h2 className="us-modal-title">נמצאו מוזמנים עם מספר טלפון קיים</h2>
-              <p className="us-login-subtitle us-login-subtitle--left">
-                זוהו {importConflicts.length} רשומות חופפות. בחרו לכל רשומה האם להשאיר את הקיים או לעדכן לפי האקסל.
-                לאחר מכן לחצו &quot;אשר והמשך שמירה&quot;.
-                {pendingNewGuests.length > 0 ? <> בנוסף, {pendingNewGuests.length} מוזמנים חדשים יתווספו אוטומטית עם האישור.</> : null}
-              </p>
-              <div className="mt-4 space-y-4">
-                {importConflicts.map((item) => (
-                  <div key={item.phone} className="us-conflict-card">
-                    <p className="us-dashboard-emphasis text-sm" dir="ltr">
-                      {item.phone}
-                      {item.rowNumber ? ` · שורה ${item.rowNumber}` : ""}
-                    </p>
-                    <div className="mt-2 grid gap-2 text-sm md:grid-cols-2">
-                      <div>
-                        <span className="us-dashboard-emphasis">מה קיים כרגע במערכת:</span> {item.existing.fullName} | כמות{" "}
-                        {item.existing.attendeesCount} | מקור: {sourceLabel(item.existing.source)}
-                      </div>
-                      <div>
-                        <span className="us-dashboard-emphasis">מה מנסים להעלות מהאקסל:</span> {item.excel.fullName} | כמות{" "}
-                        {item.excel.attendeesCount}
-                      </div>
-                    </div>
-                    <div className="mt-3 flex flex-col gap-2 text-sm">
-                      <label>
-                        <input
-                          type="radio"
-                          name={`conflict-${item.phone}`}
-                          checked={(conflictChoices[item.phone] || "keep_existing") === "keep_existing"}
-                          onChange={() => setConflictChoice(item.phone, "keep_existing")}
-                        />{" "}
-                        🔹 השאר את הקיים
-                      </label>
-                      <label>
-                        <input
-                          type="radio"
-                          name={`conflict-${item.phone}`}
-                          checked={conflictChoices[item.phone] === "use_excel"}
-                          onChange={() => setConflictChoice(item.phone, "use_excel")}
-                        />{" "}
-                        🔸 עדכן לפי האקסל החדש
-                      </label>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="us-toolbar mt-4">
-                <button className="us-btn us-btn--primary" type="button" disabled={importSubmitting} onClick={applyConflictResolutions}>
-                  {importSubmitting ? "שומר…" : "אשר והמשך שמירה"}
-                </button>
-                <button className="us-btn" type="button" onClick={closeConflictModal}>
-                  ביטול
-                </button>
-              </div>
-            </div>
-          </div>
+          <ExcelDuplicateResolveModal
+            conflicts={importConflicts}
+            choices={conflictChoices}
+            onChoiceChange={setConflictChoice}
+            onConfirm={applyConflictResolutions}
+            onCancel={closeConflictModal}
+            submitting={importSubmitting}
+            pendingNewCount={pendingNewGuests.length}
+            sourceLabel={sourceLabel}
+          />
         ) : null}
 
         {importSummary ? (
@@ -1985,6 +1938,7 @@ export default function ClientDashboardPage() {
 
         {manualDuplicateModal ? (
           <GuestDuplicateReplaceModal
+            phone={normalizeIsraeliPhone(manualGuest.phone)}
             existing={manualDuplicateModal.existing}
             incoming={manualDuplicateModal.incoming}
             submitting={manualDuplicateSubmitting}
