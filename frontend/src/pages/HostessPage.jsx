@@ -453,10 +453,39 @@ export default function HostessPage() {
             <p className="il-hostess-modal__lead">
               {arriveModal.tableLabel
                 ? `${arriveModal.fullName} יושב/ת בשולחן ${arriveModal.tableLabel}`
-                : arriveModal.message}
+                : arriveModal.message || `${arriveModal.fullName} עדיין לא משובץ/ת לשולחן`}
             </p>
             <div className="us-modal-actions il-hostess-modal__arrive-actions">
-              {canSendTableWhatsApp ? (
+              {arriveModal.tableLabel || arriveModal.seatingTableId ? (
+                <>
+                  {canSendTableWhatsApp && guestHasPhone(arriveModal) ? (
+                    <button
+                      className="il-hostess-btn il-hostess-btn--primary"
+                      type="button"
+                      onClick={() => {
+                        const guest = guests.find((item) => item._id === arriveModal.guestId) || {
+                          _id: arriveModal.guestId,
+                          fullName: arriveModal.fullName,
+                          tableLabel: arriveModal.tableLabel,
+                          seatingTableId: arriveModal.seatingTableId || "assigned",
+                          phone: arriveModal.phone || ""
+                        };
+                        setArriveModal(null);
+                        openWhatsAppFlow(guest);
+                      }}
+                    >
+                      שלח לו מס׳ שולחן בוואטסאפ
+                    </button>
+                  ) : !canSendTableWhatsApp ? (
+                    <TableDispatchFeatureLockedNotice
+                      event={eventInfo}
+                      eventLabel={eventLabel}
+                      eventId={eventId}
+                      className="il-hostess-wa-locked"
+                    />
+                  ) : null}
+                </>
+              ) : (
                 <button
                   className="il-hostess-btn il-hostess-btn--primary"
                   type="button"
@@ -464,23 +493,16 @@ export default function HostessPage() {
                     const guest = guests.find((item) => item._id === arriveModal.guestId) || {
                       _id: arriveModal.guestId,
                       fullName: arriveModal.fullName,
-                      tableLabel: arriveModal.tableLabel,
-                      seatingTableId: arriveModal.seatingTableId || (arriveModal.tableLabel ? "assigned" : ""),
-                      phone: arriveModal.phone || ""
+                      phone: arriveModal.phone || "",
+                      attendeesCount: 1
                     };
                     setArriveModal(null);
-                    openWhatsAppFlow(guest);
+                    openSeatModal(guest);
                   }}
                 >
-                  שלח לו מס׳ שולחן בוואטסאפ
+                  <Armchair size={16} aria-hidden="true" />
+                  הושבה בשולחן
                 </button>
-              ) : (
-                <TableDispatchFeatureLockedNotice
-                  event={eventInfo}
-                  eventLabel={eventLabel}
-                  eventId={eventId}
-                  className="il-hostess-wa-locked"
-                />
               )}
               <button
                 className="il-hostess-btn il-hostess-btn--outline"

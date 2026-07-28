@@ -18,6 +18,7 @@ import {
 import IlInvitationEditor from "../il/components/IlInvitationEditor.jsx";
 import IlWhatsAppInviteEditor from "../il/components/IlWhatsAppInviteEditor.jsx";
 import ContactImportModal from "../components/ContactImportModal.jsx";
+import GuestDuplicateReplaceModal from "../components/GuestDuplicateReplaceModal.jsx";
 import "../us/client-portal.css";
 import "../il/il-portal.css";
 import "../il/contacts-import.css";
@@ -281,6 +282,8 @@ export default function ClientDashboardPage() {
   const [showBulkWhatsApp, setShowBulkWhatsApp] = useState(false);
   const [showContactsImport, setShowContactsImport] = useState(false);
   const [contactsImportToast, setContactsImportToast] = useState("");
+  const [manualDuplicateModal, setManualDuplicateModal] = useState(null);
+  const [manualDuplicateSubmitting, setManualDuplicateSubmitting] = useState(false);
   const [paymentCode, setPaymentCode] = useState("");
   const [inviteCopy, setInviteCopy] = useState({
     welcomeParagraph: "",
@@ -444,18 +447,57 @@ export default function ClientDashboardPage() {
     setManualGuest((prev) => ({ ...prev, status }));
   };
 
+  const submitManualGuest = async (confirmReplace = false) => {
+    const payload = {
+      ...manualGuest,
+      phone: normalizeIsraeliPhone(manualGuest.phone)
+    };
+    const response = await api.post(`/client/${userId}/guests/manual`, {
+      ...payload,
+      confirmReplace
+    });
+    return response;
+  };
+
   const addManualGuest = async (event) => {
     event.preventDefault();
+    setImportError("");
     try {
-      await api.post(`/client/${userId}/guests/manual`, {
-        ...manualGuest,
-        phone: normalizeIsraeliPhone(manualGuest.phone)
-      });
+      await submitManualGuest(false);
       setManualGuest(initialGuest);
       setShowModal(false);
+      setManualDuplicateModal(null);
       loadGuests();
     } catch (manualErr) {
-      setImportError(manualErr.response?.data?.message || "הוספת מוזמן נכשלה");
+      const data = manualErr.response?.data;
+      if (data?.code === "duplicate_guest" && data?.existing) {
+        setManualDuplicateModal({
+          existing: data.existing,
+          incoming: data.incoming || {
+            fullName: manualGuest.fullName,
+            attendeesCount: manualGuest.attendeesCount,
+            status: manualGuest.status
+          }
+        });
+        return;
+      }
+      setImportError(data?.message || "הוספת מוזמן נכשלה");
+    }
+  };
+
+  const confirmManualDuplicateReplace = async () => {
+    setManualDuplicateSubmitting(true);
+    setImportError("");
+    try {
+      await submitManualGuest(true);
+      setManualGuest(initialGuest);
+      setShowModal(false);
+      setManualDuplicateModal(null);
+      loadGuests();
+    } catch (manualErr) {
+      setImportError(manualErr.response?.data?.message || "החלפת מוזמן נכשלה");
+    } finally {
+      setManualDuplicateSubmitting(false);
     }
   };
 
@@ -648,13 +690,15 @@ export default function ClientDashboardPage() {
     return "ידני";
   };
 
-  const importContactsFromPicker = async (guestsPayload) => {
+  const importContactsFromPicker = async (guestsPayload, options = {}) => {
     const response = await api.post(`/client/${userId}/guests/contacts-import`, {
-      guests: guestsPayload
+      guests: guestsPayload,
+      replacePhones: options.replacePhones || []
     });
     await loadGuests();
     return {
       insertedCount: Number(response.data?.insertedCount || 0),
+      replacedCount: Number(response.data?.replacedCount || 0),
       skippedCount: Number(response.data?.skippedCount || 0),
       failedCount: Number(response.data?.failedCount || 0)
     };
@@ -1939,15 +1983,32 @@ export default function ClientDashboardPage() {
           </div>
         ) : null}
 
+        {manualDuplicateModal ? (
+          <GuestDuplicateReplaceModal
+            existing={manualDuplicateModal.existing}
+            incoming={manualDuplicateModal.incoming}
+            submitting={manualDuplicateSubmitting}
+            onConfirm={confirmManualDuplicateReplace}
+            onCancel={() => setManualDuplicateModal(null)}
+          />
+        ) : null}
+
         {showContactsImport ? (
           <ContactImportModal
             userId={userId}
-            existingPhones={guests.map((guest) => guest.phone)}
+            existingGuests={guests}
             onClose={() => setShowContactsImport(false)}
             onRequestExcelImport={() => fileInputRef.current?.click()}
             importContacts={importContactsFromPicker}
             onImported={(result) => {
-              setContactsImportToast(`יובאו ${result.insertedCount || 0} מוזמנים מאנשי קשר`);
+              const inserted = Number(result.insertedCount || 0);
+              const replaced = Number(result.replacedCount || 0);
+              const parts = [];
+              if (inserted > 0) parts.push(`יובאו ${inserted}`);
+              if (replaced > 0) parts.push(`הוחלפו ${replaced}`);
+              setContactsImportToast(
+                parts.length ? `${parts.join(", ")} מוזמנים מאנשי קשר` : "ייבוא אנשי קשר הושלם"
+              );
               window.setTimeout(() => setContactsImportToast(""), 2800);
             }}
           />

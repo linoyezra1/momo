@@ -1,6 +1,6 @@
 import { Rnd } from "react-rnd";
-import { Pencil } from "lucide-react";
-import { VENUE_ELEMENT_LABELS } from "./seatingConstants.js";
+import { Pencil, RotateCcw, RotateCw, Trash2 } from "lucide-react";
+import IlVenueElementVisual from "./IlVenueElementVisual.jsx";
 import { countGuestSeats, getTableOccupancy } from "./ilSeatingUtils.js";
 
 function tableClass(shape, isOver, isDropTarget) {
@@ -35,6 +35,11 @@ function ChairRing({ capacity, occupied }) {
   );
 }
 
+function normalizeRotation(value) {
+  const deg = ((Number(value) || 0) % 360) + 360;
+  return deg % 360;
+}
+
 export default function IlSeatingCanvas({
   tables,
   venueElements,
@@ -45,17 +50,20 @@ export default function IlSeatingCanvas({
   onSelectTable,
   onEditTable,
   onDropGuestsOnTable,
-  canvasRef
+  canvasRef,
+  readOnly = false
 }) {
   const warningByTable = new Map(warnings.map((warning) => [warning.tableId, warning]));
 
   function updateTable(tableId, patch) {
+    if (readOnly) return;
     onLayoutChange({
       tables: tables.map((table) => (table.tableId === tableId ? { ...table, ...patch } : table))
     });
   }
 
   function updateElement(elementId, patch) {
+    if (readOnly) return;
     onLayoutChange({
       venueElements: venueElements.map((element) =>
         element.elementId === elementId ? { ...element, ...patch } : element
@@ -63,29 +71,94 @@ export default function IlSeatingCanvas({
     });
   }
 
+  function removeElement(elementId) {
+    if (readOnly) return;
+    onLayoutChange({
+      venueElements: venueElements.filter((element) => element.elementId !== elementId)
+    });
+  }
+
+  function rotateElement(elementId, delta) {
+    if (readOnly) return;
+    const current = venueElements.find((element) => element.elementId === elementId);
+    if (!current) return;
+    updateElement(elementId, { rotation: normalizeRotation((current.rotation || 0) + delta) });
+  }
+
   return (
-    <div className="il-seat-canvas-wrap">
+    <div className={`il-seat-canvas-wrap${readOnly ? " is-readonly" : ""}`}>
       <div className="il-seat-canvas" dir="ltr" ref={canvasRef} id="il-seating-canvas-export">
-        {venueElements.map((element) => (
-          <Rnd
-            key={element.elementId}
-            size={{ width: element.width, height: element.height }}
-            position={{ x: element.x, y: element.y }}
-            bounds="parent"
-            onDragStop={(_e, data) => updateElement(element.elementId, { x: data.x, y: data.y })}
-            onResizeStop={(_e, _dir, ref, _delta, position) =>
-              updateElement(element.elementId, {
-                width: ref.offsetWidth,
-                height: ref.offsetHeight,
-                x: position.x,
-                y: position.y
-              })
-            }
-            className={`il-seat-venue il-seat-venue--${element.type}`}
-          >
-            <span>{element.label || VENUE_ELEMENT_LABELS[element.type]}</span>
-          </Rnd>
-        ))}
+        {venueElements.map((element) => {
+          const rotation = normalizeRotation(element.rotation);
+          return (
+            <Rnd
+              key={element.elementId}
+              size={{ width: element.width, height: element.height }}
+              position={{ x: element.x, y: element.y }}
+              bounds="parent"
+              disableDragging={readOnly}
+              enableResizing={
+                readOnly
+                  ? false
+                  : {
+                      top: true,
+                      right: true,
+                      bottom: true,
+                      left: true,
+                      topRight: true,
+                      bottomRight: true,
+                      bottomLeft: true,
+                      topLeft: true
+                    }
+              }
+              onDragStop={(_e, data) => updateElement(element.elementId, { x: data.x, y: data.y })}
+              onResizeStop={(_e, _dir, ref, _delta, position) =>
+                updateElement(element.elementId, {
+                  width: ref.offsetWidth,
+                  height: ref.offsetHeight,
+                  x: position.x,
+                  y: position.y
+                })
+              }
+              className={`il-seat-venue il-seat-venue--${element.type}${readOnly ? " is-readonly" : ""}`}
+            >
+              <div className="il-seat-venue__body" style={{ transform: `rotate(${rotation}deg)` }}>
+                <IlVenueElementVisual type={element.type} label={element.label} />
+              </div>
+              {!readOnly ? (
+                <div className="il-seat-venue__toolbar" onMouseDown={(event) => event.stopPropagation()}>
+                  <button
+                    type="button"
+                    className="il-seat-venue__tool"
+                    title="סובב שמאלה"
+                    aria-label="סובב שמאלה"
+                    onClick={() => rotateElement(element.elementId, -15)}
+                  >
+                    <RotateCcw size={12} aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    className="il-seat-venue__tool"
+                    title="סובב ימינה"
+                    aria-label="סובב ימינה"
+                    onClick={() => rotateElement(element.elementId, 15)}
+                  >
+                    <RotateCw size={12} aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    className="il-seat-venue__tool il-seat-venue__tool--danger"
+                    title="מחק אלמנט"
+                    aria-label="מחק אלמנט"
+                    onClick={() => removeElement(element.elementId)}
+                  >
+                    <Trash2 size={12} aria-hidden="true" />
+                  </button>
+                </div>
+              ) : null}
+            </Rnd>
+          );
+        })}
 
         {tables.map((table) => {
           const seats = getTableOccupancy(guests, table.tableId);
@@ -99,6 +172,8 @@ export default function IlSeatingCanvas({
               size={{ width: Math.max(table.width, 110), height: Math.max(table.height, 110) }}
               position={{ x: table.x, y: table.y }}
               bounds="parent"
+              disableDragging={readOnly}
+              enableResizing={!readOnly}
               onDragStop={(_e, data) => updateTable(table.tableId, { x: data.x, y: data.y })}
               onResizeStop={(_e, _dir, ref, _delta, position) =>
                 updateTable(table.tableId, {
@@ -109,9 +184,13 @@ export default function IlSeatingCanvas({
                 })
               }
               className={tableClass(table.shape, isOver, activeTableId === table.tableId)}
-              onClick={() => onSelectTable(table.tableId)}
-              onDragOver={(event) => event.preventDefault()}
+              onClick={() => onSelectTable?.(table.tableId)}
+              onDragOver={(event) => {
+                if (readOnly) return;
+                event.preventDefault();
+              }}
               onDrop={(event) => {
+                if (readOnly) return;
                 event.preventDefault();
                 const payload = event.dataTransfer.getData("application/json");
                 if (!payload) return;
@@ -124,20 +203,22 @@ export default function IlSeatingCanvas({
               }}
             >
               <ChairRing capacity={table.capacity} occupied={seats} />
-              <button
-                type="button"
-                className="il-seat-table__edit"
-                aria-label={`עריכת שולחן ${table.label}`}
-                title="עריכת שולחן"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onEditTable?.(table.tableId);
-                }}
-                onMouseDown={(event) => event.stopPropagation()}
-                onTouchStart={(event) => event.stopPropagation()}
-              >
-                <Pencil size={14} aria-hidden="true" />
-              </button>
+              {!readOnly ? (
+                <button
+                  type="button"
+                  className="il-seat-table__edit"
+                  aria-label={`עריכת שולחן ${table.label}`}
+                  title="עריכת שולחן"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onEditTable?.(table.tableId);
+                  }}
+                  onMouseDown={(event) => event.stopPropagation()}
+                  onTouchStart={(event) => event.stopPropagation()}
+                >
+                  <Pencil size={14} aria-hidden="true" />
+                </button>
+              ) : null}
               <div className="il-seat-table__inner">
                 <strong>{table.label}</strong>
                 <span>

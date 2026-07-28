@@ -23,10 +23,14 @@
  * @property {string} phone
  * @property {boolean} selected
  * @property {boolean} isDuplicate
+ * @property {boolean} isExistingDuplicate
+ * @property {boolean} isBatchDuplicate
  * @property {boolean} isInvalidPhone
  * @property {string} [rawPhone]
+ * @property {object|null} [existingGuest]
  */
 
+import { indexGuestsByPhone } from "./guestDuplicate.js";
 import { normalizeIsraeliPhone } from "./phoneNormalize.js";
 
 export const CONTACT_GROUP_OPTIONS = [
@@ -81,13 +85,11 @@ export function isLikelyValidIsraeliMobile(phone) {
 
 /**
  * @param {DeviceContact[]} contacts
- * @param {string[]} existingPhones
+ * @param {Array<{phone?: string}>} existingGuests
  * @returns {ReviewContactRow[]}
  */
-export function mapDeviceContactsToReviewRows(contacts, existingPhones = []) {
-  const existingSet = new Set(
-    (existingPhones || []).map((phone) => normalizeIsraeliPhone(phone)).filter(Boolean)
-  );
+export function mapDeviceContactsToReviewRows(contacts, existingGuests = []) {
+  const existingByPhone = indexGuestsByPhone(existingGuests);
   const seenInBatch = new Set();
   const rows = [];
 
@@ -96,8 +98,9 @@ export function mapDeviceContactsToReviewRows(contacts, existingPhones = []) {
     const rawPhone = pickContactPhone(contact);
     const phone = normalizeIsraeliPhone(rawPhone);
     const isInvalidPhone = !phone || !isLikelyValidIsraeliMobile(phone);
-    const isDuplicate =
-      Boolean(phone) && (existingSet.has(phone) || seenInBatch.has(phone));
+    const isExistingDuplicate = Boolean(phone) && existingByPhone.has(phone);
+    const isBatchDuplicate = Boolean(phone) && seenInBatch.has(phone);
+    const isDuplicate = isExistingDuplicate || isBatchDuplicate;
 
     if (phone) seenInBatch.add(phone);
 
@@ -106,9 +109,12 @@ export function mapDeviceContactsToReviewRows(contacts, existingPhones = []) {
       fullName,
       phone,
       rawPhone,
-      selected: Boolean(phone) && !isDuplicate && !isInvalidPhone,
+      selected: Boolean(phone) && !isBatchDuplicate && !isInvalidPhone,
       isDuplicate,
-      isInvalidPhone
+      isExistingDuplicate,
+      isBatchDuplicate,
+      isInvalidPhone,
+      existingGuest: isExistingDuplicate ? existingByPhone.get(phone) : null
     });
   });
 

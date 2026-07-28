@@ -261,7 +261,7 @@ router.get("/:userId/guests", async (req, res) => {
 router.post("/:userId/guests/manual", async (req, res) => {
   try {
     const { userId } = req.params;
-    const { fullName, phone, attendeesCount, status, giftAmount } = req.body;
+    const { fullName, phone, attendeesCount, status, giftAmount, confirmReplace } = req.body;
 
     if (!fullName || !phone || !status) {
       return res.status(400).json({ message: "Missing required fields" });
@@ -281,9 +281,25 @@ router.post("/:userId/guests/manual", async (req, res) => {
     if (existing) {
       if (isSelfConfirmedSource(existing.source)) {
         return res.status(409).json({
+          code: "self_confirmed_guest",
           message: "מוזמן עם מספר טלפון זה כבר אישר הגעה בעצמו במערכת"
         });
       }
+
+      if (!confirmReplace) {
+        return res.status(409).json({
+          code: "duplicate_guest",
+          message: "המוזמן כבר קיים במערכת",
+          existing: guestSnapshot(existing),
+          incoming: {
+            fullName: fullName.trim(),
+            attendeesCount: Number(attendeesCount || 1),
+            giftAmount: Math.max(0, Number(giftAmount || 0)),
+            status
+          }
+        });
+      }
+
       const updateOps = {
         $set: {
           fullName: fullName.trim(),
@@ -313,7 +329,7 @@ router.post("/:userId/guests/manual", async (req, res) => {
         after: guest,
         channel: "dashboard"
       });
-      return res.json({ message: "Guest updated", guest });
+      return res.json({ message: "Guest updated", guest, replaced: true });
     }
 
     const guest = await Guest.create({
@@ -359,6 +375,11 @@ router.post("/:userId/guests/contacts-import", async (req, res) => {
   try {
     const { userId } = req.params;
     const guestsPayload = Array.isArray(req.body?.guests) ? req.body.guests : [];
+    const replacePhones = new Set(
+      (Array.isArray(req.body?.replacePhones) ? req.body.replacePhones : [])
+        .map((phone) => normalizePhone(phone))
+        .filter(Boolean)
+    );
     if (!guestsPayload.length) {
       return res.status(400).json({ message: "יש לבחור לפחות איש קשר אחד לייבוא" });
     }
@@ -369,6 +390,7 @@ router.post("/:userId/guests/contacts-import", async (req, res) => {
     }
 
     const inserted = [];
+    const replaced = [];
     const skipped = [];
     const failed = [];
     const seenPhones = new Set();
@@ -395,14 +417,68 @@ router.post("/:userId/guests/contacts-import", async (req, res) => {
       }
       seenPhones.add(normalizedPhone);
 
-      const existing = await Guest.findOne({ userId, phone: normalizedPhone }).select("_id fullName source");
+      const existing = await Guest.findOne({ userId, phone: normalizedPhone });
       if (existing) {
-        skipped.push({
-          fullName,
-          phone: normalizedPhone,
-          reason: "קיים במערכת",
-          existingId: String(existing._id)
-        });
+        if (!replacePhones.has(normalizedPhone)) {
+          skipped.push({
+            fullName,
+            phone: normalizedPhone,
+            reason: "קיים במערכת",
+            existingId: String(existing._id)
+          });
+          continue;
+        }
+
+        if (isSelfConfirmedSource(existing.source)) {
+          skipped.push({
+            fullName,
+            phone: normalizedPhone,
+            reason: "מוזמן זה אישר הגעה בעצמו במערכת",
+            existingId: String(existing._id)
+          });
+          continue;
+        }
+
+        try {
+          const updateOps = {
+            $set: {
+              fullName,
+              phone: normalizedPhone,
+              attendeesCount,
+              giftAmount: 0,
+              status: "לא ידוע",
+              source: "contacts",
+              guestGroup: guestGroup || existing.guestGroup || ""
+            }
+          };
+          const historyEntry = statusHistoryPushEntry({
+            previousStatus: existing.status,
+            nextStatus: "לא ידוע",
+            updatedBy: "הזוג (ייבוא מאנשי קשר)",
+            source: STATUS_HISTORY_SOURCES.EXCEL
+          });
+          if (historyEntry) {
+            updateOps.$push = { statusHistory: historyEntry };
+          }
+
+          const guest = await Guest.findByIdAndUpdate(existing._id, updateOps, {
+            new: true,
+            runValidators: true
+          });
+          await recordClientGuestUpdate({
+            userId,
+            before: existing,
+            after: guest,
+            channel: "import"
+          });
+          replaced.push(guest);
+        } catch (updateError) {
+          failed.push({
+            fullName,
+            phone: normalizedPhone,
+            reason: updateError.message || "החלפה נכשלה"
+          });
+        }
         continue;
       }
 
@@ -452,13 +528,15 @@ router.post("/:userId/guests/contacts-import", async (req, res) => {
     }
 
     return res.status(201).json({
-      message: `יובאו ${inserted.length} מוזמנים מאנשי קשר`,
+      message: `יובאו ${inserted.length} מוזמנים מאנשי קשר${replaced.length ? `, הוחלפו ${replaced.length}` : ""}`,
       insertedCount: inserted.length,
+      replacedCount: replaced.length,
       skippedCount: skipped.length,
       failedCount: failed.length,
       skipped,
       failed,
-      guests: inserted
+      guests: inserted,
+      replacedGuests: replaced
     });
   } catch (error) {
     return res.status(500).json({ message: error.message || "ייבוא מאנשי קשר נכשל" });

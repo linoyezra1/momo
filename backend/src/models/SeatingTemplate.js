@@ -17,12 +17,17 @@ const seatingTableSchema = new mongoose.Schema(
 const venueElementSchema = new mongoose.Schema(
   {
     elementId: { type: String, required: true },
-    type: { type: String, enum: ["stage", "dance", "dj", "bar", "pillar"], required: true },
+    type: {
+      type: String,
+      enum: ["stage", "dance", "dj", "bar", "pillar", "chuppah", "stage_bar"],
+      required: true
+    },
     label: { type: String, trim: true, default: "" },
     x: { type: Number, default: 20 },
     y: { type: Number, default: 20 },
     width: { type: Number, default: 120 },
-    height: { type: Number, default: 60 }
+    height: { type: Number, default: 60 },
+    rotation: { type: Number, default: 0 }
   },
   { _id: false }
 );

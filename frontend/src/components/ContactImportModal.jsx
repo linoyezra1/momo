@@ -1,26 +1,31 @@
 import { useEffect, useMemo, useState } from "react";
 import { Contact, QrCode, X } from "lucide-react";
+import ContactsDuplicateResolveModal from "./ContactsDuplicateResolveModal.jsx";
 import {
   isContactsPickerSupported,
   isLikelyValidIsraeliMobile,
   mapDeviceContactsToReviewRows,
   pickContactsFromDevice
 } from "../utils/contactsImport.js";
+import { indexGuestsByPhone } from "../utils/guestDuplicate.js";
 import { normalizeIsraeliPhone } from "../utils/phoneNormalize.js";
 
 /**
  * @param {{
  *   userId: string,
- *   existingPhones: string[],
+ *   existingGuests: Array<{_id?: string, fullName?: string, phone?: string, attendeesCount?: number, status?: string, source?: string}>,
  *   onClose: () => void,
- *   onImported: (result: { insertedCount: number }) => void,
+ *   onImported: (result: { insertedCount: number, replacedCount?: number }) => void,
  *   onRequestExcelImport: () => void,
- *   importContacts: (guests: Array<{fullName: string, phone: string, guestGroup: string}>) => Promise<{insertedCount: number}>
+ *   importContacts: (
+ *     guests: Array<{fullName: string, phone: string, guestGroup: string}>,
+ *     options?: { replacePhones?: string[] }
+ *   ) => Promise<{insertedCount: number, replacedCount?: number}>
  * }} props
  */
 export default function ContactImportModal({
   userId,
-  existingPhones,
+  existingGuests,
   onClose,
   onImported,
   onRequestExcelImport,
@@ -32,6 +37,10 @@ export default function ContactImportModal({
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState("");
+  const [duplicateConflicts, setDuplicateConflicts] = useState([]);
+  const [duplicateChoices, setDuplicateChoices] = useState({});
+
+  const existingByPhone = useMemo(() => indexGuestsByPhone(existingGuests || []), [existingGuests]);
 
   const dashboardUrl =
     typeof window !== "undefined"
@@ -42,7 +51,9 @@ export default function ContactImportModal({
     ? `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(dashboardUrl)}`
     : "";
 
-  const selectedCount = rows.filter((row) => row.selected && !row.isDuplicate && !row.isInvalidPhone).length;
+  const isRowSelectable = (row) => !row.isBatchDuplicate && !row.isInvalidPhone;
+
+  const selectedCount = rows.filter((row) => row.selected && isRowSelectable(row)).length;
 
   useEffect(() => {
     if (!toast) return undefined;
@@ -52,9 +63,11 @@ export default function ContactImportModal({
 
   const openPicker = async () => {
     setError("");
+    setDuplicateConflicts([]);
+    setDuplicateChoices({});
     try {
       const contacts = await pickContactsFromDevice();
-      const mapped = mapDeviceContactsToReviewRows(contacts, existingPhones);
+      const mapped = mapDeviceContactsToReviewRows(contacts, existingGuests);
       if (!mapped.length) {
         setError("לא נבחרו אנשי קשר");
         return;
@@ -88,13 +101,12 @@ export default function ContactImportModal({
           const phone = normalizeIsraeliPhone(patch.phone);
           next.phone = phone;
           next.isInvalidPhone = !phone || !isLikelyValidIsraeliMobile(phone);
-          const existingSet = new Set(
-            (existingPhones || []).map((item) => normalizeIsraeliPhone(item)).filter(Boolean)
-          );
           const others = prev.filter((item) => item.id !== id && item.selected).map((item) => item.phone);
-          next.isDuplicate =
-            Boolean(phone) && (existingSet.has(phone) || others.includes(phone));
-          if (next.isDuplicate || next.isInvalidPhone) next.selected = false;
+          next.isExistingDuplicate = Boolean(phone) && existingByPhone.has(phone);
+          next.isBatchDuplicate = Boolean(phone) && others.includes(phone);
+          next.isDuplicate = next.isExistingDuplicate || next.isBatchDuplicate;
+          next.existingGuest = next.isExistingDuplicate ? existingByPhone.get(phone) : null;
+          if (next.isBatchDuplicate || next.isInvalidPhone) next.selected = false;
         }
         return next;
       })
@@ -105,26 +117,26 @@ export default function ContactImportModal({
     setRows((prev) =>
       prev.map((row) => {
         if (row.id !== id) return row;
-        if (row.isDuplicate || row.isInvalidPhone) return { ...row, selected: false };
+        if (!isRowSelectable(row)) return { ...row, selected: false };
         return { ...row, selected: !row.selected };
       })
     );
   };
 
   const toggleAllValid = () => {
-    const selectable = rows.filter((row) => !row.isDuplicate && !row.isInvalidPhone);
+    const selectable = rows.filter((row) => isRowSelectable(row));
     const allSelected = selectable.length > 0 && selectable.every((row) => row.selected);
     setRows((prev) =>
       prev.map((row) => {
-        if (row.isDuplicate || row.isInvalidPhone) return { ...row, selected: false };
+        if (!isRowSelectable(row)) return { ...row, selected: false };
         return { ...row, selected: !allSelected };
       })
     );
   };
 
-  const confirmImport = async () => {
-    const payload = rows
-      .filter((row) => row.selected && !row.isDuplicate && !row.isInvalidPhone)
+  const buildPayload = () =>
+    rows
+      .filter((row) => row.selected && isRowSelectable(row))
       .map((row) => ({
         fullName: row.fullName.trim(),
         phone: row.phone,
@@ -132,24 +144,94 @@ export default function ContactImportModal({
       }))
       .filter((row) => row.fullName && row.phone);
 
-    if (!payload.length) {
-      setError("יש לבחור לפחות מוזמן תקין לייבוא");
-      return;
-    }
+  const buildConflictsFromPayload = (payload) =>
+    payload
+      .map((row) => {
+        const existing = existingByPhone.get(row.phone);
+        if (!existing) return null;
+        return {
+          phone: row.phone,
+          existing,
+          incoming: {
+            fullName: row.fullName,
+            attendeesCount: 1
+          }
+        };
+      })
+      .filter(Boolean);
 
+  const runImport = async (payload, replacePhones = []) => {
     setSaving(true);
     setError("");
     try {
-      const result = await importContacts(payload);
-      setToast(`יובאו ${result.insertedCount || payload.length} מוזמנים בהצלחה`);
+      const result = await importContacts(payload, { replacePhones });
+      const inserted = Number(result.insertedCount || 0);
+      const replaced = Number(result.replacedCount || 0);
+      const parts = [];
+      if (inserted > 0) parts.push(`יובאו ${inserted}`);
+      if (replaced > 0) parts.push(`הוחלפו ${replaced}`);
+      setToast(parts.length ? `${parts.join(", ")} בהצלחה` : "הייבוא הושלם");
       onImported?.(result);
       window.setTimeout(() => onClose?.(), 700);
     } catch (saveError) {
       setError(saveError?.response?.data?.message || saveError?.message || "ייבוא אנשי הקשר נכשל");
     } finally {
       setSaving(false);
+      setDuplicateConflicts([]);
+      setDuplicateChoices({});
     }
   };
+
+  const confirmImport = async () => {
+    const payload = buildPayload();
+    if (!payload.length) {
+      setError("יש לבחור לפחות מוזמן תקין לייבוא");
+      return;
+    }
+
+    const conflicts = buildConflictsFromPayload(payload);
+    if (conflicts.length) {
+      const initialChoices = {};
+      conflicts.forEach((item) => {
+        initialChoices[item.phone] = "skip";
+      });
+      setDuplicateChoices(initialChoices);
+      setDuplicateConflicts(conflicts);
+      return;
+    }
+
+    await runImport(payload);
+  };
+
+  const confirmDuplicateResolutions = async () => {
+    const payload = buildPayload();
+    const replacePhones = duplicateConflicts
+      .filter((item) => duplicateChoices[item.phone] === "replace")
+      .map((item) => item.phone);
+    await runImport(payload, replacePhones);
+  };
+
+  const closeDuplicateResolve = () => {
+    setDuplicateConflicts([]);
+    setDuplicateChoices({});
+  };
+
+  const setDuplicateChoice = (phone, choice) => {
+    setDuplicateChoices((prev) => ({ ...prev, [phone]: choice }));
+  };
+
+  if (duplicateConflicts.length) {
+    return (
+      <ContactsDuplicateResolveModal
+        conflicts={duplicateConflicts}
+        choices={duplicateChoices}
+        onChoiceChange={setDuplicateChoice}
+        onConfirm={confirmDuplicateResolutions}
+        onCancel={closeDuplicateResolve}
+        submitting={saving}
+      />
+    );
+  }
 
   return (
     <div className="us-modal-backdrop" role="presentation" dir="rtl" lang="he">
@@ -220,10 +302,8 @@ export default function ContactImportModal({
                 <input
                   type="checkbox"
                   checked={
-                    rows.filter((row) => !row.isDuplicate && !row.isInvalidPhone).length > 0 &&
-                    rows
-                      .filter((row) => !row.isDuplicate && !row.isInvalidPhone)
-                      .every((row) => row.selected)
+                    rows.filter((row) => isRowSelectable(row)).length > 0 &&
+                    rows.filter((row) => isRowSelectable(row)).every((row) => row.selected)
                   }
                   onChange={toggleAllValid}
                 />
@@ -235,14 +315,14 @@ export default function ContactImportModal({
               {rows.map((row) => (
                 <article
                   key={row.id}
-                  className={`il-contacts-review-row${row.isDuplicate ? " is-duplicate" : ""}${
-                    row.isInvalidPhone ? " is-invalid" : ""
-                  }`}
+                  className={`il-contacts-review-row${row.isExistingDuplicate ? " is-duplicate" : ""}${
+                    row.isBatchDuplicate ? " is-batch-duplicate" : ""
+                  }${row.isInvalidPhone ? " is-invalid" : ""}`}
                 >
                   <input
                     type="checkbox"
                     checked={row.selected}
-                    disabled={row.isDuplicate || row.isInvalidPhone}
+                    disabled={!isRowSelectable(row)}
                     onChange={() => toggleRow(row.id)}
                     aria-label={`בחירת ${row.fullName}`}
                   />
@@ -261,7 +341,12 @@ export default function ContactImportModal({
                       aria-label="טלפון"
                     />
                     <div className="il-contacts-review-tags">
-                      {row.isDuplicate ? <span className="il-contacts-tag is-warn">קיים במערכת</span> : null}
+                      {row.isExistingDuplicate ? (
+                        <span className="il-contacts-tag is-warn">קיים במערכת — יוצג אישור החלפה</span>
+                      ) : null}
+                      {row.isBatchDuplicate ? (
+                        <span className="il-contacts-tag is-warn">כפילות ברשימת הייבוא</span>
+                      ) : null}
                       {row.isInvalidPhone ? <span className="il-contacts-tag is-error">טלפון לא תקין</span> : null}
                     </div>
                   </div>

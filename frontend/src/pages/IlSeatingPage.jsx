@@ -6,7 +6,7 @@ import IlSeatingGuestPanel from "../il/seating/IlSeatingGuestPanel.jsx";
 import IlSeatingSimpleGrid from "../il/seating/IlSeatingSimpleGrid.jsx";
 import IlSeatingCanvas from "../il/seating/IlSeatingCanvas.jsx";
 import IlSeatingTableEditModal from "../il/seating/IlSeatingTableEditModal.jsx";
-import { TABLE_SHAPES } from "../il/seating/seatingConstants.js";
+import { TABLE_SHAPES, VENUE_ELEMENT_TYPES, getVenueElementDefaults } from "../il/seating/seatingConstants.js";
 import { buildSeatingExportRows, filterSeatingGuests, makeSeatingId } from "../il/seating/ilSeatingUtils.js";
 import { useEventWorkspace } from "../utils/useEventWorkspace.js";
 import TableDispatchFeatureLockedNotice from "../components/TableDispatchFeatureLockedNotice.jsx";
@@ -198,6 +198,22 @@ export default function IlSeatingPage() {
       height: 120
     };
     saveLayout({ tables: [...tables, newTable] });
+  }
+
+  function addVenueElement(type) {
+    const defaults = getVenueElementDefaults(type);
+    const offset = venueElements.length * 18;
+    const newElement = {
+      elementId: makeSeatingId("venue"),
+      type,
+      label: defaults.label,
+      x: 80 + offset,
+      y: 60 + offset,
+      width: defaults.width,
+      height: defaults.height,
+      rotation: 0
+    };
+    saveLayout({ venueElements: [...venueElements, newElement] });
   }
 
   function onDragStart(event, guestId) {
@@ -442,7 +458,7 @@ export default function IlSeatingPage() {
       ) : null}
 
       <div className="il-seat-command-bar">
-        <div className="il-seat-toolbox" aria-label="הוספת שולחנות">
+        <div className="il-seat-toolbox" aria-label="הוספת שולחנות ואלמנטים">
           <div className="il-seat-toolbox__group">
             <span>שולחנות</span>
             {viewMode === "canvas" ? (
@@ -457,6 +473,16 @@ export default function IlSeatingPage() {
               </button>
             )}
           </div>
+          {viewMode === "canvas" ? (
+            <div className="il-seat-toolbox__group">
+              <span>אלמנטי אולם</span>
+              {VENUE_ELEMENT_TYPES.map((element) => (
+                <button key={element.value} type="button" onClick={() => addVenueElement(element.value)}>
+                  {element.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
           {viewMode === "canvas" ? (
             <button type="button" className="il-seat-toolbox__primary" onClick={toggleCanvasFullscreen}>
               {canvasFullscreen ? <Minimize2 size={15} aria-hidden="true" /> : <Maximize2 size={15} aria-hidden="true" />}
@@ -529,6 +555,7 @@ export default function IlSeatingPage() {
               onEditTable={setEditingTableId}
               onDropGuestsOnTable={(tableId, guestIds) => assignGuests(guestIds, tableId)}
               canvasRef={canvasRef}
+              readOnly={false}
             />
           </div>
         )}
