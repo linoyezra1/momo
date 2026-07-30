@@ -1,0 +1,8 @@
+# Healthcheck must match Express route /api/health (not /health).
+# Keep Railway app region colocated with MongoDB. Audience is primarily Israel —
+# benchmark EU vs Singapore warm TTFB/LCP before changing regions. Keep Serverless disabled.
+[deploy]
+healthcheckPath = "/api/health"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10

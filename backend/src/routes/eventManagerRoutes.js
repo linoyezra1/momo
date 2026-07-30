@@ -5,6 +5,9 @@ import Guest from "../models/Guest.js";
 import EventVendor from "../models/EventVendor.js";
 import { buildClientUrl } from "../utils/clientUrl.js";
 import { normalizeEventPayload, normalizePaymentPayload, validateEvent } from "../utils/eventPayload.js";
+import { applyCoverToEventPayload, clearEventCover, uploadAndAttachCover } from "../utils/eventCover.js";
+import { coverUpload } from "../middleware/coverUpload.js";
+import { isCoverStorageConfigured } from "../services/coverStorage.js";
 import { normalizePhone } from "../utils/guestPhone.js";
 import {
   applyCouplePassword,
@@ -162,7 +165,7 @@ router.post("/create-client", async (req, res) => {
       return res.status(400).json({ message: "יש למלא שם משתמש וסיסמה" });
     }
     const { plainPassword, passwordHash } = await buildCouplePasswordFields(password, bcrypt);
-    const normalizedEvent = normalizeEventPayload(event);
+    const normalizedEvent = await applyCoverToEventPayload(normalizeEventPayload(event), {});
     const eventValidationError = validateEvent(normalizedEvent);
     if (eventValidationError) {
       return res.status(400).json({ message: eventValidationError });
@@ -255,14 +258,18 @@ router.patch("/clients/:userId", async (req, res) => {
     }
 
     if (event) {
-      const normalizedEvent = normalizeEventPayload(event);
+      const previousEvent = user.event?.toObject
+        ? user.event.toObject()
+        : { ...(user.event || {}) };
+      const normalizedEvent = await applyCoverToEventPayload(
+        normalizeEventPayload(event),
+        previousEvent,
+        { clearCover: event?.clearCover === true }
+      );
       const eventValidationError = validateEvent(normalizedEvent);
       if (eventValidationError) {
         return res.status(400).json({ message: eventValidationError });
       }
-      const previousEvent = user.event?.toObject
-        ? user.event.toObject()
-        : { ...(user.event || {}) };
       user.event = {
         ...normalizedEvent,
         maxPhoneRounds: Number(previousEvent.maxPhoneRounds) || 0,
@@ -298,6 +305,38 @@ router.delete("/clients/:userId", async (req, res) => {
     return res.json({ message: "Client deleted", userId });
   } catch (error) {
     return res.status(500).json({ message: "Failed to delete client", error: error.message });
+  }
+});
+
+router.post("/clients/:userId/event/cover", coverUpload.single("cover"), async (req, res) => {
+  try {
+    if (!isCoverStorageConfigured()) {
+      return res.status(503).json({
+        message:
+          "אחסון תמונות לא מוגדר. יש להגדיר CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY ו-CLOUDINARY_API_SECRET"
+      });
+    }
+    const user = await User.findOne({ _id: req.params.userId, managedBy: "eventManager" });
+    if (!user) {
+      return res.status(404).json({ message: "Client not found" });
+    }
+    const cover = await uploadAndAttachCover(user, req.file);
+    return res.json({ message: "תמונת הקאבר הועלתה בהצלחה", cover, event: user.event });
+  } catch (error) {
+    return res.status(error.status || 400).json({ message: error.message || "העלאת התמונה נכשלה" });
+  }
+});
+
+router.delete("/clients/:userId/event/cover", async (req, res) => {
+  try {
+    const user = await User.findOne({ _id: req.params.userId, managedBy: "eventManager" });
+    if (!user) {
+      return res.status(404).json({ message: "Client not found" });
+    }
+    await clearEventCover(user);
+    return res.json({ message: "תמונת הקאבר הוסרה", event: user.event });
+  } catch (error) {
+    return res.status(error.status || 400).json({ message: error.message || "מחיקת התמונה נכשלה" });
   }
 });
 

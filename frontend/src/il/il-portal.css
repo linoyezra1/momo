@@ -1078,6 +1078,23 @@
   border: 1px solid var(--us-border);
 }
 
+.il-editor-remove-cover {
+  margin-top: 0.55rem;
+  border: 1px solid var(--us-border);
+  background: #fff;
+  border-radius: 0.4rem;
+  padding: 0.4rem 0.75rem;
+  cursor: pointer;
+  font: inherit;
+  color: var(--us-text);
+}
+
+.il-editor-upload-progress {
+  margin-top: 0.45rem;
+  font-size: 0.85rem;
+  color: var(--us-muted);
+}
+
 .il-status-group {
   display: flex;
   flex-wrap: wrap;

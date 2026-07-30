@@ -6,6 +6,7 @@ import { clearAdminToken } from "../utils/adminAuth";
 import { buildClientOnboardingMessage } from "../utils/clientOnboardingMessage";
 import { formatIsraeliDate } from "../utils/dateFormat";
 import { isCoupleEventType } from "../utils/eventTypeWording";
+import { getEventCoverSrc, uploadEventCover } from "../utils/eventCover.js";
 import "../us/admin-portal.css";
 
 const PACKAGE_TYPE_OPTIONS = [
@@ -97,6 +98,10 @@ const initialForm = {
   eventTime: "",
   maxPhoneRounds: 0,
   isPremiumWhatsappButtonsEnabled: false,
+  cover: null,
+  coverPreviewUrl: "",
+  pendingCoverFile: null,
+  clearCover: false,
   imageDataUrl: ""
 };
 
@@ -462,7 +467,6 @@ ${publicEventUrl}`
   const onImageChange = (event) => {
     const file = event.target.files?.[0];
     if (!file) {
-      setForm((prev) => ({ ...prev, imageDataUrl: "" }));
       return;
     }
     if (!file.type.startsWith("image/")) {
@@ -475,13 +479,19 @@ ${publicEventUrl}`
       event.target.value = "";
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const resultData = typeof reader.result === "string" ? reader.result : "";
-      setForm((prev) => ({ ...prev, imageDataUrl: resultData }));
-    };
-    reader.onerror = () => setError("נכשלה קריאת קובץ התמונה");
-    reader.readAsDataURL(file);
+    const previewUrl = URL.createObjectURL(file);
+    setForm((prev) => {
+      if (prev.coverPreviewUrl?.startsWith("blob:")) {
+        URL.revokeObjectURL(prev.coverPreviewUrl);
+      }
+      return {
+        ...prev,
+        pendingCoverFile: file,
+        coverPreviewUrl: previewUrl,
+        clearCover: false,
+        imageDataUrl: ""
+      };
+    });
   };
 
   const onSubmit = async (event) => {
@@ -529,7 +539,7 @@ ${publicEventUrl}`
           eventTime: form.eventTime,
           maxPhoneRounds: Number(form.maxPhoneRounds) || 0,
           isPremiumWhatsappButtonsEnabled: Boolean(form.isPremiumWhatsappButtonsEnabled),
-          imageDataUrl: form.imageDataUrl
+          clearCover: form.clearCover === true && !form.pendingCoverFile
         }
       };
       if (wizardMode === "create" || form.password.trim()) {
@@ -540,7 +550,16 @@ ${publicEventUrl}`
           ? await api.patch(`/admin/clients/${editingClientId}`, payload)
           : await api.post("/admin/create-client", payload);
 
-      const savedUserId = response.data?.userId;
+      const savedUserId = response.data?.userId || editingClientId;
+      if (savedUserId && form.pendingCoverFile) {
+        await uploadEventCover({
+          api,
+          endpoint: `/admin/clients/${savedUserId}/event/cover`,
+          file: form.pendingCoverFile
+        });
+      } else if (savedUserId && form.clearCover) {
+        await api.delete(`/admin/clients/${savedUserId}/event/cover`);
+      }
       if (savedUserId) {
         setSelectedClientId(savedUserId);
       }
@@ -628,7 +647,11 @@ ${publicEventUrl}`
       eventTime: client.event?.eventTime || "",
       maxPhoneRounds: Number(client.event?.maxPhoneRounds) || 0,
       isPremiumWhatsappButtonsEnabled: Boolean(client.event?.isPremiumWhatsappButtonsEnabled),
-      imageDataUrl: client.event?.imageDataUrl || ""
+      cover: client.event?.cover || null,
+      coverPreviewUrl: getEventCoverSrc(client.event),
+      pendingCoverFile: null,
+      clearCover: false,
+      imageDataUrl: ""
     });
     setShowCreateWizard(true);
   };
@@ -962,10 +985,10 @@ ${publicEventUrl}`
                     </div>
                   </div>
 
-                  {!isUsClient(selectedClient) && selectedClient.event?.imageDataUrl ? (
+                  {!isUsClient(selectedClient) && getEventCoverSrc(selectedClient.event) ? (
                     <img
                       className="us-admin-event-image"
-                      src={selectedClient.event.imageDataUrl}
+                      src={getEventCoverSrc(selectedClient.event)}
                       alt="תמונת קאבר"
                     />
                   ) : null}
@@ -1472,7 +1495,32 @@ ${publicEventUrl}`
                   תמונת אירוע
                 </label>
                 <input id="eventImage" className="us-admin-field-input" type="file" accept="image/*" onChange={onImageChange} />
-                {form.imageDataUrl ? <img className="us-admin-event-image" src={form.imageDataUrl} alt="תצוגה מקדימה" /> : null}
+                {form.coverPreviewUrl ? (
+                  <>
+                    <img className="us-admin-event-image" src={form.coverPreviewUrl} alt="תצוגה מקדימה" />
+                    <button
+                      type="button"
+                      className="us-admin-btn"
+                      onClick={() =>
+                        setForm((prev) => {
+                          if (prev.coverPreviewUrl?.startsWith("blob:")) {
+                            URL.revokeObjectURL(prev.coverPreviewUrl);
+                          }
+                          return {
+                            ...prev,
+                            pendingCoverFile: null,
+                            coverPreviewUrl: "",
+                            cover: null,
+                            clearCover: true,
+                            imageDataUrl: ""
+                          };
+                        })
+                      }
+                    >
+                      הסרת תמונה
+                    </button>
+                  </>
+                ) : null}
               </div>
 
               <div className="us-admin-form-actions">

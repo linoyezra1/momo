@@ -24,8 +24,7 @@ const initialForm = {
   streetAndNumber: "",
   eventDate: "",
   eventDateHebrew: "",
-  eventTime: "",
-  imageDataUrl: ""
+  eventTime: ""
 };
 
 const FILTERS = [
@@ -160,8 +159,7 @@ export default function EventManagerPage() {
       streetAndNumber: ev.streetAndNumber || "",
       eventDate: ev.eventDate || "",
       eventDateHebrew: ev.eventDateHebrew || "",
-      eventTime: ev.eventTime || "",
-      imageDataUrl: ev.imageDataUrl || ""
+      eventTime: ev.eventTime || ""
     });
     setError("");
     setShowCreateWizard(true);
@@ -188,8 +186,7 @@ export default function EventManagerPage() {
           streetAndNumber: form.streetAndNumber,
           eventDate: form.eventDate,
           eventDateHebrew: form.eventDateHebrew,
-          eventTime: form.eventTime,
-          imageDataUrl: form.imageDataUrl
+          eventTime: form.eventTime
         }
       };
 

@@ -1,96 +1,227 @@
+import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
-import AdminProtectedRoute from "./components/AdminProtectedRoute.jsx";
-import AgentProtectedRoute from "./components/AgentProtectedRoute.jsx";
-import EventManagerProtectedRoute from "./components/EventManagerProtectedRoute.jsx";
-import EventManagerEventLayout from "./components/EventManagerEventLayout.jsx";
-import AdminLoginPage from "./pages/AdminLoginPage.jsx";
-import AgentClientsPage from "./pages/AgentClientsPage.jsx";
-import AgentLoginPage from "./pages/AgentLoginPage.jsx";
-import AgentWorkspacePage from "./pages/AgentWorkspacePage.jsx";
-import AdminPage from "./pages/AdminPage.jsx";
-import EventManagerLoginPage from "./pages/EventManagerLoginPage.jsx";
-import EventManagerPage from "./pages/EventManagerPage.jsx";
-import LandingPage from "./pages/LandingPage.jsx";
 import EventPage from "./pages/EventPage.jsx";
-import ClientLoginPage from "./pages/ClientLoginPage.jsx";
-import ClientDashboardPage from "./pages/ClientDashboardPage.jsx";
-import ClientAuditLogPage from "./pages/ClientAuditLogPage.jsx";
-import ClientVendorsPage from "./pages/ClientVendorsPage.jsx";
-import ManagerBudgetPage from "./pages/ManagerBudgetPage.jsx";
-import IlSeatingPage from "./pages/IlSeatingPage.jsx";
-import HostessPage from "./pages/HostessPage.jsx";
-import EventManagerVendorsPage from "./pages/EventManagerVendorsPage.jsx";
+
+const AdminProtectedRoute = lazy(() => import("./components/AdminProtectedRoute.jsx"));
+const AgentProtectedRoute = lazy(() => import("./components/AgentProtectedRoute.jsx"));
+const EventManagerProtectedRoute = lazy(() => import("./components/EventManagerProtectedRoute.jsx"));
+const EventManagerEventLayout = lazy(() => import("./components/EventManagerEventLayout.jsx"));
+const AdminLoginPage = lazy(() => import("./pages/AdminLoginPage.jsx"));
+const AgentClientsPage = lazy(() => import("./pages/AgentClientsPage.jsx"));
+const AgentLoginPage = lazy(() => import("./pages/AgentLoginPage.jsx"));
+const AgentWorkspacePage = lazy(() => import("./pages/AgentWorkspacePage.jsx"));
+const AdminPage = lazy(() => import("./pages/AdminPage.jsx"));
+const EventManagerLoginPage = lazy(() => import("./pages/EventManagerLoginPage.jsx"));
+const EventManagerPage = lazy(() => import("./pages/EventManagerPage.jsx"));
+const LandingPage = lazy(() => import("./pages/LandingPage.jsx"));
+const ClientLoginPage = lazy(() => import("./pages/ClientLoginPage.jsx"));
+const ClientDashboardPage = lazy(() => import("./pages/ClientDashboardPage.jsx"));
+const ClientAuditLogPage = lazy(() => import("./pages/ClientAuditLogPage.jsx"));
+const ClientVendorsPage = lazy(() => import("./pages/ClientVendorsPage.jsx"));
+const ManagerBudgetPage = lazy(() => import("./pages/ManagerBudgetPage.jsx"));
+const IlSeatingPage = lazy(() => import("./pages/IlSeatingPage.jsx"));
+const HostessPage = lazy(() => import("./pages/HostessPage.jsx"));
+const EventManagerVendorsPage = lazy(() => import("./pages/EventManagerVendorsPage.jsx"));
+
+function RouteFallback() {
+  return (
+    <div className="app-route-fallback" dir="rtl" lang="he">
+      טוען…
+    </div>
+  );
+}
+
+function LazyRoute({ children }) {
+  return <Suspense fallback={<RouteFallback />}>{children}</Suspense>;
+}
 
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<LandingPage />} />
-      <Route path="/admin/login" element={<AdminLoginPage />} />
+      <Route
+        path="/"
+        element={
+          <LazyRoute>
+            <LandingPage />
+          </LazyRoute>
+        }
+      />
+      <Route
+        path="/admin/login"
+        element={
+          <LazyRoute>
+            <AdminLoginPage />
+          </LazyRoute>
+        }
+      />
       <Route
         path="/admin"
         element={
-          <AdminProtectedRoute>
-            <AdminPage />
-          </AdminProtectedRoute>
+          <LazyRoute>
+            <AdminProtectedRoute>
+              <AdminPage />
+            </AdminProtectedRoute>
+          </LazyRoute>
         }
       />
-      <Route path="/manager/login" element={<EventManagerLoginPage />} />
+      <Route
+        path="/manager/login"
+        element={
+          <LazyRoute>
+            <EventManagerLoginPage />
+          </LazyRoute>
+        }
+      />
       <Route
         path="/manager"
         element={
-          <EventManagerProtectedRoute>
-            <EventManagerPage />
-          </EventManagerProtectedRoute>
+          <LazyRoute>
+            <EventManagerProtectedRoute>
+              <EventManagerPage />
+            </EventManagerProtectedRoute>
+          </LazyRoute>
         }
       />
       <Route
         path="/manager/vendors"
         element={
-          <EventManagerProtectedRoute>
-            <EventManagerVendorsPage />
-          </EventManagerProtectedRoute>
+          <LazyRoute>
+            <EventManagerProtectedRoute>
+              <EventManagerVendorsPage />
+            </EventManagerProtectedRoute>
+          </LazyRoute>
         }
       />
       <Route
         path="/manager/events/:userId"
         element={
-          <EventManagerProtectedRoute>
-            <EventManagerEventLayout />
-          </EventManagerProtectedRoute>
+          <LazyRoute>
+            <EventManagerProtectedRoute>
+              <EventManagerEventLayout />
+            </EventManagerProtectedRoute>
+          </LazyRoute>
         }
       >
         <Route index element={<Navigate to="vendors" replace />} />
-        <Route path="vendors" element={<ClientVendorsPage />} />
-        <Route path="budget" element={<ManagerBudgetPage />} />
-        <Route path="seating" element={<IlSeatingPage />} />
-        <Route path="guests" element={<ClientDashboardPage />} />
-        <Route path="audit-log" element={<ClientAuditLogPage />} />
+        <Route
+          path="vendors"
+          element={
+            <LazyRoute>
+              <ClientVendorsPage />
+            </LazyRoute>
+          }
+        />
+        <Route
+          path="budget"
+          element={
+            <LazyRoute>
+              <ManagerBudgetPage />
+            </LazyRoute>
+          }
+        />
+        <Route
+          path="seating"
+          element={
+            <LazyRoute>
+              <IlSeatingPage />
+            </LazyRoute>
+          }
+        />
+        <Route
+          path="guests"
+          element={
+            <LazyRoute>
+              <ClientDashboardPage />
+            </LazyRoute>
+          }
+        />
+        <Route
+          path="audit-log"
+          element={
+            <LazyRoute>
+              <ClientAuditLogPage />
+            </LazyRoute>
+          }
+        />
       </Route>
-      <Route path="/agent/login" element={<AgentLoginPage />} />
+      <Route
+        path="/agent/login"
+        element={
+          <LazyRoute>
+            <AgentLoginPage />
+          </LazyRoute>
+        }
+      />
       <Route
         path="/agent"
         element={
-          <AgentProtectedRoute>
-            <AgentClientsPage />
-          </AgentProtectedRoute>
+          <LazyRoute>
+            <AgentProtectedRoute>
+              <AgentClientsPage />
+            </AgentProtectedRoute>
+          </LazyRoute>
         }
       />
       <Route
         path="/agent/workspace/:userId"
         element={
-          <AgentProtectedRoute>
-            <AgentWorkspacePage />
-          </AgentProtectedRoute>
+          <LazyRoute>
+            <AgentProtectedRoute>
+              <AgentWorkspacePage />
+            </AgentProtectedRoute>
+          </LazyRoute>
         }
       />
       <Route path="/event/:eventId" element={<EventPage />} />
-      <Route path="/hostess/:eventId" element={<HostessPage />} />
+      <Route
+        path="/hostess/:eventId"
+        element={
+          <LazyRoute>
+            <HostessPage />
+          </LazyRoute>
+        }
+      />
       <Route path="/login" element={<Navigate to="/client/login" replace />} />
-      <Route path="/client/login" element={<ClientLoginPage />} />
-      <Route path="/client/dashboard/:userId" element={<ClientDashboardPage />} />
-      <Route path="/client/dashboard/:userId/audit-log" element={<ClientAuditLogPage />} />
-      <Route path="/client/dashboard/:userId/vendors" element={<ClientVendorsPage />} />
-      <Route path="/client/dashboard/:userId/seating" element={<IlSeatingPage />} />
+      <Route
+        path="/client/login"
+        element={
+          <LazyRoute>
+            <ClientLoginPage />
+          </LazyRoute>
+        }
+      />
+      <Route
+        path="/client/dashboard/:userId"
+        element={
+          <LazyRoute>
+            <ClientDashboardPage />
+          </LazyRoute>
+        }
+      />
+      <Route
+        path="/client/dashboard/:userId/audit-log"
+        element={
+          <LazyRoute>
+            <ClientAuditLogPage />
+          </LazyRoute>
+        }
+      />
+      <Route
+        path="/client/dashboard/:userId/vendors"
+        element={
+          <LazyRoute>
+            <ClientVendorsPage />
+          </LazyRoute>
+        }
+      />
+      <Route
+        path="/client/dashboard/:userId/seating"
+        element={
+          <LazyRoute>
+            <IlSeatingPage />
+          </LazyRoute>
+        }
+      />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

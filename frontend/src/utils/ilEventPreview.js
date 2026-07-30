@@ -1,4 +1,5 @@
 import { EVENT_TYPES, getDefaultInviteWelcomeText } from "./eventTypeWording.js";
+import { getEventCoverSrc, resolveCoverPreview } from "./eventCover.js";
 
 /** @deprecated Prefer getDefaultInviteWelcomeText(eventType) */
 export const DEFAULT_WELCOME_TEXT = getDefaultInviteWelcomeText("חתונה");
@@ -10,6 +11,7 @@ function cleanText(value) {
 export function eventInfoToForm(event) {
   const source = event || {};
   const eventType = EVENT_TYPES.includes(source.eventType) ? source.eventType : "חתונה";
+  const coverSrc = getEventCoverSrc(source);
   return {
     eventType,
     groomName: source.groomName || "",
@@ -26,7 +28,11 @@ export function eventInfoToForm(event) {
     eventTime: source.eventTime || "",
     receptionTime: source.receptionTime || "",
     welcomeText: source.welcomeText || getDefaultInviteWelcomeText(eventType),
-    imageDataUrl: source.imageDataUrl || ""
+    cover: source.cover || null,
+    coverPreviewUrl: coverSrc,
+    pendingCoverFile: null,
+    clearCover: false,
+    imageDataUrl: ""
   };
 }
 
@@ -47,12 +53,13 @@ export function formToEventUpdatePayload(form) {
     eventTime: form.eventTime,
     receptionTime: form.receptionTime,
     welcomeText: form.welcomeText,
-    imageDataUrl: form.imageDataUrl
+    clearCover: form.clearCover === true && !form.pendingCoverFile
   };
 }
 
 export function eventFormToPreviewPayload(form) {
   const eventType = cleanText(form.eventType) || "חתונה";
+  const previewSrc = resolveCoverPreview(form);
   return {
     eventType,
     groomName: cleanText(form.groomName),
@@ -69,6 +76,7 @@ export function eventFormToPreviewPayload(form) {
     eventTime: cleanText(form.eventTime),
     receptionTime: cleanText(form.receptionTime),
     welcomeText: cleanText(form.welcomeText) || getDefaultInviteWelcomeText(eventType),
-    imageDataUrl: cleanText(form.imageDataUrl)
+    cover: form.cover || (previewSrc ? { url: previewSrc } : null),
+    imageDataUrl: previewSrc.startsWith("data:image/") || previewSrc.startsWith("blob:") ? previewSrc : ""
   };
 }

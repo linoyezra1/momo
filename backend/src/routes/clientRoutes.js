@@ -14,6 +14,9 @@ import {
   validateImportGuestRow
 } from "../utils/guestImport.js";
 import { normalizeIlEventUpdatePayload } from "../utils/ilEvent.js";
+import { applyCoverToEventPayload, clearEventCover, uploadAndAttachCover } from "../utils/eventCover.js";
+import { coverUpload } from "../middleware/coverUpload.js";
+import { isCoverStorageConfigured } from "../services/coverStorage.js";
 import { sendBulkWhatsApp } from "../services/bulkWhatsAppService.js";
 import { getClientBaseUrl } from "../utils/clientUrl.js";
 import ActivationCode from "../models/ActivationCode.js";
@@ -1082,8 +1085,11 @@ router.put("/:userId/event", async (req, res) => {
 
     const previous = user.event?.toObject ? user.event.toObject() : { ...(user.event || {}) };
     const next = normalizeIlEventUpdatePayload(req.body);
+    const withCover = await applyCoverToEventPayload(next, previous, {
+      clearCover: req.body?.clearCover === true
+    });
     user.event = {
-      ...next,
+      ...withCover,
       maxPhoneRounds: Number(previous.maxPhoneRounds) || 0,
       isPremiumWhatsappButtonsEnabled: Boolean(previous.isPremiumWhatsappButtonsEnabled),
       welcomeParagraph: previous.welcomeParagraph || "",
@@ -1097,7 +1103,39 @@ router.put("/:userId/event", async (req, res) => {
       event: user.event
     });
   } catch (error) {
-    return res.status(400).json({ message: error.message || "שמירת ההזמנה נכשלה" });
+    return res.status(error.status || 400).json({ message: error.message || "שמירת ההזמנה נכשלה" });
+  }
+});
+
+router.post("/:userId/event/cover", coverUpload.single("cover"), async (req, res) => {
+  try {
+    if (!isCoverStorageConfigured()) {
+      return res.status(503).json({
+        message:
+          "אחסון תמונות לא מוגדר. יש להגדיר CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY ו-CLOUDINARY_API_SECRET"
+      });
+    }
+    const user = await User.findById(req.params.userId);
+    if (!user) {
+      return res.status(404).json({ message: "Client not found" });
+    }
+    const cover = await uploadAndAttachCover(user, req.file);
+    return res.json({ message: "תמונת הקאבר הועלתה בהצלחה", cover, event: user.event });
+  } catch (error) {
+    return res.status(error.status || 400).json({ message: error.message || "העלאת התמונה נכשלה" });
+  }
+});
+
+router.delete("/:userId/event/cover", async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) {
+      return res.status(404).json({ message: "Client not found" });
+    }
+    await clearEventCover(user);
+    return res.json({ message: "תמונת הקאבר הוסרה", event: user.event });
+  } catch (error) {
+    return res.status(error.status || 400).json({ message: error.message || "מחיקת התמונה נכשלה" });
   }
 });
 

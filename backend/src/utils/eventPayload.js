@@ -1,4 +1,5 @@
 import { isCoupleEventType } from "./eventTypeWording.js";
+import { normalizeCoverFields } from "./eventCover.js";
 
 export function normalizeEventPayload(rawEvent) {
   const eventType = String(rawEvent?.eventType || "").trim() || "חתונה";
@@ -17,6 +18,8 @@ export function normalizeEventPayload(rawEvent) {
     eventDateHebrew: eventType === "ברית" ? String(rawEvent?.eventDateHebrew || "").trim() : "",
     eventTime: String(rawEvent?.eventTime || "").trim(),
     imageDataUrl: String(rawEvent?.imageDataUrl || "").trim(),
+    cover: normalizeCoverFields(rawEvent?.cover),
+    clearCover: rawEvent?.clearCover === true,
     groomName,
     brideName,
     batMitzvahName,

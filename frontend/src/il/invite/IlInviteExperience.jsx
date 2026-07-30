@@ -11,6 +11,7 @@ import {
   getWeddingNames
 } from "./ilInviteUtils.js";
 import { isCoupleEventType } from "../../utils/eventTypeWording.js";
+import { getEventCoverSrc, getEventCoverSrcSet } from "../../utils/eventCover.js";
 import "./il-invite.css";
 
 const initialRsvp = {
@@ -42,8 +43,15 @@ export default function IlInviteExperience({
 
   if (loading) {
     return (
-      <div className="il-invite-page il-invite-page--state">
-        <p className="il-invite-state">טוען את פרטי האירוע…</p>
+      <div className="il-invite-page il-invite-page--state il-invite-page--shell" dir="rtl" lang="he">
+        <div className="il-invite-shell">
+          <header className="il-invite-cover">
+            <div className="il-invite-cover__placeholder" aria-hidden="true" />
+          </header>
+          <main className="il-invite-body">
+            <p className="il-invite-state">טוען את פרטי האירוע…</p>
+          </main>
+        </div>
       </div>
     );
   }
@@ -62,6 +70,8 @@ export default function IlInviteExperience({
   const welcomeText = getWelcomeText(event);
   const displayNames = isCoupleEvent ? getWeddingNames(event) : getEventDisplayName(event);
   const timeline = isCoupleEvent ? getParallelTimeline(event) : [];
+  const coverSrc = getEventCoverSrc(event);
+  const coverSrcSet = getEventCoverSrcSet(event);
   const showCountdown = previewMode || rsvpStarted || Boolean(message);
   const showAttendeeStepper =
     form.status === "מגיע" || form.status === "אולי" || form.status === "לא מגיע";
@@ -119,8 +129,18 @@ export default function IlInviteExperience({
     <div className={`il-invite-page${previewMode ? " il-invite-page--preview" : ""}`} dir="rtl" lang="he">
       <div className="il-invite-shell">
         <header className="il-invite-cover">
-          {event.imageDataUrl ? (
-            <img className="il-invite-cover__img" src={event.imageDataUrl} alt="" />
+          {coverSrc ? (
+            <img
+              className="il-invite-cover__img"
+              src={coverSrc}
+              srcSet={coverSrcSet || undefined}
+              sizes="(max-width: 720px) 100vw, 720px"
+              width={event.cover?.width || undefined}
+              height={event.cover?.height || undefined}
+              alt=""
+              decoding="async"
+              fetchPriority="high"
+            />
           ) : (
             <div className="il-invite-cover__placeholder" aria-hidden="true" />
           )}

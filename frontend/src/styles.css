@@ -22,6 +22,16 @@
   --momo-font-sans: "Heebo", "Segoe UI", Tahoma, Arial, sans-serif;
 }
 
+.app-route-fallback {
+  min-height: 40vh;
+  display: grid;
+  place-items: center;
+  font-family: var(--momo-font-sans, "Heebo", "Segoe UI", Tahoma, Arial, sans-serif);
+  color: #4a4a4a;
+  padding: 2rem;
+  text-align: center;
+}
+
 @font-face {
   font-family: "SaturdayFont";
   src: url("../Saturday.otf") format("opentype");

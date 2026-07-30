@@ -8,6 +8,7 @@ import {
   formToEventUpdatePayload
 } from "../../utils/ilEventPreview.js";
 import { getDefaultInviteWelcomeText, getCeremonyLabel, isCoupleEventType } from "../../utils/eventTypeWording.js";
+import { resolveCoverPreview, uploadEventCover } from "../../utils/eventCover.js";
 import IlInvitationPreview from "./IlInvitationPreview.jsx";
 import IlEditorField, { ilEditorInputClass, ilEditorSelectClass } from "./IlEditorField.jsx";
 import "../../us/client-portal.css";
@@ -18,6 +19,7 @@ const EVENT_TYPE_OPTIONS = ["חתונה", "חינה", "אירוסין", "ברי�
 export default function IlInvitationEditor({ userId, eventInfo, onClose, onSaved }) {
   const [form, setForm] = useState(() => eventInfoToForm(eventInfo));
   const [saving, setSaving] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(null);
   const [toast, setToast] = useState("");
 
   const previewEvent = useMemo(() => eventFormToPreviewPayload(form), [form]);
@@ -59,38 +61,75 @@ export default function IlInvitationEditor({ userId, eventInfo, onClose, onSaved
   function onImageChange(event) {
     const file = event.target.files?.[0];
     if (!file) {
-      setForm((prev) => ({ ...prev, imageDataUrl: "" }));
       return;
     }
     if (!file.type.startsWith("image/")) {
       setToast("יש לבחור קובץ תמונה בלבד");
+      event.target.value = "";
       return;
     }
     if (file.size > 8 * 1024 * 1024) {
       setToast("התמונה גדולה מדי. העלו תמונה עד 8MB");
+      event.target.value = "";
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const resultData = typeof reader.result === "string" ? reader.result : "";
-      setForm((prev) => ({ ...prev, imageDataUrl: resultData }));
-    };
-    reader.onerror = () => setToast("נכשלה קריאת קובץ התמונה");
-    reader.readAsDataURL(file);
+    const previewUrl = URL.createObjectURL(file);
+    setForm((prev) => {
+      if (prev.coverPreviewUrl?.startsWith("blob:")) {
+        URL.revokeObjectURL(prev.coverPreviewUrl);
+      }
+      return {
+        ...prev,
+        pendingCoverFile: file,
+        coverPreviewUrl: previewUrl,
+        clearCover: false,
+        imageDataUrl: ""
+      };
+    });
+  }
+
+  function onRemoveCover() {
+    setForm((prev) => {
+      if (prev.coverPreviewUrl?.startsWith("blob:")) {
+        URL.revokeObjectURL(prev.coverPreviewUrl);
+      }
+      return {
+        ...prev,
+        pendingCoverFile: null,
+        coverPreviewUrl: "",
+        cover: null,
+        clearCover: true,
+        imageDataUrl: ""
+      };
+    });
   }
 
   async function handleSave() {
     setSaving(true);
     setToast("");
+    setUploadProgress(null);
     try {
       const response = await api.put(`/client/${userId}/event`, formToEventUpdatePayload(form));
-      onSaved(response.data.event);
+      let event = response.data.event;
+      if (form.pendingCoverFile) {
+        setUploadProgress(0);
+        const uploaded = await uploadEventCover({
+          api,
+          endpoint: `/client/${userId}/event/cover`,
+          file: form.pendingCoverFile,
+          onProgress: setUploadProgress
+        });
+        event = uploaded.event || event;
+      }
+      onSaved(event);
+      setForm(eventInfoToForm(event));
       setToast("פרטי ההזמנה עודכנו בהצלחה!");
       window.setTimeout(() => setToast(""), 4000);
     } catch (saveError) {
       setToast(saveError.response?.data?.message || "שמירת ההזמנה נכשלה");
     } finally {
       setSaving(false);
+      setUploadProgress(null);
     }
   }
 
@@ -341,9 +380,19 @@ export default function IlInvitationEditor({ userId, eventInfo, onClose, onSaved
                 onChange={onImageChange}
               />
             </IlEditorField>
-            {form.imageDataUrl ? (
-              <img className="il-editor-cover-preview" src={form.imageDataUrl} alt="תצוגה מקדימה" />
+            {resolveCoverPreview(form) ? (
+              <>
+                <img
+                  className="il-editor-cover-preview"
+                  src={resolveCoverPreview(form)}
+                  alt="תצוגה מקדימה"
+                />
+                <button type="button" className="il-editor-remove-cover" onClick={onRemoveCover}>
+                  הסרת תמונה
+                </button>
+              </>
             ) : null}
+            {uploadProgress != null ? <p className="il-editor-upload-progress">מעלה… {uploadProgress}%</p> : null}
           </section>
         </div>
 

@@ -10,22 +10,84 @@ import {
   initialStatusHistoryEntry,
   statusHistoryPushEntry
 } from "../utils/guestStatusHistory.js";
+import { serializePublicEvent } from "../services/coverStorage.js";
+import { logPerf, nowMs, setServerTiming } from "../utils/requestTiming.js";
 
 const router = express.Router();
 
+const PUBLIC_EVENT_SELECT =
+  "event.eventType event.groomName event.brideName event.batMitzvahName event.parentName1 event.parentName2 event.eventNames event.venueName event.city event.streetAndNumber event.eventDate event.eventDateHebrew event.eventTime event.receptionTime event.welcomeText event.cover event.imageDataUrl";
+
 router.get("/event/:eventId", async (req, res) => {
+  const started = nowMs();
+  let mongoMs = 0;
+  let serializeMs = 0;
   try {
     const { eventId } = req.params;
-    const user = await User.findById(eventId).select("event");
+    const mongoStarted = nowMs();
+    const user = await User.findById(eventId).select(PUBLIC_EVENT_SELECT).lean();
+    mongoMs = nowMs() - mongoStarted;
 
     if (!user) {
+      setServerTiming(res, { mongo: mongoMs, total: nowMs() - started });
       return res.status(404).json({ message: "Event not found" });
     }
 
-    return res.json({ eventId, event: user.event });
+    const serializeStarted = nowMs();
+    const event = serializePublicEvent(user.event);
+    serializeMs = nowMs() - serializeStarted;
+    const payload = { eventId, event };
+    const body = JSON.stringify(payload);
+    const totalMs = nowMs() - started;
+
+    res.setHeader("Cache-Control", "public, max-age=30, stale-while-revalidate=60");
+    res.setHeader("Vary", "Accept-Encoding");
+    setServerTiming(res, {
+      mongo: mongoMs,
+      serialize: serializeMs,
+      total: totalMs
+    });
+    logPerf("public_event_get", {
+      eventId,
+      mongoMs,
+      serializeMs,
+      totalMs,
+      bytes: Buffer.byteLength(body),
+      hasCoverUrl: Boolean(event?.cover?.url),
+      hasLegacyImage: Boolean(event?.imageDataUrl)
+    });
+
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    return res.status(200).send(body);
   } catch (error) {
+    setServerTiming(res, {
+      mongo: mongoMs,
+      serialize: serializeMs,
+      total: nowMs() - started
+    });
     return res.status(500).json({ message: "Failed to fetch event", error: error.message });
   }
+});
+
+router.post("/perf", express.json({ limit: "16kb" }), (req, res) => {
+  try {
+    const body = req.body && typeof req.body === "object" ? req.body : {};
+    logPerf("public_client_rum", {
+      metric: body.metric || "unknown",
+      eventId: body.eventId || "",
+      valueMs: body.valueMs ?? null,
+      ttfbMs: body.ttfbMs ?? null,
+      apiMs: body.apiMs ?? null,
+      coverMs: body.coverMs ?? null,
+      path: body.path || "",
+      size: body.size ?? null,
+      loadEventMs: body.loadEventMs ?? null,
+      domContentLoadedMs: body.domContentLoadedMs ?? null
+    });
+  } catch {
+    /* ignore malformed telemetry */
+  }
+  return res.status(204).end();
 });
 
 router.post("/leads", async (req, res) => {

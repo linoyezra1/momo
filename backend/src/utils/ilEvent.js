@@ -1,4 +1,5 @@
 import { EVENT_TYPES, isCoupleEventType } from "./eventTypeWording.js";
+import { normalizeCoverFields } from "./eventCover.js";
 
 function cleanText(value) {
   return String(value ?? "").trim();
@@ -36,7 +37,9 @@ export function normalizeIlEventUpdatePayload(body) {
     eventTime,
     receptionTime: cleanText(body?.receptionTime),
     welcomeText: cleanText(body?.welcomeText),
-    imageDataUrl: cleanText(body?.imageDataUrl)
+    imageDataUrl: cleanText(body?.imageDataUrl),
+    cover: normalizeCoverFields(body?.cover),
+    clearCover: body?.clearCover === true
   };
 
   if (isCoupleEventType(eventType)) {

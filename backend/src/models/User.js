@@ -23,7 +23,17 @@ const eventSchema = new mongoose.Schema(
     maxPhoneRounds: { type: Number, min: 0, max: 4, default: 0 },
     isPremiumWhatsappButtonsEnabled: { type: Boolean, default: false },
     welcomeText: { type: String, trim: true, default: "" },
+    /** @deprecated Prefer structured `cover` metadata (Cloudinary). Kept for migration. */
     imageDataUrl: { type: String, default: "" },
+    cover: {
+      provider: { type: String, trim: true, default: "" },
+      publicId: { type: String, trim: true, default: "" },
+      version: { type: Number, default: null },
+      width: { type: Number, default: 0 },
+      height: { type: Number, default: 0 },
+      url: { type: String, trim: true, default: "" },
+      variants: { type: mongoose.Schema.Types.Mixed, default: () => ({}) }
+    },
     /** WhatsApp approved-template editable segments ({{2}}, {{3}}, {{5}}) */
     welcomeParagraph: { type: String, trim: true, default: "" },
     eventDetailsParagraph: { type: String, trim: true, default: "" },
