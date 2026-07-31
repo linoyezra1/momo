@@ -8,6 +8,7 @@ import IlSeatingCanvas from "../il/seating/IlSeatingCanvas.jsx";
 import IlSeatingTableEditModal from "../il/seating/IlSeatingTableEditModal.jsx";
 import { TABLE_SHAPES, VENUE_ELEMENT_TYPES, getVenueElementDefaults } from "../il/seating/seatingConstants.js";
 import { buildSeatingExportRows, filterSeatingGuests, makeSeatingId } from "../il/seating/ilSeatingUtils.js";
+import { useSeatingDragAutoScroll } from "../il/seating/useSeatingDragAutoScroll.js";
 import { useEventWorkspace } from "../utils/useEventWorkspace.js";
 import TableDispatchFeatureLockedNotice from "../components/TableDispatchFeatureLockedNotice.jsx";
 import "../us/client-portal.css";
@@ -60,6 +61,7 @@ export default function IlSeatingPage() {
   const [eventInfo, setEventInfo] = useState(null);
   const [viewMode, setViewMode] = useState("simple");
   const [canvasFullscreen, setCanvasFullscreen] = useState(false);
+  const { startDragAutoScroll } = useSeatingDragAutoScroll();
 
   const tableLabelById = useMemo(
     () => new Map(tables.map((table) => [table.tableId, table.label])),
@@ -219,6 +221,8 @@ export default function IlSeatingPage() {
   function onDragStart(event, guestId) {
     const guestIds = selectedGuestIds.has(guestId) ? [...selectedGuestIds] : [guestId];
     event.dataTransfer.setData("application/json", JSON.stringify({ guestIds }));
+    event.dataTransfer.effectAllowed = "move";
+    startDragAutoScroll(event);
   }
 
   function toggleGuest(guestId) {

@@ -457,12 +457,15 @@
 }
 
 .il-seat-guest-panel {
+  position: sticky;
+  top: 1rem;
   background: #fff;
   border: 1px solid #e8dfd8;
   border-radius: 0.85rem;
   padding: 0.95rem;
   max-height: calc(100vh - 240px);
   overflow: auto;
+  z-index: 2;
 }
 
 .il-seat-guest-panel h3 {
@@ -1103,7 +1106,9 @@
   }
 
   .il-seat-guest-panel {
+    position: static;
     max-height: none;
+    z-index: auto;
   }
 
   .il-seat-table-panel {
