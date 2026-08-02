@@ -1,7 +1,29 @@
 .il-contacts-modal {
   width: min(40rem, 96vw);
   max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.il-contacts-modal__body {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
+}
+
+.il-contacts-modal__footer {
+  flex: 0 0 auto;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #ebe3db;
+  background: #fffefb;
+}
+
+.il-contacts-modal__footer.il-contacts-primary-btn,
+.il-contacts-modal__footer .il-contacts-primary-btn {
+  align-self: stretch;
+  width: 100%;
 }
 
 .il-contacts-modal__head {
@@ -9,6 +31,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
+  flex: 0 0 auto;
 }
 
 .il-contacts-idle,

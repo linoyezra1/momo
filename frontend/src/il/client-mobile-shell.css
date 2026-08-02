@@ -627,11 +627,25 @@
     z-index: 2;
   }
 
-  /* Keep bottom nav from covering modal actions (add guest / send / etc.) */
-  .client-app-shell:has(.us-modal-backdrop) .client-bottom-nav {
+  /* Keep bottom nav from covering modal actions (add guest / send / contacts import) */
+  .client-app-shell:has(.us-modal-backdrop) .client-bottom-nav,
+  body.momo-modal-open .client-bottom-nav {
     opacity: 0;
     pointer-events: none;
     visibility: hidden;
+  }
+
+  .il-contacts-modal-backdrop {
+    z-index: 120;
+  }
+
+  .client-app-shell .il-contacts-modal,
+  .il-contacts-modal-backdrop .il-contacts-modal {
+    max-height: min(78dvh, 42rem);
+  }
+
+  .il-contacts-modal__footer {
+    padding-bottom: calc(0.85rem + env(safe-area-inset-bottom, 0px));
   }
 }
 

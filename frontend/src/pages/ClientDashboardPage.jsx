@@ -53,7 +53,7 @@ const initialGuest = {
   phone: "",
   attendeesCount: 1,
   giftAmount: 0,
-  status: "מגיע"
+  status: "לא ידוע"
 };
 
 const STATUS_OPTIONS = [
@@ -472,6 +472,13 @@ export default function ClientDashboardPage() {
     }, 220);
     return () => window.clearTimeout(timer);
   }, [searchInput]);
+
+  useEffect(() => {
+    const modalOpen = showModal || showBulkWhatsApp || Boolean(deleteConfirm);
+    if (!modalOpen) return undefined;
+    document.body.classList.add("momo-modal-open");
+    return () => document.body.classList.remove("momo-modal-open");
+  }, [showModal, showBulkWhatsApp, deleteConfirm]);
 
   const onManualChange = (event) => {
     const { name, value } = event.target;

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { Contact, QrCode, X } from "lucide-react";
 import ContactsDuplicateResolveModal from "./ContactsDuplicateResolveModal.jsx";
 import {
@@ -60,6 +61,16 @@ export default function ContactImportModal({
     const timer = window.setTimeout(() => setToast(""), 2800);
     return () => window.clearTimeout(timer);
   }, [toast]);
+
+  useEffect(() => {
+    document.body.classList.add("momo-modal-open");
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.classList.remove("momo-modal-open");
+      document.body.style.overflow = previousOverflow || "";
+    };
+  }, []);
 
   const openPicker = async () => {
     setError("");
@@ -222,7 +233,7 @@ export default function ContactImportModal({
   };
 
   if (duplicateConflicts.length) {
-    return (
+    return createPortal(
       <ContactsDuplicateResolveModal
         conflicts={duplicateConflicts}
         choices={duplicateChoices}
@@ -230,12 +241,13 @@ export default function ContactImportModal({
         onConfirm={confirmDuplicateResolutions}
         onCancel={closeDuplicateResolve}
         submitting={saving}
-      />
+      />,
+      document.body
     );
   }
 
-  return (
-    <div className="us-modal-backdrop" role="presentation" dir="rtl" lang="he">
+  return createPortal(
+    <div className="us-modal-backdrop il-contacts-modal-backdrop" role="presentation" dir="rtl" lang="he">
       <div
         className="us-modal-card il-contacts-modal"
         role="dialog"
@@ -251,34 +263,105 @@ export default function ContactImportModal({
           </button>
         </div>
 
-        {error ? <p className="us-error-message">{error}</p> : null}
-        {toast ? <p className="il-contacts-toast" role="status">{toast}</p> : null}
+        <div className="il-contacts-modal__body">
+          {error ? <p className="us-error-message">{error}</p> : null}
+          {toast ? <p className="il-contacts-toast" role="status">{toast}</p> : null}
 
-        {step === "idle" ? (
-          <div className="il-contacts-idle">
-            <p>בחרו אנשי קשר מהטלפון, עברו על הרשימה, ואז ייבאו למערכת.</p>
+          {step === "idle" ? (
+            <div className="il-contacts-idle">
+              <p>בחרו אנשי קשר מהטלפון, עברו על הרשימה, ואז ייבאו למערכת.</p>
+            </div>
+          ) : null}
+
+          {step === "unsupported" ? (
+            <div className="il-contacts-fallback">
+              <p>
+                ייבוא מאנשי קשר זמין בעיקר בטלפונים ניידים (Chrome / Edge ב־Android).
+                במחשב אפשר לסרוק QR ולהמשיך מהטלפון, או להעלות קובץ אקסל.
+              </p>
+              {qrUrl ? (
+                <div className="il-contacts-qr">
+                  <img src={qrUrl} alt="QR לפתיחת הדשבורד במובייל" width={180} height={180} />
+                  <span>
+                    <QrCode size={14} aria-hidden="true" /> סריקה מהטלפון
+                  </span>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {step === "review" ? (
+            <>
+              <div className="il-contacts-review-toolbar">
+                <label className="il-contacts-select-all">
+                  <input
+                    type="checkbox"
+                    checked={
+                      rows.filter((row) => isRowSelectable(row)).length > 0 &&
+                      rows.filter((row) => isRowSelectable(row)).every((row) => row.selected)
+                    }
+                    onChange={toggleAllValid}
+                  />
+                  בחירת כל התקינים
+                </label>
+              </div>
+
+              <div className="il-contacts-review-list">
+                {rows.map((row) => (
+                  <article
+                    key={row.id}
+                    className={`il-contacts-review-row${row.isExistingDuplicate ? " is-duplicate" : ""}${
+                      row.isBatchDuplicate ? " is-batch-duplicate" : ""
+                    }${row.isInvalidPhone ? " is-invalid" : ""}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={row.selected}
+                      disabled={!isRowSelectable(row)}
+                      onChange={() => toggleRow(row.id)}
+                      aria-label={`בחירת ${row.fullName}`}
+                    />
+                    <div className="il-contacts-review-fields">
+                      <input
+                        className="us-field-input"
+                        value={row.fullName}
+                        onChange={(event) => updateRow(row.id, { fullName: event.target.value })}
+                        aria-label="שם מוזמן"
+                      />
+                      <input
+                        className="us-field-input"
+                        dir="ltr"
+                        value={row.phone}
+                        onChange={(event) => updateRow(row.id, { phone: event.target.value })}
+                        aria-label="טלפון"
+                      />
+                      <div className="il-contacts-review-tags">
+                        {row.isExistingDuplicate ? (
+                          <span className="il-contacts-tag is-warn">קיים במערכת — יוצג אישור החלפה</span>
+                        ) : null}
+                        {row.isBatchDuplicate ? (
+                          <span className="il-contacts-tag is-warn">כפילות ברשימת הייבוא</span>
+                        ) : null}
+                        {row.isInvalidPhone ? <span className="il-contacts-tag is-error">טלפון לא תקין</span> : null}
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </>
+          ) : null}
+        </div>
+
+        <div className="il-contacts-modal__footer us-toolbar">
+          {step === "idle" ? (
             <button className="us-btn us-btn--primary il-contacts-primary-btn" type="button" onClick={openPicker}>
               <Contact size={16} aria-hidden="true" />
               בחירת אנשי קשר
             </button>
-          </div>
-        ) : null}
+          ) : null}
 
-        {step === "unsupported" ? (
-          <div className="il-contacts-fallback">
-            <p>
-              ייבוא מאנשי קשר זמין בעיקר בטלפונים ניידים (Chrome / Edge ב־Android).
-              במחשב אפשר לסרוק QR ולהמשיך מהטלפון, או להעלות קובץ אקסל.
-            </p>
-            {qrUrl ? (
-              <div className="il-contacts-qr">
-                <img src={qrUrl} alt="QR לפתיחת הדשבורד במובייל" width={180} height={180} />
-                <span>
-                  <QrCode size={14} aria-hidden="true" /> סריקה מהטלפון
-                </span>
-              </div>
-            ) : null}
-            <div className="us-toolbar">
+          {step === "unsupported" ? (
+            <>
               <button
                 className="us-btn us-btn--primary"
                 type="button"
@@ -292,70 +375,11 @@ export default function ContactImportModal({
               <button className="us-btn" type="button" onClick={onClose}>
                 סגירה
               </button>
-            </div>
-          </div>
-        ) : null}
+            </>
+          ) : null}
 
-        {step === "review" ? (
-          <>
-            <div className="il-contacts-review-toolbar">
-              <label className="il-contacts-select-all">
-                <input
-                  type="checkbox"
-                  checked={
-                    rows.filter((row) => isRowSelectable(row)).length > 0 &&
-                    rows.filter((row) => isRowSelectable(row)).every((row) => row.selected)
-                  }
-                  onChange={toggleAllValid}
-                />
-                בחירת כל התקינים
-              </label>
-            </div>
-
-            <div className="il-contacts-review-list">
-              {rows.map((row) => (
-                <article
-                  key={row.id}
-                  className={`il-contacts-review-row${row.isExistingDuplicate ? " is-duplicate" : ""}${
-                    row.isBatchDuplicate ? " is-batch-duplicate" : ""
-                  }${row.isInvalidPhone ? " is-invalid" : ""}`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={row.selected}
-                    disabled={!isRowSelectable(row)}
-                    onChange={() => toggleRow(row.id)}
-                    aria-label={`בחירת ${row.fullName}`}
-                  />
-                  <div className="il-contacts-review-fields">
-                    <input
-                      className="us-field-input"
-                      value={row.fullName}
-                      onChange={(event) => updateRow(row.id, { fullName: event.target.value })}
-                      aria-label="שם מוזמן"
-                    />
-                    <input
-                      className="us-field-input"
-                      dir="ltr"
-                      value={row.phone}
-                      onChange={(event) => updateRow(row.id, { phone: event.target.value })}
-                      aria-label="טלפון"
-                    />
-                    <div className="il-contacts-review-tags">
-                      {row.isExistingDuplicate ? (
-                        <span className="il-contacts-tag is-warn">קיים במערכת — יוצג אישור החלפה</span>
-                      ) : null}
-                      {row.isBatchDuplicate ? (
-                        <span className="il-contacts-tag is-warn">כפילות ברשימת הייבוא</span>
-                      ) : null}
-                      {row.isInvalidPhone ? <span className="il-contacts-tag is-error">טלפון לא תקין</span> : null}
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-
-            <div className="us-toolbar mt-4">
+          {step === "review" ? (
+            <>
               <button
                 className="us-btn us-btn--primary"
                 type="button"
@@ -370,10 +394,11 @@ export default function ContactImportModal({
               <button className="us-btn" type="button" onClick={onClose} disabled={saving}>
                 ביטול
               </button>
-            </div>
-          </>
-        ) : null}
+            </>
+          ) : null}
+        </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
