@@ -1,0 +1,549 @@
+/* Mobile-first client shell + guest cards — soft warm language */
+
+.client-app-shell {
+  direction: rtl;
+  text-align: right;
+}
+
+.client-app-shell__frame {
+  width: 100%;
+  min-height: 100%;
+}
+
+.client-bottom-nav,
+.momo-bottom-sheet,
+.il-guest-cards,
+.il-mobile-actions-trigger {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .client-app-shell__frame {
+    max-width: 28rem;
+    margin-inline: auto;
+    min-height: 100dvh;
+    position: relative;
+  }
+
+  .client-app-shell__content {
+    padding-bottom: calc(5.75rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .client-app-shell .us-dashboard-content {
+    padding-bottom: 0.35rem;
+  }
+
+  .client-bottom-nav {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    position: fixed;
+    bottom: 0;
+    inset-inline: 0;
+    z-index: 40;
+    width: 100%;
+    max-width: 28rem;
+    margin-inline: auto;
+    padding: 0.55rem 0.5rem calc(0.55rem + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid #ebe3db;
+    border-radius: 1.35rem 1.35rem 0 0;
+    background: rgb(255 254 251 / 95%);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 -10px 30px rgb(74 46 43 / 6%);
+  }
+
+  .client-bottom-nav__item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.2rem;
+    min-height: 3.15rem;
+    border: 0;
+    background: transparent;
+    color: #9a817c;
+    font: inherit;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    border-radius: 1rem;
+    padding: 0.3rem 0.2rem;
+  }
+
+  .client-bottom-nav__item.is-active {
+    color: #4a2e2b;
+    background: rgba(213, 126, 126, 0.12);
+  }
+
+  .client-bottom-nav__icon-wrap {
+    position: relative;
+    display: inline-flex;
+  }
+
+  .client-bottom-nav__badge {
+    position: absolute;
+    top: -0.4rem;
+    inset-inline-end: -0.55rem;
+    min-width: 1.05rem;
+    height: 1.05rem;
+    padding: 0 0.22rem;
+    border-radius: 999px;
+    background: #e11d48;
+    color: #fff;
+    font-size: 0.62rem;
+    font-style: normal;
+    font-weight: 700;
+    line-height: 1.05rem;
+    text-align: center;
+    box-shadow: 0 0 0 2px #fffefb;
+  }
+
+  .momo-bottom-sheet {
+    display: grid;
+    place-items: end center;
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    background: rgb(74 46 43 / 28%);
+  }
+
+  .momo-bottom-sheet__panel {
+    width: 100%;
+    max-width: 28rem;
+    max-height: min(78dvh, 36rem);
+    overflow: auto;
+    border-radius: 1.5rem 1.5rem 0 0;
+    background: #fffefb;
+    border: 1px solid #ebe3db;
+    border-bottom: 0;
+    box-shadow: 0 -12px 40px rgb(74 46 43 / 12%);
+    padding: 0.55rem 1rem calc(1rem + env(safe-area-inset-bottom, 0px));
+    animation: momo-sheet-up 0.22s ease;
+  }
+
+  .momo-bottom-sheet__handle {
+    width: 2.5rem;
+    height: 0.28rem;
+    margin: 0.15rem auto 0.65rem;
+    border-radius: 999px;
+    background: #e5ddd4;
+  }
+
+  .momo-bottom-sheet__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .momo-bottom-sheet__header h2 {
+    margin: 0;
+    font-size: 1.05rem;
+    color: #4a2e2b;
+  }
+
+  .momo-bottom-sheet__close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.1rem;
+    height: 2.1rem;
+    border: 1px solid #ebe3db;
+    border-radius: 999px;
+    background: #fff;
+    color: #8a6f6b;
+    cursor: pointer;
+  }
+
+  .client-more-sheet,
+  .il-mobile-actions-list {
+    display: grid;
+    gap: 0.55rem;
+  }
+
+  .client-more-sheet__item,
+  .il-mobile-actions-list button,
+  .il-mobile-actions-list a {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.9rem 1rem;
+    border-radius: 0.95rem;
+    border: 1px solid #ebe3db;
+    background: #fff;
+    color: #4a2e2b;
+    font: inherit;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    text-align: right;
+  }
+
+  .il-mobile-actions-list button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .il-client-portal .il-dash-header__actions .il-audit-log-nav-btn,
+  .il-audit-log-page__back {
+    display: none;
+  }
+
+  .il-client-portal .us-table-wrap,
+  .il-manager-dashboard-embed .us-table-wrap {
+    display: none !important;
+  }
+
+  .il-guest-cards {
+    display: grid;
+    gap: 0.7rem;
+    padding: 0.2rem 0 1rem;
+  }
+
+  .il-guest-card {
+    border-radius: 1.35rem;
+    border: 1px solid #ebe3db;
+    background: #fffefb;
+    box-shadow: 0 8px 22px rgb(74 46 43 / 4%);
+    overflow: hidden;
+  }
+
+  .il-guest-card__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.55rem;
+    padding: 0.85rem 0.9rem;
+  }
+
+  .il-guest-card__start {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .il-guest-card__check {
+    display: inline-flex;
+    flex-shrink: 0;
+  }
+
+  .il-guest-card__check input {
+    width: 1.2rem;
+    height: 1.2rem;
+    accent-color: #d57e7e;
+    cursor: pointer;
+  }
+
+  .il-guest-card__main {
+    min-width: 0;
+    display: grid;
+    gap: 0.35rem;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    font: inherit;
+    color: inherit;
+    text-align: right;
+    cursor: pointer;
+  }
+
+  .il-guest-card__name {
+    font-size: 0.98rem;
+    font-weight: 700;
+    color: #4a2e2b;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .il-guest-card__tags {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .il-guest-card__attendees {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    font-size: 0.74rem;
+    font-weight: 600;
+    color: #8a6f6b;
+  }
+
+  .il-guest-card__status {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.18rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .il-guest-card__status--coming {
+    color: #c45d5d;
+    background: rgba(213, 126, 126, 0.16);
+  }
+
+  .il-guest-card__status--maybe {
+    color: #8a6f6b;
+    background: #f2ebe3;
+  }
+
+  .il-guest-card__status--declined {
+    color: #6b5b58;
+    background: rgba(138, 111, 107, 0.12);
+  }
+
+  .il-guest-card__status--unknown {
+    color: #64748b;
+    background: rgba(148, 163, 184, 0.18);
+  }
+
+  .il-guest-card__chevron {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border: 0;
+    background: transparent;
+    color: #8a6f6b;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .il-guest-card__body {
+    padding: 0 0.9rem 0.95rem;
+    border-top: 1px solid #f0ebe6;
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .il-guest-card__meta-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+    padding-top: 0.75rem;
+  }
+
+  .il-guest-card__meta-item {
+    display: grid;
+    gap: 0.25rem;
+    min-width: 0;
+    padding: 0.7rem 0.75rem;
+    border-radius: 1rem;
+    background: #f7f2ec;
+  }
+
+  .il-guest-card__meta-item span {
+    font-size: 0.7rem;
+    color: #8a6f6b;
+  }
+
+  .il-guest-card__meta-item strong {
+    font-size: 0.86rem;
+    font-weight: 650;
+    color: #4a2e2b;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .il-guest-card__gift,
+  .il-guest-card__round {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .il-guest-card__gift {
+    color: #c45d5d;
+  }
+
+  .il-guest-card__round {
+    display: inline-flex;
+    width: fit-content;
+    max-width: 100%;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.16);
+    color: #5b6472;
+    font-size: 0.75rem;
+  }
+
+  .il-guest-card__history {
+    border-radius: 1.1rem;
+    border: 1px solid #ebe3db;
+    background: #fff;
+    padding: 0.65rem;
+    overflow: hidden;
+  }
+
+  .il-guest-card__history .il-audit-log,
+  .il-guest-card__history .il-call-history,
+  .il-guest-card__history .il-status-history-log {
+    margin: 0;
+    padding: 0.55rem;
+    border: 0;
+    background: transparent;
+    border-radius: 0.85rem;
+  }
+
+  .il-guest-card__history .il-audit-log__table-wrap,
+  .il-guest-card__history .il-audit-log__cards {
+    max-height: 14rem;
+    border-radius: 0.85rem;
+  }
+
+  .il-guest-card__actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding-top: 0.15rem;
+  }
+
+  .il-guest-card__actions-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+  }
+
+  .il-guest-card__action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.55rem;
+    height: 2.55rem;
+    border-radius: 999px;
+    border: 1px solid #ebe3db;
+    background: #fff;
+    color: #5b5550;
+    text-decoration: none;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgb(74 46 43 / 5%);
+  }
+
+  .il-guest-card__action--danger {
+    color: #dc2626;
+  }
+
+  .il-guest-card__action--whatsapp {
+    background: rgba(213, 126, 126, 0.14);
+    border-color: rgba(213, 126, 126, 0.28);
+    color: #128c7e;
+  }
+
+  .il-guest-card__action.is-disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .il-mobile-guests-toolbar .il-table-toolbar__primary > .il-contacts-import-btn,
+  .il-mobile-guests-toolbar .il-table-toolbar__primary > .il-broadcast-cta,
+  .il-mobile-guests-toolbar .il-actions-menu {
+    display: none !important;
+  }
+
+  .il-mobile-guests-toolbar .il-table-toolbar {
+    display: grid;
+    gap: 0.65rem;
+  }
+
+  .il-mobile-guests-toolbar .il-table-toolbar__primary {
+    display: contents;
+  }
+
+  .il-mobile-guests-toolbar .il-search-field {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    width: 100%;
+    order: unset;
+  }
+
+  .il-mobile-guests-toolbar .il-table-toolbar {
+    grid-template-columns: 1fr auto;
+    align-items: center;
+  }
+
+  .il-mobile-guests-toolbar .il-add-guest-btn {
+    width: 2.75rem;
+    min-width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+    border-radius: 999px;
+    justify-content: center;
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .il-mobile-guests-toolbar .il-search-field {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .il-mobile-guests-toolbar .il-mobile-actions-trigger {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
+  }
+
+  .il-mobile-guests-toolbar .il-add-guest-btn span {
+    display: none;
+  }
+
+  .il-mobile-actions-trigger {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+  }
+
+  .il-manager-dashboard-embed .il-guest-cards,
+  .il-manager-dashboard-embed .il-mobile-actions-trigger {
+    display: grid;
+  }
+
+  .il-manager-dashboard-embed .il-mobile-actions-trigger {
+    display: inline-flex !important;
+  }
+
+  .il-manager-dashboard-embed .il-table-toolbar__primary > .il-contacts-import-btn,
+  .il-manager-dashboard-embed .il-table-toolbar__primary > .il-broadcast-cta,
+  .il-manager-dashboard-embed .il-actions-menu {
+    display: none !important;
+  }
+
+  .client-app-shell .il-bulk-action-bar {
+    bottom: calc(4.85rem + env(safe-area-inset-bottom, 0px));
+    max-width: 28rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .il-guest-cards,
+  .il-mobile-actions-trigger {
+    display: none !important;
+  }
+}
+
+@keyframes momo-sheet-up {
+  from {
+    transform: translateY(100%);
+    opacity: 0.65;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}

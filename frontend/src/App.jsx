@@ -22,6 +22,7 @@ const ManagerBudgetPage = lazy(() => import("./pages/ManagerBudgetPage.jsx"));
 const IlSeatingPage = lazy(() => import("./pages/IlSeatingPage.jsx"));
 const HostessPage = lazy(() => import("./pages/HostessPage.jsx"));
 const EventManagerVendorsPage = lazy(() => import("./pages/EventManagerVendorsPage.jsx"));
+const ClientAppShell = lazy(() => import("./components/ClientAppShell.jsx"));
 
 function RouteFallback() {
   return (
@@ -33,6 +34,14 @@ function RouteFallback() {
 
 function LazyRoute({ children }) {
   return <Suspense fallback={<RouteFallback />}>{children}</Suspense>;
+}
+
+function ClientPortalRoute({ children }) {
+  return (
+    <LazyRoute>
+      <ClientAppShell>{children}</ClientAppShell>
+    </LazyRoute>
+  );
 }
 
 export default function App() {
@@ -193,33 +202,33 @@ export default function App() {
       <Route
         path="/client/dashboard/:userId"
         element={
-          <LazyRoute>
+          <ClientPortalRoute>
             <ClientDashboardPage />
-          </LazyRoute>
+          </ClientPortalRoute>
         }
       />
       <Route
         path="/client/dashboard/:userId/audit-log"
         element={
-          <LazyRoute>
+          <ClientPortalRoute>
             <ClientAuditLogPage />
-          </LazyRoute>
+          </ClientPortalRoute>
         }
       />
       <Route
         path="/client/dashboard/:userId/vendors"
         element={
-          <LazyRoute>
+          <ClientPortalRoute>
             <ClientVendorsPage />
-          </LazyRoute>
+          </ClientPortalRoute>
         }
       />
       <Route
         path="/client/dashboard/:userId/seating"
         element={
-          <LazyRoute>
+          <ClientPortalRoute>
             <IlSeatingPage />
-          </LazyRoute>
+          </ClientPortalRoute>
         }
       />
       <Route path="*" element={<Navigate to="/" replace />} />

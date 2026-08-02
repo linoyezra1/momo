@@ -1,9 +1,28 @@
 import { useCallback, useEffect, useMemo, useRef, useState, Fragment } from "react";
-import { Link, useParams } from "react-router-dom";
-import { Check, ChevronDown, Clock, Contact, Eye, HelpCircle, Pencil, Phone, Plus, Search, Trash2, Users, X } from "lucide-react";
+import { Link, useLocation, useParams } from "react-router-dom";
+import {
+  Check,
+  ChevronDown,
+  Clock,
+  Contact,
+  Download,
+  Eye,
+  FileUp,
+  HelpCircle,
+  LayoutGrid,
+  Pencil,
+  Phone,
+  Plus,
+  RefreshCw,
+  Search,
+  Trash2,
+  Users,
+  X
+} from "lucide-react";
 import api from "../api";
 import WhatsAppIcon from "../components/WhatsAppIcon";
 import IconActionButton from "../components/IconActionButton.jsx";
+import BottomSheet from "../components/ui/BottomSheet.jsx";
 import { buildWhatsAppSendUrl } from "../utils/whatsapp";
 import { resolveInviteCopyDefaults } from "../utils/whatsappInviteCopy";
 import { normalizeIsraeliPhone } from "../utils/phoneNormalize";
@@ -18,6 +37,7 @@ import {
 import { isCoupleEventType } from "../utils/eventTypeWording.js";
 import IlInvitationEditor from "../il/components/IlInvitationEditor.jsx";
 import IlWhatsAppInviteEditor from "../il/components/IlWhatsAppInviteEditor.jsx";
+import IlMobileGuestCard from "../il/components/IlMobileGuestCard.jsx";
 import ContactImportModal from "../components/ContactImportModal.jsx";
 import GuestDuplicateReplaceModal from "../components/GuestDuplicateReplaceModal.jsx";
 import ExcelDuplicateResolveModal from "../components/ExcelDuplicateResolveModal.jsx";
@@ -25,6 +45,7 @@ import "../us/client-portal.css";
 import "../il/il-portal.css";
 import "../il/contacts-import.css";
 import "../il/manager-event.css";
+import "../il/client-mobile-shell.css";
 
 const initialGuest = {
   fullName: "",
@@ -236,8 +257,10 @@ function getOwnerGreeting(event) {
 
 export default function ClientDashboardPage() {
   const { userId } = useParams();
+  const location = useLocation();
   const { isManagerEvent, basePath } = useEventWorkspace();
   const [unreadLogCount, setUnreadLogCount] = useState(0);
+  const [mobileActionsOpen, setMobileActionsOpen] = useState(false);
   const [summary, setSummary] = useState({
     totalInvited: 0,
     totalComing: 0,
@@ -372,6 +395,13 @@ export default function ClientDashboardPage() {
   useEffect(() => {
     loadGuests();
   }, [userId]);
+
+  useEffect(() => {
+    if (location.state?.openInvitationEditor) {
+      setShowInvitationEditor(true);
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   useEffect(() => {
     let cancelled = false;
@@ -940,6 +970,101 @@ export default function ClientDashboardPage() {
     window.setTimeout(() => setLinkCopied(false), 1600);
   };
 
+  const renderGuestDetailPanels = (guest) => {
+    const showPhoneDetails = hasPhoneRsvpRecord(guest);
+    const statusHistory = getGuestStatusHistory(guest);
+    if (!statusHistory.length && !showPhoneDetails) return null;
+
+    return (
+      <div className="il-guest-detail-panels">
+        {statusHistory.length ? (
+          <div
+            className="il-audit-log il-status-history-log"
+            dir="rtl"
+            lang="he"
+            aria-label="היסטוריית סטטוס הגעה"
+          >
+            <div className="il-audit-log__header">
+              <h2>היסטוריית סטטוס הגעה</h2>
+            </div>
+            <div className="il-audit-log__table-wrap">
+              <table className="il-audit-log__table">
+                <thead>
+                  <tr>
+                    <th scope="col">תאריך ושעה</th>
+                    <th scope="col">העדכון</th>
+                    <th scope="col">בוצע על ידי</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {statusHistory.map((entry, index) => {
+                    const { dateLabel, timeLabel } = formatStatusHistoryDateTime(entry.updatedAt);
+                    return (
+                      <tr key={`${entry.updatedAt || index}-${entry.status}-${index}`}>
+                        <td className="il-audit-log__datetime">
+                          <span className="il-audit-log__date">{dateLabel}</span>
+                          <span className="il-audit-log__time">{timeLabel}</span>
+                        </td>
+                        <td className="il-audit-log__description">
+                          <StatusHistoryDescription entry={entry} />
+                        </td>
+                        <td className="il-audit-log__performer">
+                          <span className={`il-audit-log__badge ${statusHistoryBadgeClass(entry.source)}`}>
+                            {entry.updatedBy || "מערכת"}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : null}
+
+        {showPhoneDetails ? (
+          <div className="il-call-history">
+            <div className="il-call-history__header">
+              <strong>היסטוריית שיחות טלפוניות (נציג)</strong>
+              <span>{getGuestCallHistory(guest).length} ניסיונות</span>
+            </div>
+            <div className="il-call-history__timeline">
+              {getGuestCallHistory(guest).map((entry, index) => (
+                <article className="il-call-history__item" key={`${entry.attemptNumber || index}-${index}`}>
+                  <span className="il-call-history__marker" aria-hidden="true">
+                    {entry.attemptNumber || index + 1}
+                  </span>
+                  <div className="il-call-history__grid">
+                    <div>
+                      <span>סבב חיוג</span>
+                      <strong>{entry.callRound || entry.attemptNumber || index + 1}</strong>
+                    </div>
+                    <div>
+                      <span>סטטוס שיחה</span>
+                      <strong>{formatCallStatusLabel(entry.callStatus)}</strong>
+                    </div>
+                    <div>
+                      <span>תשובת נציג בשיחה</span>
+                      <strong>{entry.rsvpStatus || "—"}</strong>
+                    </div>
+                    <div>
+                      <span>כמות אורחים</span>
+                      <strong>{entry.attendeesCount ?? "—"}</strong>
+                    </div>
+                    <div className="il-call-history__notes">
+                      <span>הערות נציג</span>
+                      <strong>{entry.agentNotes?.trim() || "—"}</strong>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    );
+  };
+
   return (
     <div
       className={
@@ -1082,12 +1207,21 @@ export default function ClientDashboardPage() {
           </div>
         </section>
 
-        <div className="il-table-chrome">
+        <div className="il-table-chrome il-mobile-guests-toolbar">
           <div className="il-table-toolbar">
             <div className="il-table-toolbar__primary">
               <button className="us-btn us-btn--primary il-add-guest-btn" type="button" onClick={() => setShowModal(true)}>
-                <Plus size={16} aria-hidden="true" />
-                הוספת מוזמן
+                <Plus size={18} aria-hidden="true" />
+                <span>הוספת מוזמן</span>
+              </button>
+
+              <button
+                className="us-btn il-mobile-actions-trigger"
+                type="button"
+                onClick={() => setMobileActionsOpen(true)}
+              >
+                <LayoutGrid size={16} aria-hidden="true" />
+                פעולות נוספות
               </button>
 
               <button
@@ -1301,8 +1435,6 @@ export default function ClientDashboardPage() {
               ) : (
                 filteredGuests.map((guest) => {
                   const isDetailExpanded = expandedGuestDetailIds.has(guest._id);
-                  const showPhoneDetails = hasPhoneRsvpRecord(guest);
-                  const statusHistory = getGuestStatusHistory(guest);
                   const showDetailExpand = hasGuestDetailRecord(guest);
                   const phoneTreatment = phoneServiceEnabled
                     ? getPhoneTreatmentBadge(guest, maxPhoneRounds)
@@ -1489,105 +1621,7 @@ export default function ClientDashboardPage() {
                       </tr>
                       {showDetailExpand && isDetailExpanded ? (
                         <tr className="il-guest-detail-row">
-                          <td colSpan={guestTableColumnCount}>
-                            <div className="il-guest-detail-panels">
-                              {statusHistory.length ? (
-                                <div
-                                  className="il-audit-log il-status-history-log"
-                                  dir="rtl"
-                                  lang="he"
-                                  aria-label="היסטוריית סטטוס הגעה"
-                                >
-                                  <div className="il-audit-log__header">
-                                    <h2>היסטוריית סטטוס הגעה</h2>
-                                  </div>
-                                  <div className="il-audit-log__table-wrap">
-                                    <table className="il-audit-log__table">
-                                      <thead>
-                                        <tr>
-                                          <th scope="col">תאריך ושעה</th>
-                                          <th scope="col">העדכון</th>
-                                          <th scope="col">בוצע על ידי</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {statusHistory.map((entry, index) => {
-                                          const { dateLabel, timeLabel } = formatStatusHistoryDateTime(
-                                            entry.updatedAt
-                                          );
-                                          return (
-                                            <tr
-                                              key={`${entry.updatedAt || index}-${entry.status}-${index}`}
-                                            >
-                                              <td className="il-audit-log__datetime">
-                                                <span className="il-audit-log__date">{dateLabel}</span>
-                                                <span className="il-audit-log__time">{timeLabel}</span>
-                                              </td>
-                                              <td className="il-audit-log__description">
-                                                <StatusHistoryDescription entry={entry} />
-                                              </td>
-                                              <td className="il-audit-log__performer">
-                                                <span
-                                                  className={`il-audit-log__badge ${statusHistoryBadgeClass(
-                                                    entry.source
-                                                  )}`}
-                                                >
-                                                  {entry.updatedBy || "מערכת"}
-                                                </span>
-                                              </td>
-                                            </tr>
-                                          );
-                                        })}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                </div>
-                              ) : null}
-
-                              {showPhoneDetails ? (
-                                <div className="il-call-history">
-                                  <div className="il-call-history__header">
-                                    <strong>היסטוריית שיחות טלפוניות (נציג)</strong>
-                                    <span>{getGuestCallHistory(guest).length} ניסיונות</span>
-                                  </div>
-                                  <div className="il-call-history__timeline">
-                                    {getGuestCallHistory(guest).map((entry, index) => (
-                                      <article
-                                        className="il-call-history__item"
-                                        key={`${entry.attemptNumber || index}-${index}`}
-                                      >
-                                        <span className="il-call-history__marker" aria-hidden="true">
-                                          {entry.attemptNumber || index + 1}
-                                        </span>
-                                        <div className="il-call-history__grid">
-                                          <div>
-                                            <span>סבב חיוג</span>
-                                            <strong>{entry.callRound || entry.attemptNumber || index + 1}</strong>
-                                          </div>
-                                          <div>
-                                            <span>סטטוס שיחה</span>
-                                            <strong>{formatCallStatusLabel(entry.callStatus)}</strong>
-                                          </div>
-                                          <div>
-                                            <span>תשובת נציג בשיחה</span>
-                                            <strong>{entry.rsvpStatus || "—"}</strong>
-                                          </div>
-                                          <div>
-                                            <span>כמות אורחים</span>
-                                            <strong>{entry.attendeesCount ?? "—"}</strong>
-                                          </div>
-                                          <div className="il-call-history__notes">
-                                            <span>הערות נציג</span>
-                                            <strong>{entry.agentNotes?.trim() || "—"}</strong>
-                                          </div>
-                                        </div>
-                                      </article>
-                                    ))}
-                                  </div>
-                                </div>
-                              ) : null}
-                            </div>
-                          </td>
+                          <td colSpan={guestTableColumnCount}>{renderGuestDetailPanels(guest)}</td>
                         </tr>
                       ) : null}
                     </Fragment>
@@ -1597,6 +1631,212 @@ export default function ClientDashboardPage() {
             </tbody>
           </table>
         </div>
+
+        <div className="il-guest-cards" aria-label="רשימת מוזמנים">
+          {!filteredGuests.length ? (
+            <p className="us-table-empty">
+              {appliedSearch || statusFilter !== "all" || reminderRoundFilter !== "all"
+                ? "לא נמצאו תוצאות לסינון הנוכחי"
+                : "אין אורחים עדיין"}
+            </p>
+          ) : (
+            filteredGuests.map((guest) => {
+              const isDetailExpanded = expandedGuestDetailIds.has(guest._id);
+              return (
+                <IlMobileGuestCard
+                  key={`mobile-${guest._id}`}
+                  guest={guest}
+                  selected={selectedGuestIds.has(guest._id)}
+                  onToggleSelect={() => toggleGuestSelection(guest._id)}
+                  expanded={isDetailExpanded || editingGuestId === guest._id}
+                  onToggleExpand={() => {
+                    if (editingGuestId === guest._id) return;
+                    toggleGuestDetails(guest._id);
+                  }}
+                  whatsappHref={getWhatsappLink(guest)}
+                  telHref={buildTelHref(guest.phone)}
+                  sourceText={sourceLabel(guest.source)}
+                  onEdit={() => {
+                    startEdit(guest);
+                    setExpandedGuestDetailIds((prev) => new Set(prev).add(guest._id));
+                  }}
+                  onDelete={() => requestDeleteGuest(guest)}
+                  isEditing={editingGuestId === guest._id}
+                  editError={editingGuestId === guest._id ? editError : ""}
+                  editFields={
+                    editingGuestId === guest._id ? (
+                      <div className="il-guest-card__meta-grid">
+                        <label className="il-guest-card__meta-item">
+                          <span>שם מלא</span>
+                          <input
+                            className="us-inline-input"
+                            type="text"
+                            value={editingValues.fullName}
+                            onChange={(event) =>
+                              setEditingValues((prev) => ({ ...prev, fullName: event.target.value }))
+                            }
+                          />
+                        </label>
+                        <label className="il-guest-card__meta-item">
+                          <span>טלפון</span>
+                          <input
+                            className="us-inline-input"
+                            dir="ltr"
+                            value={editingValues.phone}
+                            onChange={(event) =>
+                              setEditingValues((prev) => ({ ...prev, phone: event.target.value }))
+                            }
+                          />
+                        </label>
+                        <label className="il-guest-card__meta-item">
+                          <span>כמה מגיעים</span>
+                          <input
+                            className="us-inline-input"
+                            type="number"
+                            min="0"
+                            value={editingValues.attendeesCount}
+                            onChange={(event) =>
+                              setEditingValues((prev) => ({
+                                ...prev,
+                                attendeesCount: Number(event.target.value)
+                              }))
+                            }
+                          />
+                        </label>
+                        <label className="il-guest-card__meta-item">
+                          <span>סכום מתנה</span>
+                          <input
+                            className="us-inline-input"
+                            type="number"
+                            min="0"
+                            value={editingValues.giftAmount || 0}
+                            onChange={(event) =>
+                              setEditingValues((prev) => ({
+                                ...prev,
+                                giftAmount: Number(event.target.value)
+                              }))
+                            }
+                          />
+                        </label>
+                        <label className="il-guest-card__meta-item">
+                          <span>סטטוס</span>
+                          <select
+                            className="us-inline-input"
+                            value={editingValues.status}
+                            onChange={(event) =>
+                              setEditingValues((prev) => ({ ...prev, status: event.target.value }))
+                            }
+                          >
+                            {STATUS_OPTIONS.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
+                    ) : null
+                  }
+                  editActions={
+                    editingGuestId === guest._id ? (
+                      <div className="il-guest-card__actions">
+                        <button className="us-btn us-btn--primary" type="button" onClick={() => saveEdit(guest._id)}>
+                          שמירה
+                        </button>
+                        <button className="us-btn" type="button" onClick={cancelEdit}>
+                          ביטול
+                        </button>
+                      </div>
+                    ) : null
+                  }
+                  detailPanels={renderGuestDetailPanels(guest)}
+                />
+              );
+            })
+          )}
+        </div>
+
+        <BottomSheet
+          open={mobileActionsOpen}
+          onClose={() => setMobileActionsOpen(false)}
+          title="פעולות נוספות"
+        >
+          <div className="il-mobile-actions-list">
+            <button
+              type="button"
+              onClick={() => {
+                setMobileActionsOpen(false);
+                setShowContactsImport(true);
+              }}
+            >
+              <Contact size={16} aria-hidden="true" />
+              ייבוא מאנשי קשר
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMobileActionsOpen(false);
+                openBulkWhatsApp();
+              }}
+              disabled={!selectedCount}
+            >
+              <Users size={16} aria-hidden="true" />
+              שליחה בתפוצה רחבה
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMobileActionsOpen(false);
+                fileInputRef.current?.click();
+              }}
+              disabled={importChecking}
+            >
+              <FileUp size={16} aria-hidden="true" />
+              {importChecking ? "בודק קובץ…" : "העלאת מוזמנים מאקסל"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMobileActionsOpen(false);
+                exportGuests();
+              }}
+            >
+              <Download size={16} aria-hidden="true" />
+              ייצוא לאקסל
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMobileActionsOpen(false);
+                downloadTemplate();
+              }}
+            >
+              <Download size={16} aria-hidden="true" />
+              הורדת קובץ אקסל לדוגמה
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMobileActionsOpen(false);
+                refreshGuests();
+              }}
+              disabled={refreshingGuests}
+            >
+              <RefreshCw size={16} aria-hidden="true" />
+              {refreshingGuests ? "מרענן…" : "רענון רשימה"}
+            </button>
+            {isManagerEvent ? (
+              <>
+                <Link to={`${basePath}/seating`} onClick={() => setMobileActionsOpen(false)}>
+                  מערכת הושבה
+                </Link>
+                <Link to={`${basePath}/vendors`} onClick={() => setMobileActionsOpen(false)}>
+                  ספקי אירוע
+                </Link>
+              </>
+            ) : null}
+          </div>
+        </BottomSheet>
 
         {showConflictModal ? (
           <ExcelDuplicateResolveModal
