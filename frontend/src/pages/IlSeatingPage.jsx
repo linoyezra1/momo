@@ -12,6 +12,7 @@ import { useSeatingDragAutoScroll } from "../il/seating/useSeatingDragAutoScroll
 import { useSeatingTouchDrag } from "../il/seating/useSeatingTouchDrag.js";
 import { useEventWorkspace } from "../utils/useEventWorkspace.js";
 import TableDispatchFeatureLockedNotice from "../components/TableDispatchFeatureLockedNotice.jsx";
+import CouponCodeField from "../components/CouponCodeField.jsx";
 import "../us/client-portal.css";
 import "../il/il-portal.css";
 import "../il/seating/il-seating.css";
@@ -23,6 +24,19 @@ function defaultDispatchDateTimeLocal() {
   const date = new Date(Date.now() + 60 * 60 * 1000);
   const pad = (value) => String(value).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+/** Parse datetime-local value as local wall-clock (avoid UTC mis-parse). */
+function parseDateTimeLocalValue(value) {
+  const match = String(value || "").trim().match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]) - 1;
+  const day = Number(match[3]);
+  const hour = Number(match[4]);
+  const minute = Number(match[5]);
+  const date = new Date(year, month, day, hour, minute, 0, 0);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 function toLocalDateTimeValue(iso) {
@@ -355,8 +369,13 @@ export default function IlSeatingPage() {
         setDispatchSaving(false);
         return;
       }
-      const scheduledDate = new Date(scheduledAt);
-      const sendNow = Number.isNaN(scheduledDate.getTime()) || scheduledDate.getTime() <= Date.now() + 60 * 1000;
+      const scheduledDate = parseDateTimeLocalValue(scheduledAt);
+      if (!scheduledDate) {
+        setDispatchError("שעת השליחה אינה תקינה");
+        setDispatchSaving(false);
+        return;
+      }
+      const sendNow = scheduledDate.getTime() <= Date.now();
       const { data } = await api.post(`/client/${userId}/seating/send-table-messages`, {
         paymentCode: couponCode.trim(),
         couponCode: couponCode.trim(),
@@ -365,7 +384,7 @@ export default function IlSeatingPage() {
       });
       setTableDispatch(data.tableDispatch || null);
       setDispatchOpen(false);
-      setToast(data.message || "השליחה בוצעה");
+      setToast(data.message || (data.scheduled ? "השליחה תוזמנה" : "השליחה בוצעה"));
     } catch (dispatchErr) {
       setDispatchError(dispatchErr.response?.data?.message || "שליחת מספרי שולחן נכשלה");
     } finally {
@@ -634,7 +653,7 @@ export default function IlSeatingPage() {
       {dispatchOpen ? (
         <div className="us-modal-backdrop" role="presentation" onClick={() => setDispatchOpen(false)}>
           <form
-            className="us-modal-card"
+            className="us-modal-card il-table-dispatch-modal"
             dir="rtl"
             onClick={(event) => event.stopPropagation()}
             onSubmit={submitTableDispatch}
@@ -642,7 +661,7 @@ export default function IlSeatingPage() {
             <h2 className="us-modal-title">
               {tableDispatch?.status === "scheduled" ? "עדכון שליחת מס׳ שולחן" : "שלח למוזמן מס׳ שולחן"}
             </h2>
-            <p>
+            <p className="il-coupon-modal-intro">
               דיילת דיגיטלית — נשלח למוזמנים בשעה שתבחרו את מספר השולחן שלהם ב-WhatsApp, כדי
               להכווין אותם במהירות ביום האירוע.
               {tableDispatch?.status === "scheduled"
@@ -652,10 +671,11 @@ export default function IlSeatingPage() {
             {!canSendTableWhatsApp ? (
               <TableDispatchFeatureLockedNotice event={eventInfo} eventId={userId} />
             ) : (
-              <>
-                <label className="us-admin-field-label" style={{ display: "block", marginBottom: "0.75rem" }}>
+              <div className="il-coupon-modal-fields">
+                <label className="us-admin-field-label" htmlFor="table-dispatch-scheduled-at">
                   שעת שליחה
                   <input
+                    id="table-dispatch-scheduled-at"
                     className="us-admin-field-input"
                     type="datetime-local"
                     value={scheduledAt}
@@ -663,18 +683,21 @@ export default function IlSeatingPage() {
                     required
                   />
                 </label>
-                <label className="us-admin-field-label" style={{ display: "block", marginBottom: "0.75rem" }}>
-                  הכנס קוד קופון לרכישה זו
-                  <input
-                    className="us-admin-field-input"
-                    value={couponCode}
-                    onChange={(event) => setCouponCode(event.target.value)}
-                    placeholder="קוד קופון"
-                    autoComplete="off"
-                    required
-                  />
-                </label>
-              </>
+                <p className="il-coupon-modal-intro" style={{ marginTop: 0 }}>
+                  זמן בעתיד = תזמון בלבד (ההודעות יישלחו אוטומטית בזמן שנבחר). זמן נוכחי/עבר =
+                  שליחה מיידית.
+                </p>
+                <CouponCodeField
+                  userId={userId}
+                  value={couponCode}
+                  onChange={setCouponCode}
+                  label="קוד קופון"
+                  hint="הכנס קוד קופון לרכישה זו — ניתן לבחור מקופון שמור או להקליד ידנית"
+                  placeholder="לדוגמה: MOMO123"
+                  id="table-dispatch-coupon"
+                  required
+                />
+              </div>
             )}
             {dispatchError ? <p className="us-error-message">{dispatchError}</p> : null}
             <div className="us-modal-actions">

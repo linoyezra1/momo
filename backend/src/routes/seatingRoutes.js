@@ -209,10 +209,47 @@ async function processDueTableDispatch(user) {
   return { processed: true, ...result };
 }
 
+/** Sweep due scheduled table WhatsApp jobs (used by GET seating + background worker). */
+export async function processAllDueTableDispatches() {
+  const dueUsers = await User.find({
+    "tableDispatch.status": "scheduled",
+    "tableDispatch.scheduledAt": { $lte: new Date() }
+  });
+
+  const results = [];
+  for (const user of dueUsers) {
+    try {
+      const result = await processDueTableDispatch(user);
+      if (result) {
+        results.push({ userId: String(user._id), ...result });
+        console.log(
+          `[tableDispatch] user=${user._id} processed ok=${Boolean(result.ok)} sent=${result.sentCount || 0}`
+        );
+      }
+    } catch (error) {
+      console.error(`[tableDispatch] user=${user._id} failed:`, error?.message || error);
+    }
+  }
+  return results;
+}
+
+export function startTableDispatchScheduler(intervalMs = 30000) {
+  const tick = () => {
+    processAllDueTableDispatches().catch((error) => {
+      console.error("[tableDispatch] sweep failed:", error?.message || error);
+    });
+  };
+  tick();
+  const timer = setInterval(tick, intervalMs);
+  if (typeof timer.unref === "function") timer.unref();
+  console.log(`[tableDispatch] scheduler started (every ${intervalMs}ms)`);
+  return timer;
+}
+
 router.get("/:userId/seating", async (req, res) => {
   try {
     const { userId } = req.params;
-    const user = await User.findById(userId).select("event deal tableDispatch");
+    const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: "Client not found" });
 
     await processDueTableDispatch(user);
@@ -326,7 +363,8 @@ router.post("/:userId/seating/send-table-messages", async (req, res) => {
     const { userId } = req.params;
     const paymentCode = String(req.body?.paymentCode || req.body?.couponCode || "").trim();
     const scheduledAtRaw = req.body?.scheduledAt;
-    const sendNow = req.body?.sendNow === true || !scheduledAtRaw;
+    const explicitSendNow = req.body?.sendNow === true;
+    const wantsSchedule = !explicitSendNow && Boolean(scheduledAtRaw);
 
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: "Client not found" });
@@ -356,44 +394,49 @@ router.post("/:userId/seating/send-table-messages", async (req, res) => {
       return res.status(400).json({ message: "קוד הקופון אינו תקין או שפג תוקפו" });
     }
 
-    if (!sendNow) {
+    // Schedule path — never fall through to immediate send.
+    if (wantsSchedule) {
       const scheduledAt = new Date(scheduledAtRaw);
       if (Number.isNaN(scheduledAt.getTime())) {
         return res.status(400).json({ message: "שעת השליחה אינה תקינה" });
       }
-      if (scheduledAt.getTime() > Date.now() + 60 * 1000) {
-        const seatedCount = await Guest.countDocuments({
-          userId,
-          seatingTableId: { $ne: "" },
-          status: { $in: ["מגיע", "אולי", "הגיע לאירוע"] }
-        });
-        if (!seatedCount) {
-          return res.status(400).json({
-            message: "אין אורחים משובצים לשולחן עם סטטוס מגיע/אולי"
-          });
-        }
-        if (Number(codeRecord.remaining_credits || 0) < seatedCount) {
-          return res.status(400).json({
-            message: `קנית מכסה בסך של ${codeRecord.total_credits} הודעות. נשארו לך ${codeRecord.remaining_credits} הודעות לניצול.`
-          });
-        }
-
-        user.tableDispatch = {
-          scheduledAt,
-          paymentCode: String(codeRecord.code || paymentCode).trim().toUpperCase(),
-          status: "scheduled",
-          lastSentAt: user.tableDispatch?.lastSentAt || null,
-          lastError: "",
-          sentCount: 0
-        };
-        await user.save();
-        return res.json({
-          success: true,
-          scheduled: true,
-          message: `השליחה תוזמנה ל-${scheduledAt.toLocaleString("he-IL")}`,
-          tableDispatch: serializeTableDispatch(user.tableDispatch)
+      if (scheduledAt.getTime() <= Date.now()) {
+        return res.status(400).json({
+          message: "שעת השליחה חייבת להיות בעתיד"
         });
       }
+
+      const seatedCount = await Guest.countDocuments({
+        userId,
+        seatingTableId: { $ne: "" },
+        status: { $in: ["מגיע", "אולי", "הגיע לאירוע"] }
+      });
+      if (!seatedCount) {
+        return res.status(400).json({
+          message: "אין אורחים משובצים לשולחן עם סטטוס מגיע/אולי"
+        });
+      }
+      if (Number(codeRecord.remaining_credits || 0) < seatedCount) {
+        return res.status(400).json({
+          message: `קנית מכסה בסך של ${codeRecord.total_credits} הודעות. נשארו לך ${codeRecord.remaining_credits} הודעות לניצול.`
+        });
+      }
+
+      user.tableDispatch = {
+        scheduledAt,
+        paymentCode: String(codeRecord.code || paymentCode).trim().toUpperCase(),
+        status: "scheduled",
+        lastSentAt: user.tableDispatch?.lastSentAt || null,
+        lastError: "",
+        sentCount: 0
+      };
+      await user.save();
+      return res.json({
+        success: true,
+        scheduled: true,
+        message: `השליחה תוזמנה ל-${scheduledAt.toLocaleString("he-IL")}`,
+        tableDispatch: serializeTableDispatch(user.tableDispatch)
+      });
     }
 
     const result = await dispatchTableMessages({ user, paymentCode });

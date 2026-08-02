@@ -38,6 +38,7 @@ import { isCoupleEventType } from "../utils/eventTypeWording.js";
 import IlInvitationEditor from "../il/components/IlInvitationEditor.jsx";
 import IlWhatsAppInviteEditor from "../il/components/IlWhatsAppInviteEditor.jsx";
 import IlMobileGuestCard from "../il/components/IlMobileGuestCard.jsx";
+import CouponCodeField from "../components/CouponCodeField.jsx";
 import ContactImportModal from "../components/ContactImportModal.jsx";
 import GuestDuplicateReplaceModal from "../components/GuestDuplicateReplaceModal.jsx";
 import ExcelDuplicateResolveModal from "../components/ExcelDuplicateResolveModal.jsx";
@@ -2057,54 +2058,24 @@ export default function ClientDashboardPage() {
                 <br />
                 המספר נשלח מחברת מומו. ניתן לשלוח את ההזמנות באופן חינמי מהווצאפ האישי שלכם על ידי לחיצה על האייקון ווצאפ.
               </p>
-              {whatsappQuotas.length ? (
+              {whatsappQuotas.length || whatsappQuota ? (
                 <div className="il-bulk-whatsapp-quota">
-                  <p style={{ margin: "0 0 0.45rem" }}>קופונים זמינים ללקוח זה:</p>
-                  <ul style={{ margin: 0, paddingInlineStart: "1.1rem" }}>
-                    {whatsappQuotas.map((item) => (
-                      <li key={item.code}>
-                        <strong>{item.code}</strong> · נותרו {item.remaining_credits} / {item.total_credits}
-                      </li>
-                    ))}
-                  </ul>
+                  <p style={{ margin: 0 }}>ניתן לבחור קופון מההצעות למטה או להזין קוד ידנית.</p>
                 </div>
-              ) : whatsappQuota ? (
-                <p className="il-bulk-whatsapp-quota">
-                  מכסה פעילה: נותרו <strong>{whatsappQuota.remaining_credits}</strong> /{" "}
-                  {whatsappQuota.total_credits} הודעות
-                </p>
               ) : null}
               <div className="mt-4 space-y-4">
-                <div>
-                  <label className="us-field-label" htmlFor="bulk-payment-code">
-                    קוד רכישה
-                  </label>
-                  {whatsappQuotas.length > 1 ? (
-                    <select
-                      id="bulk-payment-code"
-                      className="us-field-input"
-                      value={paymentCode}
-                      onChange={(event) => setPaymentCode(event.target.value.toUpperCase())}
-                      required
-                    >
-                      {whatsappQuotas.map((item) => (
-                        <option key={item.code} value={item.code}>
-                          {item.code} ({item.remaining_credits}/{item.total_credits})
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      id="bulk-payment-code"
-                      className="us-field-input"
-                      value={paymentCode}
-                      onChange={(event) => setPaymentCode(event.target.value.toUpperCase())}
-                      placeholder="הזינו את הקוד שקיבלתם מהמנהל"
-                      required
-                      autoComplete="off"
-                    />
-                  )}
-                </div>
+                <CouponCodeField
+                  userId={userId}
+                  value={paymentCode}
+                  onChange={setPaymentCode}
+                  coupons={whatsappQuotas}
+                  label="קוד רכישה"
+                  hint="הזינו את הקוד שקיבלתם מהמנהל או בחרו מקופון פעיל"
+                  placeholder="הזינו את הקוד שקיבלתם מהמנהל"
+                  id="bulk-payment-code"
+                  required
+                  autoSelectFirst
+                />
                 <div>
                   <div className="il-bulk-whatsapp-editor-head">
                     <label className="us-field-label" htmlFor="wa-welcome-paragraph">

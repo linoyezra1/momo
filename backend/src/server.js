@@ -9,7 +9,7 @@ import publicRoutes from "./routes/publicRoutes.js";
 import clientRoutes from "./routes/clientRoutes.js";
 import setupRoutes from "./routes/setupRoutes.js";
 import webhooksRoutes from "./routes/webhooksRoutes.js";
-import seatingRoutes from "./routes/seatingRoutes.js";
+import seatingRoutes, { startTableDispatchScheduler } from "./routes/seatingRoutes.js";
 import seatingTemplateRoutes from "./routes/seatingTemplateRoutes.js";
 import agentRoutes from "./routes/agentRoutes.js";
 import eventManagerRoutes from "./routes/eventManagerRoutes.js";
@@ -126,6 +126,7 @@ async function startServer() {
         regionHint: process.env.RAILWAY_REGION || process.env.RAILWAY_REPLICA_REGION || null
       });
       console.log(`Server running on port ${port}`);
+      startTableDispatchScheduler(30000);
     });
   } catch (error) {
     console.error("Server startup failed:", error.message);

@@ -1,0 +1,171 @@
+.il-coupon-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.il-coupon-field__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.il-coupon-field__label {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #4a2e2b;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.il-coupon-field__required {
+  margin-inline-start: 0.2rem;
+  color: #b42318;
+}
+
+.il-coupon-field__hint {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: #8a7f78;
+}
+
+.il-coupon-field__suggestions {
+  min-width: 0;
+}
+
+.il-coupon-field__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.il-coupon-field__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  max-width: 100%;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid #ebe3db;
+  border-radius: 999px;
+  background: #fffefb;
+  color: #4a2e2b;
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgb(74 46 43 / 4%);
+}
+
+.il-coupon-field__chip strong {
+  font-size: 0.8rem;
+  letter-spacing: 0.02em;
+}
+
+.il-coupon-field__chip span {
+  color: #8a7f78;
+  font-weight: 600;
+}
+
+.il-coupon-field__chip.is-selected {
+  border-color: rgba(196, 93, 93, 0.45);
+  background: rgba(213, 126, 126, 0.12);
+  box-shadow: 0 0 0 2px rgb(196 93 93 / 12%);
+}
+
+.il-coupon-field__chip:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.il-coupon-field__empty {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #9a817c;
+}
+
+.il-coupon-field__select,
+.il-coupon-field__input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 1px solid #ebe3db;
+  border-radius: 0.9rem;
+  background: #fff;
+  color: #4a2e2b;
+  font: inherit;
+  font-size: 0.95rem;
+  outline: none;
+}
+
+.il-coupon-field__select {
+  padding: 0.7rem 0.85rem;
+}
+
+.il-coupon-field__input {
+  padding: 0.75rem 0.9rem;
+}
+
+.il-coupon-field__select:focus,
+.il-coupon-field__input:focus {
+  border-color: rgba(196, 93, 93, 0.55);
+  box-shadow: 0 0 0 3px rgb(196 93 93 / 12%);
+}
+
+.il-coupon-field__input::placeholder {
+  color: #b0a59f;
+}
+
+.il-coupon-modal-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 0.35rem;
+}
+
+.il-coupon-modal-fields .us-admin-field-label,
+.il-coupon-modal-fields .il-hostess-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: normal;
+  text-transform: none;
+  color: #4a2e2b;
+}
+
+.il-coupon-modal-fields .us-admin-field-input,
+.il-coupon-modal-fields .il-hostess-field input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #ebe3db;
+  border-radius: 0.9rem;
+  background: #fff;
+  padding: 0.75rem 0.9rem;
+  font-size: 0.95rem;
+  color: #4a2e2b;
+  box-shadow: none;
+}
+
+.il-coupon-modal-fields .us-admin-field-input:focus,
+.il-coupon-modal-fields .il-hostess-field input:focus {
+  border-color: rgba(196, 93, 93, 0.55);
+  box-shadow: 0 0 0 3px rgb(196 93 93 / 12%);
+}
+
+.il-coupon-modal-intro {
+  margin: 0.35rem 0 0;
+  color: #6b5f5a;
+  line-height: 1.5;
+}
+
+.us-modal-card.il-table-dispatch-modal,
+.us-modal-card.il-hostess-modal--coupon {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}

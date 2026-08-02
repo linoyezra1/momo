@@ -968,23 +968,27 @@ router.get("/:userId/whatsapp/quota", async (req, res) => {
       return res.status(404).json({ message: "Client not found" });
     }
 
+    const now = new Date();
     const codes = await ActivationCode.find({
       redeemedByUserId: userId,
-      isActive: true
+      isActive: true,
+      remaining_credits: { $gt: 0 },
+      $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }]
     })
       .sort({ createdAt: -1 })
-      .select("code total_credits remaining_credits createdAt");
+      .select("code total_credits remaining_credits createdAt expiresAt");
 
     const quotas = codes.map((item) => ({
       code: item.code,
       total_credits: item.total_credits,
       remaining_credits: item.remaining_credits,
-      createdAt: item.createdAt
+      createdAt: item.createdAt,
+      expiresAt: item.expiresAt || null
     }));
-    const usable = quotas.filter((item) => item.remaining_credits > 0);
+    const usable = quotas;
 
     return res.json({
-      quota: usable[0] || quotas[0] || null,
+      quota: usable[0] || null,
       quotas
     });
   } catch (error) {

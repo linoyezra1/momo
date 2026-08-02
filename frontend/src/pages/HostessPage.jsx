@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import api from "../api";
 import TableDispatchFeatureLockedNotice from "../components/TableDispatchFeatureLockedNotice.jsx";
+import CouponCodeField from "../components/CouponCodeField.jsx";
 import "../us/client-portal.css";
 import "../il/il-portal.css";
 import "../il/hostess.css";
@@ -647,7 +648,7 @@ export default function HostessPage() {
       {couponGuest && canSendTableWhatsApp ? (
         <div className="us-modal-backdrop" role="presentation" onClick={() => setCouponGuest(null)}>
           <form
-            className="us-modal-card il-hostess-modal"
+            className="us-modal-card il-hostess-modal il-hostess-modal--coupon"
             role="dialog"
             aria-modal="true"
             onClick={(event) => event.stopPropagation()}
@@ -661,19 +662,24 @@ export default function HostessPage() {
             }}
           >
             <h2>שליחת מספר שולחן</h2>
-            <p>יש להזין קוד קופון פעיל לשליחת ההודעה.</p>
-            <label className="il-hostess-field">
-              קוד קופון
-              <input
+            <p className="il-coupon-modal-intro">יש להזין קוד קופון פעיל לשליחת ההודעה.</p>
+            <div className="il-coupon-modal-fields">
+              <CouponCodeField
+                userId={eventId}
                 value={couponCode}
-                onChange={(event) => setCouponCode(event.target.value)}
-                placeholder="קוד קופון"
-                autoComplete="off"
+                onChange={(next) => {
+                  setCouponError("");
+                  setCouponCode(next);
+                }}
+                label="קוד קופון"
+                hint="בחרו קופון שמור או הזינו קוד ידנית"
+                placeholder="לדוגמה: MOMO123"
+                id="hostess-table-coupon"
                 required
               />
-            </label>
+            </div>
             {couponError ? (
-              <p className="il-hostess-status-line il-hostess-status-line--error" style={{ marginTop: "0.75rem" }}>
+              <p className="il-hostess-status-line il-hostess-status-line--error">
                 {couponError}
               </p>
             ) : null}
