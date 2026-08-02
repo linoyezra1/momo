@@ -683,16 +683,11 @@ export default function IlSeatingPage() {
                     required
                   />
                 </label>
-                <p className="il-coupon-modal-intro" style={{ marginTop: 0 }}>
-                  זמן בעתיד = תזמון בלבד (ההודעות יישלחו אוטומטית בזמן שנבחר). זמן נוכחי/עבר =
-                  שליחה מיידית.
-                </p>
                 <CouponCodeField
                   userId={userId}
                   value={couponCode}
                   onChange={setCouponCode}
                   label="קוד קופון"
-                  hint="הכנס קוד קופון לרכישה זו — ניתן לבחור מקופון שמור או להקליד ידנית"
                   placeholder="לדוגמה: MOMO123"
                   id="table-dispatch-coupon"
                   required
