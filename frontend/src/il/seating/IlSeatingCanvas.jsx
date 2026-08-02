@@ -1,7 +1,7 @@
 import { Rnd } from "react-rnd";
 import { Pencil, RotateCcw, RotateCw, Trash2 } from "lucide-react";
 import IlVenueElementVisual from "./IlVenueElementVisual.jsx";
-import { countGuestSeats, getTableOccupancy } from "./ilSeatingUtils.js";
+import { countGuestSeats, formatTableDisplayLabel, getTableOccupancy } from "./ilSeatingUtils.js";
 
 function tableClass(shape, isOver, isDropTarget) {
   const parts = ["il-seat-table", `il-seat-table--${shape}`];
@@ -51,7 +51,8 @@ export default function IlSeatingCanvas({
   onEditTable,
   onDropGuestsOnTable,
   canvasRef,
-  readOnly = false
+  readOnly = false,
+  touchOverTableId = ""
 }) {
   const warningByTable = new Map(warnings.map((warning) => [warning.tableId, warning]));
 
@@ -183,7 +184,12 @@ export default function IlSeatingCanvas({
                   y: position.y
                 })
               }
-              className={tableClass(table.shape, isOver, activeTableId === table.tableId)}
+              className={tableClass(
+                table.shape,
+                isOver,
+                activeTableId === table.tableId || touchOverTableId === table.tableId
+              )}
+              data-seating-drop-table-id={table.tableId}
               onClick={() => onSelectTable?.(table.tableId)}
               onDragOver={(event) => {
                 if (readOnly) return;
@@ -207,7 +213,7 @@ export default function IlSeatingCanvas({
                 <button
                   type="button"
                   className="il-seat-table__edit"
-                  aria-label={`עריכת שולחן ${table.label}`}
+                  aria-label={`עריכת שולחן ${formatTableDisplayLabel(table)}`}
                   title="עריכת שולחן"
                   onClick={(event) => {
                     event.stopPropagation();
@@ -220,7 +226,7 @@ export default function IlSeatingCanvas({
                 </button>
               ) : null}
               <div className="il-seat-table__inner">
-                <strong>{table.label}</strong>
+                <strong>{formatTableDisplayLabel(table)}</strong>
                 <span>
                   {seats}/{table.capacity}
                 </span>

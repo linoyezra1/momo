@@ -7,8 +7,9 @@ import IlSeatingSimpleGrid from "../il/seating/IlSeatingSimpleGrid.jsx";
 import IlSeatingCanvas from "../il/seating/IlSeatingCanvas.jsx";
 import IlSeatingTableEditModal from "../il/seating/IlSeatingTableEditModal.jsx";
 import { TABLE_SHAPES, VENUE_ELEMENT_TYPES, getVenueElementDefaults } from "../il/seating/seatingConstants.js";
-import { buildSeatingExportRows, filterSeatingGuests, makeSeatingId } from "../il/seating/ilSeatingUtils.js";
+import { buildSeatingExportRows, filterSeatingGuests, formatTableDisplayLabel, makeSeatingId } from "../il/seating/ilSeatingUtils.js";
 import { useSeatingDragAutoScroll } from "../il/seating/useSeatingDragAutoScroll.js";
+import { useSeatingTouchDrag } from "../il/seating/useSeatingTouchDrag.js";
 import { useEventWorkspace } from "../utils/useEventWorkspace.js";
 import TableDispatchFeatureLockedNotice from "../components/TableDispatchFeatureLockedNotice.jsx";
 import "../us/client-portal.css";
@@ -62,9 +63,26 @@ export default function IlSeatingPage() {
   const [viewMode, setViewMode] = useState("simple");
   const [canvasFullscreen, setCanvasFullscreen] = useState(false);
   const { startDragAutoScroll } = useSeatingDragAutoScroll();
+  const assignGuestsRef = useRef(null);
+
+  const resolveTouchGuestIds = useCallback(
+    (guestId) => (selectedGuestIds.has(guestId) ? [...selectedGuestIds] : [guestId]),
+    [selectedGuestIds]
+  );
+
+  const { touchDrag, onGuestPointerDown } = useSeatingTouchDrag({
+    resolveGuestIds: resolveTouchGuestIds,
+    onDropGuestsOnTable: (tableId, guestIds) => assignGuestsRef.current?.(guestIds, tableId)
+  });
 
   const tableLabelById = useMemo(
-    () => new Map(tables.map((table) => [table.tableId, table.label])),
+    () =>
+      new Map(
+        tables.map((table) => [
+          table.tableId,
+          formatTableDisplayLabel(table)
+        ])
+      ),
     [tables]
   );
 
@@ -165,6 +183,7 @@ export default function IlSeatingPage() {
       setToast(assignError.response?.data?.message || "שיבוץ נכשל");
     }
   }
+  assignGuestsRef.current = assignGuests;
 
   async function unassignGuestIds(guestIds) {
     if (!guestIds.length) return;
@@ -192,6 +211,7 @@ export default function IlSeatingPage() {
     const newTable = {
       tableId: makeSeatingId("tbl"),
       label,
+      name: "",
       shape,
       capacity: 10,
       x: 60 + tables.length * 24,
@@ -258,11 +278,11 @@ export default function IlSeatingPage() {
     XLSX.writeFile(workbook, "seating-export.xlsx");
   }
 
-  function saveEditedTable({ label, capacity }) {
+  function saveEditedTable({ label, name, capacity }) {
     if (!editingTable) return;
     saveLayout({
       tables: tables.map((item) =>
-        item.tableId === editingTable.tableId ? { ...item, label, capacity } : item
+        item.tableId === editingTable.tableId ? { ...item, label, name, capacity } : item
       )
     });
     setEditingTableId("");
@@ -533,6 +553,7 @@ export default function IlSeatingPage() {
           onToggleGuest={toggleGuest}
           onToggleAll={toggleAllFiltered}
           onDragStart={onDragStart}
+          onGuestPointerDown={onGuestPointerDown}
           compact
         />
 
@@ -545,6 +566,7 @@ export default function IlSeatingPage() {
             onEditTable={setEditingTableId}
             onDropGuestsOnTable={(tableId, guestIds) => assignGuests(guestIds, tableId)}
             onUnassignGuest={(guestId) => unassignGuestIds([guestId])}
+            touchOverTableId={touchDrag?.overTableId || ""}
           />
         ) : (
           <div className="il-seat-canvas-fullscreen-host">
@@ -560,10 +582,21 @@ export default function IlSeatingPage() {
               onDropGuestsOnTable={(tableId, guestIds) => assignGuests(guestIds, tableId)}
               canvasRef={canvasRef}
               readOnly={false}
+              touchOverTableId={touchDrag?.overTableId || ""}
             />
           </div>
         )}
       </div>
+
+      {touchDrag ? (
+        <div
+          className="il-seat-touch-ghost"
+          style={{ left: touchDrag.x, top: touchDrag.y }}
+          aria-hidden="true"
+        >
+          גרירה · {touchDrag.guestIds.length}
+        </div>
+      ) : null}
 
       {editingTable ? (
         <IlSeatingTableEditModal

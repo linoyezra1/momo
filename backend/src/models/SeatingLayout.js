@@ -4,6 +4,7 @@ const seatingTableSchema = new mongoose.Schema(
   {
     tableId: { type: String, required: true },
     label: { type: String, trim: true, default: "" },
+    name: { type: String, trim: true, default: "" },
     shape: { type: String, enum: ["round", "rect", "head"], default: "round" },
     capacity: { type: Number, min: 1, default: 10 },
     x: { type: Number, default: 40 },

@@ -29,21 +29,42 @@ export default function ClientAppShell({ children }) {
   const moreActive = moreOpen || path.includes("/seating") || path.includes("/vendors");
 
   useEffect(() => {
-    if (!userId) return undefined;
+    if (!userId || isAudit) return undefined;
     let cancelled = false;
-    const since = getAuditLogLastReadAt(userId);
-    api
-      .get(`/client/${userId}/audit-logs/unread-count`, { params: since ? { since } : {} })
-      .then((response) => {
+
+    async function loadUnreadCount() {
+      try {
+        const since = getAuditLogLastReadAt(userId);
+        const response = await api.get(`/client/${userId}/audit-logs/unread-count`, {
+          params: since ? { since } : {}
+        });
         if (!cancelled) setUnreadLogCount(Number(response.data?.count) || 0);
-      })
-      .catch(() => {
+      } catch {
         if (!cancelled) setUnreadLogCount(0);
-      });
+      }
+    }
+
+    loadUnreadCount();
     return () => {
       cancelled = true;
     };
-  }, [userId, location.pathname]);
+  }, [userId, location.pathname, isAudit]);
+
+  useEffect(() => {
+    if (!userId || isAudit) return undefined;
+    const stream = new EventSource(`/api/client/${userId}/live-updates`);
+    stream.onmessage = (event) => {
+      try {
+        const payload = JSON.parse(event.data);
+        if (payload.type === "guest-audit-log-updated") {
+          setUnreadLogCount((prev) => prev + 1);
+        }
+      } catch {
+        /* ignore keepalive/malformed payloads */
+      }
+    };
+    return () => stream.close();
+  }, [userId, isAudit]);
 
   useEffect(() => {
     if (isAudit && userId) {

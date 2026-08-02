@@ -580,6 +580,7 @@
   border: 1px solid #ece7e2;
   background: #fff;
   cursor: grab;
+  touch-action: none;
   box-shadow: 0 4px 14px rgb(47 42 40 / 4%);
   transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
@@ -1197,6 +1198,11 @@
   box-shadow: 0 0 0 1px rgb(239 68 68 / 15%);
 }
 
+.il-seat-table-card.is-drop-target {
+  border-color: #c45d5d;
+  box-shadow: 0 0 0 2px rgb(196 93 93 / 28%);
+}
+
 .il-seat-decline-badge {
   display: inline-flex;
   align-items: center;
@@ -1491,4 +1497,24 @@
   .il-seat-kpi-bar > div:nth-child(even) {
     border-inline-start: 1px solid #efe8e2;
   }
+}
+
+.il-seat-touch-ghost {
+  position: fixed;
+  z-index: 90;
+  transform: translate(-50%, -120%);
+  pointer-events: none;
+  padding: 0.45rem 0.75rem;
+  border-radius: 999px;
+  background: #4a2e2b;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  box-shadow: 0 10px 24px rgb(74 46 43 / 28%);
+  white-space: nowrap;
+}
+
+.il-seat-guest-item__check,
+.il-seat-guest-item__check * {
+  touch-action: manipulation;
 }

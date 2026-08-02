@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { countGuestSeats } from "./ilSeatingUtils.js";
+import { countGuestSeats, formatTableDisplayLabel } from "./ilSeatingUtils.js";
 
 export default function IlSeatingTableEditModal({
   table,
@@ -9,6 +9,7 @@ export default function IlSeatingTableEditModal({
   onDelete
 }) {
   const [label, setLabel] = useState("");
+  const [name, setName] = useState("");
   const [capacity, setCapacity] = useState("");
 
   const tableId = table?.tableId || "";
@@ -33,6 +34,7 @@ export default function IlSeatingTableEditModal({
   useEffect(() => {
     if (!tableId || !table) return;
     setLabel(table.label ?? "");
+    setName(table.name ?? "");
     setCapacity(String(Math.max(1, Number(table.capacity) || 1)));
   }, [tableId]);
 
@@ -41,8 +43,10 @@ export default function IlSeatingTableEditModal({
   function handleSave(event) {
     event?.preventDefault?.();
     const nextLabel = String(label ?? "").trim();
+    const nextName = String(name ?? "").trim();
     onSave({
       label: nextLabel || String(table.label || "").trim() || "1",
+      name: nextName,
       capacity: capacityNumber
     });
   }
@@ -50,6 +54,11 @@ export default function IlSeatingTableEditModal({
   function handleBackdropPointerDown(event) {
     if (event.target === event.currentTarget) onClose();
   }
+
+  const previewLabel = formatTableDisplayLabel({
+    label: String(label ?? "").trim() || table.label || "1",
+    name: String(name ?? "").trim()
+  });
 
   return (
     <div
@@ -68,20 +77,37 @@ export default function IlSeatingTableEditModal({
       >
         <header className="il-seat-modal__header">
           <h2 id="il-seat-modal-title">עריכת שולחן</h2>
-          <span className="il-seat-modal__badge">
-            שולחן {String(table.label || "").trim() || tableId}
-          </span>
+          <span className="il-seat-modal__badge">{previewLabel}</span>
         </header>
+
+        <label className="il-seat-modal__field">
+          <span>מספר השולחן</span>
+          <input
+            value={label}
+            onChange={(event) => setLabel(event.target.value)}
+            placeholder="לדוגמה: 12"
+            autoComplete="off"
+          />
+        </label>
 
         <label className="il-seat-modal__field">
           <span>שם השולחן</span>
           <input
-            value={label}
-            onChange={(event) => setLabel(event.target.value)}
-            placeholder="לדוגמה: 5 / משפחה"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder="לדוגמה: חברות"
             autoComplete="off"
           />
         </label>
+
+        <p className="il-seat-modal__hint">
+          בהודעת WhatsApp יופיע:{" "}
+          <strong>
+            {String(name ?? "").trim()
+              ? `${String(name).trim()} שולחן מס ${String(label ?? "").trim() || table.label || "1"}`
+              : `שולחן מס ${String(label ?? "").trim() || table.label || "1"}`}
+          </strong>
+        </p>
 
         <label className="il-seat-modal__field">
           <span>מספר כיסאות נוכחי:</span>

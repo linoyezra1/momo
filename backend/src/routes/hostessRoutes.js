@@ -11,6 +11,7 @@ import {
 } from "../services/bulkWhatsAppService.js";
 import {
   canSendTableWhatsApp,
+  formatTableDisplayLabel,
   sendTableNumberWhatsApp
 } from "../services/tableNumberWhatsApp.js";
 import {
@@ -63,6 +64,8 @@ function buildTablesWithAvailability(tables = [], guests = []) {
     return {
       tableId: table.tableId,
       label: table.label,
+      name: table.name || "",
+      displayLabel: formatTableDisplayLabel(table),
       shape: table.shape,
       capacity,
       occupied,
@@ -86,7 +89,7 @@ router.get("/:eventId", async (req, res) => {
       const table = tableById.get(guest.seatingTableId);
       return {
         ...base,
-        tableLabel: table?.label || (guest.seatingTableId ? "?" : "")
+        tableLabel: table ? formatTableDisplayLabel(table) : guest.seatingTableId ? "?" : ""
       };
     });
 
@@ -244,7 +247,7 @@ router.post("/:eventId/guests/:guestId/arrive", async (req, res) => {
 
     const layout = await SeatingLayout.findOne({ userId: eventId });
     const table = (layout?.tables || []).find((item) => item.tableId === existing.seatingTableId);
-    const tableLabel = table?.label || (existing.seatingTableId ? "?" : "");
+    const tableLabel = table ? formatTableDisplayLabel(table) : existing.seatingTableId ? "?" : "";
 
     await recordHostessAudit({
       userId: eventId,
@@ -339,17 +342,19 @@ router.post("/:eventId/guests/:guestId/assign-table", async (req, res) => {
     const refreshed = await Guest.find({ userId: eventId });
     const tables = layout?.tables || [];
 
+    const tableLabel = formatTableDisplayLabel(table, tableId);
+
     await recordHostessAudit({
       userId: eventId,
       action: "HOSTESS_ASSIGN_TABLE",
       status: "ok",
       phone: guest.phone,
-      description: `${guest.fullName} שובץ/ה לשולחן ${table.label || tableId} על ידי דיילת`,
+      description: `${guest.fullName} שובץ/ה לשולחן ${tableLabel} על ידי דיילת`,
       metadata: {
         guestId: String(guest._id),
         guestName: guest.fullName,
         tableId,
-        tableLabel: table.label || tableId,
+        tableLabel,
         markedBy: HOSTESS_MARKED_BY
       }
     });
@@ -363,13 +368,13 @@ router.post("/:eventId/guests/:guestId/assign-table", async (req, res) => {
       success: true,
       guest: {
         ...guestForSeating(guest),
-        tableLabel: table.label || tableId
+        tableLabel
       },
-      tableLabel: table.label || tableId,
+      tableLabel,
       tables: buildTablesWithAvailability(tables, refreshed),
       warnings: buildSeatingWarnings(refreshed, tables),
       analytics: buildSeatingAnalytics(refreshed, tables),
-      message: `שובץ/ה לשולחן ${table.label || tableId}`
+      message: `שובץ/ה לשולחן ${tableLabel}`
     });
   } catch (error) {
     return res.status(500).json({ message: error.message || "שיבוץ לשולחן נכשל" });
@@ -419,11 +424,14 @@ router.post("/:eventId/guests/:guestId/send-table-whatsapp", async (req, res) =>
 
     const layout = await SeatingLayout.findOne({ userId: eventId });
     const table = (layout?.tables || []).find((item) => item.tableId === guest.seatingTableId);
-    const tableLabel = table?.label || guest.seatingTableId;
+    const tableLabel = table
+      ? formatTableDisplayLabel(table, guest.seatingTableId)
+      : guest.seatingTableId;
     const result = await sendTableNumberWhatsApp({
       user,
       guest,
-      tableLabel
+      table,
+      tableLabel: table?.label || guest.seatingTableId
     });
 
     if (!result.ok) {
@@ -437,7 +445,7 @@ router.post("/:eventId/guests/:guestId/send-table-whatsapp", async (req, res) =>
         metadata: {
           guestId: String(guest._id),
           guestName: guest.fullName,
-          tableLabel,
+          tableLabel: result.tableLabel || tableLabel,
           markedBy: HOSTESS_MARKED_BY,
           reason: result.reason || "send_failed"
         }
@@ -457,16 +465,18 @@ router.post("/:eventId/guests/:guestId/send-table-whatsapp", async (req, res) =>
       }
     }
 
+    const sentLabel = result.tableLabel || tableLabel;
+
     await recordHostessAudit({
       userId: eventId,
       action: "HOSTESS_TABLE_WHATSAPP",
       status: "ok",
       phone: guest.phone,
-      description: `נשלח מספר שולחן (${tableLabel}) ב-WhatsApp ל${guest.fullName} על ידי דיילת אירוע`,
+      description: `נשלח מספר שולחן (${sentLabel}) ב-WhatsApp ל${guest.fullName} על ידי דיילת אירוע`,
       metadata: {
         guestId: String(guest._id),
         guestName: guest.fullName,
-        tableLabel,
+        tableLabel: sentLabel,
         markedBy: HOSTESS_MARKED_BY,
         markedByLabel: "סומן על ידי דיילת אירוע"
       }
@@ -474,7 +484,7 @@ router.post("/:eventId/guests/:guestId/send-table-whatsapp", async (req, res) =>
 
     return res.json({
       success: true,
-      tableLabel,
+      tableLabel: sentLabel,
       message: "נשלח בהצלחה! ✓"
     });
   } catch (error) {

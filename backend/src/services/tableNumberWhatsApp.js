@@ -22,7 +22,7 @@
  *
  * {{1}} guest full name     sample: יצחק כהן
  * {{2}} event type          sample: חתונה
- * {{3}} table label/number  sample: 12
+ * {{3}} table assignment    sample: חברות שולחן מס 12
  * {{4}} hosts / couple      sample: לינוי ויצחק
  */
 import {
@@ -39,6 +39,22 @@ export function getTableNumberContentSid() {
   return String(
     process.env.TWILIO_TABLE_NUMBER_CONTENT_SID || TABLE_NUMBER_CONTENT_SID_DEFAULT || ""
   ).trim();
+}
+
+/** WhatsApp {{3}} line: "חברות שולחן מס 12" or "שולחן מס 12" when name is empty. */
+export function formatTableWhatsAppLine(table = {}, fallbackLabel = "") {
+  const number = String(table?.label || fallbackLabel || "").trim() || "?";
+  const name = String(table?.name || "").trim();
+  if (name) return `${name} שולחן מס ${number}`;
+  return `שולחן מס ${number}`;
+}
+
+/** Short UI label: "חברות · 12" / "12". */
+export function formatTableDisplayLabel(table = {}, fallbackLabel = "") {
+  const number = String(table?.label || fallbackLabel || "").trim();
+  const name = String(table?.name || "").trim();
+  if (name && number) return `${name} · ${number}`;
+  return name || number || "?";
 }
 
 export function buildEventHostsLabel(event = {}) {
@@ -101,8 +117,9 @@ export function canSendTableWhatsApp(user) {
 
 /**
  * Send one table-number WhatsApp to a seated guest.
+ * Prefer passing `table` so name + number are formatted for {{3}}.
  */
-export async function sendTableNumberWhatsApp({ user, guest, tableLabel }) {
+export async function sendTableNumberWhatsApp({ user, guest, tableLabel, table }) {
   if (!isTwilioConfigured()) {
     return { ok: false, reason: "twilio_not_configured", message: "שירות שליחת הודעות לא מוגדר בשרת" };
   }
@@ -116,7 +133,9 @@ export async function sendTableNumberWhatsApp({ user, guest, tableLabel }) {
   const guestName = String(guest.fullName || "").trim() || "אורח/ת";
   const eventType = String(event.eventType || "אירוע").trim() || "אירוע";
   const hostsLabel = buildEventHostsLabel(event);
-  const label = String(tableLabel || "?").trim() || "?";
+  const label = table
+    ? formatTableWhatsAppLine(table, tableLabel)
+    : String(tableLabel || "?").trim() || "?";
 
   const contentSid = getTableNumberContentSid();
   const allowFreeText = String(process.env.TWILIO_TABLE_NUMBER_ALLOW_FREE_TEXT || "").toLowerCase() === "true";
@@ -154,7 +173,7 @@ export async function sendTableNumberWhatsApp({ user, guest, tableLabel }) {
         message: "חסר TWILIO_TABLE_NUMBER_CONTENT_SID (תבנית Meta מאושרת למספר שולחן)"
       };
     }
-    return { ok: true };
+    return { ok: true, tableLabel: label };
   } catch (error) {
     return {
       ok: false,

@@ -31,6 +31,7 @@ function defaultLayout() {
       {
         tableId: makeId("tbl"),
         label: "1",
+        name: "",
         shape: "round",
         capacity: 10,
         x: 80,
@@ -41,6 +42,7 @@ function defaultLayout() {
       {
         tableId: makeId("tbl"),
         label: "2",
+        name: "",
         shape: "round",
         capacity: 10,
         x: 220,
@@ -141,6 +143,7 @@ async function dispatchTableMessages({ user, paymentCode }) {
     const result = await sendTableNumberWhatsApp({
       user,
       guest,
+      table,
       tableLabel: table?.label || guest.seatingTableId
     });
     if (result.ok) {

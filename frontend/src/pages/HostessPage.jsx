@@ -560,7 +560,7 @@ export default function HostessPage() {
                       aria-pressed={selected}
                       onClick={() => setSelectedTableId(table.tableId)}
                     >
-                      <span className="il-hostess-table-cell__num">{table.label}</span>
+                      <span className="il-hostess-table-cell__num">{table.displayLabel || table.label}</span>
                       <span className="il-hostess-table-cell__meta">
                         <Users size={12} aria-hidden="true" />
                         {full ? "מלא" : `${table.remaining} פנויים`}

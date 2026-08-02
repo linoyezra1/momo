@@ -8,6 +8,7 @@ export default function IlSeatingGuestPanel({
   onToggleGuest,
   onToggleAll,
   onDragStart,
+  onGuestPointerDown,
   compact = false
 }) {
   const filtered = filterSeatingGuests(guests, { ...filters, seated: "floating" });
@@ -51,6 +52,7 @@ export default function IlSeatingGuestPanel({
             }`}
             draggable
             onDragStart={(event) => onDragStart(event, guest._id)}
+            onPointerDown={(event) => onGuestPointerDown?.(event, guest._id)}
           >
             <label className="il-seat-guest-item__check">
               <input

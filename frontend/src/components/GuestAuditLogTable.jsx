@@ -115,26 +115,29 @@ function AuditMobileCard({ entry }) {
   const count = getCountFromEntry(entry);
   const countLabel = formatGuestCountLabel(status, count);
   const timeLabel = formatRelativeTime(entry.createdAt);
-  const metaParts = [countLabel, timeLabel].filter(Boolean);
+  const performer = entry.performerLabel || "מערכת";
 
   return (
     <article className="il-audit-log__card">
       <div className="il-audit-log__card-main">
         <strong className="il-audit-log__card-name">{entry.guestName || "—"}</strong>
-        {metaParts.length ? (
-          <span className="il-audit-log__card-meta">{metaParts.join(" · ")}</span>
-        ) : (
-          <span className="il-audit-log__card-meta">
-            <AuditDescription entry={entry} />
-          </span>
-        )}
+        <span className="il-audit-log__card-meta">
+          <AuditDescription entry={entry} />
+        </span>
+        <span className="il-audit-log__card-meta il-audit-log__card-meta--secondary">
+          {[
+            `ע״י ${performer}`,
+            countLabel,
+            timeLabel
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+        </span>
       </div>
       {status ? (
         <span className={`il-audit-log__status ${statusBadgeClass(status)}`}>{status}</span>
       ) : (
-        <span className={`il-audit-log__badge ${performerBadgeClass(entry)}`}>
-          {entry.performerLabel || "עדכון"}
-        </span>
+        <span className={`il-audit-log__badge ${performerBadgeClass(entry)}`}>{performer}</span>
       )}
     </article>
   );

@@ -416,3 +416,130 @@
     flex-direction: column;
   }
 }
+
+.il-vendor-mobile-cards {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .il-vendor-table-wrap {
+    display: none !important;
+  }
+
+  .il-vendor-mobile-cards {
+    display: grid;
+    gap: 0.7rem;
+    padding: 0.2rem 0 1rem;
+  }
+
+  .il-vendor-mobile-cards__empty {
+    margin: 0;
+    padding: 1rem;
+    border-radius: 1.35rem;
+    border: 1px dashed #ebe3db;
+    background: #fffefb;
+    color: #8a7f78;
+    text-align: center;
+  }
+
+  .il-vendor-mobile-card {
+    border-radius: 1.35rem;
+    border: 1px solid #ebe3db;
+    background: #fffefb;
+    box-shadow: 0 8px 22px rgb(74 46 43 / 4%);
+    padding: 0.9rem;
+    display: grid;
+    gap: 0.7rem;
+  }
+
+  .il-vendor-mobile-card__row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.65rem;
+  }
+
+  .il-vendor-mobile-card__main {
+    display: grid;
+    gap: 0.35rem;
+    min-width: 0;
+  }
+
+  .il-vendor-mobile-card__name {
+    font-size: 1rem;
+    color: #4a2e2b;
+  }
+
+  .il-vendor-mobile-card__tags {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .il-vendor-mobile-card__category {
+    display: inline-flex;
+    padding: 0.18rem 0.55rem;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.16);
+    color: #5b6472;
+    font-size: 0.74rem;
+    font-weight: 600;
+  }
+
+  .il-vendor-mobile-card__price {
+    flex-shrink: 0;
+    font-size: 0.92rem;
+    color: #4a2e2b;
+  }
+
+  .il-vendor-mobile-card__meta {
+    display: grid;
+    gap: 0.2rem;
+    color: #6b5f5a;
+    font-size: 0.8rem;
+  }
+
+  .il-vendor-mobile-card__notes {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .il-vendor-mobile-card__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding-top: 0.15rem;
+  }
+
+  .il-vendor-mobile-card__action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.55rem;
+    height: 2.55rem;
+    border-radius: 999px;
+    border: 1px solid #ebe3db;
+    background: #fff;
+    color: #5b5550;
+    text-decoration: none;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgb(74 46 43 / 5%);
+  }
+
+  .il-vendor-mobile-card__action.is-whatsapp {
+    background: rgba(213, 126, 126, 0.14);
+    border-color: rgba(213, 126, 126, 0.28);
+    color: #128c7e;
+  }
+
+  .il-vendor-mobile-card__action.is-danger {
+    color: #dc2626;
+  }
+
+  .il-vendor-mobile-card__action.is-disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}

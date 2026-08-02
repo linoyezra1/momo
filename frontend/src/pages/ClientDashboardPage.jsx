@@ -432,6 +432,11 @@ export default function ClientDashboardPage() {
         const payload = JSON.parse(event.data);
         if (payload.type === "guest-audit-log-updated") {
           setUnreadLogCount((prev) => prev + 1);
+          window.clearTimeout(refreshTimer);
+          refreshTimer = window.setTimeout(() => {
+            loadGuests();
+          }, 120);
+          return;
         }
         if (!["guest-phone-rsvp-updated", "guest-whatsapp-rsvp-updated"].includes(payload.type)) return;
         window.clearTimeout(refreshTimer);
@@ -1019,6 +1024,27 @@ export default function ClientDashboardPage() {
                 </tbody>
               </table>
             </div>
+            <ul className="il-status-history-mobile-list">
+              {statusHistory.map((entry, index) => {
+                const { dateLabel, timeLabel } = formatStatusHistoryDateTime(entry.updatedAt);
+                return (
+                  <li key={`mobile-hist-${entry.updatedAt || index}-${entry.status}-${index}`}>
+                    <div className="il-status-history-mobile-list__top">
+                      <span className={`il-audit-log__badge ${statusHistoryBadgeClass(entry.source)}`}>
+                        {entry.updatedBy || "מערכת"}
+                      </span>
+                      <span className="il-status-history-mobile-list__time">
+                        {dateLabel}
+                        {timeLabel ? ` · ${timeLabel}` : ""}
+                      </span>
+                    </div>
+                    <p className="il-status-history-mobile-list__desc">
+                      <StatusHistoryDescription entry={entry} />
+                    </p>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
         ) : null}
 
@@ -1394,6 +1420,17 @@ export default function ClientDashboardPage() {
             <p className="il-guest-filter-summary">
               מוצגים <strong>{filteredGuests.length}</strong> מתוך {guests.length}
             </p>
+
+            <label className="il-mobile-select-all">
+              <input
+                type="checkbox"
+                aria-label="בחירת כל המוזמנים המוצגים"
+                checked={allFilteredSelected}
+                onChange={toggleSelectAllFiltered}
+                disabled={!filteredGuests.length}
+              />
+              <span>בחר הכל ({filteredGuests.length})</span>
+            </label>
           </div>
         </div>
 

@@ -1,4 +1,4 @@
-import { countGuestSeats, getTableOccupancy } from "./ilSeatingUtils.js";
+import { countGuestSeats, formatTableDisplayLabel, getTableOccupancy } from "./ilSeatingUtils.js";
 import { Pencil, UserMinus } from "lucide-react";
 
 export default function IlSeatingSimpleGrid({
@@ -8,7 +8,8 @@ export default function IlSeatingSimpleGrid({
   onSelectTable,
   onEditTable,
   onDropGuestsOnTable,
-  onUnassignGuest
+  onUnassignGuest,
+  touchOverTableId = ""
 }) {
   function handleDrop(event, tableId) {
     event.preventDefault();
@@ -40,8 +41,11 @@ export default function IlSeatingSimpleGrid({
         return (
           <article
             key={table.tableId}
-            className={`il-seat-table-card${isActive ? " is-active" : ""}${isOverfill ? " is-overfill" : ""}`}
+            className={`il-seat-table-card${isActive ? " is-active" : ""}${isOverfill ? " is-overfill" : ""}${
+              touchOverTableId === table.tableId ? " is-drop-target" : ""
+            }`}
             role="listitem"
+            data-seating-drop-table-id={table.tableId}
             title={isOverfill ? "חריגה מקיבולת השולחן" : undefined}
             onClick={() => onSelectTable(table.tableId)}
             onDragOver={(event) => event.preventDefault()}
@@ -49,7 +53,7 @@ export default function IlSeatingSimpleGrid({
           >
             <header className="il-seat-table-card__header">
               <div>
-                <h3>שולחן {table.label}</h3>
+                <h3>{formatTableDisplayLabel(table)}</h3>
                 <span className="il-seat-table-card__capacity">
                   {occupied} / {table.capacity}
                 </span>
@@ -57,7 +61,7 @@ export default function IlSeatingSimpleGrid({
               <button
                 type="button"
                 className="il-seat-table-card__edit"
-                aria-label={`עריכת שולחן ${table.label}`}
+                  aria-label={`עריכת שולחן ${formatTableDisplayLabel(table)}`}
                 title="עריכת שולחן"
                 onClick={(event) => {
                   event.stopPropagation();

@@ -13,7 +13,9 @@
 .client-bottom-nav,
 .momo-bottom-sheet,
 .il-guest-cards,
-.il-mobile-actions-trigger {
+.il-mobile-actions-trigger,
+.il-mobile-select-all,
+.il-status-history-mobile-list {
   display: none;
 }
 
@@ -528,11 +530,110 @@
     bottom: calc(4.85rem + env(safe-area-inset-bottom, 0px));
     max-width: 28rem;
   }
+
+  .il-mobile-select-all {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin: 0;
+    padding: 0.45rem 0.65rem;
+    border-radius: 999px;
+    border: 1px solid #ebe3db;
+    background: #fffefb;
+    color: #4a2e2b;
+    font-size: 0.82rem;
+    font-weight: 650;
+    width: fit-content;
+  }
+
+  .il-mobile-select-all input {
+    width: 1.05rem;
+    height: 1.05rem;
+    accent-color: #c45d5d;
+  }
+
+  .il-status-history-mobile-list {
+    display: grid;
+    gap: 0.55rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 14rem;
+    overflow: auto;
+  }
+
+  .il-status-history-mobile-list__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .il-status-history-mobile-list__time {
+    color: #8a7f78;
+    font-size: 0.72rem;
+    white-space: nowrap;
+  }
+
+  .il-status-history-mobile-list__desc {
+    margin: 0.3rem 0 0;
+    color: #4a2e2b;
+    font-size: 0.84rem;
+    line-height: 1.35;
+  }
+
+  .il-status-history-mobile-list li {
+    padding: 0.65rem 0.7rem;
+    border-radius: 0.9rem;
+    border: 1px solid #ebe3db;
+    background: #fff;
+  }
+
+  .il-guest-card__history .il-audit-log__table-wrap {
+    display: none !important;
+  }
+
+  .il-audit-log__card-meta--secondary {
+    display: block;
+    margin-top: 0.2rem;
+    color: #8a7f78;
+    font-size: 0.75rem;
+  }
+
+  .client-app-shell .us-modal-backdrop {
+    z-index: 80;
+    align-items: flex-end;
+    padding: 0.75rem 0.75rem calc(1rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .client-app-shell .us-modal-card {
+    max-height: min(88dvh, 42rem);
+    margin-bottom: 0;
+    padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
+    border-radius: 1.35rem 1.35rem 1rem 1rem;
+  }
+
+  .client-app-shell .il-bulk-whatsapp-modal {
+    padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .client-app-shell .us-modal-card .us-modal-actions,
+  .client-app-shell .il-bulk-whatsapp-modal .us-toolbar {
+    position: sticky;
+    bottom: 0;
+    padding-top: 0.75rem;
+    padding-bottom: calc(0.35rem + env(safe-area-inset-bottom, 0px));
+    background: linear-gradient(180deg, rgb(255 254 251 / 0%) 0%, #fffefb 28%);
+    z-index: 1;
+  }
 }
 
 @media (min-width: 768px) {
   .il-guest-cards,
-  .il-mobile-actions-trigger {
+  .il-mobile-actions-trigger,
+  .il-mobile-select-all,
+  .il-status-history-mobile-list,
+  .il-vendor-mobile-cards {
     display: none !important;
   }
 }

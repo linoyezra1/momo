@@ -2,6 +2,20 @@ export function makeSeatingId(prefix) {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 }
 
+export function formatTableDisplayLabel(table = {}, fallbackLabel = "") {
+  const number = String(table?.label || fallbackLabel || "").trim();
+  const name = String(table?.name || "").trim();
+  if (name && number) return `${name} · ${number}`;
+  return name || number || "?";
+}
+
+export function formatTableWhatsAppLine(table = {}, fallbackLabel = "") {
+  const number = String(table?.label || fallbackLabel || "").trim() || "?";
+  const name = String(table?.name || "").trim();
+  if (name) return `${name} שולחן מס ${number}`;
+  return `שולחן מס ${number}`;
+}
+
 export function countGuestSeats(guest) {
   return Math.max(1, Number(guest?.attendeesCount || 1));
 }
@@ -36,7 +50,9 @@ export function buildSeatingExportRows(guests, tables) {
     const seated = guests.filter((guest) => guest.seatingTableId === table.tableId && guest.isEligible);
     const seats = seated.reduce((sum, guest) => sum + countGuestSeats(guest), 0);
     return {
-      שולחן: table.label,
+      שולחן: formatTableDisplayLabel(table),
+      "מספר שולחן": table.label || "",
+      "שם שולחן": table.name || "",
       קיבולת: table.capacity,
       מושבים: seats,
       פנוי: Math.max(0, table.capacity - seats),
@@ -53,7 +69,7 @@ export function buildSeatingExportRows(guests, tables) {
         "שם מלא": guest.fullName,
         טלפון: guest.phone,
         כמות: countGuestSeats(guest),
-        שולחן: table?.label || "צף",
+        שולחן: table ? formatTableDisplayLabel(table) : "צף",
         סטטוס: guest.isSeated ? "הושב" : "ממתין לשיבוץ"
       };
     });

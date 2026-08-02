@@ -460,6 +460,84 @@ export default function ClientVendorsPage() {
         </table>
       </div>
 
+      <div className="il-vendor-mobile-cards" aria-label="רשימת ספקים">
+        {!loading && !entries.length ? (
+          <p className="il-vendor-mobile-cards__empty">עדיין לא שויכו ספקים לאירוע</p>
+        ) : null}
+        {entries.map((entry) => {
+          const vendor = entry.vendor || {};
+          const tel = buildTelHref(vendor.phone);
+          const wa = buildWhatsAppHref(vendor.phone);
+          const cost = entry.vendorQuoteAmount ?? entry.quoteAmount ?? 0;
+          const revenue = entry.couplePrice || 0;
+          const profit = entry.profit ?? calcProfit(cost, revenue);
+          const agreed = entry.agreedPrice ?? entry.couplePrice ?? 0;
+          return (
+            <article key={`mobile-${entry.id}`} className="il-vendor-mobile-card">
+              <div className="il-vendor-mobile-card__row">
+                <div className="il-vendor-mobile-card__main">
+                  <strong className="il-vendor-mobile-card__name">{vendor.name || "—"}</strong>
+                  <span className="il-vendor-mobile-card__tags">
+                    {vendor.category ? (
+                      <span className="il-vendor-mobile-card__category">{vendor.category}</span>
+                    ) : null}
+                    <span className={`il-vendor-status is-${entry.status}`}>
+                      {EVENT_VENDOR_STATUS_LABELS[entry.status] || entry.status}
+                    </span>
+                  </span>
+                </div>
+                <strong className="il-vendor-mobile-card__price">
+                  {formatIls(isCoupleView ? agreed : revenue)}
+                </strong>
+              </div>
+
+              <div className="il-vendor-mobile-card__meta">
+                <span>{vendor.contactName || "—"}</span>
+                <span dir="ltr">{vendor.phone || "—"}</span>
+                {!isCoupleView ? <span>עלות ספק {formatIls(cost)} · רווח {formatIls(profit)}</span> : null}
+                {isCoupleView && (entry.eventNotes || entry.attachmentUrl) ? (
+                  <span className="il-vendor-mobile-card__notes">
+                    {entry.eventNotes || entry.attachmentUrl}
+                  </span>
+                ) : null}
+              </div>
+
+              <div className="il-vendor-mobile-card__actions">
+                {wa ? (
+                  <a className="il-vendor-mobile-card__action is-whatsapp" href={wa} target="_blank" rel="noreferrer" aria-label="וואטסאפ">
+                    <WhatsAppIcon size={18} />
+                  </a>
+                ) : (
+                  <span className="il-vendor-mobile-card__action is-disabled" aria-hidden="true">
+                    <WhatsAppIcon size={18} />
+                  </span>
+                )}
+                {tel ? (
+                  <a className="il-vendor-mobile-card__action" href={tel} aria-label="חיוג">
+                    <Phone size={16} />
+                  </a>
+                ) : (
+                  <span className="il-vendor-mobile-card__action is-disabled" aria-hidden="true">
+                    <Phone size={16} />
+                  </span>
+                )}
+                <button type="button" className="il-vendor-mobile-card__action" onClick={() => openEdit(entry)} aria-label="עריכה">
+                  <Pencil size={16} />
+                </button>
+                <button
+                  type="button"
+                  className="il-vendor-mobile-card__action is-danger"
+                  onClick={() => removeEntry(entry)}
+                  aria-label="מחיקה"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+
       {showAssign ? (
         <div className="us-modal-backdrop" role="presentation">
           <form className="us-modal-card" onSubmit={submitAssign} dir="rtl">
