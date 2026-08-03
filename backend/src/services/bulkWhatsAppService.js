@@ -14,8 +14,10 @@ import {
 import { resolveWhatsAppInviteParagraphs } from "../utils/whatsappInviteCopy.js";
 import { getDefaultWelcomeParagraph } from "../utils/eventTypeWording.js";
 
-const STANDARD_INVITE_CONTENT_SID = "HXa32f37f28c9aeea9d824b1b53919c326";
-const PREMIUM_WEDDING_RSVP_CONTENT_SID = "HX9eb2ac4178732bcfd5eb3e9609f9f626";
+const STANDARD_INVITE_CONTENT_SID =
+  process.env.TWILIO_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID || "HX9eb2ac4178732bcfd5eb3e9609f9f626";
+const PREMIUM_WEDDING_RSVP_CONTENT_SID =
+  process.env.TWILIO_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID || "HX9eb2ac4178732bcfd5eb3e9609f9f626";
 
 function getTwilioContentSid(event) {
   const premiumEnabled = event?.isPremiumWhatsappButtonsEnabled === true;
