@@ -266,6 +266,7 @@ export default function LandingPage() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
+    document.title = "Momo אישורי הגעה | momoEVENT";
     const onResize = () => {
       if (window.innerWidth > 768) setMenuOpen(false);
     };
@@ -351,13 +352,13 @@ export default function LandingPage() {
               </span>
 
               <h1 className="mt-6 text-balance font-serif text-4xl font-bold leading-tight text-primary md:text-5xl lg:text-6xl">
-                אישורי הגעה והזמנה דיגיטלית - בחינם.
+                Momo אישורי הגעה
               </h1>
 
               <p className="mx-auto mt-5 max-w-md text-pretty text-lg leading-relaxed text-muted-foreground md:mx-0">
-                מומו זו מערכת חינמית לאישורי הגעה, הזמנה דיגיטלית, ניהול מוזמנים, סידורי הושבה, דיילת
-                דיגיטלית וניהול ספקים. מתחתנים, יש מלא הוצאות — ואישורי ההגעה צריכים להיות נגישים לכל
-                כיס.
+                אישורי הגעה והזמנה דיגיטלית — בחינם. מומו זו מערכת חינמית לאישורי הגעה, הזמנה
+                דיגיטלית, ניהול מוזמנים, סידורי הושבה, דיילת דיגיטלית וניהול ספקים. מתחתנים, יש מלא
+                הוצאות — ואישורי ההגעה צריכים להיות נגישים לכל כיס.
               </p>
 
               <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row md:justify-start">

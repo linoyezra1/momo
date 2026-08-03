@@ -411,10 +411,6 @@
   .il-vendor-drawer {
     width: 100%;
   }
-
-  .il-vendor-summary-bar {
-    flex-direction: column;
-  }
 }
 
 .il-vendor-mobile-cards {
@@ -422,6 +418,45 @@
 }
 
 @media (max-width: 767px) {
+  .il-vendor-summary-bar {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.45rem;
+    margin-bottom: 0.85rem;
+  }
+
+  .il-vendor-summary-bar > div {
+    flex: unset;
+    min-width: 0;
+    padding: 0.45rem 0.35rem;
+    border-radius: 0.85rem;
+    text-align: center;
+  }
+
+  .il-vendor-summary-bar span {
+    margin-bottom: 0.15rem;
+    font-size: 0.62rem;
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .il-vendor-summary-bar strong {
+    display: block;
+    font-size: 0.82rem;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+  }
+
+  .il-vendor-summary-bar .us-btn {
+    grid-column: 1 / -1;
+    width: 100%;
+    justify-content: center;
+    margin-top: 0.15rem;
+  }
+
   .il-vendor-table-wrap {
     display: none !important;
   }
