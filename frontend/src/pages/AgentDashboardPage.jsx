@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Plus, X } from "lucide-react";
 import api from "../api";
 import { FEATURE_CHECKBOXES, emptyFeatures } from "../utils/agentFeatures.js";
@@ -62,6 +62,16 @@ export default function AgentDashboardPage() {
   useEffect(() => {
     loadClients();
   }, []);
+
+  const totalRevenue = useMemo(
+    () =>
+      clients.reduce((sum, client) => {
+        const price = Number(client.packagePrice);
+        return sum + (Number.isFinite(price) && price > 0 ? price : 0);
+      }, 0),
+    [clients]
+  );
+  const netProfit = Math.round((totalRevenue - supplierCostGrandTotal) * 100) / 100;
 
   useEffect(() => {
     return () => {
@@ -205,8 +215,16 @@ export default function AgentDashboardPage() {
 
       <div className="agent-dash-summary">
         <div className="agent-dash-summary__card">
+          <span>סה״כ הכנסות</span>
+          <strong>{formatMoney(totalRevenue)}</strong>
+        </div>
+        <div className="agent-dash-summary__card">
           <span>סה״כ לתשלום לספק</span>
           <strong>{formatMoney(supplierCostGrandTotal)}</strong>
+        </div>
+        <div className="agent-dash-summary__card agent-dash-summary__card--profit">
+          <span>סה״כ רווח נקי</span>
+          <strong>{formatMoney(netProfit)}</strong>
         </div>
         <div className="agent-dash-summary__card">
           <span>לקוחות פעילים</span>

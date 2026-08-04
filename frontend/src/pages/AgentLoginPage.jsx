@@ -31,8 +31,8 @@ export default function AgentLoginPage() {
   return (
     <div className="agent-shell agent-login-shell" dir="rtl">
       <div className="agent-login-card">
-        <h1 className="agent-login-title">כניסת נציג טלפוני</h1>
-        <p className="agent-login-subtitle">מרחב עבודה לאישורי הגעה טלפוניים — momoEVENT</p>
+        <h1 className="agent-login-title">התחברות סוכן</h1>
+        <p className="agent-login-subtitle">מרחב עבודה לניהול לקוחות ואישורי הגעה — momoEVENT</p>
         <form className="agent-login-form" onSubmit={onSubmit} noValidate>
           <div>
             <label className="agent-field-label" htmlFor="agent-username">

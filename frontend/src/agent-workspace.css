@@ -1535,6 +1535,17 @@
   background: var(--agent-card);
 }
 
+.agent-dash-summary__card--profit {
+  border-color: rgb(47 107 79 / 28%);
+  background:
+    linear-gradient(135deg, rgb(47 107 79 / 8%), rgb(255 254 251 / 95%)),
+    var(--agent-card);
+}
+
+.agent-dash-summary__card--profit strong {
+  color: #2f6b4f;
+}
+
 .agent-dash-summary__card span {
   color: var(--agent-muted);
   font-size: 0.82rem;
