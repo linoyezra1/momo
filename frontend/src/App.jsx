@@ -1,13 +1,16 @@
 import { lazy, Suspense } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useParams } from "react-router-dom";
 import EventPage from "./pages/EventPage.jsx";
 
 const AdminProtectedRoute = lazy(() => import("./components/AdminProtectedRoute.jsx"));
 const AgentProtectedRoute = lazy(() => import("./components/AgentProtectedRoute.jsx"));
+const AgentLayout = lazy(() => import("./components/AgentLayout.jsx"));
 const EventManagerProtectedRoute = lazy(() => import("./components/EventManagerProtectedRoute.jsx"));
 const EventManagerEventLayout = lazy(() => import("./components/EventManagerEventLayout.jsx"));
 const AdminLoginPage = lazy(() => import("./pages/AdminLoginPage.jsx"));
 const AgentClientsPage = lazy(() => import("./pages/AgentClientsPage.jsx"));
+const AgentDashboardPage = lazy(() => import("./pages/AgentDashboardPage.jsx"));
+const AgentEventsPage = lazy(() => import("./pages/AgentEventsPage.jsx"));
 const AgentLoginPage = lazy(() => import("./pages/AgentLoginPage.jsx"));
 const AgentWorkspacePage = lazy(() => import("./pages/AgentWorkspacePage.jsx"));
 const AdminPage = lazy(() => import("./pages/AdminPage.jsx"));
@@ -34,6 +37,11 @@ function RouteFallback() {
 
 function LazyRoute({ children }) {
   return <Suspense fallback={<RouteFallback />}>{children}</Suspense>;
+}
+
+function AgentWorkspaceLegacyRedirect() {
+  const { userId } = useParams();
+  return <Navigate to={`/agent/calls/${userId}`} replace />;
 }
 
 function ClientPortalRoute({ children }) {
@@ -166,18 +174,49 @@ export default function App() {
         element={
           <LazyRoute>
             <AgentProtectedRoute>
-              <AgentClientsPage />
+              <AgentLayout />
             </AgentProtectedRoute>
           </LazyRoute>
         }
-      />
+      >
+        <Route
+          index
+          element={
+            <LazyRoute>
+              <AgentDashboardPage />
+            </LazyRoute>
+          }
+        />
+        <Route
+          path="calls"
+          element={
+            <LazyRoute>
+              <AgentClientsPage />
+            </LazyRoute>
+          }
+        />
+        <Route
+          path="calls/:userId"
+          element={
+            <LazyRoute>
+              <AgentWorkspacePage />
+            </LazyRoute>
+          }
+        />
+        <Route
+          path="events"
+          element={
+            <LazyRoute>
+              <AgentEventsPage />
+            </LazyRoute>
+          }
+        />
+      </Route>
       <Route
         path="/agent/workspace/:userId"
         element={
           <LazyRoute>
-            <AgentProtectedRoute>
-              <AgentWorkspacePage />
-            </AgentProtectedRoute>
+            <AgentWorkspaceLegacyRedirect />
           </LazyRoute>
         }
       />

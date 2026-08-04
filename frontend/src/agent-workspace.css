@@ -1258,3 +1258,262 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* —— Multi-agent layout / bottom nav —— */
+.agent-shell--nav {
+  padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+}
+
+.agent-layout-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  max-width: 76rem;
+  margin: 0 auto;
+  padding: 0.85rem 1.25rem 0.35rem;
+}
+
+.agent-layout-top__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.agent-layout-top__brand {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #9b5b58;
+}
+
+.agent-layout-top__user {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.agent-layout-logout {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid var(--agent-border);
+  background: var(--agent-card);
+  color: var(--agent-ink);
+  border-radius: 999px;
+  padding: 0.45rem 0.8rem;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.agent-layout-body {
+  min-height: 0;
+}
+
+.agent-bottom-nav {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 40;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.25rem;
+  padding: 0.45rem 0.5rem calc(0.45rem + env(safe-area-inset-bottom, 0px));
+  background: rgb(255 254 251 / 94%);
+  border-top: 1px solid var(--agent-border);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 -8px 24px rgb(74 46 43 / 8%);
+}
+
+.agent-bottom-nav__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  min-height: 3.1rem;
+  text-decoration: none;
+  color: var(--agent-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  border-radius: 0.75rem;
+}
+
+.agent-bottom-nav__item--active {
+  color: #9b5b58;
+  background: rgb(213 126 126 / 12%);
+}
+
+.agent-panel {
+  margin-top: 1.25rem;
+  padding: 1.1rem 1rem;
+  border: 1px solid var(--agent-border);
+  border-radius: 1rem;
+  background: var(--agent-card);
+  box-shadow: 0 10px 28px rgb(74 46 43 / 5%);
+}
+
+.agent-panel__title {
+  margin: 0 0 0.9rem;
+  font-size: 1.05rem;
+}
+
+.agent-form__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.agent-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.agent-field--full {
+  grid-column: 1 / -1;
+}
+
+.agent-features {
+  margin: 1rem 0;
+  padding: 0.85rem;
+  border: 1px dashed rgb(213 126 126 / 40%);
+  border-radius: 0.85rem;
+}
+
+.agent-features legend {
+  padding: 0 0.35rem;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.agent-features__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.agent-feature-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.agent-success {
+  color: #2f6b4f;
+  font-weight: 600;
+}
+
+.agent-deal-list,
+.agent-events-list {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.agent-deal-card,
+.agent-event-card {
+  padding: 0.95rem 1rem;
+  border: 1px solid var(--agent-border);
+  border-radius: 0.9rem;
+  background: #fff;
+}
+
+.agent-deal-card h3,
+.agent-event-card h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.agent-deal-dl {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0.75rem 0 0;
+}
+
+.agent-deal-dl div {
+  display: grid;
+  grid-template-columns: 7rem 1fr;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+}
+
+.agent-deal-dl dt {
+  color: var(--agent-muted);
+  font-weight: 600;
+}
+
+.agent-deal-dl dd {
+  margin: 0;
+}
+
+.agent-event-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+}
+
+.agent-event-card__user {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.agent-event-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.agent-quick-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--agent-border);
+  background: var(--agent-card);
+  color: var(--agent-ink);
+  text-decoration: none;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.agent-quick-btn--primary {
+  background: rgb(213 126 126 / 16%);
+  border-color: rgb(213 126 126 / 35%);
+  color: #9b5b58;
+}
+
+@media (max-width: 720px) {
+  .agent-form__grid,
+  .agent-features__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .agent-deal-dl div {
+    grid-template-columns: 1fr;
+    gap: 0.15rem;
+  }
+
+  .agent-event-card {
+    align-items: stretch;
+  }
+
+  .agent-event-card__actions {
+    width: 100%;
+  }
+
+  .agent-quick-btn {
+    flex: 1 1 calc(50% - 0.45rem);
+    justify-content: center;
+  }
+}

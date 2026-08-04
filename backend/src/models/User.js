@@ -86,7 +86,12 @@ const dealSchema = new mongoose.Schema(
       enum: ["bit", "paybox", "bank_transfer", "cash", "other"],
       default: "other"
     },
-    adminNotes: { type: String, trim: true, default: "" }
+    adminNotes: { type: String, trim: true, default: "" },
+    packageDescription: { type: String, trim: true, default: "" },
+    packagePrice: { type: Number, min: 0, default: null },
+    supplierCost: { type: Number, min: 0, default: null },
+    couponCode: { type: String, trim: true, default: "" },
+    agentNotes: { type: String, trim: true, default: "" }
   },
   { _id: false }
 );
@@ -133,11 +138,13 @@ const userSchema = new mongoose.Schema(
     tableDispatch: { type: tableDispatchSchema, default: () => ({}) },
     managedBy: {
       type: String,
-      /** admin = unmanaged couple (self-serve vendors); eventManager = EM assigned (vendors/budget via manager only) */
-      enum: ["admin", "eventManager"],
+      /** admin = unmanaged couple; eventManager = EM assigned; agent = opened by phone agent */
+      enum: ["admin", "eventManager", "agent"],
       default: "admin",
       index: true
-    }
+    },
+    /** Env agent id from AGENTS_JSON (or "default" for legacy AGENT_USERNAME) */
+    createdByAgentId: { type: String, trim: true, default: "", index: true }
   },
   { timestamps: true }
 );

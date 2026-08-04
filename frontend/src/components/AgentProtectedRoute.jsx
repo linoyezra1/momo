@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import api from "../api";
-import { clearAgentToken, getAgentToken } from "../utils/agentAuth";
+import { clearAgentToken, getAgentToken, setAgentProfile } from "../utils/agentAuth";
 
 export default function AgentProtectedRoute({ children }) {
   const location = useLocation();
@@ -17,7 +17,10 @@ export default function AgentProtectedRoute({ children }) {
     let cancelled = false;
     api
       .get("/agent/session")
-      .then(() => {
+      .then((response) => {
+        if (response.data?.agent) {
+          setAgentProfile(response.data.agent);
+        }
         if (!cancelled) setStatus("authed");
       })
       .catch(() => {

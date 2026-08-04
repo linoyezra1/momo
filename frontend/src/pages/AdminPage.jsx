@@ -56,7 +56,12 @@ function defaultDealDraft() {
     marketingSource: "",
     paymentAmount: "",
     paymentMethod: "other",
-    adminNotes: ""
+    adminNotes: "",
+    packageDescription: "",
+    packagePrice: "",
+    supplierCost: "",
+    couponCode: "",
+    agentNotes: ""
   };
 }
 
@@ -76,7 +81,14 @@ function dealDraftFromClient(client) {
     marketingSource: deal.marketingSource || "",
     paymentAmount: amount === 0 || amount == null ? "" : String(amount),
     paymentMethod: deal.paymentMethod || "other",
-    adminNotes: deal.adminNotes || ""
+    adminNotes: deal.adminNotes || "",
+    packageDescription: deal.packageDescription || "",
+    packagePrice:
+      deal.packagePrice === 0 || deal.packagePrice == null ? "" : String(deal.packagePrice),
+    supplierCost:
+      deal.supplierCost === 0 || deal.supplierCost == null ? "" : String(deal.supplierCost),
+    couponCode: deal.couponCode || "",
+    agentNotes: deal.agentNotes || ""
   };
 }
 
@@ -146,9 +158,13 @@ function buildClientLabel(client) {
 
 function buildClientSubline(client) {
   const parts = [];
+  if (client?.createdByAgentName) parts.push(`סוכן: ${client.createdByAgentName}`);
+  else if (client?.createdByAgentId) parts.push(`סוכן: ${client.createdByAgentId}`);
   if (client?.etsyOrderId) parts.push(`אטסי #${client.etsyOrderId}`);
   if (client?.contactEmail) parts.push(client.contactEmail);
-  if (Number(client?.deal?.paymentAmount) > 0) {
+  if (Number(client?.deal?.packagePrice) > 0) {
+    parts.push(`₪${Number(client.deal.packagePrice).toLocaleString("he-IL")}`);
+  } else if (Number(client?.deal?.paymentAmount) > 0) {
     parts.push(`₪${Number(client.deal.paymentAmount).toLocaleString("he-IL")}`);
   } else if (Number(client?.payment?.amountPaid) > 0) {
     parts.push(`₪${Number(client.payment.amountPaid).toLocaleString("he-IL")}`);
@@ -181,6 +197,7 @@ export default function AdminPage() {
   const [error, setError] = useState("");
   const [clientsError, setClientsError] = useState("");
   const [totalRevenue, setTotalRevenue] = useState(0);
+  const [agentsSummary, setAgentsSummary] = useState([]);
   const [dealDraft, setDealDraft] = useState(defaultDealDraft);
   const [dealSaving, setDealSaving] = useState(false);
   const [dealSaved, setDealSaved] = useState(false);
@@ -260,6 +277,7 @@ ${publicEventUrl}`
       const response = await api.get("/admin/clients");
       setClients(response.data.clients || []);
       setTotalRevenue(Number(response.data.totalRevenue) || 0);
+      setAgentsSummary(Array.isArray(response.data.agentsSummary) ? response.data.agentsSummary : []);
       if (!selectedClientId && response.data.clients?.length) {
         setSelectedClientId(response.data.clients[0].userId);
       }
@@ -416,7 +434,18 @@ ${publicEventUrl}`
             ? 0
             : Math.max(0, Number(dealDraft.paymentAmount)),
         paymentMethod: dealDraft.paymentMethod || "other",
-        adminNotes: dealDraft.adminNotes.trim()
+        adminNotes: dealDraft.adminNotes.trim(),
+        packageDescription: dealDraft.packageDescription.trim(),
+        packagePrice:
+          dealDraft.packagePrice === "" || dealDraft.packagePrice == null
+            ? null
+            : Math.max(0, Number(dealDraft.packagePrice)),
+        supplierCost:
+          dealDraft.supplierCost === "" || dealDraft.supplierCost == null
+            ? null
+            : Math.max(0, Number(dealDraft.supplierCost)),
+        couponCode: dealDraft.couponCode.trim(),
+        agentNotes: dealDraft.agentNotes.trim()
       };
       const response = await api.patch(`/admin/clients/${selectedClientId}/deal`, payload);
       await loadClients();
@@ -731,6 +760,22 @@ ${publicEventUrl}`
           </div>
         </div>
 
+        {agentsSummary.length ? (
+          <section className="us-admin-card" style={{ marginBottom: "1.25rem" }}>
+            <h2 className="us-admin-card-title">לקוחות לפי סוכן</h2>
+            <div className="us-admin-card-body">
+              <div className="us-admin-stats" style={{ margin: 0 }}>
+                {agentsSummary.map((row) => (
+                  <div key={row.agentId || "none"} className="us-admin-stat-card">
+                    <h3>{row.agentName || row.agentId || "ללא סוכן"}</h3>
+                    <p>{row.clientCount}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        ) : null}
+
         <section className="us-admin-card" style={{ marginBottom: "1.25rem" }}>
           <div className="us-admin-toolbar" style={{ marginBottom: "0.75rem" }}>
             <h2 className="us-admin-card-title" style={{ margin: 0 }}>
@@ -849,6 +894,15 @@ ${publicEventUrl}`
                   ) : null}
 
                   <div className="us-admin-detail-grid">
+                    <div className="us-admin-detail-item">
+                      <span className="us-admin-detail-label">נפתח ע״י סוכן</span>
+                      <span className="us-admin-detail-value">
+                        {selectedClient.createdByAgentName ||
+                          selectedClient.createdByAgentId ||
+                          "—"}
+                      </span>
+                    </div>
+
                     <div className="us-admin-detail-item">
                       <span className="us-admin-detail-label">מספר הזמנה באטסי</span>
                       <div className="us-admin-link-row">
@@ -1147,6 +1201,81 @@ ${publicEventUrl}`
                           ))}
                         </select>
                       </div>
+                    </div>
+
+                    <div className="us-admin-field">
+                      <label className="us-admin-field-label" htmlFor="deal-package-description">
+                        פירוט חבילה
+                      </label>
+                      <textarea
+                        id="deal-package-description"
+                        className="us-admin-field-input us-admin-deal-notes"
+                        name="packageDescription"
+                        rows={2}
+                        value={dealDraft.packageDescription}
+                        onChange={onDealFieldChange}
+                      />
+                    </div>
+
+                    <div className="us-admin-payment-fields">
+                      <div className="us-admin-field">
+                        <label className="us-admin-field-label" htmlFor="deal-package-price">
+                          מחיר חבילה (₪)
+                        </label>
+                        <input
+                          id="deal-package-price"
+                          className="us-admin-field-input"
+                          name="packagePrice"
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={dealDraft.packagePrice}
+                          onChange={onDealFieldChange}
+                        />
+                      </div>
+                      <div className="us-admin-field">
+                        <label className="us-admin-field-label" htmlFor="deal-supplier-cost">
+                          עלות ספק (₪)
+                        </label>
+                        <input
+                          id="deal-supplier-cost"
+                          className="us-admin-field-input"
+                          name="supplierCost"
+                          type="number"
+                          min="0"
+                          step="1"
+                          value={dealDraft.supplierCost}
+                          onChange={onDealFieldChange}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="us-admin-field">
+                      <label className="us-admin-field-label" htmlFor="deal-coupon-code">
+                        קוד קופון
+                      </label>
+                      <input
+                        id="deal-coupon-code"
+                        className="us-admin-field-input"
+                        name="couponCode"
+                        value={dealDraft.couponCode}
+                        onChange={onDealFieldChange}
+                        placeholder="לעריכת אדמין בלבד"
+                      />
+                    </div>
+
+                    <div className="us-admin-field">
+                      <label className="us-admin-field-label" htmlFor="deal-agent-notes">
+                        הערות סוכן
+                      </label>
+                      <textarea
+                        id="deal-agent-notes"
+                        className="us-admin-field-input us-admin-deal-notes"
+                        name="agentNotes"
+                        rows={2}
+                        value={dealDraft.agentNotes}
+                        onChange={onDealFieldChange}
+                      />
                     </div>
 
                     <div className="us-admin-field">

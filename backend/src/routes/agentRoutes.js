@@ -15,6 +15,17 @@ import {
   statusHistoryPushEntry
 } from "../utils/guestStatusHistory.js";
 import { getEventTypeNoun, isCoupleEventType } from "../utils/eventTypeWording.js";
+import { createCoupleClient } from "../services/createCoupleClient.js";
+import {
+  normalizeDealPayload,
+  PAYMENT_METHOD_LABELS,
+  serializeDeal
+} from "../utils/dealPayload.js";
+import {
+  applyPhoneRoundsToDealFeatures,
+  maxPhoneRoundsFromDealFeatures
+} from "../utils/phoneRounds.js";
+import { normalizePaymentPayload } from "../utils/eventPayload.js";
 
 const router = express.Router();
 
@@ -48,6 +59,50 @@ function isInAgentQueue(guest, maxPhoneRounds) {
   );
 }
 
+function agentOwnsUser(user, agentId) {
+  return String(user?.createdByAgentId || "").trim() === String(agentId || "").trim();
+}
+
+async function findAgentOwnedUser(userId, agentId, select) {
+  const query = User.findById(userId);
+  if (select) query.select(select);
+  const user = await query;
+  if (!user) return { error: { status: 404, message: "Client not found" } };
+  if (!agentOwnsUser(user, agentId)) {
+    return { error: { status: 403, message: "אין הרשאה לאירוע זה" } };
+  }
+  return { user };
+}
+
+function serializeAgentClient(user) {
+  const payment = normalizePaymentPayload(user.payment || {});
+  const deal = serializeDeal(user.deal || {}, payment, {
+    featuresMode: "agent",
+    allowCouponCode: false
+  });
+  return {
+    userId: user._id,
+    username: user.username,
+    loginPassword: user.loginPassword || "",
+    contactPhone: user.contactPhone || "",
+    eventLabel: buildEventLabel(user.event),
+    eventType: user.event?.eventType || "",
+    eventDate: user.event?.eventDate || "",
+    event: user.event,
+    deal: {
+      ...deal,
+      // coupon visible read-only
+      couponCode: String(user.deal?.couponCode || "").trim()
+    },
+    packageDescription: deal.packageDescription || "",
+    packagePrice: deal.packagePrice,
+    supplierCost: deal.supplierCost,
+    agentNotes: deal.agentNotes || "",
+    couponCode: String(user.deal?.couponCode || "").trim(),
+    createdAt: user.createdAt
+  };
+}
+
 router.post("/login", (req, res) => {
   const username = String(req.body?.username || "").trim();
   const password = String(req.body?.password || "");
@@ -61,8 +116,11 @@ router.post("/login", (req, res) => {
   }
 
   try {
-    const token = signAgentToken();
-    return res.json({ token });
+    const token = signAgentToken(validation.agent);
+    return res.json({
+      token,
+      agent: validation.agent
+    });
   } catch (error) {
     return res.status(500).json({ message: error.message || "Failed to create agent session" });
   }
@@ -71,36 +129,117 @@ router.post("/login", (req, res) => {
 router.get("/session", (req, res) => {
   const authHeader = String(req.headers.authorization || "");
   const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
-  if (!verifyAgentToken(token)) {
+  const payload = verifyAgentToken(token);
+  if (!payload) {
     return res.status(401).json({ authenticated: false });
   }
-  return res.json({ authenticated: true });
+  return res.json({
+    authenticated: true,
+    agent: {
+      id: payload.agentId,
+      username: payload.username,
+      displayName: payload.displayName
+    }
+  });
 });
 
 router.use(requireAgent);
 
-router.get("/clients", async (_req, res) => {
+router.get("/clients", async (req, res) => {
   try {
-    const users = await User.find({}, "username event createdAt").sort({ createdAt: -1 });
-    const clients = users.map((user) => ({
-      userId: user._id,
-      username: user.username,
-      eventLabel: buildEventLabel(user.event),
-      eventType: user.event?.eventType || "",
-      eventDate: user.event?.eventDate || ""
-    }));
-    return res.json({ clients });
+    const agentId = req.agent.id;
+    const users = await User.find(
+      { createdByAgentId: agentId },
+      "username event createdAt payment deal loginPassword contactPhone createdByAgentId"
+    ).sort({ createdAt: -1 });
+    const clients = users.map(serializeAgentClient);
+    return res.json({ clients, agent: req.agent });
   } catch (error) {
     return res.status(500).json({ message: "Failed to load clients", error: error.message });
+  }
+});
+
+router.post("/create-client", async (req, res) => {
+  try {
+    const result = await createCoupleClient({
+      body: req.body,
+      req,
+      managedBy: "agent",
+      createdByAgentId: req.agent.id,
+      featuresMode: "agent",
+      allowCouponCode: false,
+      welcomeManagerName: req.agent.displayName || req.agent.username || "momoEVENT"
+    });
+
+    return res.status(201).json({
+      userId: result.user._id,
+      ...result.links,
+      credentials: { username: result.user.username, password: result.plainPassword },
+      client: serializeAgentClient(result.user),
+      welcomeWhatsApp: {
+        sent: Boolean(result.welcomeWhatsApp?.sent),
+        reason: result.welcomeWhatsApp?.reason || null
+      }
+    });
+  } catch (error) {
+    const status = Number(error?.status) || 500;
+    return res.status(status).json({
+      message: error.message || "Failed to create client",
+      ...(status === 500 ? { error: error.message } : {})
+    });
+  }
+});
+
+router.patch("/clients/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const owned = await findAgentOwnedUser(userId, req.agent.id);
+    if (owned.error) {
+      return res.status(owned.error.status).json({ message: owned.error.message });
+    }
+    const user = owned.user;
+    const rawDeal = req.body?.deal && typeof req.body.deal === "object" ? { ...req.body.deal } : {};
+    // Agents cannot edit coupon
+    delete rawDeal.couponCode;
+
+    const deal = normalizeDealPayload(rawDeal, user.deal || {}, {
+      featuresMode: "agent",
+      allowCouponCode: false
+    });
+    // Preserve existing coupon
+    deal.couponCode = String(user.deal?.couponCode || "").trim();
+
+    const maxFromDeal = maxPhoneRoundsFromDealFeatures(deal.includedFeatures);
+    deal.includedFeatures = applyPhoneRoundsToDealFeatures(maxFromDeal, deal.includedFeatures);
+    user.deal = deal;
+    user.set(
+      "event.isPremiumWhatsappButtonsEnabled",
+      Boolean(deal.includedFeatures.isPremiumWhatsappButtonsEnabled)
+    );
+    user.set("event.maxPhoneRounds", maxFromDeal);
+    user.markModified("event");
+    user.payment = {
+      amountPaid:
+        deal.packagePrice != null ? Number(deal.packagePrice) || 0 : deal.paymentAmount || 0,
+      paymentMethod: PAYMENT_METHOD_LABELS[deal.paymentMethod] || deal.paymentMethod
+    };
+
+    await user.save();
+    return res.json({
+      message: "Client updated",
+      client: serializeAgentClient(user)
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "Failed to update client" });
   }
 });
 
 router.get("/:userId/audit-logs", async (req, res) => {
   try {
     const { userId } = req.params;
-    const user = await User.findById(userId).select("_id");
-    if (!user) {
-      return res.status(404).json({ message: "Client not found" });
+    const owned = await findAgentOwnedUser(userId, req.agent.id, "_id createdByAgentId");
+    if (owned.error) {
+      return res.status(owned.error.status).json({ message: owned.error.message });
     }
 
     const result = await listGuestAuditLogs({
@@ -119,10 +258,15 @@ router.get("/:userId/audit-logs", async (req, res) => {
 router.get("/:userId/guests", async (req, res) => {
   try {
     const { userId } = req.params;
-    const user = await User.findById(userId).select("event username deal.includedFeatures");
-    if (!user) {
-      return res.status(404).json({ message: "Client not found" });
+    const owned = await findAgentOwnedUser(
+      userId,
+      req.agent.id,
+      "event username deal.includedFeatures createdByAgentId"
+    );
+    if (owned.error) {
+      return res.status(owned.error.status).json({ message: owned.error.message });
     }
+    const user = owned.user;
 
     const maxPhoneRounds = resolveMaxPhoneRounds(user);
     const candidates = await Guest.find({
@@ -171,10 +315,15 @@ router.patch("/:userId/guests/:guestId/phone-rsvp", async (req, res) => {
       return res.status(400).json({ message: "יש לבחור תוצאת שיחה תקינה" });
     }
 
-    const user = await User.findById(userId).select("event.maxPhoneRounds deal.includedFeatures");
-    if (!user) {
-      return res.status(404).json({ message: "Client not found" });
+    const owned = await findAgentOwnedUser(
+      userId,
+      req.agent.id,
+      "event.maxPhoneRounds deal.includedFeatures createdByAgentId"
+    );
+    if (owned.error) {
+      return res.status(owned.error.status).json({ message: owned.error.message });
     }
+    const user = owned.user;
     const maxPhoneRounds = resolveMaxPhoneRounds(user);
     const existingGuest = await Guest.findOne({ _id: guestId, userId });
     if (!existingGuest) {
@@ -185,6 +334,7 @@ router.patch("/:userId/guests/:guestId/phone-rsvp", async (req, res) => {
     }
 
     const nextAttempt = Number(existingGuest.phoneAttemptsCount || 0) + 1;
+    const agentLabel = req.agent.displayName || req.agent.username || "נציג טלפוני";
     const update = {
       currentCallRound: Math.min(nextAttempt, 4),
       callStatus,
@@ -234,7 +384,7 @@ router.patch("/:userId/guests/:guestId/phone-rsvp", async (req, res) => {
       const statusEntry = statusHistoryPushEntry({
         previousStatus: existingGuest.status,
         nextStatus: update.status,
-        updatedBy: `נציג טלפוני — סבב ${Math.min(nextAttempt, 4)}`,
+        updatedBy: `${agentLabel} — סבב ${Math.min(nextAttempt, 4)}`,
         source: STATUS_HISTORY_SOURCES.REP,
         note: update.agentNotes
       });
@@ -276,9 +426,7 @@ router.patch("/:userId/guests/:guestId/phone-rsvp", async (req, res) => {
       previousStatus: existingGuest.status,
       nextStatus: update.status,
       attendeesCount:
-        typeof update.attendeesCount === "number"
-          ? update.attendeesCount
-          : undefined,
+        typeof update.attendeesCount === "number" ? update.attendeesCount : undefined,
       agentNotes: update.agentNotes
     });
 

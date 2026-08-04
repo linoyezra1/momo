@@ -8,6 +8,13 @@ export function normalizeEventPayload(rawEvent) {
   const batMitzvahName = String(rawEvent?.batMitzvahName || "").trim();
   const parentName1 = String(rawEvent?.parentName1 || "").trim();
   const parentName2 = String(rawEvent?.parentName2 || "").trim();
+  const requestedMaxPhoneRounds = Number(rawEvent?.maxPhoneRounds);
+  const maxPhoneRounds =
+    Number.isInteger(requestedMaxPhoneRounds) &&
+    requestedMaxPhoneRounds >= 0 &&
+    requestedMaxPhoneRounds <= 4
+      ? requestedMaxPhoneRounds
+      : 0;
 
   const baseEvent = {
     eventType,
@@ -17,6 +24,8 @@ export function normalizeEventPayload(rawEvent) {
     eventDate: String(rawEvent?.eventDate || "").trim(),
     eventDateHebrew: eventType === "ברית" ? String(rawEvent?.eventDateHebrew || "").trim() : "",
     eventTime: String(rawEvent?.eventTime || "").trim(),
+    maxPhoneRounds,
+    isPremiumWhatsappButtonsEnabled: rawEvent?.isPremiumWhatsappButtonsEnabled === true,
     imageDataUrl: String(rawEvent?.imageDataUrl || "").trim(),
     cover: normalizeCoverFields(rawEvent?.cover),
     clearCover: rawEvent?.clearCover === true,
@@ -49,7 +58,7 @@ export function validateEvent(normalizedEvent) {
 }
 
 export function normalizePaymentPayload(rawPayment) {
-  const amountRaw = rawPayment?.amountPaid;
+  const amountRaw = rawPayment?.amountPaid ?? rawPayment?.paymentAmount;
   let amountPaid = 0;
   if (amountRaw !== "" && amountRaw != null && !Number.isNaN(Number(amountRaw))) {
     amountPaid = Math.max(0, Number(amountRaw));

@@ -4,21 +4,16 @@ import User from "../models/User.js";
 import Guest from "../models/Guest.js";
 import ActivationCode from "../models/ActivationCode.js";
 import Lead from "../models/Lead.js";
-import { isCoupleEventType } from "../utils/eventTypeWording.js";
-import { buildClientUrl } from "../utils/clientUrl.js";
 import { normalizePhone } from "../utils/guestPhone.js";
 import {
   applyCoverToEventPayload,
   clearEventCover,
-  normalizeCoverFields,
   uploadAndAttachCover
 } from "../utils/eventCover.js";
 import { coverUpload } from "../middleware/coverUpload.js";
 import { isCoverStorageConfigured } from "../services/coverStorage.js";
 import {
   applyCouplePassword,
-  buildCouplePasswordFields,
-  normalizeLoginPassword,
   normalizeLoginUsername
 } from "../utils/loginCredentials.js";
 import {
@@ -33,9 +28,24 @@ import {
 } from "../middleware/adminAuth.js";
 import {
   getAdminWelcomeDisplayName,
-  sendEventManagerWelcomeWhatsApp,
   sendLoginCredentialsQuickReply
 } from "../services/eventManagerWelcomeWhatsApp.js";
+import {
+  buildClientLinks,
+  createCoupleClient
+} from "../services/createCoupleClient.js";
+import { getAgentDisplayMap } from "../utils/agentAccounts.js";
+import {
+  DEAL_PAYMENT_METHODS,
+  normalizeDealPayload,
+  PAYMENT_METHOD_LABELS,
+  serializeDeal
+} from "../utils/dealPayload.js";
+import {
+  normalizeEventPayload,
+  normalizePaymentPayload,
+  validateEvent
+} from "../utils/eventPayload.js";
 
 const router = express.Router();
 
@@ -70,212 +80,8 @@ router.get("/session", (req, res) => {
 
 router.use(requireAdmin);
 
-function normalizeEventPayload(rawEvent) {
-  const eventType = String(rawEvent?.eventType || "").trim() || "חתונה";
-  const groomName = String(rawEvent?.groomName || "").trim();
-  const brideName = String(rawEvent?.brideName || "").trim();
-  const batMitzvahName = String(rawEvent?.batMitzvahName || "").trim();
-  const parentName1 = String(rawEvent?.parentName1 || "").trim();
-  const parentName2 = String(rawEvent?.parentName2 || "").trim();
-  const requestedMaxPhoneRounds = Number(rawEvent?.maxPhoneRounds);
-  const maxPhoneRounds =
-    Number.isInteger(requestedMaxPhoneRounds) &&
-    requestedMaxPhoneRounds >= 0 &&
-    requestedMaxPhoneRounds <= 4
-      ? requestedMaxPhoneRounds
-      : 0;
-
-  const baseEvent = {
-    eventType,
-    venueName: String(rawEvent?.venueName || "").trim(),
-    city: String(rawEvent?.city || "").trim(),
-    streetAndNumber: String(rawEvent?.streetAndNumber || "").trim(),
-    eventDate: String(rawEvent?.eventDate || "").trim(),
-    eventDateHebrew:
-      eventType === "ברית" ? String(rawEvent?.eventDateHebrew || "").trim() : "",
-    eventTime: String(rawEvent?.eventTime || "").trim(),
-    maxPhoneRounds,
-    isPremiumWhatsappButtonsEnabled: rawEvent?.isPremiumWhatsappButtonsEnabled === true,
-    imageDataUrl: String(rawEvent?.imageDataUrl || "").trim(),
-    cover: normalizeCoverFields(rawEvent?.cover),
-    clearCover: rawEvent?.clearCover === true,
-    groomName,
-    brideName,
-    batMitzvahName,
-    parentName1,
-    parentName2
-  };
-
-  if (isCoupleEventType(eventType)) {
-    return {
-      ...baseEvent,
-      eventNames: `${groomName} & ${brideName}`.trim()
-    };
-  }
-
-  if (eventType === "ברית") {
-    return {
-      ...baseEvent,
-      eventNames: `${parentName1} ו${parentName2}`.trim()
-    };
-  }
-
-  if (eventType === "בת מצווה") {
-    return {
-      ...baseEvent,
-      eventNames: batMitzvahName
-    };
-  }
-
-  return {
-    ...baseEvent,
-    eventNames: String(rawEvent?.eventNames || "").trim()
-  };
-}
-
-function validateEvent(normalizedEvent) {
-  if (isCoupleEventType(normalizedEvent.eventType)) {
-    if (!normalizedEvent.groomName || !normalizedEvent.brideName) {
-      return "יש למלא שם חתן ושם כלה";
-    }
-  }
-
-  return "";
-}
-
-function buildClientLinks(userId, req) {
-  return {
-    clientDashboardLink: buildClientUrl("/client/login", req),
-    publicEventLink: buildClientUrl(`/event/${userId}`, req)
-  };
-}
-
-function normalizePaymentPayload(rawPayment) {
-  const amountRaw = rawPayment?.amountPaid ?? rawPayment?.paymentAmount;
-  let amountPaid = 0;
-  if (amountRaw !== "" && amountRaw != null && !Number.isNaN(Number(amountRaw))) {
-    amountPaid = Math.max(0, Number(amountRaw));
-  }
-  const paymentMethod =
-    rawPayment?.paymentMethod == null ? "" : String(rawPayment.paymentMethod).trim();
-  return { amountPaid, paymentMethod };
-}
-
-const PACKAGE_TYPES = new Set(["custom", "digital", "vip_2_rounds", "vip_4_rounds"]);
-const DEAL_PAYMENT_METHODS = new Set(["bit", "paybox", "bank_transfer", "cash", "other"]);
-const FEATURE_KEYS = [
-  "whatsappRound1",
-  "whatsappRound2",
-  "isPremiumWhatsappButtonsEnabled",
-  "phoneCallsRound1",
-  "phoneCallsRound2",
-  "phoneCallsRound3",
-  "phoneCallsRound4",
-  "eventDayReminder",
-  "eventDayTableNumber",
-  "canSendTableWhatsApp",
-  "thankYouMessage"
-];
-
-const PAYMENT_METHOD_LABELS = {
-  bit: "ביט",
-  paybox: "פייבוקס",
-  bank_transfer: "העברה בנקאית",
-  cash: "מזומן",
-  other: "אחר"
-};
-
-function defaultIncludedFeatures() {
-  return {
-    whatsappRound1: true,
-    whatsappRound2: false,
-    isPremiumWhatsappButtonsEnabled: false,
-    phoneCallsRound1: false,
-    phoneCallsRound2: false,
-    phoneCallsRound3: false,
-    phoneCallsRound4: false,
-    eventDayReminder: true,
-    eventDayTableNumber: false,
-    canSendTableWhatsApp: false,
-    thankYouMessage: true
-  };
-}
-
-function normalizeDealPayload(rawDeal = {}, existingDeal = {}) {
-  const existing = existingDeal?.toObject ? existingDeal.toObject() : existingDeal || {};
-  const packageType = PACKAGE_TYPES.has(String(rawDeal?.packageType || "").trim())
-    ? String(rawDeal.packageType).trim()
-    : existing.packageType || "custom";
-
-  const baseFeatures = {
-    ...defaultIncludedFeatures(),
-    ...(existing.includedFeatures || {})
-  };
-  const incomingFeatures = rawDeal?.includedFeatures || {};
-  const includedFeatures = { ...baseFeatures };
-  for (const key of FEATURE_KEYS) {
-    if (typeof incomingFeatures[key] === "boolean") {
-      includedFeatures[key] = incomingFeatures[key];
-    }
-  }
-
-  // Keep table-dispatch aliases in sync (admin toggles either key).
-  if (typeof incomingFeatures.canSendTableWhatsApp === "boolean") {
-    includedFeatures.eventDayTableNumber = incomingFeatures.canSendTableWhatsApp;
-    includedFeatures.canSendTableWhatsApp = incomingFeatures.canSendTableWhatsApp;
-  } else if (typeof incomingFeatures.eventDayTableNumber === "boolean") {
-    includedFeatures.canSendTableWhatsApp = incomingFeatures.eventDayTableNumber;
-    includedFeatures.eventDayTableNumber = incomingFeatures.eventDayTableNumber;
-  } else {
-    const enabled = Boolean(
-      includedFeatures.canSendTableWhatsApp || includedFeatures.eventDayTableNumber
-    );
-    includedFeatures.eventDayTableNumber = enabled;
-    includedFeatures.canSendTableWhatsApp = enabled;
-  }
-
-  let paymentAmount = Number(existing.paymentAmount || 0);
-  if (rawDeal?.paymentAmount !== undefined && rawDeal?.paymentAmount !== "") {
-    const parsed = Number(rawDeal.paymentAmount);
-    paymentAmount = Number.isNaN(parsed) ? 0 : Math.max(0, parsed);
-  }
-
-  const methodRaw = String(rawDeal?.paymentMethod || existing.paymentMethod || "other").trim();
-  const paymentMethod = DEAL_PAYMENT_METHODS.has(methodRaw) ? methodRaw : "other";
-
-  return {
-    packageType,
-    includedFeatures,
-    marketingSource:
-      rawDeal?.marketingSource != null
-        ? String(rawDeal.marketingSource).trim()
-        : String(existing.marketingSource || "").trim(),
-    paymentAmount,
-    paymentMethod,
-    adminNotes:
-      rawDeal?.adminNotes != null
-        ? String(rawDeal.adminNotes).trim()
-        : String(existing.adminNotes || "").trim()
-  };
-}
-
-function serializeDeal(deal, payment = {}) {
-  const normalized = normalizeDealPayload(deal || {}, deal || {});
-  // Prefer deal payment; fall back to legacy payment for older clients
-  if (!deal?.paymentAmount && payment?.amountPaid) {
-    normalized.paymentAmount = Math.max(0, Number(payment.amountPaid) || 0);
-  }
-  if ((!deal?.paymentMethod || deal.paymentMethod === "other") && payment?.paymentMethod) {
-    const legacy = String(payment.paymentMethod).trim().toLowerCase();
-    if (DEAL_PAYMENT_METHODS.has(legacy)) {
-      normalized.paymentMethod = legacy;
-    }
-  }
-  return normalized;
-}
-
 function applyDealToUser(user, rawDeal) {
-  const deal = normalizeDealPayload(rawDeal, user.deal || {});
+  const deal = normalizeDealPayload(rawDeal, user.deal || {}, { allowCouponCode: true });
   const maxFromDeal = maxPhoneRoundsFromDealFeatures(deal.includedFeatures);
   deal.includedFeatures = applyPhoneRoundsToDealFeatures(maxFromDeal, deal.includedFeatures);
   user.deal = deal;
@@ -285,9 +91,11 @@ function applyDealToUser(user, rawDeal) {
   user.set("event.isPremiumWhatsappButtonsEnabled", premiumButtonsEnabled);
   user.set("event.maxPhoneRounds", maxFromDeal);
   user.markModified("event");
-  // Keep legacy payment in sync for revenue totals / older UI
   user.payment = {
-    amountPaid: deal.paymentAmount,
+    amountPaid:
+      deal.packagePrice != null && deal.packagePrice !== ""
+        ? Number(deal.packagePrice) || deal.paymentAmount
+        : deal.paymentAmount,
     paymentMethod: PAYMENT_METHOD_LABELS[deal.paymentMethod] || deal.paymentMethod
   };
   return deal;
@@ -295,9 +103,10 @@ function applyDealToUser(user, rawDeal) {
 
 router.get("/clients", async (req, res) => {
   try {
+    const agentNames = getAgentDisplayMap();
     const users = await User.find(
       {},
-      "username event createdAt payment deal loginPassword contactPhone"
+      "username event createdAt payment deal loginPassword contactPhone createdByAgentId managedBy"
     ).sort({
       createdAt: -1
     });
@@ -305,6 +114,7 @@ router.get("/clients", async (req, res) => {
       const links = buildClientLinks(user._id, req);
       const payment = normalizePaymentPayload(user.payment || {});
       const deal = serializeDeal(user.deal || {}, payment);
+      const agentId = String(user.createdByAgentId || "").trim();
       return {
         userId: user._id,
         username: user.username,
@@ -313,16 +123,45 @@ router.get("/clients", async (req, res) => {
         event: user.event,
         payment,
         deal,
+        managedBy: user.managedBy || "admin",
+        createdByAgentId: agentId,
+        createdByAgentName: agentId ? agentNames[agentId] || agentId : "",
         createdAt: user.createdAt,
         ...links
       };
     });
     const totalRevenue = clients.reduce((sum, client) => {
+      const fromPackage = Number(client.deal?.packagePrice);
       const fromDeal = Number(client.deal?.paymentAmount);
       const fromPayment = Number(client.payment?.amountPaid) || 0;
-      return sum + (Number.isFinite(fromDeal) && fromDeal > 0 ? fromDeal : fromPayment);
+      const amount =
+        Number.isFinite(fromPackage) && fromPackage > 0
+          ? fromPackage
+          : Number.isFinite(fromDeal) && fromDeal > 0
+            ? fromDeal
+            : fromPayment;
+      return sum + amount;
     }, 0);
-    return res.json({ clients, totalRevenue });
+
+    const byAgentMap = {};
+    for (const client of clients) {
+      const key = client.createdByAgentId || "_none";
+      if (!byAgentMap[key]) {
+        byAgentMap[key] = {
+          agentId: client.createdByAgentId || "",
+          agentName: client.createdByAgentName || (key === "_none" ? "ללא סוכן" : key),
+          clientCount: 0
+        };
+      }
+      byAgentMap[key].clientCount += 1;
+    }
+
+    return res.json({
+      clients,
+      totalRevenue,
+      agentsSummary: Object.values(byAgentMap),
+      agentDirectory: agentNames
+    });
   } catch (error) {
     return res.status(500).json({ message: "Failed to load clients", error: error.message });
   }
@@ -330,69 +169,31 @@ router.get("/clients", async (req, res) => {
 
 router.post("/create-client", async (req, res) => {
   try {
-    const { username, password, event, contactPhone } = req.body;
-
-    const normalizedUsername = normalizeLoginUsername(username);
-    if (!normalizedUsername || !normalizeLoginPassword(password) || !event) {
-      return res.status(400).json({ message: "יש למלא שם משתמש וסיסמה" });
-    }
-    const { plainPassword, passwordHash } = await buildCouplePasswordFields(password, bcrypt);
-    const normalizedEvent = await applyCoverToEventPayload(normalizeEventPayload(event), {});
-    const eventValidationError = validateEvent(normalizedEvent);
-    if (eventValidationError) {
-      return res.status(400).json({ message: eventValidationError });
-    }
-
-    const rawPhone = String(contactPhone || req.body?.bridePhone || "").trim();
-    const phone = normalizePhone(rawPhone) || rawPhone;
-    if (!phone) {
-      return res.status(400).json({ message: "יש להזין מספר טלפון של הכלה (איש קשר)" });
-    }
-
-    const existing = await User.findOne({ username: normalizedUsername });
-    if (existing) {
-      return res.status(409).json({ message: "Username already exists" });
-    }
-
-    const normalizedDeal = normalizeDealPayload(req.body?.deal || {}, {});
-    normalizedDeal.includedFeatures.isPremiumWhatsappButtonsEnabled =
-      normalizedEvent.isPremiumWhatsappButtonsEnabled === true;
-
-    const user = await User.create({
-      username: normalizedUsername,
-      passwordHash,
-      loginPassword: plainPassword,
-      contactPhone: phone,
-      event: normalizedEvent,
-      deal: normalizedDeal,
-      managedBy: "admin"
-    });
-
-    const links = buildClientLinks(user._id, req);
-
-    const welcomeWhatsApp = await sendEventManagerWelcomeWhatsApp({
-      contactPhone: phone,
-      brideName: normalizedEvent.brideName || normalizedEvent.eventNames,
-      username: user.username,
-      password: plainPassword,
-      dashboardUrl: links.clientDashboardLink,
-      invitationUrl: links.publicEventLink,
-      managerName: getAdminWelcomeDisplayName(),
-      userId: user._id,
-      senderLabel: user.username
+    const result = await createCoupleClient({
+      body: req.body,
+      req,
+      managedBy: "admin",
+      createdByAgentId: "",
+      featuresMode: "admin",
+      allowCouponCode: true,
+      welcomeManagerName: getAdminWelcomeDisplayName()
     });
 
     return res.status(201).json({
-      userId: user._id,
-      ...links,
-      credentials: { username: user.username, password: plainPassword },
+      userId: result.user._id,
+      ...result.links,
+      credentials: { username: result.user.username, password: result.plainPassword },
       welcomeWhatsApp: {
-        sent: Boolean(welcomeWhatsApp.sent),
-        reason: welcomeWhatsApp.reason || null
+        sent: Boolean(result.welcomeWhatsApp?.sent),
+        reason: result.welcomeWhatsApp?.reason || null
       }
     });
   } catch (error) {
-    return res.status(500).json({ message: "Failed to create client", error: error.message });
+    const status = Number(error?.status) || 500;
+    return res.status(status).json({
+      message: error.message || "Failed to create client",
+      ...(status === 500 ? { error: error.message } : {})
+    });
   }
 });
 

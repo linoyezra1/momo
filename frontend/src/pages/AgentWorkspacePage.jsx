@@ -206,11 +206,10 @@ export default function AgentWorkspacePage() {
   const eventStartTime = eventInfo?.receptionTime || eventInfo?.eventTime || "";
 
   return (
-    <div className="agent-shell" dir="rtl">
-      <div className="agent-container agent-container--wide">
+    <div className="agent-container agent-container--wide">
         <header className="agent-header agent-header--workspace">
           <div>
-            <Link className="agent-back-link" to="/agent">
+            <Link className="agent-back-link" to="/agent/calls">
               ← חזרה לרשימת אירועים
             </Link>
             <h1>{eventLabel || "מרחב נציג טלפוני"}</h1>
@@ -497,7 +496,6 @@ export default function AgentWorkspacePage() {
           apiPrefix="agent"
           title="לוג עדכונים אחרונים"
         />
-      </div>
     </div>
   );
 }

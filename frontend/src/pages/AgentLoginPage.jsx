@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import api from "../api";
-import { setAgentToken } from "../utils/agentAuth";
+import { setAgentProfile, setAgentToken } from "../utils/agentAuth";
 import "../agent-workspace.css";
 
 export default function AgentLoginPage() {
@@ -19,6 +19,7 @@ export default function AgentLoginPage() {
     try {
       const response = await api.post("/agent/login", { username, password });
       setAgentToken(response.data?.token || "");
+      setAgentProfile(response.data?.agent || null);
       navigate(location.state?.from || "/agent", { replace: true });
     } catch (submitError) {
       setError(submitError.response?.data?.message || "שם משתמש או סיסמה שגויים");
