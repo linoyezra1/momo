@@ -35,6 +35,7 @@ import {
   createCoupleClient
 } from "../services/createCoupleClient.js";
 import { getAgentDisplayMap } from "../utils/agentAccounts.js";
+import { recalculateUserSupplierCost } from "../utils/supplierCost.js";
 import {
   DEAL_PAYMENT_METHODS,
   normalizeDealPayload,
@@ -423,6 +424,10 @@ router.post("/activation-codes", async (req, res) => {
       redeemedByUserId: userId || null
     });
 
+    if (userId) {
+      await recalculateUserSupplierCost(userId);
+    }
+
     return res.status(201).json({ message: "קוד רכישה נוצר בהצלחה", code: activationCode });
   } catch (error) {
     return res.status(500).json({ message: error.message || "Failed to create activation code" });
@@ -522,6 +527,8 @@ router.post("/clients/:userId/whatsapp-quota", async (req, res) => {
       redeemedByUserId: userId
     });
 
+    const supplier = await recalculateUserSupplierCost(userId);
+
     const allCoupons = await ActivationCode.find({ redeemedByUserId: userId })
       .sort({ createdAt: -1 })
       .select("code total_credits remaining_credits isActive note createdAt");
@@ -533,14 +540,16 @@ router.post("/clients/:userId/whatsapp-quota", async (req, res) => {
       remaining_credits: item.remaining_credits,
       isActive: item.isActive,
       note: item.note || "",
-      createdAt: item.createdAt
+      createdAt: item.createdAt,
+      supplierCost: Math.round((Number(item.total_credits) || 0) * 0.5 * 100) / 100
     });
 
     return res.status(201).json({
       message: `נוצר קופון חדש ${code} עם ${totalCredits} הודעות (בנוסף לקופונים הקיימים של הלקוח)`,
       quota: mapCoupon(codeRecord),
       quotas: allCoupons.filter((item) => item.isActive).map(mapCoupon),
-      history: allCoupons.map(mapCoupon)
+      history: allCoupons.map(mapCoupon),
+      supplierCostTotal: supplier?.total ?? null
     });
   } catch (error) {
     if (error?.code === 11000) {

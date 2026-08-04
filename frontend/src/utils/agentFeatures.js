@@ -26,11 +26,3 @@ export function emptyFeatures() {
     thankYouMessage: false
   };
 }
-
-export function randomCoupleCredentials() {
-  const suffix = Math.random().toString(36).slice(2, 7);
-  return {
-    username: `couple_${suffix}`,
-    password: `Momo${Math.random().toString(36).slice(2, 8)}!`
-  };
-}

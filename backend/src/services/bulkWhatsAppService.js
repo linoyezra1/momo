@@ -13,6 +13,7 @@ import {
 } from "../utils/whatsappMessage.js";
 import { resolveWhatsAppInviteParagraphs } from "../utils/whatsappInviteCopy.js";
 import { getDefaultWelcomeParagraph } from "../utils/eventTypeWording.js";
+import { recalculateUserSupplierCost } from "../utils/supplierCost.js";
 
 // copy_copy_event_invite_structured (Text)
 const STANDARD_INVITE_CONTENT_SID =
@@ -371,6 +372,7 @@ export async function sendBulkWhatsApp({
       try {
         reservedRecord.redeemedByUserId = userId;
         await reservedRecord.save();
+        await recalculateUserSupplierCost(userId);
       } catch (saveError) {
         console.error("[Twilio] Failed to mark code as redeemed:", saveError?.message || saveError);
       }

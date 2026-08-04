@@ -8,11 +8,8 @@ function buildCredentialsText(client) {
   return [
     "פרטי גישה למערכת momoEVENT",
     `שם משתמש: ${client.username || ""}`,
-    `סיסמה: ${client.loginPassword || ""}`,
-    client.contactPhone ? `טלפון: ${client.contactPhone}` : null
-  ]
-    .filter(Boolean)
-    .join("\n");
+    `סיסמה: ${client.loginPassword || ""}`
+  ].join("\n");
 }
 
 function phoneTelHref(phone) {

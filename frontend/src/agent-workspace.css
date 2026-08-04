@@ -1517,3 +1517,135 @@
     justify-content: center;
   }
 }
+
+.agent-dash-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0 1.25rem;
+}
+
+.agent-dash-summary__card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.95rem 1rem;
+  border: 1px solid var(--agent-border);
+  border-radius: 0.9rem;
+  background: var(--agent-card);
+}
+
+.agent-dash-summary__card span {
+  color: var(--agent-muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.agent-dash-summary__card strong {
+  font-size: 1.35rem;
+}
+
+.agent-create-cta {
+  margin-bottom: 1.25rem;
+}
+
+.agent-create-cta .agent-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.agent-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.agent-panel__head .agent-panel__title {
+  margin: 0;
+}
+
+.agent-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border: 1px solid var(--agent-border);
+  border-radius: 999px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.agent-cover-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin: 1rem 0;
+}
+
+.agent-cover-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  max-width: 18rem;
+}
+
+.agent-cover-preview img {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid var(--agent-border);
+  object-fit: cover;
+}
+
+.agent-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 0.75rem;
+}
+
+.agent-coupon-list {
+  margin-top: 0.85rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed var(--agent-border);
+}
+
+.agent-coupon-list h4 {
+  margin: 0 0 0.45rem;
+  font-size: 0.9rem;
+}
+
+.agent-coupon-list ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.agent-coupon-list li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.35rem 0.75rem;
+  font-size: 0.86rem;
+}
+
+.agent-coupon-list__code {
+  font-weight: 700;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.agent-coupon-empty {
+  margin: 0.65rem 0 0;
+  font-size: 0.84rem;
+}
+
+@media (max-width: 720px) {
+  .agent-dash-summary {
+    grid-template-columns: 1fr;
+  }
+}

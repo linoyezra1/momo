@@ -26,6 +26,13 @@ import {
   maxPhoneRoundsFromDealFeatures
 } from "../utils/phoneRounds.js";
 import { normalizePaymentPayload } from "../utils/eventPayload.js";
+import {
+  listClientCouponsWithSupplierCost,
+  sumSupplierCostFromCoupons
+} from "../utils/supplierCost.js";
+import { coverUpload } from "../middleware/coverUpload.js";
+import { isCoverStorageConfigured } from "../services/coverStorage.js";
+import { clearEventCover, uploadAndAttachCover } from "../utils/eventCover.js";
 
 const router = express.Router();
 
@@ -74,12 +81,13 @@ async function findAgentOwnedUser(userId, agentId, select) {
   return { user };
 }
 
-function serializeAgentClient(user) {
+function serializeAgentClient(user, coupons = []) {
   const payment = normalizePaymentPayload(user.payment || {});
   const deal = serializeDeal(user.deal || {}, payment, {
     featuresMode: "agent",
     allowCouponCode: false
   });
+  const supplierCostTotal = sumSupplierCostFromCoupons(coupons);
   return {
     userId: user._id,
     username: user.username,
@@ -91,14 +99,15 @@ function serializeAgentClient(user) {
     event: user.event,
     deal: {
       ...deal,
-      // coupon visible read-only
-      couponCode: String(user.deal?.couponCode || "").trim()
+      couponCode: String(user.deal?.couponCode || "").trim(),
+      supplierCost: supplierCostTotal
     },
     packageDescription: deal.packageDescription || "",
     packagePrice: deal.packagePrice,
-    supplierCost: deal.supplierCost,
+    supplierCost: supplierCostTotal,
     agentNotes: deal.agentNotes || "",
     couponCode: String(user.deal?.couponCode || "").trim(),
+    coupons,
     createdAt: user.createdAt
   };
 }
@@ -152,8 +161,24 @@ router.get("/clients", async (req, res) => {
       { createdByAgentId: agentId },
       "username event createdAt payment deal loginPassword contactPhone createdByAgentId"
     ).sort({ createdAt: -1 });
-    const clients = users.map(serializeAgentClient);
-    return res.json({ clients, agent: req.agent });
+
+    const clients = await Promise.all(
+      users.map(async (user) => {
+        const coupons = await listClientCouponsWithSupplierCost(user._id);
+        return serializeAgentClient(user, coupons);
+      })
+    );
+
+    const supplierCostGrandTotal = clients.reduce(
+      (sum, client) => sum + (Number(client.supplierCost) || 0),
+      0
+    );
+
+    return res.json({
+      clients,
+      agent: req.agent,
+      supplierCostGrandTotal: Math.round(supplierCostGrandTotal * 100) / 100
+    });
   } catch (error) {
     return res.status(500).json({ message: "Failed to load clients", error: error.message });
   }
@@ -199,8 +224,9 @@ router.patch("/clients/:userId", async (req, res) => {
     }
     const user = owned.user;
     const rawDeal = req.body?.deal && typeof req.body.deal === "object" ? { ...req.body.deal } : {};
-    // Agents cannot edit coupon
+    // Agents cannot edit coupon or supplier cost (derived from coupons)
     delete rawDeal.couponCode;
+    delete rawDeal.supplierCost;
 
     const deal = normalizeDealPayload(rawDeal, user.deal || {}, {
       featuresMode: "agent",
@@ -443,6 +469,38 @@ router.patch("/:userId/guests/:guestId/phone-rsvp", async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ message: error.message || "Failed to save phone RSVP" });
+  }
+});
+
+router.post("/clients/:userId/event/cover", coverUpload.single("cover"), async (req, res) => {
+  try {
+    if (!isCoverStorageConfigured()) {
+      return res.status(503).json({
+        message:
+          "אחסון תמונות לא מוגדר. יש להגדיר CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY ו-CLOUDINARY_API_SECRET"
+      });
+    }
+    const owned = await findAgentOwnedUser(req.params.userId, req.agent.id);
+    if (owned.error) {
+      return res.status(owned.error.status).json({ message: owned.error.message });
+    }
+    const cover = await uploadAndAttachCover(owned.user, req.file);
+    return res.json({ message: "תמונת הקאבר הועלתה בהצלחה", cover, event: owned.user.event });
+  } catch (error) {
+    return res.status(error.status || 400).json({ message: error.message || "העלאת התמונה נכשלה" });
+  }
+});
+
+router.delete("/clients/:userId/event/cover", async (req, res) => {
+  try {
+    const owned = await findAgentOwnedUser(req.params.userId, req.agent.id);
+    if (owned.error) {
+      return res.status(owned.error.status).json({ message: owned.error.message });
+    }
+    await clearEventCover(owned.user);
+    return res.json({ message: "תמונת הקאבר הוסרה", event: owned.user.event });
+  } catch (error) {
+    return res.status(error.status || 400).json({ message: error.message || "מחיקת התמונה נכשלה" });
   }
 });
 
