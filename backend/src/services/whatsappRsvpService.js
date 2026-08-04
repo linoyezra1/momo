@@ -202,7 +202,7 @@ export async function handleIncomingWhatsAppRsvp({
       expectedText: RSVP_NO_TEXT
     })
   ) {
-    await saveRsvp(guest, { status: "לא מגיע", attendeesCount: 0 });
+    await saveRsvp(guest, { status: "לא מגיע" });
     await sendContentTemplate({
       guest,
       contentSid: requireContentSid("TWILIO_RSVP_DECLINED_FOLLOWUP_CONTENT_SID")

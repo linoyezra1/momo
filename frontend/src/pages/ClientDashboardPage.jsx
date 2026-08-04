@@ -262,13 +262,6 @@ export default function ClientDashboardPage() {
   const { isManagerEvent, basePath } = useEventWorkspace();
   const [unreadLogCount, setUnreadLogCount] = useState(0);
   const [mobileActionsOpen, setMobileActionsOpen] = useState(false);
-  const [summary, setSummary] = useState({
-    totalInvited: 0,
-    totalComing: 0,
-    totalNotComing: 0,
-    totalMaybe: 0,
-    totalUnknown: 0
-  });
   const [importError, setImportError] = useState("");
   const [showConflictModal, setShowConflictModal] = useState(false);
   const [importConflicts, setImportConflicts] = useState([]);
@@ -279,6 +272,13 @@ export default function ClientDashboardPage() {
   const [pendingImportMeta, setPendingImportMeta] = useState({ totalCount: 0, failedRows: [], warningRows: [] });
   const [importSummary, setImportSummary] = useState(null);
   const [guests, setGuests] = useState([]);
+  const [summary, setSummary] = useState({
+    totalInvited: 0,
+    totalComing: 0,
+    totalNotComing: 0,
+    totalMaybe: 0,
+    totalUnknown: 0
+  });
   const [eventInfo, setEventInfo] = useState(null);
   const [canManageVendors, setCanManageVendors] = useState(false);
   const [showModal, setShowModal] = useState(false);

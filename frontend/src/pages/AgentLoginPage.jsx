@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import api from "../api";
 import { setAgentProfile, setAgentToken } from "../utils/agentAuth";
 import "../agent-workspace.css";
@@ -66,9 +66,6 @@ export default function AgentLoginPage() {
           </button>
           {error ? <p className="agent-error">{error}</p> : null}
         </form>
-        <p className="agent-login-footer">
-          <Link to="/">חזרה לדף הבית</Link>
-        </p>
       </div>
     </div>
   );
