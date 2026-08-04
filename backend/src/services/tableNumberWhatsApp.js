@@ -1,8 +1,8 @@
 /**
  * Day-of table-number WhatsApp (Meta Content Template).
  *
- * Friendly name: event_table_number_utility
- * Content SID: HX250934f85a0e9b55f2d7bc0dfa84351d
+ * Friendly name: copy_event_table_number_utility
+ * Content SID: HX405726f9479a1d07e2fe8fcbe77a6be4
  * Language: he · Category: UTILITY · Type: Text
  *
  * Body:
@@ -33,7 +33,7 @@ import {
 } from "../utils/twilioWhatsApp.js";
 import { isCoupleEventType } from "../utils/eventTypeWording.js";
 
-const TABLE_NUMBER_CONTENT_SID_DEFAULT = "HX250934f85a0e9b55f2d7bc0dfa84351d";
+const TABLE_NUMBER_CONTENT_SID_DEFAULT = "HX405726f9479a1d07e2fe8fcbe77a6be4";
 
 export function getTableNumberContentSid() {
   return String(

@@ -8,19 +8,19 @@ import {
 /**
  * Couple onboarding WhatsApp (two templates in sequence):
  *
- * 1) welcome_momoevent — CTA with URL buttons (Approved)
- *    SID: HX97878ac790cd66e73459d9fa3529a0f3
+ * 1) copy_welcome_momoevent — CTA with URL buttons (Approved)
+ *    SID: HXf6a85f46fa5f87c6cedd853627508797
  *    {{1}} couple name · {{2}} event id for /event/{{2}}
  *
- * 2) get_login_credentials — Quick Reply (Approved UTILITY)
- *    SID: HXb15c22c3378d40bc83152a03e14711b4
+ * 2) copy_get_login_credentials — Quick Reply (Approved UTILITY)
+ *    SID: HXaa49007744d72933b0d6db852e715ad6
  *    Sent ~1 minute after welcome (TWILIO_CREDENTIALS_QR_DELAY_MS, default 60000)
  *    Button: "🔑 לקבלת פרטי הגישה" · payload GET_CREDENTIALS
  *    → webhook sends free-text session credentials (whatsappAccessDetailsService)
  */
 
-const WELCOME_CONTENT_SID_DEFAULT = "HX97878ac790cd66e73459d9fa3529a0f3";
-const LOGIN_CREDENTIALS_CONTENT_SID_DEFAULT = "HXb15c22c3378d40bc83152a03e14711b4";
+const WELCOME_CONTENT_SID_DEFAULT = "HXf6a85f46fa5f87c6cedd853627508797";
+const LOGIN_CREDENTIALS_CONTENT_SID_DEFAULT = "HXaa49007744d72933b0d6db852e715ad6";
 const CREDENTIALS_QR_DELAY_MS_DEFAULT = 60_000;
 
 export function getAdminWelcomeDisplayName() {

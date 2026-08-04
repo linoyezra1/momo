@@ -1,8 +1,8 @@
 /**
  * WhatsApp session reply: couple requests login credentials via Quick Reply.
  *
- * Template: get_login_credentials
- * SID: HXb15c22c3378d40bc83152a03e14711b4
+ * Template: copy_get_login_credentials
+ * SID: HXaa49007744d72933b0d6db852e715ad6
  * Button: 🔑 לקבלת פרטי הגישה · payload GET_CREDENTIALS
  *
  * Response is always a free-text session message inside the 24h customer window —
