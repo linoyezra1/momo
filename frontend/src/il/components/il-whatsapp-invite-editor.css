@@ -178,6 +178,27 @@
   color: #6b7280;
 }
 
+.il-wa-quick-replies {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.65rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.il-wa-quick-replies span {
+  display: block;
+  text-align: center;
+  padding: 0.45rem 0.6rem;
+  border-radius: 0.45rem;
+  border: 1px solid rgba(18, 140, 126, 0.35);
+  background: #fff;
+  color: #128c7e;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
 .il-wa-sr-only {
   position: absolute;
   width: 1px;

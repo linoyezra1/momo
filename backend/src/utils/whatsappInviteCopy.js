@@ -1,9 +1,26 @@
 ﻿import { getDefaultWelcomeParagraph, isCoupleEventType } from "./eventTypeWording.js";
 
+/** Locked prompt above {{4}} when standard text template is used. */
+export const RSVP_PROMPT_STANDARD = "נשמח אם תוכלו לאשר הגעתכם בקישור המצורף:";
+/** Locked prompt above {{4}} when quick-reply buttons template is used. */
+export const RSVP_PROMPT_BUTTONS = "קישור לצפייה בהזמנה הדיגיטלית:";
+
+export function getRsvpLinkPrompt(buttonsEnabled = false) {
+  return buttonsEnabled ? RSVP_PROMPT_BUTTONS : RSVP_PROMPT_STANDARD;
+}
+
+export function isWhatsAppButtonsMode(event = {}) {
+  return (
+    event?.isPremiumWhatsappButtonsEnabled === true ||
+    event?.includedFeatures?.isPremiumWhatsappButtonsEnabled === true ||
+    event?.deal?.includedFeatures?.isPremiumWhatsappButtonsEnabled === true
+  );
+}
+
 /**
  * Free-text for WhatsApp template {{3}} (after locked "האירוע יתקיים ב").
- * Wedding: עדיה, שדרות ירושלים 36, קרית מלאכי, קבלת פנים: 19:30
- * Bar/Bat: חמ"ה, שדרות ירושלים 36, קרית מלאכי, בשעה 19:30
+ * Same format for all event types, from live event fields:
+ * באולמי "עדיה" בכתובת שדרות ירושלים 36, קרית מלאכי בשעה 19:30
  */
 export function buildDefaultEventDetailsParagraph(event = {}) {
   const venue = String(event?.venueName || "").trim();
@@ -11,20 +28,17 @@ export function buildDefaultEventDetailsParagraph(event = {}) {
   const city = String(event?.city || "").trim();
   const eventTime = String(event?.eventTime || "").trim();
   const receptionTime = String(event?.receptionTime || "").trim();
-  const type = String(event?.eventType || "").trim();
+  const address = [street, city].filter(Boolean).join(", ");
+  const time = isCoupleEventType(event?.eventType)
+    ? receptionTime || eventTime
+    : eventTime;
 
   const parts = [];
-  if (venue) parts.push(venue);
-  if (street) parts.push(street);
-  if (city) parts.push(city);
+  if (venue) parts.push(`באולמי "${venue}"`);
+  if (address) parts.push(`בכתובת ${address}`);
+  if (time) parts.push(`בשעה ${time}`);
 
-  if (isCoupleEventType(type)) {
-    if (receptionTime) parts.push(`קבלת פנים: ${receptionTime}`);
-  } else if (eventTime) {
-    parts.push(`בשעה ${eventTime}`);
-  }
-
-  return parts.length ? parts.join(", ") : "פרטי האירוע יתעדכנו בקרוב";
+  return parts.length ? parts.join(" ") : "פרטי האירוע יתעדכנו בקרוב";
 }
 
 export function buildDefaultClosingParagraph(event = {}) {
@@ -51,7 +65,10 @@ export function resolveWhatsAppInviteParagraphs(event = {}) {
   const generatedDetails = buildDefaultEventDetailsParagraph(event);
   const detailsAreStale =
     !storedDetails ||
-    (venue && (storedDetails === venue || storedDetails === `באולם ${venue}`));
+    (venue &&
+      (storedDetails === venue ||
+        storedDetails === `באולם ${venue}` ||
+        storedDetails.startsWith(`${venue},`)));
   const eventDetailsParagraph = detailsAreStale ? generatedDetails : storedDetails;
   const closingParagraph =
     String(event?.closingParagraph || "").trim() || buildDefaultClosingParagraph(event);

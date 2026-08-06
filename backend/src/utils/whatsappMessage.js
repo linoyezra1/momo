@@ -3,8 +3,12 @@ import {
   resolveEventKind
 } from "./eventTypeWording.js";
 import { normalizePhone } from "./guestPhone.js";
-
-const RSVP_PROMPT = "נשמח אם תוכלו לאשר הגעתכם בקישור המצורף:";
+import {
+  getRsvpLinkPrompt,
+  isWhatsAppButtonsMode,
+  RSVP_PROMPT_BUTTONS,
+  RSVP_PROMPT_STANDARD
+} from "./whatsappInviteCopy.js";
 
 function parseIsoDateParts(dateStr) {
   const raw = String(dateStr ?? "").trim();
@@ -123,6 +127,7 @@ export function buildWhatsAppEditableTemplate({ event, eventId, origin }) {
     eventId,
     origin
   });
+  const rsvpPrompt = getRsvpLinkPrompt(isWhatsAppButtonsMode(event));
 
   const sections = [
     "שלום [שם],",
@@ -131,7 +136,7 @@ export function buildWhatsAppEditableTemplate({ event, eventId, origin }) {
     "",
     `האירוע יתקיים ב${eventDetails}`,
     "",
-    RSVP_PROMPT,
+    rsvpPrompt,
     rsvpLink
   ];
 
@@ -182,10 +187,23 @@ export function parseWhatsAppTemplateMessage({ message, guestName, rsvpLink, def
     text = "";
   }
 
-  const rsvpIndex = text.indexOf(RSVP_PROMPT);
+  const rsvpIndexStandard = text.indexOf(RSVP_PROMPT_STANDARD);
+  const rsvpIndexButtons = text.indexOf(RSVP_PROMPT_BUTTONS);
+  const rsvpIndex =
+    rsvpIndexStandard >= 0
+      ? rsvpIndexStandard
+      : rsvpIndexButtons >= 0
+        ? rsvpIndexButtons
+        : -1;
+  const rsvpPromptLength =
+    rsvpIndexStandard >= 0
+      ? RSVP_PROMPT_STANDARD.length
+      : rsvpIndexButtons >= 0
+        ? RSVP_PROMPT_BUTTONS.length
+        : 0;
   if (rsvpIndex >= 0) {
     eventDetails = text.slice(0, rsvpIndex).trim() || fallback.eventDetails;
-    text = text.slice(rsvpIndex + RSVP_PROMPT.length).trim();
+    text = text.slice(rsvpIndex + rsvpPromptLength).trim();
   } else if (text) {
     const lines = text.split("\n").map((line) => line.trim());
     const linkLineIndex = lines.findIndex((line) => isLinkLine(line, rsvpLink));

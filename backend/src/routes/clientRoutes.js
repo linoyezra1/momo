@@ -245,6 +245,9 @@ router.get("/:userId/guests", async (req, res) => {
 
     const event = user.event?.toObject ? user.event.toObject() : { ...(user.event || {}) };
     event.maxPhoneRounds = resolveMaxPhoneRounds(user);
+    event.isPremiumWhatsappButtonsEnabled =
+      user.event?.isPremiumWhatsappButtonsEnabled === true ||
+      user.deal?.includedFeatures?.isPremiumWhatsappButtonsEnabled === true;
 
     const hasEventManager = coupleHasEventManager(user);
     return res.json({

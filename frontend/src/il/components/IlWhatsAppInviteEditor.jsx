@@ -2,7 +2,8 @@ import { useEffect, useRef } from "react";
 import {
   DEFAULT_CLOSING_PLACEHOLDER,
   DEFAULT_EVENT_DETAILS_PLACEHOLDER,
-  DEFAULT_WELCOME_PLACEHOLDER
+  DEFAULT_WELCOME_PLACEHOLDER,
+  getRsvpLinkPrompt
 } from "../../utils/whatsappInviteCopy.js";
 import "./il-whatsapp-invite-editor.css";
 
@@ -51,11 +52,13 @@ export default function IlWhatsAppInviteEditor({
   eventId,
   origin,
   value,
-  onChange
+  onChange,
+  buttonsMode = false
 }) {
   const welcome = value?.welcomeParagraph ?? "";
   const eventDetails = value?.eventDetailsParagraph ?? "";
   const closing = value?.closingParagraph ?? "";
+  const linkPrompt = getRsvpLinkPrompt(buttonsMode);
 
   const publicLink = `${String(origin || "").replace(/\/$/, "")}/event/${eventId}`;
 
@@ -101,7 +104,9 @@ export default function IlWhatsAppInviteEditor({
             />
           </div>
 
-          <p className="il-wa-locked">נשמח אם תוכלו לאשר הגעתכם בקישור המצורף:</p>
+          <p className="il-wa-locked" key={buttonsMode ? "buttons" : "standard"}>
+            {linkPrompt}
+          </p>
           <p className="il-wa-locked il-wa-link">{publicLink}</p>
 
           <AutoGrowField
@@ -113,6 +118,14 @@ export default function IlWhatsAppInviteEditor({
           />
 
           <p className="il-wa-locked il-wa-emoji-row">✨ 🎉 ✨</p>
+
+          {buttonsMode ? (
+            <div className="il-wa-quick-replies" aria-hidden="true">
+              <span>כן אני אגיע</span>
+              <span>לצערי לא אוכל</span>
+              <span>עדיין לא יודע</span>
+            </div>
+          ) : null}
 
           <div className="il-wa-meta" aria-hidden="true">
             <span className="il-wa-time">עכשיו</span>
