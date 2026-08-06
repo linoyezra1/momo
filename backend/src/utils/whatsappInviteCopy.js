@@ -17,13 +17,42 @@ export function isWhatsAppButtonsMode(event = {}) {
   );
 }
 
-/**
- * Free-text for WhatsApp template {{3}} after locked "האירוע יתקיים ב".
- * Template: האירוע יתקיים ב{{3}} → {{3}} must start with "אולמי" (not "באולמי").
- * Wedding: אולמי "…" בכתובת … קבלת הפנים בשעה …
- * Bar/Bat: אולמי "…" בכתובת … בשעה …
- */
-export function buildDefaultEventDetailsParagraph(event = {}) {
+function parseIsoDateParts(dateStr) {
+  const raw = String(dateStr ?? "").trim();
+  const isoMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!isoMatch) return null;
+  return {
+    year: Number(isoMatch[1]),
+    month: Number(isoMatch[2]),
+    day: Number(isoMatch[3])
+  };
+}
+
+function formatIsraeliDate(dateStr) {
+  const parts = parseIsoDateParts(dateStr);
+  if (!parts) return String(dateStr ?? "").trim().replace(/-/g, ".");
+  const { year, month, day } = parts;
+  return `${String(day).padStart(2, "0")}.${String(month).padStart(2, "0")}.${year}`;
+}
+
+function formatIsraeliWeekdayLine(dateStr) {
+  const parts = parseIsoDateParts(dateStr);
+  if (!parts) return "";
+  const { year, month, day } = parts;
+  const date = new Date(year, month - 1, day);
+  const weekday = date.toLocaleDateString("he-IL", { weekday: "long" });
+  if (!weekday) return "";
+  if (weekday.startsWith("יום ")) return weekday;
+  return `יום ${weekday}`;
+}
+
+function buildEventDateLine(event = {}) {
+  const weekday = formatIsraeliWeekdayLine(event?.eventDate);
+  const dateDots = formatIsraeliDate(event?.eventDate);
+  return [weekday, dateDots].filter(Boolean).join(" ").trim();
+}
+
+function buildVenueDetailsLine(event = {}) {
   const venue = String(event?.venueName || "").trim();
   const street = String(event?.streetAndNumber || "").trim();
   const city = String(event?.city || "").trim();
@@ -33,7 +62,7 @@ export function buildDefaultEventDetailsParagraph(event = {}) {
   const isCouple = isCoupleEventType(event?.eventType);
 
   const parts = [];
-  if (venue) parts.push(`אולמי "${venue}"`);
+  if (venue) parts.push(`באולמי "${venue}"`);
   if (address) parts.push(`בכתובת ${address}`);
   if (isCouple) {
     const reception = receptionTime || eventTime;
@@ -42,11 +71,25 @@ export function buildDefaultEventDetailsParagraph(event = {}) {
     parts.push(`בשעה ${eventTime}`);
   }
 
-  return parts.length ? parts.join(" ") : "פרטי האירוע יתעדכנו בקרוב";
+  return parts.join(" ").trim();
 }
 
 /**
- * Meta template already has "ב" before {{3}}. Strip a mistaken leading ב before אולם/אולמי.
+ * Free-text for WhatsApp template {{3}} after locked "האירוע יתקיים ב".
+ * Reads as:
+ *   האירוע יתקיים ב{יום} {תאריך}
+ *   באולמי "…" בכתובת … קבלת הפנים בשעה … / בשעה …
+ */
+export function buildDefaultEventDetailsParagraph(event = {}) {
+  const dateLine = buildEventDateLine(event);
+  const venueLine = buildVenueDetailsLine(event);
+  const lines = [dateLine, venueLine].filter(Boolean);
+  return lines.length ? lines.join("\n") : "פרטי האירוע יתעדכנו בקרוב";
+}
+
+/**
+ * Meta template already has "ב" before {{3}}.
+ * Only strip a mistaken leading ב when {{3}} itself starts with באולמי/באולם.
  */
 export function toTemplateEventDetailsVariable(details) {
   return String(details || "")
@@ -66,6 +109,8 @@ export function isStoredEventDetailsStale(storedDetails, event = {}) {
   const receptionTime = String(event?.receptionTime || "").trim();
   const isCouple = isCoupleEventType(event?.eventType);
   const time = isCouple ? receptionTime || eventTime : eventTime;
+  const dateDots = formatIsraeliDate(event?.eventDate);
+  const hasEventDate = Boolean(String(event?.eventDate || "").trim() && dateDots);
 
   if (
     venue &&
@@ -75,16 +120,19 @@ export function isStoredEventDetailsStale(storedDetails, event = {}) {
       stored === `באולמי "${venue}"` ||
       stored === `אולמי ${venue}` ||
       stored === `אולמי "${venue}"` ||
-      stored.startsWith(`${venue},`) ||
-      stored.startsWith(`באולמי "`))
+      stored.startsWith(`${venue},`))
   ) {
     return true;
   }
 
-  // Legacy / broken defaults (double-ב or date-prefixed)
-  if (/^\d{1,2}\.\d{1,2}\.\d{4}\b/.test(stored)) return true;
-  if (/^באולמי\b/.test(stored) || /^באולם\b/.test(stored)) return true;
-  if (/\bבאולם\b/.test(stored) && !/\bאולמי\b/.test(stored)) return true;
+  if (hasEventDate && (/^אולמי\b/.test(stored) || /^באולמי\b/.test(stored) || /^באולם\b/.test(stored))) {
+    return true;
+  }
+  if (/\bבאולם\b/.test(stored) && !/\bאולמי\b/.test(stored) && !/\bבאולמי\b/.test(stored)) {
+    return true;
+  }
+
+  if (hasEventDate && !stored.includes(dateDots)) return true;
 
   if ((street || city) && !stored.includes("בכתובת")) {
     const hasStreet = street && stored.includes(street);

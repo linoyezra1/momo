@@ -153,6 +153,24 @@
   margin: 0;
 }
 
+.il-wa-details-row {
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  gap: 0;
+}
+
+.il-wa-details-row .il-wa-locked {
+  margin: 0.2rem 0 0;
+  white-space: nowrap;
+}
+
+.il-wa-details-row .il-wa-bubble-field {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  white-space: pre-wrap;
+}
+
 .il-wa-meta {
   position: absolute;
   inset-inline-start: 0.65rem;

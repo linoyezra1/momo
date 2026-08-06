@@ -92,14 +92,13 @@ export default function IlWhatsAppInviteEditor({
             aria-label="פסקת פתיחה"
           />
 
-          <div className="il-wa-inline-row">
+          <div className="il-wa-inline-row il-wa-details-row">
             <span className="il-wa-locked">האירוע יתקיים ב</span>
             <AutoGrowField
               id="wa-event-details-paragraph"
               value={eventDetails}
               onChange={(next) => patch("eventDetailsParagraph", next)}
               placeholder={DEFAULT_EVENT_DETAILS_PLACEHOLDER}
-              singleLine
               aria-label="פרטי מועד ומקום"
             />
           </div>
