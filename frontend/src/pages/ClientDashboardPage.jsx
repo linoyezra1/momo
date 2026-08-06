@@ -2113,16 +2113,6 @@ export default function ClientDashboardPage() {
                       <span className="il-bulk-whatsapp-save-hint is-error">שמירה נכשלה</span>
                     ) : null}
                   </div>
-                  <p
-                    className={`il-bulk-whatsapp-buttons-mode${
-                      isWhatsAppButtonsMode(eventInfo || {}) ? " is-on" : ""
-                    }`}
-                    role="status"
-                  >
-                    {isWhatsAppButtonsMode(eventInfo || {})
-                      ? "מצב כפתורים פעיל — מעל הקישור: קישור לצפייה בהזמנה הדיגיטלית"
-                      : "מצב טקסט — מעל הקישור: נשמח אם תוכלו לאשר הגעתכם בקישור המצורף"}
-                  </p>
                   <IlWhatsAppInviteEditor
                     eventId={userId}
                     origin={window.location.origin}

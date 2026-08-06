@@ -1544,23 +1544,6 @@
   margin: 0;
 }
 
-.il-bulk-whatsapp-buttons-mode {
-  margin: 0 0 0.55rem;
-  padding: 0.55rem 0.7rem;
-  border-radius: 0.55rem;
-  border: 1px solid #e5ddd4;
-  background: #fffefb;
-  font-size: 0.8rem;
-  line-height: 1.4;
-  color: #6b5e5a;
-}
-
-.il-bulk-whatsapp-buttons-mode.is-on {
-  border-color: rgba(37, 211, 102, 0.45);
-  background: rgba(37, 211, 102, 0.08);
-  color: #0f5132;
-}
-
 .il-bulk-whatsapp-save-hint {
   font-size: 0.78rem;
   color: #6b7280;
