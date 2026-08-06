@@ -547,8 +547,16 @@ export default function ClientDashboardPage() {
   };
 
   const hydrateInviteCopy = useCallback((event) => {
-    setInviteCopy(resolveInviteCopyDefaults(event || {}));
+    const next = resolveInviteCopyDefaults(event || {});
+    setInviteCopy(next);
     inviteCopyHydratedRef.current = true;
+    const previousDetails = String(event?.eventDetailsParagraph ?? "").trim();
+    if (previousDetails !== String(next.eventDetailsParagraph || "").trim()) {
+      setEventInfo((prev) =>
+        prev ? { ...prev, eventDetailsParagraph: next.eventDetailsParagraph } : prev
+      );
+    }
+    return next;
   }, []);
 
   useEffect(() => {
@@ -667,7 +675,13 @@ export default function ClientDashboardPage() {
   const openBulkWhatsApp = () => {
     setBulkWhatsAppResult("");
     setBulkWhatsAppError("");
-    if (eventInfo) hydrateInviteCopy(eventInfo);
+    if (eventInfo) {
+      const next = hydrateInviteCopy(eventInfo);
+      const previousDetails = String(eventInfo.eventDetailsParagraph ?? "").trim();
+      if (previousDetails !== String(next?.eventDetailsParagraph || "").trim()) {
+        persistInviteCopy(next);
+      }
+    }
     setShowBulkWhatsApp(true);
   };
 
