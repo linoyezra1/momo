@@ -24,7 +24,7 @@ export function isWhatsAppButtonsMode(event = {}) {
 /**
  * Free-text for WhatsApp template {{3}} after locked "האירוע יתקיים ב".
  * Template: האירוע יתקיים ב{{3}} → {{3}} must start with "אולמי" (not "באולמי").
- * Wedding: אולמי "…" בכתובת … קבלת פנים: …
+ * Wedding: אולמי "…" בכתובת … קבלת הפנים בשעה …
  * Bar/Bat: אולמי "…" בכתובת … בשעה …
  */
 export function buildDefaultEventDetailsParagraph(event = {}) {
@@ -41,7 +41,7 @@ export function buildDefaultEventDetailsParagraph(event = {}) {
   if (address) parts.push(`בכתובת ${address}`);
   if (isCouple) {
     const reception = receptionTime || eventTime;
-    if (reception) parts.push(`קבלת פנים: ${reception}`);
+    if (reception) parts.push(`קבלת הפנים בשעה ${reception}`);
   } else if (eventTime) {
     parts.push(`בשעה ${eventTime}`);
   }
@@ -98,9 +98,13 @@ export function isStoredEventDetailsStale(storedDetails, event = {}) {
 
   if (time) {
     if (isCouple) {
-      if (!stored.includes("קבלת פנים") && !stored.includes(time)) return true;
-      // Old wedding default used "בשעה" instead of "קבלת פנים:"
-      if (stored.includes("בשעה") && !stored.includes("קבלת פנים")) return true;
+      const hasReceptionWording =
+        stored.includes("קבלת הפנים בשעה") || stored.includes("קבלת פנים");
+      if (!hasReceptionWording && !stored.includes(time)) return true;
+      // Old wedding defaults: "בשעה …" alone or "קבלת פנים: …"
+      if (stored.includes("קבלת פנים:") || (stored.includes("בשעה") && !stored.includes("קבלת הפנים"))) {
+        return true;
+      }
     } else if (!stored.includes("בשעה") && !stored.includes(time)) {
       return true;
     }
