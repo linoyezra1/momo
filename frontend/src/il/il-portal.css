@@ -296,15 +296,16 @@
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  border: 1px solid rgba(148, 163, 184, 0.45);
-  background: #fff;
-  color: var(--us-espresso);
-  font-weight: 700;
+  border: 1px solid #1d4ed8;
+  background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+  color: #fff;
+  font-weight: 800;
+  box-shadow: 0 8px 18px rgb(37 99 235 / 25%);
 }
 
 .il-contacts-import-btn:hover {
-  background: #f8fafc;
-  color: var(--us-espresso);
+  background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
+  color: #fff;
 }
 
 .il-add-guest-btn {
@@ -355,6 +356,16 @@
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
+  border: 1px solid #7c2d12;
+  background: linear-gradient(180deg, #f97316 0%, #ea580c 100%);
+  color: #fff;
+  font-weight: 800;
+  box-shadow: 0 8px 18px rgb(234 88 12 / 24%);
+}
+
+.il-actions-menu__trigger:hover {
+  background: linear-gradient(180deg, #ea580c 0%, #c2410c 100%);
+  color: #fff;
 }
 
 .il-actions-menu__panel {

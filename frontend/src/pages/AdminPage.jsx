@@ -137,7 +137,7 @@ function buildEventDisplayText(event) {
   if (event.eventType === "ברית") {
     return `${event.parentName1} ו${event.parentName2}`.trim();
   }
-  if (event.eventType === "בת מצווה") {
+  if (event.eventType === "בר מצווה" || event.eventType === "בת מצווה") {
     return `${event.batMitzvahName || ""}`.trim();
   }
   return "";
@@ -557,9 +557,16 @@ ${publicEventUrl}`
           eventType: form.eventType,
           groomName: isCoupleEventType(form.eventType) ? form.groomName : "",
           brideName: isCoupleEventType(form.eventType) ? form.brideName : "",
-          batMitzvahName: form.eventType === "בת מצווה" ? form.batMitzvahName : "",
-          parentName1: form.eventType === "ברית" || form.eventType === "בת מצווה" ? form.parentName1 : "",
-          parentName2: form.eventType === "ברית" || form.eventType === "בת מצווה" ? form.parentName2 : "",
+          batMitzvahName:
+            form.eventType === "בר מצווה" || form.eventType === "בת מצווה" ? form.batMitzvahName : "",
+          parentName1:
+            form.eventType === "ברית" || form.eventType === "בר מצווה" || form.eventType === "בת מצווה"
+              ? form.parentName1
+              : "",
+          parentName2:
+            form.eventType === "ברית" || form.eventType === "בר מצווה" || form.eventType === "בת מצווה"
+              ? form.parentName2
+              : "",
           venueName: form.venueName,
           city: form.city,
           streetAndNumber: form.streetAndNumber,
@@ -1411,6 +1418,7 @@ ${publicEventUrl}`
                   <option value="חינה">חינה</option>
                   <option value="אירוסין">אירוסין</option>
                   <option value="ברית">ברית</option>
+                  <option value="בר מצווה">בר מצווה</option>
                   <option value="בת מצווה">בת מצווה</option>
                 </select>
               </div>

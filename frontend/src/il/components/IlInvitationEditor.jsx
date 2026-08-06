@@ -14,7 +14,7 @@ import IlEditorField, { ilEditorInputClass, ilEditorSelectClass } from "./IlEdit
 import "../../us/client-portal.css";
 import "../il-portal.css";
 
-const EVENT_TYPE_OPTIONS = ["חתונה", "חינה", "אירוסין", "ברית", "בת מצווה", "אחר"];
+const EVENT_TYPE_OPTIONS = ["חתונה", "חינה", "אירוסין", "ברית", "בר מצווה", "בת מצווה", "אחר"];
 
 export default function IlInvitationEditor({ userId, eventInfo, onClose, onSaved }) {
   const [form, setForm] = useState(() => eventInfoToForm(eventInfo));
@@ -49,7 +49,9 @@ export default function IlInvitationEditor({ userId, eventInfo, onClose, onSaved
         currentWelcome === previousDefault ||
         currentWelcome === getDefaultInviteWelcomeText("חתונה") ||
         currentWelcome === getDefaultInviteWelcomeText("חינה") ||
-        currentWelcome === getDefaultInviteWelcomeText("אירוסין");
+        currentWelcome === getDefaultInviteWelcomeText("אירוסין") ||
+        currentWelcome === getDefaultInviteWelcomeText("בר מצווה") ||
+        currentWelcome === getDefaultInviteWelcomeText("בת מצווה");
       return {
         ...prev,
         eventType: value,
@@ -203,6 +205,52 @@ export default function IlInvitationEditor({ userId, eventInfo, onClose, onSaved
               </>
             ) : null}
 
+            {form.eventType === "בר מצווה" || form.eventType === "בת מצווה" ? (
+              <>
+                <IlEditorField label="שם החוגג/ת" htmlFor="il-batMitzvahName">
+                  <input
+                    id="il-batMitzvahName"
+                    className={ilEditorInputClass}
+                    name="batMitzvahName"
+                    value={form.batMitzvahName}
+                    onChange={onChange}
+                    autoComplete="off"
+                  />
+                </IlEditorField>
+                <IlEditorField label="שם הורה 1" htmlFor="il-parentName1-bm">
+                  <input
+                    id="il-parentName1-bm"
+                    className={ilEditorInputClass}
+                    name="parentName1"
+                    value={form.parentName1}
+                    onChange={onChange}
+                    autoComplete="off"
+                  />
+                </IlEditorField>
+                <IlEditorField label="שם הורה 2 (אופציונלי)" htmlFor="il-parentName2-bm">
+                  <input
+                    id="il-parentName2-bm"
+                    className={ilEditorInputClass}
+                    name="parentName2"
+                    value={form.parentName2}
+                    onChange={onChange}
+                    autoComplete="off"
+                  />
+                </IlEditorField>
+                <IlEditorField label="טקסט פתיחה" htmlFor="il-welcomeText-bm">
+                  <textarea
+                    id="il-welcomeText-bm"
+                    className={ilEditorInputClass}
+                    name="welcomeText"
+                    value={form.welcomeText}
+                    onChange={onChange}
+                    rows={3}
+                    placeholder={getDefaultInviteWelcomeText(form.eventType)}
+                  />
+                </IlEditorField>
+              </>
+            ) : null}
+
             {form.eventType === "ברית" ? (
               <>
                 <IlEditorField label="שם הורה 1" htmlFor="il-parentName1-brit">
@@ -239,40 +287,6 @@ export default function IlInvitationEditor({ userId, eventInfo, onClose, onSaved
               </>
             ) : null}
 
-            {form.eventType === "בת מצווה" ? (
-              <>
-                <IlEditorField label="שם כלת המצווה" htmlFor="il-batMitzvahName">
-                  <input
-                    id="il-batMitzvahName"
-                    className={ilEditorInputClass}
-                    name="batMitzvahName"
-                    value={form.batMitzvahName}
-                    onChange={onChange}
-                    autoComplete="off"
-                  />
-                </IlEditorField>
-                <IlEditorField label="שם הורה 1" htmlFor="il-parentName1-bm">
-                  <input
-                    id="il-parentName1-bm"
-                    className={ilEditorInputClass}
-                    name="parentName1"
-                    value={form.parentName1}
-                    onChange={onChange}
-                    autoComplete="off"
-                  />
-                </IlEditorField>
-                <IlEditorField label="שם הורה 2 (אופציונלי)" htmlFor="il-parentName2-bm">
-                  <input
-                    id="il-parentName2-bm"
-                    className={ilEditorInputClass}
-                    name="parentName2"
-                    value={form.parentName2}
-                    onChange={onChange}
-                    autoComplete="off"
-                  />
-                </IlEditorField>
-              </>
-            ) : null}
 
             {form.eventType === "אחר" ? (
               <IlEditorField label="שמות / כותרת האירוע" htmlFor="il-eventNames">

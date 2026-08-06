@@ -57,12 +57,12 @@ export function normalizeIlEventUpdatePayload(body) {
       throw new Error("יש למלא שמות הורים");
     }
     payload.eventNames = `${payload.parentName1} ו${payload.parentName2}`;
-  } else if (eventType === "בת מצווה") {
+  } else if (eventType === "בר מצווה" || eventType === "בת מצווה") {
     payload.batMitzvahName = cleanText(body?.batMitzvahName);
     payload.parentName1 = cleanText(body?.parentName1);
     payload.parentName2 = cleanText(body?.parentName2);
     if (!payload.batMitzvahName || !payload.parentName1) {
-      throw new Error("יש למלא שם כלת המצווה ושם הורה");
+      throw new Error("יש למלא שם החוגג/ת ושם הורה");
     }
     payload.eventNames = payload.batMitzvahName;
   } else {

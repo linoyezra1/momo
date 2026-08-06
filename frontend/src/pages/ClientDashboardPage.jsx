@@ -250,7 +250,7 @@ function getOwnerGreeting(event) {
   if (event.eventType === "ברית") {
     return `שלום ${event.parentName1 || ""} ו${event.parentName2 || ""}`.trim();
   }
-  if (event.eventType === "בת מצווה") {
+  if (event.eventType === "בר מצווה" || event.eventType === "בת מצווה") {
     return `שלום ${event.parentName1 || ""}`.trim();
   }
   return "שלום";
@@ -1807,16 +1807,6 @@ export default function ClientDashboardPage() {
           title="פעולות נוספות"
         >
           <div className="il-mobile-actions-list">
-            <button
-              type="button"
-              onClick={() => {
-                setMobileActionsOpen(false);
-                setShowContactsImport(true);
-              }}
-            >
-              <Contact size={16} aria-hidden="true" />
-              ייבוא מאנשי קשר
-            </button>
             <button
               type="button"
               onClick={() => {

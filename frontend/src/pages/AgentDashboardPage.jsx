@@ -5,7 +5,7 @@ import { FEATURE_CHECKBOXES, emptyFeatures } from "../utils/agentFeatures.js";
 import { isCoupleEventType } from "../utils/eventTypeWording";
 import { uploadEventCover } from "../utils/eventCover.js";
 
-const EVENT_TYPES = ["חתונה", "חינה", "אירוסין", "ברית", "בת מצווה", "אחר"];
+const EVENT_TYPES = ["חתונה", "חינה", "אירוסין", "ברית", "בר מצווה", "בת מצווה", "אחר"];
 
 function initialForm() {
   return {
@@ -161,11 +161,16 @@ export default function AgentDashboardPage() {
           eventType: form.eventType,
           groomName: isCoupleEventType(form.eventType) ? form.groomName.trim() : "",
           brideName: isCoupleEventType(form.eventType) ? form.brideName.trim() : "",
-          batMitzvahName: form.eventType === "בת מצווה" ? form.batMitzvahName.trim() : "",
+          batMitzvahName:
+            form.eventType === "בר מצווה" || form.eventType === "בת מצווה" ? form.batMitzvahName.trim() : "",
           parentName1:
-            form.eventType === "ברית" || form.eventType === "בת מצווה" ? form.parentName1.trim() : "",
+            form.eventType === "ברית" || form.eventType === "בר מצווה" || form.eventType === "בת מצווה"
+              ? form.parentName1.trim()
+              : "",
           parentName2:
-            form.eventType === "ברית" || form.eventType === "בת מצווה" ? form.parentName2.trim() : "",
+            form.eventType === "ברית" || form.eventType === "בר מצווה" || form.eventType === "בת מצווה"
+              ? form.parentName2.trim()
+              : "",
           venueName: form.venueName.trim(),
           city: form.city.trim(),
           streetAndNumber: form.streetAndNumber.trim(),
@@ -313,9 +318,9 @@ export default function AgentDashboardPage() {
                   </label>
                 </>
               ) : null}
-              {form.eventType === "בת מצווה" ? (
+              {form.eventType === "בר מצווה" || form.eventType === "בת מצווה" ? (
                 <label className="agent-field">
-                  <span>שם בת המצווה</span>
+                  <span>שם החוגג/ת</span>
                   <input
                     className="agent-field-input"
                     value={form.batMitzvahName}
@@ -323,7 +328,7 @@ export default function AgentDashboardPage() {
                   />
                 </label>
               ) : null}
-              {form.eventType === "ברית" || form.eventType === "בת מצווה" ? (
+              {form.eventType === "ברית" || form.eventType === "בר מצווה" || form.eventType === "בת מצווה" ? (
                 <>
                   <label className="agent-field">
                     <span>הורה 1</span>

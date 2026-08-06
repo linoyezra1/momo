@@ -136,6 +136,22 @@
   font-weight: 500;
 }
 
+.il-invite-single-time--venue-style {
+  margin: 0 0 2rem;
+  font-size: 0.92rem;
+  line-height: 1.65;
+  color: var(--il-ink-soft);
+  max-width: 22rem;
+  margin-inline: auto;
+}
+
+.il-invite-parents-line {
+  margin: 0 0 2rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--il-ink);
+}
+
 /* Parallel timeline */
 .il-invite-timeline {
   display: grid;

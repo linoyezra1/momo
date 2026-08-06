@@ -42,7 +42,7 @@ export function normalizeEventPayload(rawEvent) {
   if (eventType === "ברית") {
     return { ...baseEvent, eventNames: `${parentName1} ו${parentName2}`.trim() };
   }
-  if (eventType === "בת מצווה") {
+  if (eventType === "בר מצווה" || eventType === "בת מצווה") {
     return { ...baseEvent, eventNames: batMitzvahName };
   }
   return { ...baseEvent, eventNames: String(rawEvent?.eventNames || "").trim() };

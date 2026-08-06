@@ -71,7 +71,7 @@ export function buildEventHostsLabel(event = {}) {
     if (p1 && p2) return `${p1} ו${p2}`;
     return p1 || p2 || "המארחים";
   }
-  if (event.eventType === "בת מצווה") {
+  if (event.eventType === "בר מצווה" || event.eventType === "בת מצווה") {
     return String(event.parentName1 || event.batMitzvahName || "המארחים").trim() || "המארחים";
   }
   return String(event.eventNames || "המארחים").trim() || "המארחים";

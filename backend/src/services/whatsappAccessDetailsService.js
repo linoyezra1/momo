@@ -119,8 +119,8 @@ function eventDisplayLabel(event = {}) {
       .filter(Boolean);
     return names.length ? `ברית — ${names.join(" ו")}` : "ברית";
   }
-  if (event.eventType === "בת מצווה") {
-    return String(event.batMitzvahName || event.parentName1 || "בת מצווה").trim() || "בת מצווה";
+  if (event.eventType === "בר מצווה" || event.eventType === "בת מצווה") {
+    return String(event.batMitzvahName || event.parentName1 || event.eventType).trim() || event.eventType;
   }
   return String(event.eventNames || event.eventType || "אירוע").trim() || "אירוע";
 }
@@ -133,7 +133,7 @@ export function credentialsGreetingName(event = {}) {
   if (event.eventType === "ברית") {
     return String(event.parentName1 || event.parentName2 || "").trim();
   }
-  if (event.eventType === "בת מצווה") {
+  if (event.eventType === "בר מצווה" || event.eventType === "בת מצווה") {
     return String(event.parentName1 || event.batMitzvahName || "").trim();
   }
   return String(event.eventNames || "").trim();

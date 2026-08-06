@@ -87,10 +87,22 @@ export function getParallelTimeline(event) {
 
 export function getEventDisplayName(event) {
   if (isCoupleEventType(event?.eventType)) return getWeddingNames(event);
-  if (event?.eventType === "בת מצווה") return event?.batMitzvahName || "—";
+  if (event?.eventType === "בר מצווה" || event?.eventType === "בת מצווה") {
+    return event?.batMitzvahName || "—";
+  }
   if (event?.eventNames) return event.eventNames;
   if (event?.eventType === "ברית") {
     return `${event?.parentName1 || ""} ו${event?.parentName2 || ""}`.trim() || "—";
   }
   return "—";
+}
+
+export function getInviteParentsLine(event) {
+  const type = String(event?.eventType || "").trim();
+  if (!["חתונה", "בר מצווה", "בת מצווה"].includes(type)) return "";
+  const p1 = String(event?.parentName1 || "").trim();
+  const p2 = String(event?.parentName2 || "").trim();
+  if (!p1 && !p2) return "";
+  if (p1 && p2) return `נשמח לראותכם - ${p1} ו${p2}`;
+  return `נשמח לראותכם - ${p1 || p2}`;
 }

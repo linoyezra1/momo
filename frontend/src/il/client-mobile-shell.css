@@ -509,6 +509,11 @@
     align-items: center;
     justify-content: center;
     gap: 0.35rem;
+    border: 1px solid #7c2d12;
+    background: linear-gradient(180deg, #f97316 0%, #ea580c 100%);
+    color: #fff;
+    font-weight: 800;
+    box-shadow: 0 8px 18px rgb(234 88 12 / 24%);
   }
 
   .il-manager-dashboard-embed .il-guest-cards,

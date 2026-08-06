@@ -32,8 +32,8 @@ function buildEventLabel(event) {
   if (event.eventType === "ברית") {
     return `${event.parentName1 || ""} ו${event.parentName2 || ""}`.trim() || "ברית";
   }
-  if (event.eventType === "בת מצווה") {
-    return event.batMitzvahName || event.parentName1 || "בת מצווה";
+  if (event.eventType === "בר מצווה" || event.eventType === "בת מצווה") {
+    return event.batMitzvahName || event.parentName1 || event.eventType;
   }
   return event.eventNames || "אירוע";
 }

@@ -30,8 +30,8 @@ function buildEventDisplayName(event = {}) {
     if (p1 && p2) return `${p1} ו${p2}`;
     return p1 || p2 || "ברית";
   }
-  if (event.eventType === "בת מצווה") {
-    return String(event.batMitzvahName || event.parentName1 || "בת מצווה").trim() || "בת מצווה";
+  if (event.eventType === "בר מצווה" || event.eventType === "בת מצווה") {
+    return String(event.batMitzvahName || event.parentName1 || event.eventType).trim() || event.eventType;
   }
   return String(event.eventNames || "האירוע שלי").trim() || "האירוע שלי";
 }

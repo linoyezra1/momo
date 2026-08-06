@@ -37,7 +37,9 @@ function buildEventDisplayText(event) {
   if (!event) return "";
   if (isCoupleEventType(event.eventType)) return `${event.groomName} & ${event.brideName}`.trim();
   if (event.eventType === "ברית") return `${event.parentName1} ו${event.parentName2}`.trim();
-  if (event.eventType === "בת מצווה") return `${event.batMitzvahName || ""}`.trim();
+  if (event.eventType === "בר מצווה" || event.eventType === "בת מצווה") {
+    return `${event.batMitzvahName || ""}`.trim();
+  }
   return event.eventNames || "";
 }
 
@@ -490,6 +492,7 @@ export default function EventManagerPage() {
                     <option value="חינה">חינה</option>
                     <option value="אירוסין">אירוסין</option>
                     <option value="ברית">ברית</option>
+                    <option value="בר מצווה">בר מצווה</option>
                     <option value="בת מצווה">בת מצווה</option>
                     <option value="אחר">אחר</option>
                   </select>
@@ -536,9 +539,9 @@ export default function EventManagerPage() {
                     </div>
                   </>
                 ) : null}
-                {form.eventType === "בת מצווה" ? (
+                {form.eventType === "בר מצווה" || form.eventType === "בת מצווה" ? (
                   <div className="us-admin-field">
-                    <label className="us-admin-field-label">שם החוגגת</label>
+                    <label className="us-admin-field-label">שם החוגג/ת</label>
                     <input
                       className="us-admin-field-input"
                       value={form.batMitzvahName}

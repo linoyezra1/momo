@@ -8,7 +8,8 @@ import {
   getVenueLine,
   getWeekdayLine,
   getWelcomeText,
-  getWeddingNames
+  getWeddingNames,
+  getInviteParentsLine
 } from "./ilInviteUtils.js";
 import { isCoupleEventType } from "../../utils/eventTypeWording.js";
 import { getEventCoverSrc, getEventCoverSrcSet } from "../../utils/eventCover.js";
@@ -75,6 +76,8 @@ export default function IlInviteExperience({
   const showCountdown = previewMode || rsvpStarted || Boolean(message);
   const showAttendeeStepper =
     form.status === "מגיע" || form.status === "אולי" || form.status === "לא מגיע";
+  const parentsLine = getInviteParentsLine(event);
+  const isMitzvahEvent = event.eventType === "בר מצווה" || event.eventType === "בת מצווה";
 
   function onChange(changeEvent) {
     const { name, value } = changeEvent.target;
@@ -170,8 +173,12 @@ export default function IlInviteExperience({
               ))}
             </section>
           ) : !isCoupleEvent && event.eventTime ? (
-            <p className="il-invite-single-time">בשעה {event.eventTime}</p>
+            <p className={`il-invite-single-time${isMitzvahEvent ? " il-invite-single-time--venue-style" : ""}`}>
+              {isMitzvahEvent ? `🕒 ${event.eventTime}` : `בשעה ${event.eventTime}`}
+            </p>
           ) : null}
+
+          {parentsLine ? <p className="il-invite-parents-line">{parentsLine}</p> : null}
 
           <section className="il-invite-rsvp" id="il-rsvp">
             {message ? (
