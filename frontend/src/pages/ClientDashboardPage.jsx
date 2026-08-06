@@ -1837,6 +1837,16 @@ export default function ClientDashboardPage() {
               type="button"
               onClick={() => {
                 setMobileActionsOpen(false);
+                setShowContactsImport(true);
+              }}
+            >
+              <Contact size={16} aria-hidden="true" />
+              העלאה מאנשי הקשר
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMobileActionsOpen(false);
                 fileInputRef.current?.click();
               }}
               disabled={importChecking}

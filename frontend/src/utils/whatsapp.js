@@ -1,7 +1,12 @@
 import { formatIsraeliDate, formatIsraeliWeekday } from "./dateFormat.js";
 import { getEventTypeNoun, resolveEventKind } from "./eventTypeWording.js";
 import { normalizeIsraeliPhone } from "./phoneNormalize.js";
-import { resolveInviteCopyDefaults, getRsvpLinkPrompt, isWhatsAppButtonsMode } from "./whatsappInviteCopy.js";
+import {
+  resolveInviteCopyDefaults,
+  getRsvpLinkPrompt,
+  isWhatsAppButtonsMode,
+  toTemplateEventDetailsVariable
+} from "./whatsappInviteCopy.js";
 
 export function toInternationalWhatsAppPhone(phone) {
   const domestic = normalizeIsraeliPhone(phone);
@@ -107,6 +112,7 @@ export function buildGuestWhatsAppMessage({ event, eventId, origin, guestName })
     resolveInviteCopyDefaults(event);
   const name = String(guestName || "").trim() || "אורח/ת יקר/ה";
   const rsvpPrompt = getRsvpLinkPrompt(isWhatsAppButtonsMode(event));
+  const details = toTemplateEventDetailsVariable(eventDetailsParagraph);
 
   return [
     "✨ 🥂 ✨",
@@ -114,7 +120,7 @@ export function buildGuestWhatsAppMessage({ event, eventId, origin, guestName })
     "",
     welcomeParagraph,
     "",
-    `האירוע יתקיים ב${eventDetailsParagraph}`,
+    `האירוע יתקיים ב${details}`,
     "",
     rsvpPrompt,
     rsvpLink,
@@ -133,6 +139,7 @@ export function buildWhatsAppMessageTemplate({ event, eventId, origin }) {
   const { welcomeParagraph, eventDetailsParagraph, closingParagraph } =
     resolveInviteCopyDefaults(event);
   const rsvpPrompt = getRsvpLinkPrompt(isWhatsAppButtonsMode(event));
+  const details = toTemplateEventDetailsVariable(eventDetailsParagraph);
 
   return [
     "✨ 🥂 ✨",
@@ -140,7 +147,7 @@ export function buildWhatsAppMessageTemplate({ event, eventId, origin }) {
     "",
     welcomeParagraph,
     "",
-    `האירוע יתקיים ב${eventDetailsParagraph}`,
+    `האירוע יתקיים ב${details}`,
     "",
     rsvpPrompt,
     rsvpLink,

@@ -11,7 +11,10 @@ import {
   buildPublicEventLink,
   buildWhatsAppTemplateDefaults
 } from "../utils/whatsappMessage.js";
-import { resolveWhatsAppInviteParagraphs } from "../utils/whatsappInviteCopy.js";
+import {
+  resolveWhatsAppInviteParagraphs,
+  toTemplateEventDetailsVariable
+} from "../utils/whatsappInviteCopy.js";
 import { getDefaultWelcomeParagraph } from "../utils/eventTypeWording.js";
 import { recalculateUserSupplierCost } from "../utils/supplierCost.js";
 
@@ -123,10 +126,11 @@ function resolveInviteeTemplateFields({ invitee, defaults, eventId, origin, para
     String(defaults?.intro || "").trim() ||
     getDefaultWelcomeParagraph();
 
-  const eventDateTimeLocation =
+  const eventDateTimeLocation = toTemplateEventDetailsVariable(
     String(paragraphs?.eventDetailsParagraph || "").trim() ||
-    String(defaults?.eventDetails || "").trim() ||
-    "פרטי האירוע יתעדכנו בקרוב";
+      String(defaults?.eventDetails || "").trim() ||
+      "פרטי האירוע יתעדכנו בקרוב"
+  );
 
   const closingSignOff =
     String(paragraphs?.closingParagraph || "").trim() ||

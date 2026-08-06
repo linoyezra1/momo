@@ -12,7 +12,10 @@ import {
   buildPublicEventLink,
   buildWhatsAppTemplateDefaults
 } from "../utils/whatsappMessage.js";
-import { resolveWhatsAppInviteParagraphs } from "../utils/whatsappInviteCopy.js";
+import {
+  resolveWhatsAppInviteParagraphs,
+  toTemplateEventDetailsVariable
+} from "../utils/whatsappInviteCopy.js";
 import {
   STATUS_HISTORY_LABELS,
   STATUS_HISTORY_SOURCES,
@@ -75,7 +78,9 @@ function buildPremiumInviteVariables({ guest, event, userId, origin }) {
     {
       guestName: guest.fullName || "אורח/ת יקר/ה",
       customOpeningText: paragraphs.welcomeParagraph || defaults.intro,
-      eventDateTimeLocation: paragraphs.eventDetailsParagraph || defaults.eventDetails,
+      eventDateTimeLocation: toTemplateEventDetailsVariable(
+        paragraphs.eventDetailsParagraph || defaults.eventDetails
+      ),
       rsvpLink: buildPublicEventLink({ eventId: userId, origin }) || defaults.rsvpLink,
       closingSignOff: paragraphs.closingParagraph || defaults.signature
     },

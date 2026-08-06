@@ -1,7 +1,7 @@
 ﻿import { getDefaultWelcomeParagraph, isCoupleEventType } from "./eventTypeWording.js";
 
 export const DEFAULT_WELCOME_PLACEHOLDER = "הקלידו כאן פתיחה אישית...";
-export const DEFAULT_EVENT_DETAILS_PLACEHOLDER = "אולמי … בכתובת … בשעה …";
+export const DEFAULT_EVENT_DETAILS_PLACEHOLDER = "אולמי … בכתובת …";
 export const DEFAULT_CLOSING_PLACEHOLDER = "הקלידו כאן סיום וחתימה...";
 
 /** Locked prompt above {{4}} when standard text template is used. */
@@ -22,9 +22,10 @@ export function isWhatsAppButtonsMode(event = {}) {
 }
 
 /**
- * Free-text for WhatsApp template {{3}} (after locked "האירוע יתקיים ב").
- * Must NOT start with "ב" — the template already ends with ב.
- * Reads as: האירוע יתקיים באולמי "…" בכתובת … בשעה …
+ * Free-text for WhatsApp template {{3}} after locked "האירוע יתקיים ב".
+ * Template: האירוע יתקיים ב{{3}} → {{3}} must start with "אולמי" (not "באולמי").
+ * Wedding: אולמי "…" בכתובת … קבלת פנים: …
+ * Bar/Bat: אולמי "…" בכתובת … בשעה …
  */
 export function buildDefaultEventDetailsParagraph(event = {}) {
   const venue = String(event?.venueName || "").trim();
@@ -33,16 +34,28 @@ export function buildDefaultEventDetailsParagraph(event = {}) {
   const eventTime = String(event?.eventTime || "").trim();
   const receptionTime = String(event?.receptionTime || "").trim();
   const address = [street, city].filter(Boolean).join(", ");
-  const time = isCoupleEventType(event?.eventType)
-    ? receptionTime || eventTime
-    : eventTime;
+  const isCouple = isCoupleEventType(event?.eventType);
 
   const parts = [];
   if (venue) parts.push(`אולמי "${venue}"`);
   if (address) parts.push(`בכתובת ${address}`);
-  if (time) parts.push(`בשעה ${time}`);
+  if (isCouple) {
+    const reception = receptionTime || eventTime;
+    if (reception) parts.push(`קבלת פנים: ${reception}`);
+  } else if (eventTime) {
+    parts.push(`בשעה ${eventTime}`);
+  }
 
   return parts.length ? parts.join(" ") : "פרטי האירוע יתעדכנו בקרוב";
+}
+
+/**
+ * Meta template already has "ב" before {{3}}. Strip a mistaken leading ב before אולם/אולמי.
+ */
+export function toTemplateEventDetailsVariable(details) {
+  return String(details || "")
+    .trim()
+    .replace(/^ב(?=אולמי\b|אולם\b)/, "");
 }
 
 /** True when saved {{3}} is empty/outdated and should be rebuilt from event fields. */
@@ -55,9 +68,8 @@ export function isStoredEventDetailsStale(storedDetails, event = {}) {
   const city = String(event?.city || "").trim();
   const eventTime = String(event?.eventTime || "").trim();
   const receptionTime = String(event?.receptionTime || "").trim();
-  const time = isCoupleEventType(event?.eventType)
-    ? receptionTime || eventTime
-    : eventTime;
+  const isCouple = isCoupleEventType(event?.eventType);
+  const time = isCouple ? receptionTime || eventTime : eventTime;
 
   if (
     venue &&
@@ -84,7 +96,15 @@ export function isStoredEventDetailsStale(storedDetails, event = {}) {
     if (!hasStreet && !hasCity) return true;
   }
 
-  if (time && !stored.includes("בשעה") && !stored.includes(time)) return true;
+  if (time) {
+    if (isCouple) {
+      if (!stored.includes("קבלת פנים") && !stored.includes(time)) return true;
+      // Old wedding default used "בשעה" instead of "קבלת פנים:"
+      if (stored.includes("בשעה") && !stored.includes("קבלת פנים")) return true;
+    } else if (!stored.includes("בשעה") && !stored.includes(time)) {
+      return true;
+    }
+  }
 
   return false;
 }
@@ -112,11 +132,13 @@ export function resolveInviteCopyDefaults(event = {}) {
   const storedClosing = String(event?.closingParagraph ?? "").trim();
   const generatedDetails = buildDefaultEventDetailsParagraph(event);
 
+  const resolvedDetails = isStoredEventDetailsStale(storedDetails, event)
+    ? generatedDetails
+    : storedDetails;
+
   return {
     welcomeParagraph: storedWelcome || getDefaultWelcomeParagraph(event?.eventType),
-    eventDetailsParagraph: isStoredEventDetailsStale(storedDetails, event)
-      ? generatedDetails
-      : storedDetails,
+    eventDetailsParagraph: toTemplateEventDetailsVariable(resolvedDetails),
     closingParagraph: storedClosing || buildDefaultClosingParagraph(event)
   };
 }

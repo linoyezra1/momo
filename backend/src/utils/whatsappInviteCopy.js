@@ -18,9 +18,10 @@ export function isWhatsAppButtonsMode(event = {}) {
 }
 
 /**
- * Free-text for WhatsApp template {{3}} (after locked "האירוע יתקיים ב").
- * Must NOT start with "ב" — the template already ends with ב.
- * Reads as: האירוע יתקיים באולמי "…" בכתובת … בשעה …
+ * Free-text for WhatsApp template {{3}} after locked "האירוע יתקיים ב".
+ * Template: האירוע יתקיים ב{{3}} → {{3}} must start with "אולמי" (not "באולמי").
+ * Wedding: אולמי "…" בכתובת … קבלת פנים: …
+ * Bar/Bat: אולמי "…" בכתובת … בשעה …
  */
 export function buildDefaultEventDetailsParagraph(event = {}) {
   const venue = String(event?.venueName || "").trim();
@@ -29,16 +30,28 @@ export function buildDefaultEventDetailsParagraph(event = {}) {
   const eventTime = String(event?.eventTime || "").trim();
   const receptionTime = String(event?.receptionTime || "").trim();
   const address = [street, city].filter(Boolean).join(", ");
-  const time = isCoupleEventType(event?.eventType)
-    ? receptionTime || eventTime
-    : eventTime;
+  const isCouple = isCoupleEventType(event?.eventType);
 
   const parts = [];
   if (venue) parts.push(`אולמי "${venue}"`);
   if (address) parts.push(`בכתובת ${address}`);
-  if (time) parts.push(`בשעה ${time}`);
+  if (isCouple) {
+    const reception = receptionTime || eventTime;
+    if (reception) parts.push(`קבלת פנים: ${reception}`);
+  } else if (eventTime) {
+    parts.push(`בשעה ${eventTime}`);
+  }
 
   return parts.length ? parts.join(" ") : "פרטי האירוע יתעדכנו בקרוב";
+}
+
+/**
+ * Meta template already has "ב" before {{3}}. Strip a mistaken leading ב before אולם/אולמי.
+ */
+export function toTemplateEventDetailsVariable(details) {
+  return String(details || "")
+    .trim()
+    .replace(/^ב(?=אולמי\b|אולם\b)/, "");
 }
 
 /** True when saved {{3}} is empty/outdated and should be rebuilt from event fields. */
@@ -51,9 +64,8 @@ export function isStoredEventDetailsStale(storedDetails, event = {}) {
   const city = String(event?.city || "").trim();
   const eventTime = String(event?.eventTime || "").trim();
   const receptionTime = String(event?.receptionTime || "").trim();
-  const time = isCoupleEventType(event?.eventType)
-    ? receptionTime || eventTime
-    : eventTime;
+  const isCouple = isCoupleEventType(event?.eventType);
+  const time = isCouple ? receptionTime || eventTime : eventTime;
 
   if (
     venue &&
@@ -80,7 +92,14 @@ export function isStoredEventDetailsStale(storedDetails, event = {}) {
     if (!hasStreet && !hasCity) return true;
   }
 
-  if (time && !stored.includes("בשעה") && !stored.includes(time)) return true;
+  if (time) {
+    if (isCouple) {
+      if (!stored.includes("קבלת פנים") && !stored.includes(time)) return true;
+      if (stored.includes("בשעה") && !stored.includes("קבלת פנים")) return true;
+    } else if (!stored.includes("בשעה") && !stored.includes(time)) {
+      return true;
+    }
+  }
 
   return false;
 }
@@ -106,7 +125,7 @@ export function resolveWhatsAppInviteParagraphs(event = {}) {
     String(event?.welcomeParagraph || "").trim() || getDefaultWelcomeParagraph(event?.eventType);
   const storedDetails = String(event?.eventDetailsParagraph || "").trim();
   const generatedDetails = buildDefaultEventDetailsParagraph(event);
-  const eventDetailsParagraph = isStoredEventDetailsStale(storedDetails, event)
+  const resolvedDetails = isStoredEventDetailsStale(storedDetails, event)
     ? generatedDetails
     : storedDetails;
   const closingParagraph =
@@ -114,7 +133,7 @@ export function resolveWhatsAppInviteParagraphs(event = {}) {
 
   return {
     welcomeParagraph,
-    eventDetailsParagraph,
+    eventDetailsParagraph: toTemplateEventDetailsVariable(resolvedDetails),
     closingParagraph
   };
 }
