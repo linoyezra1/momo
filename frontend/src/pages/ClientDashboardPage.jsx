@@ -667,6 +667,7 @@ export default function ClientDashboardPage() {
   const openBulkWhatsApp = () => {
     setBulkWhatsAppResult("");
     setBulkWhatsAppError("");
+    if (eventInfo) hydrateInviteCopy(eventInfo);
     setShowBulkWhatsApp(true);
   };
 

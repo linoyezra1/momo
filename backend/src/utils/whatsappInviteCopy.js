@@ -1,32 +1,30 @@
-import { getDefaultWelcomeParagraph } from "./eventTypeWording.js";
-import { formatIsraeliDate } from "../utils/whatsappMessage.js";
+﻿import { getDefaultWelcomeParagraph, isCoupleEventType } from "./eventTypeWording.js";
 
 /**
  * Free-text for WhatsApp template {{3}} (after locked "האירוע יתקיים ב").
- * Example: 18.06.2026 באולם עדיה בכתובת הרצל 1, תל אביב בשעה 20:30
+ * Wedding: עדיה, שדרות ירושלים 36, קרית מלאכי, קבלת פנים: 19:30
+ * Bar/Bat: חמ"ה, שדרות ירושלים 36, קרית מלאכי, בשעה 19:30
  */
 export function buildDefaultEventDetailsParagraph(event = {}) {
-  const date = formatIsraeliDate(event?.eventDate);
   const venue = String(event?.venueName || "").trim();
   const street = String(event?.streetAndNumber || "").trim();
   const city = String(event?.city || "").trim();
   const eventTime = String(event?.eventTime || "").trim();
   const receptionTime = String(event?.receptionTime || "").trim();
-  const address = [street, city].filter(Boolean).join(", ");
+  const type = String(event?.eventType || "").trim();
 
   const parts = [];
-  if (date) parts.push(date);
-  if (venue) parts.push(`באולם ${venue}`);
-  if (address) parts.push(`בכתובת ${address}`);
-  if (receptionTime && eventTime) {
-    parts.push(`קבלת פנים בשעה ${receptionTime} וטקס בשעה ${eventTime}`);
-  } else if (receptionTime) {
-    parts.push(`בשעה ${receptionTime}`);
+  if (venue) parts.push(venue);
+  if (street) parts.push(street);
+  if (city) parts.push(city);
+
+  if (isCoupleEventType(type)) {
+    if (receptionTime) parts.push(`קבלת פנים: ${receptionTime}`);
   } else if (eventTime) {
     parts.push(`בשעה ${eventTime}`);
   }
 
-  return parts.length ? parts.join(" ") : "פרטי האירוע יתעדכנו בקרוב";
+  return parts.length ? parts.join(", ") : "פרטי האירוע יתעדכנו בקרוב";
 }
 
 export function buildDefaultClosingParagraph(event = {}) {
@@ -48,8 +46,13 @@ export function buildDefaultClosingParagraph(event = {}) {
 export function resolveWhatsAppInviteParagraphs(event = {}) {
   const welcomeParagraph =
     String(event?.welcomeParagraph || "").trim() || getDefaultWelcomeParagraph(event?.eventType);
-  const eventDetailsParagraph =
-    String(event?.eventDetailsParagraph || "").trim() || buildDefaultEventDetailsParagraph(event);
+  const storedDetails = String(event?.eventDetailsParagraph || "").trim();
+  const venue = String(event?.venueName || "").trim();
+  const generatedDetails = buildDefaultEventDetailsParagraph(event);
+  const detailsAreStale =
+    !storedDetails ||
+    (venue && (storedDetails === venue || storedDetails === `באולם ${venue}`));
+  const eventDetailsParagraph = detailsAreStale ? generatedDetails : storedDetails;
   const closingParagraph =
     String(event?.closingParagraph || "").trim() || buildDefaultClosingParagraph(event);
 
