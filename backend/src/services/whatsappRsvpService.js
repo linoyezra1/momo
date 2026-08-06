@@ -32,6 +32,10 @@ const ASK_GUEST_COUNT_TEXT =
   "איזה כיף! כמה תהיו בבקשה? (נא להשיב במספר בלבד, לדוגמה: 2)";
 
 function requireContentSid(envName) {
+  if (envName === "TWILIO_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID") {
+    const preferred = String(process.env.TWILIO_COPY_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID || "").trim();
+    if (preferred.startsWith("HX")) return preferred;
+  }
   const sid = String(process.env[envName] || CONTENT_SID_DEFAULTS[envName] || "").trim();
   if (!sid.startsWith("HX")) {
     throw new Error(`${envName} must be configured with a Twilio Content SID starting with HX`);

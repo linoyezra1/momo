@@ -2,16 +2,35 @@ import { formatIsraeliDate } from "./dateFormat.js";
 import { getDefaultWelcomeParagraph } from "./eventTypeWording.js";
 
 export const DEFAULT_WELCOME_PLACEHOLDER = "הקלידו כאן פתיחה אישית...";
-export const DEFAULT_EVENT_DETAILS_PLACEHOLDER = "הקלידו כאן תאריך ואולם...";
+export const DEFAULT_EVENT_DETAILS_PLACEHOLDER = "תאריך באולם … בכתובת … בשעה …";
 export const DEFAULT_CLOSING_PLACEHOLDER = "הקלידו כאן סיום וחתימה...";
 
+/**
+ * Free-text for WhatsApp template {{3}} (after locked "האירוע יתקיים ב").
+ * Example: 18.06.2026 באולם עדיה בכתובת הרצל 1, תל אביב בשעה 20:30
+ */
 export function buildDefaultEventDetailsParagraph(event = {}) {
   const date = formatIsraeliDate(event?.eventDate);
   const venue = String(event?.venueName || "").trim();
-  if (date && venue) return `${date} באולם ${venue}`;
-  if (date) return String(date);
-  if (venue) return `באולם ${venue}`;
-  return "פרטי האירוע יתעדכנו בקרוב";
+  const street = String(event?.streetAndNumber || "").trim();
+  const city = String(event?.city || "").trim();
+  const eventTime = String(event?.eventTime || "").trim();
+  const receptionTime = String(event?.receptionTime || "").trim();
+  const address = [street, city].filter(Boolean).join(", ");
+
+  const parts = [];
+  if (date) parts.push(date);
+  if (venue) parts.push(`באולם ${venue}`);
+  if (address) parts.push(`בכתובת ${address}`);
+  if (receptionTime && eventTime) {
+    parts.push(`קבלת פנים בשעה ${receptionTime} וטקס בשעה ${eventTime}`);
+  } else if (receptionTime) {
+    parts.push(`בשעה ${receptionTime}`);
+  } else if (eventTime) {
+    parts.push(`בשעה ${eventTime}`);
+  }
+
+  return parts.length ? parts.join(" ") : "פרטי האירוע יתעדכנו בקרוב";
 }
 
 export function buildDefaultClosingParagraph(event = {}) {

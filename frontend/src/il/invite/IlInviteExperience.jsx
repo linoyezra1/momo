@@ -4,6 +4,9 @@ import IlTimelineIcon from "./IlTimelineIcon.jsx";
 import {
   getEventDisplayName,
   getFullDateText,
+  getInviteLocationDetails,
+  getInviteTimeDetails,
+  getWazeLink,
   getParallelTimeline,
   getVenueLine,
   getWeekdayLine,
@@ -78,6 +81,9 @@ export default function IlInviteExperience({
     form.status === "מגיע" || form.status === "אולי" || form.status === "לא מגיע";
   const parentsLine = getInviteParentsLine(event);
   const isMitzvahEvent = event.eventType === "בר מצווה" || event.eventType === "בת מצווה";
+  const locationDetails = getInviteLocationDetails(event);
+  const timeDetails = getInviteTimeDetails(event);
+  const wazeLink = getWazeLink(event);
 
   function onChange(changeEvent) {
     const { name, value } = changeEvent.target;
@@ -150,7 +156,7 @@ export default function IlInviteExperience({
         </header>
 
         <main className="il-invite-body">
-          {isCoupleEvent ? (
+          {isCoupleEvent || isMitzvahEvent ? (
             <p className="il-invite-welcome">{welcomeText}</p>
           ) : null}
 
@@ -161,6 +167,34 @@ export default function IlInviteExperience({
             <p className="il-invite-weekday">{getWeekdayLine(event)}</p>
             <p className="il-invite-venue">{getVenueLine(event)}</p>
           </div>
+
+          <section className="il-invite-event-details" aria-label="פרטי מיקום וזמן">
+            <p className="il-invite-event-details__line">
+              <strong>מקום:</strong> {locationDetails.venue}
+            </p>
+            <p className="il-invite-event-details__line">
+              <strong>כתובת:</strong> {locationDetails.address}
+            </p>
+            {timeDetails.reception ? (
+              <p className="il-invite-event-details__line">
+                <strong>קבלת פנים:</strong> {timeDetails.reception}
+              </p>
+            ) : null}
+            <p className="il-invite-event-details__line">
+              <strong>{timeDetails.ceremonyLabel}:</strong> {timeDetails.ceremony}
+            </p>
+            {wazeLink ? (
+              <a
+                className="il-invite-waze-btn"
+                href={wazeLink}
+                target="_blank"
+                rel="noreferrer"
+                aria-label="ניווט ל-Waze"
+              >
+                ניווט ב-Waze
+              </a>
+            ) : null}
+          </section>
 
           {isCoupleEvent && timeline.length ? (
             <section className="il-invite-timeline" aria-label="לוח זמנים">
@@ -173,8 +207,12 @@ export default function IlInviteExperience({
               ))}
             </section>
           ) : !isCoupleEvent && event.eventTime ? (
-            <p className={`il-invite-single-time${isMitzvahEvent ? " il-invite-single-time--venue-style" : ""}`}>
-              {isMitzvahEvent ? `🕒 ${event.eventTime}` : `בשעה ${event.eventTime}`}
+            <p
+              className={
+                isMitzvahEvent ? "il-invite-venue il-invite-single-time--venue-style" : "il-invite-single-time"
+              }
+            >
+              בשעה {event.eventTime}
             </p>
           ) : null}
 

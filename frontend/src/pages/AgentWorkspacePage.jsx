@@ -8,8 +8,8 @@ import SmsIcon from "../components/SmsIcon.jsx";
 import WhatsAppIcon from "../components/WhatsAppIcon.jsx";
 import { formatIsraeliDate } from "../utils/dateFormat.js";
 import { normalizeIsraeliPhone } from "../utils/phoneNormalize.js";
-import { toInternationalWhatsAppPhone } from "../utils/whatsapp.js";
-import { getDefaultWelcomeParagraph, isCoupleEventType } from "../utils/eventTypeWording.js";
+import { buildGuestWhatsAppMessage, toInternationalWhatsAppPhone } from "../utils/whatsapp.js";
+import { isCoupleEventType } from "../utils/eventTypeWording.js";
 import "../agent-workspace.css";
 
 function getWhatsAppRoundCount(guest) {
@@ -56,32 +56,27 @@ function buildEventHosts(event) {
 
 function buildManualInviteMessage({ guest, event, userId }) {
   if (!guest || !event || !userId) return "";
-
   const origin = typeof window !== "undefined" ? window.location.origin : "";
-  const guestRsvpLink = `${origin}/event/${userId}?guest=${encodeURIComponent(guest._id)}`;
-
-  return [
-    "✨ 🥂 ✨",
-    `שלום ${guest.fullName || "אורח/ת יקר/ה"},`,
-    "",
-    getDefaultWelcomeParagraph(event.eventType),
-    "",
-    `האירוע יתקיים ב-${formatIsraeliDate(event.eventDate)} בגן האירועים "${event.venueName || ""}"`,
-    "",
-    "נשמח אם תוכלו לאשר הגעתכם בקישור המצורף:",
-    guestRsvpLink,
-    "",
-    `אוהבים ${event.brideName || ""} ו${event.groomName || ""}`,
-    "",
-    "✨ 🎉 ✨"
-  ].join("\n");
+  return buildGuestWhatsAppMessage({
+    event,
+    eventId: userId,
+    origin,
+    guestName: guest.fullName
+  });
 }
 
 function buildManualWhatsAppUrl({ guest, event, userId }) {
   const phone = toInternationalWhatsAppPhone(guest?.phone);
   const message = buildManualInviteMessage({ guest, event, userId });
   if (!phone || !message) return "";
-  return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+  const encoded = encodeURIComponent(message);
+  if (typeof window !== "undefined") {
+    const ua = String(window.navigator?.userAgent || "").toLowerCase();
+    if (/android|iphone|ipad|ipod/.test(ua)) {
+      return `whatsapp://send?phone=${phone}&text=${encoded}`;
+    }
+  }
+  return `https://wa.me/${phone}?text=${encoded}`;
 }
 
 function buildManualSmsUrl({ guest, event, userId }) {

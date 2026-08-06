@@ -46,6 +46,42 @@ export function getVenueLine(event) {
   return `באולמי "${venue}", ${address}`;
 }
 
+export function getWazeLink(event) {
+  const venue = String(event?.venueName || "").trim();
+  const street = String(event?.streetAndNumber || "").trim();
+  const city = String(event?.city || "").trim();
+  const query = [venue, street, city].filter(Boolean).join(", ").trim();
+  if (!query) return "";
+  return `https://waze.com/ul?q=${encodeURIComponent(query)}&navigate=yes`;
+}
+
+export function getInviteLocationDetails(event) {
+  const venue = String(event?.venueName || "").trim();
+  const street = String(event?.streetAndNumber || "").trim();
+  const city = String(event?.city || "").trim();
+  return {
+    venue: venue || "—",
+    address: [street, city].filter(Boolean).join(", ") || "—"
+  };
+}
+
+export function getInviteTimeDetails(event) {
+  const reception = String(event?.receptionTime || "").trim();
+  const ceremony = String(event?.eventTime || "").trim();
+  if (isCoupleEventType(event?.eventType)) {
+    return {
+      reception: reception || "—",
+      ceremony: ceremony || "—",
+      ceremonyLabel: getCeremonyLabel(event?.eventType)
+    };
+  }
+  return {
+    reception: "",
+    ceremony: ceremony || "—",
+    ceremonyLabel: "שעת האירוע"
+  };
+}
+
 export function getFullDateText(event) {
   if (!event?.eventDate) return "—";
   return formatIsraeliDate(event.eventDate);

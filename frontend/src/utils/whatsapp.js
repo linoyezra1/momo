@@ -166,5 +166,13 @@ export function buildWhatsAppSendUrl({ phone, event, eventId, origin, guestName 
   const intlPhone = toInternationalWhatsAppPhone(phone);
   if (!intlPhone) return "";
   const message = buildGuestWhatsAppMessage({ event, eventId, origin, guestName });
-  return `https://api.whatsapp.com/send?phone=${intlPhone}&text=${encodeURIComponent(message)}`;
+  const encoded = encodeURIComponent(message);
+  if (typeof window !== "undefined") {
+    const ua = String(window.navigator?.userAgent || "").toLowerCase();
+    const isMobile = /android|iphone|ipad|ipod/.test(ua);
+    if (isMobile) {
+      return `whatsapp://send?phone=${intlPhone}&text=${encoded}`;
+    }
+  }
+  return `https://wa.me/${intlPhone}?text=${encoded}`;
 }
