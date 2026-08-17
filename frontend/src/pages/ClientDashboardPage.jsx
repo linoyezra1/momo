@@ -7,6 +7,7 @@ import {
   Contact,
   Download,
   Eye,
+  FileText,
   FileUp,
   HelpCircle,
   LayoutGrid,
@@ -42,6 +43,7 @@ import CouponCodeField from "../components/CouponCodeField.jsx";
 import ContactImportModal from "../components/ContactImportModal.jsx";
 import GuestDuplicateReplaceModal from "../components/GuestDuplicateReplaceModal.jsx";
 import ExcelDuplicateResolveModal from "../components/ExcelDuplicateResolveModal.jsx";
+import { mapDeviceContactsToReviewRows, parseVCardFile } from "../utils/contactsImport.js";
 import "../us/client-portal.css";
 import "../il/il-portal.css";
 import "../il/contacts-import.css";
@@ -308,6 +310,8 @@ export default function ClientDashboardPage() {
   const [showBulkWhatsApp, setShowBulkWhatsApp] = useState(false);
   const [showContactsImport, setShowContactsImport] = useState(false);
   const [contactsImportToast, setContactsImportToast] = useState("");
+  const [contactsImportInitialRows, setContactsImportInitialRows] = useState(null);
+  const [contactsImportInitialError, setContactsImportInitialError] = useState("");
   const [manualDuplicateModal, setManualDuplicateModal] = useState(null);
   const [manualDuplicateSubmitting, setManualDuplicateSubmitting] = useState(false);
   const [paymentCode, setPaymentCode] = useState("");
@@ -323,6 +327,7 @@ export default function ClientDashboardPage() {
   const [bulkWhatsAppResult, setBulkWhatsAppResult] = useState("");
   const [bulkWhatsAppError, setBulkWhatsAppError] = useState("");
   const fileInputRef = useRef(null);
+  const vcfInputRef = useRef(null);
   const inviteCopySaveTimerRef = useRef(null);
   const inviteCopyHydratedRef = useRef(false);
 
@@ -762,6 +767,50 @@ export default function ClientDashboardPage() {
       skippedCount: Number(response.data?.skippedCount || 0),
       failedCount: Number(response.data?.failedCount || 0)
     };
+  };
+
+  const closeContactsImport = () => {
+    setShowContactsImport(false);
+    setContactsImportInitialRows(null);
+    setContactsImportInitialError("");
+  };
+
+  const openContactsImport = () => {
+    setContactsImportInitialRows(null);
+    setContactsImportInitialError("");
+    setShowContactsImport(true);
+  };
+
+  const openVcfPicker = () => {
+    setContactsImportInitialRows(null);
+    setContactsImportInitialError("");
+    vcfInputRef.current?.click();
+  };
+
+  const onVcfFile = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    try {
+      const contacts = await parseVCardFile(file);
+      const mapped = mapDeviceContactsToReviewRows(contacts, guests);
+      if (!mapped.length) {
+        setContactsImportInitialRows([]);
+        setContactsImportInitialError("לא נמצאו אנשי קשר עם שם או טלפון בקובץ");
+      } else {
+        setContactsImportInitialRows(mapped);
+        setContactsImportInitialError("");
+      }
+      setShowContactsImport(true);
+    } catch (vcfError) {
+      setContactsImportInitialRows([]);
+      setContactsImportInitialError(
+        vcfError?.code === "EMPTY"
+          ? "לא נמצאו אנשי קשר בקובץ ה־vCard"
+          : "לא ניתן לקרוא את קובץ ה־vCard. נסו לייצא שוב מאנשי הקשר."
+      );
+      setShowContactsImport(true);
+    }
   };
 
   const finalizeImport = async (newGuests, resolutions, meta = {}) => {
@@ -1276,7 +1325,7 @@ export default function ClientDashboardPage() {
               <button
                 className="us-btn il-contacts-import-btn"
                 type="button"
-                onClick={() => setShowContactsImport(true)}
+                onClick={openContactsImport}
               >
                 <Contact size={16} aria-hidden="true" />
                 ייבוא מאנשי קשר
@@ -1347,6 +1396,16 @@ export default function ClientDashboardPage() {
                       role="menuitem"
                       onClick={() => {
                         setActionsMenuOpen(false);
+                        openVcfPicker();
+                      }}
+                    >
+                      העלאה מ-.vcf
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setActionsMenuOpen(false);
                         exportGuests();
                       }}
                     >
@@ -1395,6 +1454,13 @@ export default function ClientDashboardPage() {
               accept=".xlsx,.xls,.csv"
               className="hidden-file-input"
               onChange={onImportFile}
+            />
+            <input
+              ref={vcfInputRef}
+              type="file"
+              accept=".vcf,.vcard,text/vcard,text/x-vcard"
+              className="hidden-file-input"
+              onChange={onVcfFile}
             />
           </div>
 
@@ -1837,11 +1903,21 @@ export default function ClientDashboardPage() {
               type="button"
               onClick={() => {
                 setMobileActionsOpen(false);
-                setShowContactsImport(true);
+                openContactsImport();
               }}
             >
               <Contact size={16} aria-hidden="true" />
               העלאה מאנשי הקשר
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMobileActionsOpen(false);
+                openVcfPicker();
+              }}
+            >
+              <FileText size={16} aria-hidden="true" />
+              העלאה מ-.vcf
             </button>
             <button
               type="button"
@@ -2223,7 +2299,9 @@ export default function ClientDashboardPage() {
           <ContactImportModal
             userId={userId}
             existingGuests={guests}
-            onClose={() => setShowContactsImport(false)}
+            initialRows={contactsImportInitialRows}
+            initialError={contactsImportInitialError}
+            onClose={closeContactsImport}
             onRequestExcelImport={() => fileInputRef.current?.click()}
             importContacts={importContactsFromPicker}
             onImported={(result) => {

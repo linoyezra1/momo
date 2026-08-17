@@ -18,6 +18,8 @@
   padding-top: 0.75rem;
   border-top: 1px solid #ebe3db;
   background: #fffefb;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .il-contacts-modal__footer.il-contacts-primary-btn,

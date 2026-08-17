@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Contact, QrCode, X } from "lucide-react";
+import { Contact, FileText, QrCode, X } from "lucide-react";
 import ContactsDuplicateResolveModal from "./ContactsDuplicateResolveModal.jsx";
 import {
+  isAppleMobileDevice,
   isContactsPickerSupported,
   isLikelyValidIsraeliMobile,
   mapDeviceContactsToReviewRows,
+  parseVCardFile,
   pickContactsFromDevice
 } from "../utils/contactsImport.js";
 import { indexGuestsByPhone } from "../utils/guestDuplicate.js";
@@ -30,12 +32,20 @@ export default function ContactImportModal({
   onClose,
   onImported,
   onRequestExcelImport,
-  importContacts
+  importContacts,
+  initialRows = null,
+  initialError = ""
 }) {
   const supported = useMemo(() => isContactsPickerSupported(), []);
-  const [step, setStep] = useState(supported ? "idle" : "unsupported");
-  const [rows, setRows] = useState([]);
-  const [error, setError] = useState("");
+  const isIos = useMemo(() => isAppleMobileDevice(), []);
+  const vcfInputRef = useRef(null);
+  const [step, setStep] = useState(() => {
+    if (initialRows?.length) return "review";
+    if (supported) return "idle";
+    return "unsupported";
+  });
+  const [rows, setRows] = useState(() => (Array.isArray(initialRows) ? initialRows : []));
+  const [error, setError] = useState(initialError || "");
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState("");
   const [duplicateConflicts, setDuplicateConflicts] = useState([]);
@@ -71,6 +81,40 @@ export default function ContactImportModal({
       document.body.style.overflow = previousOverflow || "";
     };
   }, []);
+
+  const applyParsedContacts = (contacts) => {
+    const mapped = mapDeviceContactsToReviewRows(contacts, existingGuests);
+    if (!mapped.length) {
+      setError("לא נמצאו אנשי קשר עם שם או טלפון בקובץ");
+      setStep(supported ? "idle" : "unsupported");
+      return;
+    }
+    setError("");
+    setRows(mapped);
+    setStep("review");
+  };
+
+  const openVcfPicker = () => {
+    setError("");
+    vcfInputRef.current?.click();
+  };
+
+  const onVcfFileChange = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    setError("");
+    try {
+      const contacts = await parseVCardFile(file);
+      applyParsedContacts(contacts);
+    } catch (vcfError) {
+      if (vcfError?.code === "EMPTY") {
+        setError("לא נמצאו אנשי קשר בקובץ ה־vCard");
+        return;
+      }
+      setError("לא ניתן לקרוא את קובץ ה־vCard. נסו לייצא שוב מאנשי הקשר.");
+    }
+  };
 
   const openPicker = async () => {
     setError("");
@@ -269,21 +313,28 @@ export default function ContactImportModal({
 
           {step === "idle" ? (
             <div className="il-contacts-idle">
-              <p>בחרו אנשי קשר מהטלפון, עברו על הרשימה, ואז ייבאו למערכת.</p>
+              <p>בחרו אנשי קשר מהטלפון, עברו על הרשימה, ואז ייבאו למערכת. אפשר גם להעלות קובץ vCard (.vcf).</p>
             </div>
           ) : null}
 
           {step === "unsupported" ? (
             <div className="il-contacts-fallback">
-              <p>
-                ייבוא מאנשי קשר זמין בעיקר בטלפונים ניידים (Chrome / Edge ב־Android).
-                במחשב אפשר לסרוק QR ולהמשיך מהטלפון, או להעלות קובץ אקסל.
-              </p>
-              {qrUrl ? (
+              {isIos ? (
+                <p>
+                  באייפון אין גישה ישירה לפנקס מאפליקציית הדפדפן. ייצאו אנשי קשר כקובץ vCard
+                  (.vcf) מאפליקציית אנשי הקשר, ואז בחרו את הקובץ כאן לסקירה ולייבוא.
+                </p>
+              ) : (
+                <p>
+                  ייבוא ישיר מאנשי קשר זמין ב־Chrome / Edge ב־Android. כאן אפשר להעלות קובץ
+                  vCard (.vcf), להעלות אקסל, או להמשיך מאנדרואיד.
+                </p>
+              )}
+              {!isIos && qrUrl ? (
                 <div className="il-contacts-qr">
                   <img src={qrUrl} alt="QR לפתיחת הדשבורד במובייל" width={180} height={180} />
                   <span>
-                    <QrCode size={14} aria-hidden="true" /> סריקה מהטלפון
+                    <QrCode size={14} aria-hidden="true" /> סריקה מאנדרואיד
                   </span>
                 </div>
               ) : null}
@@ -352,18 +403,36 @@ export default function ContactImportModal({
           ) : null}
         </div>
 
+        <input
+          ref={vcfInputRef}
+          type="file"
+          accept=".vcf,.vcard,text/vcard,text/x-vcard"
+          className="hidden-file-input"
+          onChange={onVcfFileChange}
+        />
+
         <div className="il-contacts-modal__footer us-toolbar">
           {step === "idle" ? (
-            <button className="us-btn us-btn--primary il-contacts-primary-btn" type="button" onClick={openPicker}>
-              <Contact size={16} aria-hidden="true" />
-              בחירת אנשי קשר
-            </button>
+            <>
+              <button className="us-btn us-btn--primary il-contacts-primary-btn" type="button" onClick={openPicker}>
+                <Contact size={16} aria-hidden="true" />
+                בחירת אנשי קשר
+              </button>
+              <button className="us-btn" type="button" onClick={openVcfPicker}>
+                <FileText size={16} aria-hidden="true" />
+                העלאה מ-.vcf
+              </button>
+            </>
           ) : null}
 
           {step === "unsupported" ? (
             <>
+              <button className="us-btn us-btn--primary" type="button" onClick={openVcfPicker}>
+                <FileText size={16} aria-hidden="true" />
+                העלאה מ-.vcf
+              </button>
               <button
-                className="us-btn us-btn--primary"
+                className="us-btn"
                 type="button"
                 onClick={() => {
                   onRequestExcelImport?.();
@@ -388,9 +457,15 @@ export default function ContactImportModal({
               >
                 {saving ? "מייבא…" : `ייבא ${selectedCount} מוזמנים למערכת`}
               </button>
-              <button className="us-btn" type="button" onClick={openPicker} disabled={saving}>
-                בחירה מחדש
-              </button>
+              {supported ? (
+                <button className="us-btn" type="button" onClick={openPicker} disabled={saving}>
+                  בחירה מחדש
+                </button>
+              ) : (
+                <button className="us-btn" type="button" onClick={openVcfPicker} disabled={saving}>
+                  קובץ vCard אחר
+                </button>
+              )}
               <button className="us-btn" type="button" onClick={onClose} disabled={saving}>
                 ביטול
               </button>
