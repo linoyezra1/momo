@@ -1,3 +1,4 @@
+import User from "../models/User.js";
 import { normalizePhone } from "./guestPhone.js";
 
 export function parseAttendeesCount(raw) {
@@ -27,6 +28,15 @@ export function extractGuestFieldsFromRow(row = {}) {
   const fullName = String(row["שם מלא"] ?? row.fullName ?? row.name ?? "").trim();
   const rawPhone = String(row["טלפון"] ?? row.phone ?? "").trim();
   const phone = normalizePhone(row["טלפון"] ?? row.phone ?? "");
+  const guestGroup = String(
+    row["קטגוריה"] ??
+      row["צד"] ??
+      row.Category ??
+      row.category ??
+      row.guestGroup ??
+      row.guestCategory ??
+      ""
+  ).trim();
   const amountRaw =
     row["כמות"] ??
     row["כמות מגיעים"] ??
@@ -41,7 +51,7 @@ export function extractGuestFieldsFromRow(row = {}) {
   if (statusRaw === "מגיע" || statusRaw === "לא מגיע" || statusRaw === "אולי") {
     status = statusRaw;
   }
-  return { fullName, rawPhone, phone, attendeesCount, status, giftAmount: 0 };
+  return { fullName, rawPhone, phone, guestGroup, attendeesCount, status, giftAmount: 0 };
 }
 
 export function makeFailedRow(rowNumber, name, reason) {
@@ -87,6 +97,7 @@ export function validateImportGuestRow(row, rowNumber) {
       guest: {
         fullName: fields.fullName,
         phone: "",
+        guestGroup: fields.guestGroup || "",
         attendeesCount: fields.attendeesCount,
         status: fields.status,
         giftAmount: 0,
@@ -104,6 +115,7 @@ export function validateImportGuestRow(row, rowNumber) {
   const guest = {
     fullName: fields.fullName,
     phone: fields.phone || String(rawPhone).replace(/\D/g, ""),
+    guestGroup: fields.guestGroup || "",
     attendeesCount: fields.attendeesCount,
     status: fields.status,
     giftAmount: 0,
@@ -164,4 +176,31 @@ export function processImportGuestBatch(rows) {
   });
 
   return { totalCount, validGuests, failedRows, warningRows };
+}
+
+/** Merge new category labels into event.guestCategories (case-insensitive unique). */
+export async function registerEventGuestCategories(userId, categories = []) {
+  const incoming = [...new Set((categories || []).map((item) => String(item || "").trim()).filter(Boolean))];
+  if (!incoming.length) return [];
+
+  const user = await User.findById(userId).select("event");
+  if (!user) return incoming;
+
+  if (!user.event) user.event = {};
+  const existing = Array.isArray(user.event.guestCategories) ? user.event.guestCategories : [];
+  const byKey = new Map(existing.map((item) => [String(item).trim().toLowerCase(), String(item).trim()]));
+  let changed = false;
+  incoming.forEach((item) => {
+    const key = item.toLowerCase();
+    if (!byKey.has(key)) {
+      byKey.set(key, item);
+      changed = true;
+    }
+  });
+  if (!changed) return existing.map((item) => String(item).trim()).filter(Boolean);
+
+  user.event.guestCategories = [...byKey.values()].sort((a, b) => a.localeCompare(b, "he"));
+  user.markModified("event");
+  await user.save();
+  return user.event.guestCategories;
 }

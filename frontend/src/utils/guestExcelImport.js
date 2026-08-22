@@ -1,4 +1,5 @@
 import { normalizeIsraeliPhone } from "./phoneNormalize.js";
+import { extractCategoryFromRow } from "./guestCategories.js";
 
 function parseAttendeesCount(raw) {
   if (raw == null || raw === "") return 1;
@@ -46,6 +47,7 @@ export function parseExcelGuestRows(rows) {
     const rawPhoneValue = row["טלפון"] ?? row.phone ?? "";
     const rawPhone = String(rawPhoneValue ?? "").trim();
     const phone = normalizeIsraeliPhone(rawPhoneValue);
+    const guestGroup = extractCategoryFromRow(row);
     const amountRaw =
       row["כמות"] ??
       row["כמות מגיעים"] ??
@@ -70,6 +72,7 @@ export function parseExcelGuestRows(rows) {
       validGuests.push({
         fullName,
         phone: "",
+        guestGroup,
         attendeesCount: Math.max(1, parseAttendeesCount(amountRaw)),
         status: "לא ידוע",
         rowNumber
@@ -103,6 +106,7 @@ export function parseExcelGuestRows(rows) {
     validGuests.push({
       fullName,
       phone: storedPhone,
+      guestGroup,
       attendeesCount: Math.max(1, parseAttendeesCount(amountRaw)),
       status: "לא ידוע",
       rowNumber

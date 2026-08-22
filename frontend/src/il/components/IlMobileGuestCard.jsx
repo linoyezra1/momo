@@ -57,6 +57,9 @@ export default function IlMobileGuestCard({
               {!String(guest.phone || "").trim() ? (
                 <span className="il-missing-phone-badge">חסר מספר טלפון</span>
               ) : null}
+              {String(guest.guestGroup || "").trim() ? (
+                <span className="il-guest-category-badge">{String(guest.guestGroup).trim()}</span>
+              ) : null}
               <span className="il-guest-card__attendees" title="כמות מגיעים">
                 <Users size={13} aria-hidden="true" />
                 {guest.attendeesCount ?? 0}

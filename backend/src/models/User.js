@@ -37,7 +37,9 @@ const eventSchema = new mongoose.Schema(
     /** WhatsApp approved-template editable segments ({{2}}, {{3}}, {{5}}) */
     welcomeParagraph: { type: String, trim: true, default: "" },
     eventDetailsParagraph: { type: String, trim: true, default: "" },
-    closingParagraph: { type: String, trim: true, default: "" }
+    closingParagraph: { type: String, trim: true, default: "" },
+    /** Dynamic guest category labels for this event (e.g. צד חתן, חברים) */
+    guestCategories: { type: [String], default: [] }
   },
   { _id: false }
 );

@@ -41,9 +41,17 @@ import IlWhatsAppInviteEditor from "../il/components/IlWhatsAppInviteEditor.jsx"
 import IlMobileGuestCard from "../il/components/IlMobileGuestCard.jsx";
 import CouponCodeField from "../components/CouponCodeField.jsx";
 import ContactImportModal from "../components/ContactImportModal.jsx";
+import GuestCategoryField from "../components/GuestCategoryField.jsx";
 import GuestDuplicateReplaceModal from "../components/GuestDuplicateReplaceModal.jsx";
 import ExcelDuplicateResolveModal from "../components/ExcelDuplicateResolveModal.jsx";
 import { mapDeviceContactsToReviewRows, parseVCardFile } from "../utils/contactsImport.js";
+import {
+  buildEventCategoryOptions,
+  CATEGORY_ALL_FILTER,
+  CATEGORY_NONE_FILTER,
+  getGuestCategory,
+  summarizeGuestsByStatus
+} from "../utils/guestCategories.js";
 import "../us/client-portal.css";
 import "../il/il-portal.css";
 import "../il/contacts-import.css";
@@ -55,7 +63,8 @@ const initialGuest = {
   phone: "",
   attendeesCount: 1,
   giftAmount: 0,
-  status: "לא ידוע"
+  status: "לא ידוע",
+  guestGroup: ""
 };
 
 const STATUS_OPTIONS = [
@@ -291,7 +300,8 @@ export default function ClientDashboardPage() {
     phone: "",
     status: "מגיע",
     attendeesCount: 1,
-    giftAmount: 0
+    giftAmount: 0,
+    guestGroup: ""
   });
   const [editError, setEditError] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState(null);
@@ -303,6 +313,7 @@ export default function ClientDashboardPage() {
   const [searchInput, setSearchInput] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState(CATEGORY_ALL_FILTER);
   const [reminderRoundFilter, setReminderRoundFilter] = useState("all");
   const [selectedGuestIds, setSelectedGuestIds] = useState(() => new Set());
   const [expandedGuestDetailIds, setExpandedGuestDetailIds] = useState(() => new Set());
@@ -334,8 +345,31 @@ export default function ClientDashboardPage() {
 
   const publicLink = `${window.location.origin}/event/${userId}`;
 
+  const categoryOptions = useMemo(
+    () => buildEventCategoryOptions(eventInfo?.guestCategories || [], guests),
+    [eventInfo?.guestCategories, guests]
+  );
+
+  const hasUncategorizedGuests = useMemo(
+    () => guests.some((guest) => !getGuestCategory(guest)),
+    [guests]
+  );
+
+  const categoryScopedGuests = useMemo(() => {
+    if (categoryFilter === CATEGORY_ALL_FILTER) return guests;
+    if (categoryFilter === CATEGORY_NONE_FILTER) {
+      return guests.filter((guest) => !getGuestCategory(guest));
+    }
+    return guests.filter((guest) => getGuestCategory(guest) === categoryFilter);
+  }, [guests, categoryFilter]);
+
+  const displaySummary = useMemo(
+    () => summarizeGuestsByStatus(categoryScopedGuests),
+    [categoryScopedGuests]
+  );
+
   const filteredGuests = useMemo(() => {
-    let list = guests;
+    let list = categoryScopedGuests;
 
     if (statusFilter === "לא ידוע") {
       list = list.filter((guest) => isUnknownGuestStatus(guest.status));
@@ -359,9 +393,10 @@ export default function ClientDashboardPage() {
     return list.filter((guest) => {
       const fullName = String(guest.fullName || "").toLowerCase();
       const phone = String(guest.phone || "");
-      return fullName.includes(query) || phone.includes(query);
+      const category = getGuestCategory(guest).toLowerCase();
+      return fullName.includes(query) || phone.includes(query) || category.includes(query);
     });
-  }, [guests, appliedSearch, statusFilter, reminderRoundFilter]);
+  }, [categoryScopedGuests, appliedSearch, statusFilter, reminderRoundFilter]);
 
   const loadWhatsappQuota = async () => {
     try {
@@ -620,15 +655,9 @@ export default function ClientDashboardPage() {
   const selectedCount = selectedGuestIds.size;
   const maxPhoneRounds = Number(eventInfo?.maxPhoneRounds || 0);
   const phoneServiceEnabled = maxPhoneRounds > 0;
-  const guestTableColumnCount = phoneServiceEnabled ? 12 : 11;
-  const totalInvited = Number(
-    summary.totalInvited ??
-      summary.totalComing +
-        summary.totalNotComing +
-        summary.totalMaybe +
-        (summary.totalUnknown || 0)
-  );
-  const totalAttending = Number(summary.totalComing || 0);
+  const guestTableColumnCount = phoneServiceEnabled ? 13 : 12;
+  const totalInvited = Number(displaySummary.totalInvited || 0);
+  const totalAttending = Number(displaySummary.totalComing || 0);
   const attendingPercentage =
     totalInvited > 0 ? Math.round((totalAttending / totalInvited) * 100) : 0;
   const allFilteredSelected =
@@ -921,6 +950,7 @@ export default function ClientDashboardPage() {
       const rows = guests.map((guest) => ({
         "שם מלא": guest.fullName,
         טלפון: guest.phone,
+        קטגוריה: getGuestCategory(guest),
         "סטטוס הגעה": guest.status,
         "כמות מגיעים": guest.attendeesCount,
         "סכום מתנה": guest.giftAmount || 0,
@@ -936,7 +966,14 @@ export default function ClientDashboardPage() {
 
   const downloadTemplate = () => {
     import("xlsx").then((XLSX) => {
-      const rows = [{ "שם מלא": "ישראל ישראלי", טלפון: "0501234567", "כמות אנשים": 2 }];
+      const rows = [
+        {
+          "שם מלא": "ישראל ישראלי",
+          טלפון: "0501234567",
+          קטגוריה: "צד חתן",
+          "כמות אנשים": 2
+        }
+      ];
       const worksheet = XLSX.utils.json_to_sheet(rows);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Template");
@@ -952,7 +989,8 @@ export default function ClientDashboardPage() {
       phone: guest.phone || "",
       status: guest.status,
       attendeesCount: guest.attendeesCount,
-      giftAmount: guest.giftAmount || 0
+      giftAmount: guest.giftAmount || 0,
+      guestGroup: getGuestCategory(guest)
     });
   };
 
@@ -1253,8 +1291,7 @@ export default function ClientDashboardPage() {
                 סה״כ
               </span>
               <strong>
-                {summary.totalInvited ??
-                  summary.totalComing + summary.totalNotComing + summary.totalMaybe + (summary.totalUnknown || 0)}
+                {displaySummary.totalInvited}
               </strong>
             </button>
             <button
@@ -1267,7 +1304,7 @@ export default function ClientDashboardPage() {
                 <Check size={15} aria-hidden="true" />
                 מגיעים
               </span>
-              <strong>{summary.totalComing}</strong>
+              <strong>{displaySummary.totalComing}</strong>
             </button>
             <button
               className={`il-metric-card il-metric-card--not-coming${statusFilter === "לא מגיע" ? " is-active" : ""}`}
@@ -1279,7 +1316,7 @@ export default function ClientDashboardPage() {
                 <X size={15} aria-hidden="true" />
                 לא מגיעים
               </span>
-              <strong>{summary.totalNotComing}</strong>
+              <strong>{displaySummary.totalNotComing}</strong>
             </button>
             <button
               className={`il-metric-card il-metric-card--maybe${statusFilter === "אולי" ? " is-active" : ""}`}
@@ -1291,7 +1328,7 @@ export default function ClientDashboardPage() {
                 <HelpCircle size={15} aria-hidden="true" />
                 אולי
               </span>
-              <strong>{summary.totalMaybe}</strong>
+              <strong>{displaySummary.totalMaybe}</strong>
             </button>
             <button
               className={`il-metric-card il-metric-card--unknown${statusFilter === "לא ידוע" ? " is-active" : ""}`}
@@ -1303,14 +1340,14 @@ export default function ClientDashboardPage() {
                 <Clock size={15} aria-hidden="true" />
                 לא ידוע
               </span>
-              <strong>{summary.totalUnknown || 0}</strong>
+              <strong>{displaySummary.totalUnknown || 0}</strong>
             </button>
           </div>
 
           <div className="il-analytics__donut" aria-label="אחוז אישורי הגעה">
             <div
               className="il-status-donut"
-              style={{ background: buildStatusDonutGradient(summary) }}
+              style={{ background: buildStatusDonutGradient(displaySummary) }}
               aria-hidden="true"
             >
               <div className="il-status-donut__center">
@@ -1505,6 +1542,30 @@ export default function ClientDashboardPage() {
             </div>
 
             <div className="il-guest-filter-group il-guest-filter-group--select">
+              <label className="il-guest-filter-label" htmlFor="category-filter">
+                קטגוריה
+              </label>
+              <select
+                id="category-filter"
+                className={`us-field-input il-category-filter-select${
+                  categoryFilter !== CATEGORY_ALL_FILTER ? " is-active" : ""
+                }`}
+                value={categoryFilter}
+                onChange={(event) => setCategoryFilter(event.target.value)}
+              >
+                <option value={CATEGORY_ALL_FILTER}>כל הקטגוריות</option>
+                {categoryOptions.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+                {hasUncategorizedGuests ? (
+                  <option value={CATEGORY_NONE_FILTER}>ללא קטגוריה</option>
+                ) : null}
+              </select>
+            </div>
+
+            <div className="il-guest-filter-group il-guest-filter-group--select">
               <label className="il-guest-filter-label" htmlFor="reminder-round-filter">
                 סבב שליחה
               </label>
@@ -1555,6 +1616,7 @@ export default function ClientDashboardPage() {
                 <th className="il-col-expand" aria-label="פרטים" />
                 <th>שם מלא</th>
                 <th>טלפון</th>
+                <th>קטגוריה</th>
                 <th>כמה מגיעים</th>
                 <th>סכום מתנה</th>
                 <th>סטטוס</th>
@@ -1569,7 +1631,10 @@ export default function ClientDashboardPage() {
               {filteredGuests.length === 0 ? (
                 <tr>
                   <td colSpan={guestTableColumnCount} className="us-table-empty">
-                    {appliedSearch || statusFilter !== "all" || reminderRoundFilter !== "all"
+                    {appliedSearch ||
+                    statusFilter !== "all" ||
+                    reminderRoundFilter !== "all" ||
+                    categoryFilter !== CATEGORY_ALL_FILTER
                       ? "לא נמצאו תוצאות לסינון הנוכחי"
                       : "אין אורחים עדיין"}
                   </td>
@@ -1637,6 +1702,25 @@ export default function ClientDashboardPage() {
                         />
                       ) : String(guest.phone || "").trim() ? (
                         <span dir="ltr">{guest.phone}</span>
+                      ) : (
+                        <span className="il-muted-empty">—</span>
+                      )}
+                    </td>
+                    <td data-label="קטגוריה">
+                      {editingGuestId === guest._id ? (
+                        <GuestCategoryField
+                          id={`edit-category-${guest._id}`}
+                          label=""
+                          value={editingValues.guestGroup}
+                          options={categoryOptions}
+                          selectClassName="us-inline-input"
+                          inputClassName="us-inline-input"
+                          onChange={(next) =>
+                            setEditingValues((prev) => ({ ...prev, guestGroup: next }))
+                          }
+                        />
+                      ) : getGuestCategory(guest) ? (
+                        <span className="il-guest-category-badge">{getGuestCategory(guest)}</span>
                       ) : (
                         <span className="il-muted-empty">—</span>
                       )}
@@ -1784,7 +1868,10 @@ export default function ClientDashboardPage() {
         <div className="il-guest-cards" aria-label="רשימת מוזמנים">
           {!filteredGuests.length ? (
             <p className="us-table-empty">
-              {appliedSearch || statusFilter !== "all" || reminderRoundFilter !== "all"
+              {appliedSearch ||
+              statusFilter !== "all" ||
+              reminderRoundFilter !== "all" ||
+              categoryFilter !== CATEGORY_ALL_FILTER
                 ? "לא נמצאו תוצאות לסינון הנוכחי"
                 : "אין אורחים עדיין"}
             </p>
@@ -1837,6 +1924,19 @@ export default function ClientDashboardPage() {
                             }
                           />
                         </label>
+                        <div className="il-guest-card__meta-item il-guest-card__meta-item--category">
+                          <GuestCategoryField
+                            id={`mobile-edit-category-${guest._id}`}
+                            label="קטגוריה"
+                            value={editingValues.guestGroup}
+                            options={categoryOptions}
+                            selectClassName="us-inline-input"
+                            inputClassName="us-inline-input"
+                            onChange={(next) =>
+                              setEditingValues((prev) => ({ ...prev, guestGroup: next }))
+                            }
+                          />
+                        </div>
                         <label className="il-guest-card__meta-item">
                           <span>כמה מגיעים</span>
                           <input
@@ -2087,6 +2187,13 @@ export default function ClientDashboardPage() {
                     required
                   />
                 </div>
+                <GuestCategoryField
+                  id="manual-guestGroup"
+                  label="קטגוריה"
+                  value={manualGuest.guestGroup}
+                  options={categoryOptions}
+                  onChange={(next) => setManualGuest((prev) => ({ ...prev, guestGroup: next }))}
+                />
                 <div>
                   <label className="us-field-label" htmlFor="manual-attendeesCount">
                     כמות מגיעים

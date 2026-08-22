@@ -1325,6 +1325,51 @@
   font-size: 0.86rem;
 }
 
+.il-category-filter-select {
+  min-width: 10.5rem;
+  padding: 0.4rem 0.65rem;
+  font-size: 0.86rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.il-category-filter-select.is-active {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 700;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+.il-guest-category-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid #e5ddd4;
+  background: #fffefb;
+  color: #6b5e5a;
+  font-size: 0.74rem;
+  font-weight: 650;
+  line-height: 1.2;
+  white-space: nowrap;
+  max-width: 10rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.il-guest-category-field {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.il-guest-category-field .us-field-label {
+  margin: 0;
+}
+
+.il-guest-card__meta-item--category {
+  grid-column: 1 / -1;
+}
+
 .il-guest-filter-summary {
   margin: 0;
   margin-right: auto;

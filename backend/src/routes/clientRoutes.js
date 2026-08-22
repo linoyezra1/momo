@@ -11,6 +11,7 @@ import {
   makeWarningRow,
   NON_ISRAELI_PHONE_WARNING,
   processImportGuestBatch,
+  registerEventGuestCategories,
   validateImportGuestRow
 } from "../utils/guestImport.js";
 import { normalizeIlEventUpdatePayload } from "../utils/ilEvent.js";
@@ -51,6 +52,7 @@ function mapRowToGuest(row) {
   return {
     fullName: fields.fullName,
     phone: fields.phone,
+    guestGroup: fields.guestGroup || "",
     attendeesCount: fields.attendeesCount,
     status: fields.status,
     giftAmount: 0,
@@ -63,6 +65,7 @@ function toGuestDoc(userId, mapped) {
     userId,
     fullName: mapped.fullName,
     phone: normalizePhone(mapped.phone),
+    guestGroup: String(mapped.guestGroup || "").trim(),
     attendeesCount: mapped.attendeesCount,
     giftAmount: Math.max(0, Number(mapped.giftAmount || 0)),
     status: mapped.status,
@@ -268,7 +271,8 @@ router.get("/:userId/guests", async (req, res) => {
 router.post("/:userId/guests/manual", async (req, res) => {
   try {
     const { userId } = req.params;
-    const { fullName, phone, attendeesCount, status, giftAmount, confirmReplace } = req.body;
+    const { fullName, phone, attendeesCount, status, giftAmount, confirmReplace, guestGroup } = req.body;
+    const category = String(guestGroup || "").trim();
 
     if (!fullName || !phone || !status) {
       return res.status(400).json({ message: "Missing required fields" });
@@ -295,7 +299,8 @@ router.post("/:userId/guests/manual", async (req, res) => {
             fullName: fullName.trim(),
             attendeesCount: Number(attendeesCount || 1),
             giftAmount: Math.max(0, Number(giftAmount || 0)),
-            status
+            status,
+            guestGroup: category
           }
         });
       }
@@ -307,6 +312,7 @@ router.post("/:userId/guests/manual", async (req, res) => {
           attendeesCount: Number(attendeesCount || 1),
           giftAmount: Math.max(0, Number(giftAmount || 0)),
           status,
+          guestGroup: category,
           source: "manual"
         }
       };
@@ -323,6 +329,7 @@ router.post("/:userId/guests/manual", async (req, res) => {
         new: true,
         runValidators: true
       });
+      if (category) await registerEventGuestCategories(userId, [category]);
       await recordClientGuestUpdate({
         userId,
         before: existing,
@@ -339,6 +346,7 @@ router.post("/:userId/guests/manual", async (req, res) => {
       attendeesCount: Number(attendeesCount || 1),
       giftAmount: Math.max(0, Number(giftAmount || 0)),
       status,
+      guestGroup: category,
       source: "manual",
       statusHistory: [
         initialStatusHistoryEntry({
@@ -348,6 +356,8 @@ router.post("/:userId/guests/manual", async (req, res) => {
         })
       ]
     });
+
+    if (category) await registerEventGuestCategories(userId, [category]);
 
     await recordGuestAuditLog({
       userId,
@@ -647,16 +657,19 @@ router.post("/:userId/guests/import", async (req, res) => {
     let insertedCount = 0;
     const guestsToInsert = Array.isArray(newGuests) ? newGuests : [];
     const seenInsertPhones = new Set();
+    const importedCategories = [];
 
     for (const row of guestsToInsert) {
       const rowNumber = row?.rowNumber ?? row?.excelRowNumber ?? null;
       let doc;
-      if (row?.phone && row?.fullName) {
+      if (row?.fullName) {
+        const rawCategory = String(row.guestGroup || row.category || "").trim();
         const normalized = normalizePhone(row.phone);
         doc = {
           userId,
           fullName: String(row.fullName).trim(),
-          phone: normalized || String(row.phone).replace(/\D/g, ""),
+          phone: normalized || (row.phone ? String(row.phone).replace(/\D/g, "") : ""),
+          guestGroup: rawCategory,
           attendeesCount: Math.max(1, Number(row.attendeesCount || 1)),
           giftAmount: Math.max(0, Number(row.giftAmount || 0)),
           status: row.status || "לא ידוע",
@@ -708,6 +721,7 @@ router.post("/:userId/guests/import", async (req, res) => {
         await Guest.create({
           ...doc,
           phone: phoneKey,
+          guestGroup: String(doc.guestGroup || "").trim(),
           statusHistory: [
             initialStatusHistoryEntry({
               status: doc.status || "לא ידוע",
@@ -717,6 +731,7 @@ router.post("/:userId/guests/import", async (req, res) => {
           ]
         });
         if (phoneKey) seenInsertPhones.add(phoneKey);
+        if (doc.guestGroup) importedCategories.push(doc.guestGroup);
         insertedCount += 1;
       } catch (createError) {
         failedRows.push(
@@ -747,6 +762,7 @@ router.post("/:userId/guests/import", async (req, res) => {
         {
           fullName: excelRow.fullName,
           phone: excelRow.phone || phone,
+          guestGroup: excelRow.guestGroup || excelRow.category || "",
           attendeesCount: excelRow.attendeesCount,
           status: excelRow.status,
           rowNumber
@@ -775,6 +791,7 @@ router.post("/:userId/guests/import", async (req, res) => {
             attendeesCount: doc.attendeesCount,
             giftAmount: Math.max(0, Number(doc.giftAmount || 0)),
             status: doc.status,
+            guestGroup: String(doc.guestGroup || "").trim(),
             source: resolveSourceAfterExcelOverwrite(existing.source)
           }
         };
@@ -799,6 +816,7 @@ router.post("/:userId/guests/import", async (req, res) => {
             channel: "import"
           });
         }
+        if (doc.guestGroup) importedCategories.push(doc.guestGroup);
         updatedCount += 1;
       } catch (updateError) {
         failedRows.push(
@@ -824,6 +842,10 @@ router.post("/:userId/guests/import", async (req, res) => {
       if (seenWarnings.has(key)) continue;
       seenWarnings.add(key);
       uniqueWarnings.push(item);
+    }
+
+    if (importedCategories.length) {
+      await registerEventGuestCategories(userId, importedCategories);
     }
 
     return res.status(201).json({
@@ -858,17 +880,18 @@ router.patch("/:userId/guests/:guestId", async (req, res) => {
     if (typeof phone !== "undefined") {
       const normalizedPhone = normalizePhone(phone);
       if (!normalizedPhone) {
-        return res.status(400).json({ message: "מספר טלפון לא תקין" });
+        update.phone = "";
+      } else {
+        const duplicate = await Guest.findOne({
+          userId,
+          phone: normalizedPhone,
+          _id: { $ne: guestId }
+        }).select("_id");
+        if (duplicate) {
+          return res.status(400).json({ message: "מספר הטלפון כבר קיים ברשימת המוזמנים" });
+        }
+        update.phone = normalizedPhone;
       }
-      const duplicate = await Guest.findOne({
-        userId,
-        phone: normalizedPhone,
-        _id: { $ne: guestId }
-      }).select("_id");
-      if (duplicate) {
-        return res.status(400).json({ message: "מספר הטלפון כבר קיים ברשימת המוזמנים" });
-      }
-      update.phone = normalizedPhone;
     }
     if (typeof attendeesCount !== "undefined") {
       update.attendeesCount = Math.max(0, Number(attendeesCount));
@@ -930,6 +953,10 @@ router.patch("/:userId/guests/:guestId", async (req, res) => {
     });
     if (!guest) {
       return res.status(404).json({ message: "Guest not found" });
+    }
+
+    if (update.guestGroup) {
+      await registerEventGuestCategories(userId, [update.guestGroup]);
     }
 
     await recordClientGuestUpdate({
