@@ -263,16 +263,35 @@ export async function sendBulkWhatsApp({
       return { status: 400, body: { success: false, message: "קוד הרכישה פג תוקף. פנו למנהל המערכת." } };
     }
 
-    const invitees = guests
+    const namedGuests = guests
       .map((guest) => ({
         guestId: guest._id,
         name: String(guest.fullName || "").trim(),
-        phone: guest.phone
+        phone: String(guest.phone || "").trim()
       }))
-      .filter((guest) => guest.name && guest.phone);
+      .filter((guest) => guest.name);
+
+    const skippedNoPhone = namedGuests
+      .filter((guest) => !guest.phone)
+      .map((guest) => ({ guestId: guest.guestId, name: guest.name }));
+
+    const invitees = namedGuests.filter((guest) => guest.phone);
 
     if (!invitees.length) {
-      return { status: 400, body: { success: false, message: "לא נמצאו מוזמנים תקינים לשליחה" } };
+      return {
+        status: 400,
+        body: {
+          success: false,
+          message:
+            skippedNoPhone.length > 0
+              ? "לא נשלחו הודעות — לכל המוזמנים שנבחרו חסר מספר טלפון"
+              : "לא נמצאו מוזמנים תקינים לשליחה",
+          sentCount: 0,
+          failedCount: 0,
+          skippedNoPhoneCount: skippedNoPhone.length,
+          skippedNoPhone
+        }
+      };
     }
 
     const requestedCount = invitees.length;
@@ -368,6 +387,8 @@ export async function sendBulkWhatsApp({
           message: mapTwilioErrorMessage(primaryError),
           sentCount: 0,
           failedCount,
+          skippedNoPhoneCount: skippedNoPhone.length,
+          skippedNoPhone,
           twilioCode: primaryError?.code || null
         }
       };
@@ -385,6 +406,10 @@ export async function sendBulkWhatsApp({
 
     const freshRecord = await ActivationCode.findById(reservedRecord._id);
     const remaining = freshRecord?.remaining_credits ?? reservedRecord.remaining_credits;
+    const skippedSuffix =
+      skippedNoPhone.length > 0
+        ? ` ${skippedNoPhone.length} מוזמנים דולגו כי חסר מספר טלפון.`
+        : "";
 
     if (failedCount > 0) {
       return {
@@ -392,10 +417,12 @@ export async function sendBulkWhatsApp({
         body: {
           success: true,
           partial: true,
-          message: `נשלחו ${sentCount} הודעות. ${failedCount} נכשלו. נשארו ${remaining} הודעות במכסה.`,
+          message: `נשלחו ${sentCount} הודעות. ${failedCount} נכשלו. נשארו ${remaining} הודעות במכסה.${skippedSuffix}`,
           sentCount,
           failedCount,
-          remaining
+          remaining,
+          skippedNoPhoneCount: skippedNoPhone.length,
+          skippedNoPhone
         }
       };
     }
@@ -404,9 +431,11 @@ export async function sendBulkWhatsApp({
       status: 200,
       body: {
         success: true,
-        message: `מצויין! נשלחו ${sentCount} הודעות. נשאר לך עוד ${remaining} הודעות במכסה.`,
+        message: `מצויין! נשלחו ${sentCount} הודעות. נשאר לך עוד ${remaining} הודעות במכסה.${skippedSuffix}`,
         sentCount,
-        remaining
+        remaining,
+        skippedNoPhoneCount: skippedNoPhone.length,
+        skippedNoPhone
       }
     };
   } catch (unexpectedError) {

@@ -31,7 +31,7 @@ export function makeFailedRow(rowNumber, name, reason) {
 
 /**
  * Parse sheet rows into valid guests + failedRows + warningRows.
- * Non-Israeli phones are imported with a warning (not rejected).
+ * Missing phone is allowed. Non-Israeli phones are imported with a warning (not rejected).
  */
 export function parseExcelGuestRows(rows) {
   const failedRows = [];
@@ -67,7 +67,13 @@ export function parseExcelGuestRows(rows) {
     }
 
     if (!rawPhone) {
-      failedRows.push(makeFailedRow(rowNumber, fullName, "מספר טלפון חסר בקובץ"));
+      validGuests.push({
+        fullName,
+        phone: "",
+        attendeesCount: Math.max(1, parseAttendeesCount(amountRaw)),
+        status: "לא ידוע",
+        rowNumber
+      });
       return;
     }
 

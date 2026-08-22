@@ -58,7 +58,7 @@ export function makeWarningRow(rowNumber, name, reason) {
 
 /**
  * Validate one Excel/API guest row. Returns { empty }, { fail }, or { guest, warning? }.
- * Non-Israeli phones are ACCEPTED with a warning — they still import.
+ * Missing phone is allowed (imported as empty). Non-Israeli phones are ACCEPTED with a warning.
  */
 export function validateImportGuestRow(row, rowNumber) {
   const fields = extractGuestFieldsFromRow(row);
@@ -78,13 +78,24 @@ export function validateImportGuestRow(row, rowNumber) {
     };
   }
 
-  if (!fields.rawPhone && !fields.phone) {
+  const rawPhone = fields.rawPhone || "";
+  const hasPhone = Boolean(rawPhone || fields.phone);
+
+  // Allow guests without a phone number
+  if (!hasPhone) {
     return {
-      fail: makeFailedRow(rowNumber, fields.fullName, "מספר טלפון חסר בקובץ")
+      guest: {
+        fullName: fields.fullName,
+        phone: "",
+        attendeesCount: fields.attendeesCount,
+        status: fields.status,
+        giftAmount: 0,
+        rowNumber: Number(rowNumber) || null
+      }
     };
   }
 
-  if (!hasUsablePhoneDigits(fields.rawPhone || fields.phone)) {
+  if (!hasUsablePhoneDigits(rawPhone || fields.phone)) {
     return {
       fail: makeFailedRow(rowNumber, fields.fullName, "מספר טלפון לא ניתן לזיהוי")
     };
@@ -92,7 +103,7 @@ export function validateImportGuestRow(row, rowNumber) {
 
   const guest = {
     fullName: fields.fullName,
-    phone: fields.phone || String(fields.rawPhone).replace(/\D/g, ""),
+    phone: fields.phone || String(rawPhone).replace(/\D/g, ""),
     attendeesCount: fields.attendeesCount,
     status: fields.status,
     giftAmount: 0,
@@ -111,7 +122,7 @@ export function validateImportGuestRow(row, rowNumber) {
 
 /**
  * Map incoming guest payloads and collect failures + soft warnings.
- * Non-Israeli numbers are imported with a warning.
+ * Missing phones and non-Israeli numbers are imported (latter with a warning).
  */
 export function processImportGuestBatch(rows) {
   const failedRows = [];
@@ -133,18 +144,21 @@ export function processImportGuestBatch(rows) {
     }
 
     const guest = result.guest;
-    if (seenPhones.has(guest.phone)) {
-      failedRows.push(
-        makeFailedRow(
-          rowNumber,
-          guest.fullName,
-          `מספר טלפון כבר מופיע בקובץ (כפילות עם שורה ${seenPhones.get(guest.phone)})`
-        )
-      );
-      return;
+    const phoneKey = String(guest.phone || "").trim();
+    if (phoneKey) {
+      if (seenPhones.has(phoneKey)) {
+        failedRows.push(
+          makeFailedRow(
+            rowNumber,
+            guest.fullName,
+            `מספר טלפון כבר מופיע בקובץ (כפילות עם שורה ${seenPhones.get(phoneKey)})`
+          )
+        );
+        return;
+      }
+      seenPhones.set(phoneKey, rowNumber);
     }
 
-    seenPhones.set(guest.phone, rowNumber);
     if (result.warning) warningRows.push(result.warning);
     validGuests.push(guest);
   });

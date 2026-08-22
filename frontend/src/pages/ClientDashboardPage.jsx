@@ -326,6 +326,7 @@ export default function ClientDashboardPage() {
   const [bulkWhatsAppSending, setBulkWhatsAppSending] = useState(false);
   const [bulkWhatsAppResult, setBulkWhatsAppResult] = useState("");
   const [bulkWhatsAppError, setBulkWhatsAppError] = useState("");
+  const [bulkSkippedNoPhone, setBulkSkippedNoPhone] = useState([]);
   const fileInputRef = useRef(null);
   const vcfInputRef = useRef(null);
   const inviteCopySaveTimerRef = useRef(null);
@@ -680,6 +681,7 @@ export default function ClientDashboardPage() {
   const openBulkWhatsApp = () => {
     setBulkWhatsAppResult("");
     setBulkWhatsAppError("");
+    setBulkSkippedNoPhone([]);
     if (eventInfo) {
       const next = hydrateInviteCopy(eventInfo);
       const previousDetails = String(eventInfo.eventDetailsParagraph ?? "").trim();
@@ -710,11 +712,19 @@ export default function ClientDashboardPage() {
     setBulkWhatsAppSending(true);
     setBulkWhatsAppResult("");
     setBulkWhatsAppError("");
+    setBulkSkippedNoPhone([]);
     try {
       const response = await api.post(`/client/${userId}/whatsapp/bulk-send`, {
         paymentCode: paymentCode.trim(),
         guestIds: [...selectedGuestIds]
       });
+
+      const skipped = Array.isArray(response.data?.skippedNoPhone)
+        ? response.data.skippedNoPhone
+            .map((item) => (typeof item === "string" ? item : item?.name))
+            .filter(Boolean)
+        : [];
+      setBulkSkippedNoPhone(skipped);
 
       if (response.data?.success === false) {
         setBulkWhatsAppResult("");
@@ -726,6 +736,12 @@ export default function ClientDashboardPage() {
       setBulkWhatsAppResult(response.data?.message || "ההודעות נשלחו בהצלחה");
       await onBulkWhatsAppSuccess(response.data);
     } catch (bulkErr) {
+      const skipped = Array.isArray(bulkErr.response?.data?.skippedNoPhone)
+        ? bulkErr.response.data.skippedNoPhone
+            .map((item) => (typeof item === "string" ? item : item?.name))
+            .filter(Boolean)
+        : [];
+      setBulkSkippedNoPhone(skipped);
       setBulkWhatsAppResult("");
       setBulkWhatsAppError(
         bulkErr.response?.data?.message || "שליחת ההודעה נכשלה, נא לוודא שמספר המערכת מוגדר כראוי"
@@ -1601,7 +1617,12 @@ export default function ClientDashboardPage() {
                           required
                         />
                       ) : (
-                        guest.fullName
+                        <span className="il-guest-name-cell">
+                          <span>{guest.fullName}</span>
+                          {!String(guest.phone || "").trim() ? (
+                            <span className="il-missing-phone-badge">חסר מספר טלפון</span>
+                          ) : null}
+                        </span>
                       )}
                     </td>
                     <td data-label="טלפון">
@@ -1614,8 +1635,10 @@ export default function ClientDashboardPage() {
                             setEditingValues((prev) => ({ ...prev, phone: event.target.value }))
                           }
                         />
-                      ) : (
+                      ) : String(guest.phone || "").trim() ? (
                         <span dir="ltr">{guest.phone}</span>
+                      ) : (
+                        <span className="il-muted-empty">—</span>
                       )}
                     </td>
                     <td data-label="כמה מגיעים">
@@ -2209,6 +2232,16 @@ export default function ClientDashboardPage() {
                 {bulkWhatsAppResult ? (
                   <div className="il-bulk-whatsapp-success-box" role="status">
                     <p>{bulkWhatsAppResult}</p>
+                  </div>
+                ) : null}
+                {bulkSkippedNoPhone.length > 0 ? (
+                  <div className="il-bulk-whatsapp-skipped" role="status">
+                    <p>לא נשלחו הודעות לאורחים הבאים מכיוון שחסר מספר טלפון:</p>
+                    <ul>
+                      {bulkSkippedNoPhone.map((name) => (
+                        <li key={name}>{name}</li>
+                      ))}
+                    </ul>
                   </div>
                 ) : null}
               </div>

@@ -575,16 +575,22 @@ router.post("/:userId/guests/import/precheck", async (req, res) => {
       });
     }
 
-    const phones = [...new Set(validGuests.map((guest) => guest.phone))];
-    const existingGuests = await Guest.find({ userId, phone: { $in: phones } });
+    const phones = [
+      ...new Set(validGuests.map((guest) => String(guest.phone || "").trim()).filter(Boolean))
+    ];
+    const existingGuests = phones.length
+      ? await Guest.find({ userId, phone: { $in: phones } })
+      : [];
     const existingByPhone = new Map(existingGuests.map((guest) => [guest.phone, guest]));
 
     const newGuests = [];
     const conflicts = [];
 
     for (const guest of validGuests) {
-      const existing = existingByPhone.get(guest.phone);
+      const phoneKey = String(guest.phone || "").trim();
+      const existing = phoneKey ? existingByPhone.get(phoneKey) : null;
       const doc = toGuestDoc(userId, guest);
+      doc.phone = phoneKey;
       if (existing) {
         conflicts.push({
           guestId: existing._id,
@@ -671,31 +677,37 @@ router.post("/:userId/guests/import", async (req, res) => {
         failedRows.push(makeFailedRow(rowNumber, "", "שם חסר בקובץ"));
         continue;
       }
-      if (!doc.phone || !hasUsablePhoneDigits(doc.phone)) {
+
+      const phoneKey = String(doc.phone || "").trim();
+      if (phoneKey && !hasUsablePhoneDigits(phoneKey)) {
         failedRows.push(makeFailedRow(rowNumber, doc.fullName, "מספר טלפון לא ניתן לזיהוי"));
         continue;
       }
-      if (!isValidIsraeliMobilePhone(doc.phone)) {
-        warningRows.push(makeWarningRow(rowNumber, doc.fullName, NON_ISRAELI_PHONE_WARNING));
-      }
-      if (seenInsertPhones.has(doc.phone)) {
-        failedRows.push(
-          makeFailedRow(rowNumber, doc.fullName, "מספר טלפון כבר קיים במערכת (כפילות)")
-        );
-        continue;
-      }
 
-      const exists = await Guest.findOne({ userId, phone: doc.phone }).select("_id fullName");
-      if (exists) {
-        failedRows.push(
-          makeFailedRow(rowNumber, doc.fullName, "מספר טלפון כבר קיים במערכת (כפילות)")
-        );
-        continue;
+      if (phoneKey) {
+        if (!isValidIsraeliMobilePhone(phoneKey)) {
+          warningRows.push(makeWarningRow(rowNumber, doc.fullName, NON_ISRAELI_PHONE_WARNING));
+        }
+        if (seenInsertPhones.has(phoneKey)) {
+          failedRows.push(
+            makeFailedRow(rowNumber, doc.fullName, "מספר טלפון כבר קיים במערכת (כפילות)")
+          );
+          continue;
+        }
+
+        const exists = await Guest.findOne({ userId, phone: phoneKey }).select("_id fullName");
+        if (exists) {
+          failedRows.push(
+            makeFailedRow(rowNumber, doc.fullName, "מספר טלפון כבר קיים במערכת (כפילות)")
+          );
+          continue;
+        }
       }
 
       try {
         await Guest.create({
           ...doc,
+          phone: phoneKey,
           statusHistory: [
             initialStatusHistoryEntry({
               status: doc.status || "לא ידוע",
@@ -704,7 +716,7 @@ router.post("/:userId/guests/import", async (req, res) => {
             })
           ]
         });
-        seenInsertPhones.add(doc.phone);
+        if (phoneKey) seenInsertPhones.add(phoneKey);
         insertedCount += 1;
       } catch (createError) {
         failedRows.push(
