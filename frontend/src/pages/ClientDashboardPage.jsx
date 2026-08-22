@@ -279,9 +279,12 @@ export default function ClientDashboardPage() {
   const [conflictChoices, setConflictChoices] = useState({});
   const [importSubmitting, setImportSubmitting] = useState(false);
   const [importChecking, setImportChecking] = useState(false);
+  const [importLoadingStep, setImportLoadingStep] = useState("");
   const [pendingNewGuests, setPendingNewGuests] = useState([]);
   const [pendingImportMeta, setPendingImportMeta] = useState({ totalCount: 0, failedRows: [], warningRows: [] });
   const [importSummary, setImportSummary] = useState(null);
+  const [importErrorModal, setImportErrorModal] = useState("");
+  const [importSuccessToast, setImportSuccessToast] = useState("");
   const [guests, setGuests] = useState([]);
   const [summary, setSummary] = useState({
     totalInvited: 0,
@@ -515,11 +518,18 @@ export default function ClientDashboardPage() {
   }, [searchInput]);
 
   useEffect(() => {
-    const modalOpen = showModal || showBulkWhatsApp || Boolean(deleteConfirm);
+    const modalOpen =
+      showModal ||
+      showBulkWhatsApp ||
+      Boolean(deleteConfirm) ||
+      importChecking ||
+      importSubmitting ||
+      Boolean(importErrorModal) ||
+      Boolean(importSummary);
     if (!modalOpen) return undefined;
     document.body.classList.add("momo-modal-open");
     return () => document.body.classList.remove("momo-modal-open");
-  }, [showModal, showBulkWhatsApp, deleteConfirm]);
+  }, [showModal, showBulkWhatsApp, deleteConfirm, importChecking, importSubmitting, importErrorModal, importSummary]);
 
   const onManualChange = (event) => {
     const { name, value } = event.target;
@@ -859,6 +869,7 @@ export default function ClientDashboardPage() {
   };
 
   const finalizeImport = async (newGuests, resolutions, meta = {}) => {
+    setImportLoadingStep("יוצר רשומות...");
     const response = await api.post(`/client/${userId}/guests/import`, {
       newGuests,
       resolutions,
@@ -868,12 +879,26 @@ export default function ClientDashboardPage() {
     });
     await loadGuests();
     const data = response.data || {};
+    const uploadedCount = Number(data.uploadedCount || 0);
+    const insertedCount = Number(data.insertedCount || 0);
+    const updatedCount = Number(data.updatedCount || 0);
+    const addedCount = insertedCount || uploadedCount;
     setImportSummary({
-      uploadedCount: Number(data.uploadedCount || 0),
+      uploadedCount,
+      insertedCount,
+      updatedCount,
       totalCount: Number(data.totalCount || meta.totalCount || 0),
       failedRows: mergeFailedRows(meta.failedRows || [], data.failedRows || []),
       warningRows: mergeFailedRows(meta.warningRows || [], data.warningRows || [])
     });
+    setImportSuccessToast(
+      addedCount > 0
+        ? `הקובץ נטען בהצלחה! התווספו ${addedCount} מוזמנים.`
+        : uploadedCount > 0
+          ? `הקובץ נטען בהצלחה! עודכנו ${uploadedCount} מוזמנים.`
+          : "הקובץ נטען בהצלחה!"
+    );
+    window.setTimeout(() => setImportSuccessToast(""), 4200);
     return data;
   };
 
@@ -882,22 +907,29 @@ export default function ClientDashboardPage() {
     if (!file) return;
 
     setImportError("");
+    setImportErrorModal("");
     setImportSummary(null);
+    setImportSuccessToast("");
     setImportChecking(true);
+    setImportLoadingStep("קורא את הקובץ...");
     try {
       const XLSX = await import("xlsx");
       const buffer = await file.arrayBuffer();
       const workbook = XLSX.read(buffer, { type: "array" });
       if (!workbook.SheetNames?.length) {
-        setImportError("קובץ האקסל ריק או לא תקין.");
+        setImportErrorModal("אירעה שגיאה בעיבוד הקובץ. אנא ודא שהמבנה תקין ונסה שוב.");
         return;
       }
+
+      setImportLoadingStep("בודק את הנתונים...");
       const firstSheetName = workbook.SheetNames[0];
       const rows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheetName], { defval: "", raw: false });
       const { totalCount, validGuests, failedRows, warningRows } = parseExcelGuestRows(rows);
 
       if (!totalCount) {
-        setImportError("לא נמצאו שורות תקינות. ודאו שיש עמודות: שם מלא, טלפון, וכמות (אופציונלי).");
+        setImportErrorModal(
+          "לא נמצאו שורות תקינות. ודאו שיש עמודות: שם מלא, טלפון (אופציונלי), קטגוריה (אופציונלי), וכמות."
+        );
         return;
       }
 
@@ -911,6 +943,7 @@ export default function ClientDashboardPage() {
         return;
       }
 
+      setImportLoadingStep("מעבד את הקובץ ובודק את הנתונים, אנא המתן...");
       const precheck = await api.post(`/client/${userId}/guests/import/precheck`, { guests: validGuests });
       const conflicts = precheck.data?.conflicts || [];
       const newGuests = precheck.data?.newGuests || [];
@@ -938,9 +971,13 @@ export default function ClientDashboardPage() {
       await finalizeImport(newGuests, [], importMeta);
     } catch (importErr) {
       const serverMessage = importErr.response?.data?.message || importErr.response?.data?.error;
+      setImportErrorModal(
+        serverMessage || "אירעה שגיאה בעיבוד הקובץ. אנא ודא שהמבנה תקין ונסה שוב."
+      );
       setImportError(serverMessage || "העלאת קובץ האקסל נכשלה. בדקו את הפורמט ונסו שוב.");
     } finally {
       setImportChecking(false);
+      setImportLoadingStep("");
       event.target.value = "";
     }
   };
@@ -1078,7 +1115,9 @@ export default function ClientDashboardPage() {
 
   const applyConflictResolutions = async () => {
     setImportSubmitting(true);
+    setImportLoadingStep("יוצר רשומות...");
     setImportError("");
+    setImportErrorModal("");
     try {
       const resolutions = importConflicts.map((item) => ({
         phone: item.phone,
@@ -1089,9 +1128,12 @@ export default function ClientDashboardPage() {
       await finalizeImport(pendingNewGuests, resolutions, pendingImportMeta);
       closeConflictModal();
     } catch (resolveErr) {
-      setImportError(resolveErr.response?.data?.message || "שמירת הייבוא נכשלה");
+      const message = resolveErr.response?.data?.message || "שמירת הייבוא נכשלה";
+      setImportError(message);
+      setImportErrorModal(message);
     } finally {
       setImportSubmitting(false);
+      setImportLoadingStep("");
     }
   };
 
@@ -1440,9 +1482,9 @@ export default function ClientDashboardPage() {
                         setActionsMenuOpen(false);
                         fileInputRef.current?.click();
                       }}
-                      disabled={importChecking}
+                      disabled={importChecking || importSubmitting}
                     >
-                      {importChecking ? "בודק קובץ…" : "העלאת מוזמנים מאקסל"}
+                      {importChecking || importSubmitting ? "מעבד קובץ…" : "העלאת מוזמנים מאקסל"}
                     </button>
                     <button
                       type="button"
@@ -2048,10 +2090,10 @@ export default function ClientDashboardPage() {
                 setMobileActionsOpen(false);
                 fileInputRef.current?.click();
               }}
-              disabled={importChecking}
+              disabled={importChecking || importSubmitting}
             >
               <FileUp size={16} aria-hidden="true" />
-              {importChecking ? "בודק קובץ…" : "העלאת מוזמנים מאקסל"}
+              {importChecking || importSubmitting ? "מעבד קובץ…" : "העלאת מוזמנים מאקסל"}
             </button>
             <button
               type="button"
@@ -2110,13 +2152,57 @@ export default function ClientDashboardPage() {
           />
         ) : null}
 
+        {importChecking || importSubmitting ? (
+          <div className="us-modal-backdrop il-import-loading-backdrop" role="alertdialog" aria-modal="true" aria-busy="true">
+            <div className="il-import-loading-card">
+              <div className="il-import-spinner" aria-hidden="true" />
+              <p className="il-import-loading-title">מעבד את הקובץ</p>
+              <p className="il-import-loading-step">
+                {importLoadingStep || "מעבד את הקובץ ובודק את הנתונים, אנא המתן..."}
+              </p>
+            </div>
+          </div>
+        ) : null}
+
+        {importErrorModal ? (
+          <div className="us-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="import-error-title">
+            <div className="us-modal-card il-import-error-card">
+              <h2 className="us-modal-title" id="import-error-title">
+                שגיאה בעיבוד הקובץ
+              </h2>
+              <p className="il-import-error-text">{importErrorModal}</p>
+              <div className="us-toolbar mt-4">
+                <button
+                  className="us-btn us-btn--primary"
+                  type="button"
+                  onClick={() => setImportErrorModal("")}
+                >
+                  סגור
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {importSuccessToast ? (
+          <div className="il-import-success-toast" role="status" aria-live="polite">
+            {importSuccessToast}
+          </div>
+        ) : null}
+
         {importSummary ? (
           <div className="us-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="import-summary-title">
             <div className="us-modal-card us-import-summary-card">
               <h2 className="us-modal-title" id="import-summary-title">
-                העלאת הקובץ הושלמה!
+                הקובץ נטען בהצלחה!
               </h2>
               <p className="us-import-summary-text">
+                {Number(importSummary.insertedCount || 0) > 0
+                  ? `התווספו ${importSummary.insertedCount} מוזמנים.`
+                  : null}
+                {Number(importSummary.insertedCount || 0) > 0 && Number(importSummary.uploadedCount || 0) > 0
+                  ? " "
+                  : null}
                 סך הכל הועלו בהצלחה:{" "}
                 <strong>
                   {importSummary.uploadedCount} מתוך {importSummary.totalCount}
