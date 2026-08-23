@@ -28,9 +28,10 @@ const PREMIUM_WEDDING_RSVP_CONTENT_SID =
   process.env.TWILIO_COPY_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID ||
   process.env.TWILIO_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID ||
   "HX0ed4e1d2438f2e69bfd54610a127984d";
-/** Conference quick-reply template — only {{1}} (guest full name). */
+/** Conference card template: barak_finance_conference_invitation — only {{1}} (guest name). */
+const CONFERENCE_RSVP_CONTENT_SID_DEFAULT = "HX109869c36946f3ecd97dc94421d45be2";
 const CONFERENCE_RSVP_CONTENT_SID = String(
-  process.env.TWILIO_CONFERENCE_RSVP_CONTENT_SID || ""
+  process.env.TWILIO_CONFERENCE_RSVP_CONTENT_SID || CONFERENCE_RSVP_CONTENT_SID_DEFAULT
 ).trim();
 
 function getTwilioContentSid(event) {
@@ -38,8 +39,6 @@ function getTwilioContentSid(event) {
     if (CONFERENCE_RSVP_CONTENT_SID.startsWith("HX")) {
       return CONFERENCE_RSVP_CONTENT_SID;
     }
-    // Fall back to premium wedding buttons SID only if conference SID is unset
-    // (ops must configure TWILIO_CONFERENCE_RSVP_CONTENT_SID for {{1}}-only templates).
     const premiumEnabled = event?.isPremiumWhatsappButtonsEnabled === true;
     return premiumEnabled ? PREMIUM_WEDDING_RSVP_CONTENT_SID : STANDARD_INVITE_CONTENT_SID;
   }

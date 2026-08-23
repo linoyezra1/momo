@@ -265,7 +265,7 @@ export default function IlInviteExperience({
                       onClick={() => onChooseStatus("מגיע")}
                       disabled={previewMode}
                     >
-                      {isConference ? "מאשר/ת הגעה" : "אגיע / אאשר הגעה"}
+                      {isConference ? "כן, אני אגיע!" : "אגיע / אאשר הגעה"}
                     </button>
                     {!isConference ? (
                       <button
@@ -297,7 +297,7 @@ export default function IlInviteExperience({
                       <strong>
                         {form.status === "מגיע"
                           ? isConference
-                            ? "מאשר/ת הגעה"
+                            ? "כן, אני אגיע!"
                             : "מגיע"
                           : form.status === "אולי"
                             ? "אולי"

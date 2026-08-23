@@ -24,12 +24,14 @@ import {
 } from "../utils/guestStatusHistory.js";
 
 const RSVP_YES_TEXT = "כן אני אגיע";
-const RSVP_YES_CONFERENCE_TEXT = "מאשר/ת הגעה";
+/** Conference template barak_finance_conference_invitation button text */
+const RSVP_YES_CONFERENCE_TEXT = "כן, אני אגיע!";
 const RSVP_NO_TEXT = "לצערי לא אוכל";
 const RSVP_NO_CONFERENCE_TEXT = "לא אוכל להגיע";
 const RSVP_MAYBE_TEXT = "עדיין לא יודע";
 const CONTENT_SID_DEFAULTS = {
   TWILIO_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID: "HX0ed4e1d2438f2e69bfd54610a127984d",
+  TWILIO_CONFERENCE_RSVP_CONTENT_SID: "HX109869c36946f3ecd97dc94421d45be2",
   TWILIO_RSVP_YES_FOLLOWUP_CONTENT_SID: "HX206e8cf197078c26f5258f7799471d9a",
   TWILIO_RSVP_DECLINED_FOLLOWUP_CONTENT_SID: "HX3da07cfd53de307aac93c12cd440e61a",
   TWILIO_RSVP_MAYBE_FOLLOWUP_CONTENT_SID: "HXc9ad6f35c5a025091c86fb9c699aa2a4"
@@ -43,7 +45,11 @@ function requireContentSid(envName) {
     if (preferred.startsWith("HX")) return preferred;
   }
   if (envName === "TWILIO_CONFERENCE_RSVP_CONTENT_SID") {
-    const conferenceSid = String(process.env.TWILIO_CONFERENCE_RSVP_CONTENT_SID || "").trim();
+    const conferenceSid = String(
+      process.env.TWILIO_CONFERENCE_RSVP_CONTENT_SID ||
+        CONTENT_SID_DEFAULTS.TWILIO_CONFERENCE_RSVP_CONTENT_SID ||
+        ""
+    ).trim();
     if (conferenceSid.startsWith("HX")) return conferenceSid;
     return requireContentSid("TWILIO_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID");
   }
@@ -69,7 +75,15 @@ function isYesRsvp({ payload, text }) {
     payload,
     text,
     expectedPayload: "rsvp_yes",
-    expectedTexts: [RSVP_YES_TEXT, RSVP_YES_CONFERENCE_TEXT, "מאשר הגעה", "מאשרת הגעה"]
+    expectedTexts: [
+      RSVP_YES_TEXT,
+      RSVP_YES_CONFERENCE_TEXT,
+      "כן, אני אגיע",
+      "כן אני אגיע!",
+      "מאשר הגעה",
+      "מאשרת הגעה",
+      "מאשר/ת הגעה"
+    ]
   });
 }
 

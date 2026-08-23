@@ -89,7 +89,7 @@ export default function IlWhatsAppInviteEditor({
             </p>
             <p className="il-wa-locked il-wa-link">{publicLink}</p>
             <div className="il-wa-quick-replies" aria-hidden="true">
-              <span>מאשר/ת הגעה</span>
+              <span>כן, אני אגיע!</span>
               <span>לא אוכל להגיע</span>
             </div>
             <div className="il-wa-meta" aria-hidden="true">
@@ -100,7 +100,9 @@ export default function IlWhatsAppInviteEditor({
             </div>
           </div>
         </div>
-        <p className="il-wa-hint">בכנס נשלח רק שם המשתתף כמשתנה דינמי (&#123;&#123;1&#125;&#125;).</p>
+        <p className="il-wa-hint">
+          תבנית כנס (barak_finance_conference_invitation) — משתנה דינמי רק שם המשתתף (&#123;&#123;1&#125;&#125;).
+        </p>
       </div>
     );
   }
