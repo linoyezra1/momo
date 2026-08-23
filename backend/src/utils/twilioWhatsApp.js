@@ -142,11 +142,10 @@ export async function fetchTwilioContentTemplate(contentSid) {
 
 /**
  * Conference Card template (barak_finance_conference_invitation): ONLY {{1}} = guest name.
- * Do not include keys 2–5 — Twilio 63028 if parameter count mismatches.
+ * Static media is baked into the template — do NOT pass key "2" (Twilio Support).
  */
 export function buildConferenceContentVariables(guestName) {
   const name = sanitizeWhatsAppTemplateVariable(guestName, CONFERENCE_GUEST_NAME_FALLBACK);
-  // Build JSON manually so we never accidentally include extra keys from object spreads.
   return `{"1":${JSON.stringify(name)}}`;
 }
 
@@ -158,7 +157,6 @@ export function isConferenceContentSid(contentSid) {
 
 /**
  * Normalize contentVariables for a conference Card send: exactly one key "1".
- * Drops any wedding-style keys (2–5) that would trigger Twilio 63028.
  */
 export function enforceConferenceContentVariables(contentVariables, guestNameFallback = "") {
   let parsed = {};
@@ -271,7 +269,7 @@ export async function sendTwilioWhatsAppMessage({
             ? JSON.stringify(contentVariables)
             : undefined;
 
-      // Absolute guard for conference Card SID — only {"1": name}, never wedding 1–5.
+      // Absolute guard for conference Card SID — only {"1": name} (Twilio Support).
       if (isConferenceContentSid(contentSid)) {
         variablesJson = enforceConferenceContentVariables(variablesJson);
         const keyCount = Object.keys(JSON.parse(variablesJson)).length;

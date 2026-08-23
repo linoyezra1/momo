@@ -335,7 +335,7 @@ export async function sendBulkWhatsApp({
 
     if (conferenceMode) {
       console.log(
-        `[Twilio] Conference Card template locked to SID=${contentSid} variables=1 only (no body/media overrides)`
+        `[Twilio] Conference Card template locked to SID=${contentSid} variables=1 only (static media in template)`
       );
     } else {
       try {
