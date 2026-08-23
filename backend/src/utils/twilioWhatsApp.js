@@ -87,14 +87,33 @@ const TEMPLATE_VALUE_FALLBACKS = {
   "5": "נתראה בשמחה"
 };
 
+const CONFERENCE_GUEST_NAME_FALLBACK = "משקיע/ה יקר/ה";
+
+/** Approved Card SID: barak_finance_conference_invitation (כנס only). */
+export const CONFERENCE_RSVP_CONTENT_SID_DEFAULT = "HX109869c36946f3ecd97dc94421d45be2";
+
+export function resolveConferenceContentSid() {
+  const fromEnv = String(process.env.TWILIO_CONFERENCE_RSVP_CONTENT_SID || "").trim();
+  if (fromEnv.startsWith("HX")) return fromEnv;
+  return CONFERENCE_RSVP_CONTENT_SID_DEFAULT;
+}
+
+function collectTemplateVariableKeysFromText(text, keys) {
+  if (typeof text !== "string" || !text) return;
+  for (const match of text.matchAll(/\{\{(\d+)\}\}/g)) {
+    keys.add(match[1]);
+  }
+}
+
 function extractContentVariableKeys(content) {
   const keys = new Set(Object.keys(content?.variables || {}));
   for (const typeDef of Object.values(content?.types || {})) {
-    if (typeof typeDef?.body === "string") {
-      for (const match of typeDef.body.matchAll(/\{\{(\d+)\}\}/g)) {
-        keys.add(match[1]);
-      }
-    }
+    if (!typeDef || typeof typeDef !== "object") continue;
+    // Text / media templates
+    collectTemplateVariableKeysFromText(typeDef.body, keys);
+    // Card templates (twilio/card): title + body hold {{n}} placeholders
+    collectTemplateVariableKeysFromText(typeDef.title, keys);
+    collectTemplateVariableKeysFromText(typeDef.subtitle, keys);
   }
   return [...keys].sort((a, b) => Number(a) - Number(b));
 }
@@ -121,6 +140,16 @@ export async function fetchTwilioContentTemplate(contentSid) {
   };
 }
 
+/**
+ * Conference Card template (barak_finance_conference_invitation): ONLY {{1}} = guest name.
+ * Do not include keys 2–5 — Twilio 63028 if parameter count mismatches.
+ */
+export function buildConferenceContentVariables(guestName) {
+  return JSON.stringify({
+    "1": sanitizeWhatsAppTemplateVariable(guestName, CONFERENCE_GUEST_NAME_FALLBACK)
+  });
+}
+
 /** Twilio Content API requires string keys ("1"…"N") and a JSON-stringified payload. */
 export function buildTwilioContentVariables(
   {
@@ -132,6 +161,13 @@ export function buildTwilioContentVariables(
   },
   templateKeys = ["1", "2", "3", "4", "5"]
 ) {
+  const keys = Array.isArray(templateKeys) && templateKeys.length ? templateKeys : ["1", "2", "3", "4", "5"];
+
+  // Hard guard: single-variable templates (conference) must never emit extra keys
+  if (keys.length === 1 && keys[0] === "1") {
+    return buildConferenceContentVariables(guestName);
+  }
+
   const mappedValues = {
     "1": guestName,
     "2": customOpeningText,
@@ -141,7 +177,7 @@ export function buildTwilioContentVariables(
   };
 
   const variables = {};
-  for (const key of templateKeys) {
+  for (const key of keys) {
     variables[key] = sanitizeWhatsAppTemplateVariable(
       mappedValues[key],
       TEMPLATE_VALUE_FALLBACKS[key] || "-"
@@ -203,10 +239,12 @@ export async function sendTwilioWhatsAppMessage({
         messagingServiceSid
       };
       if (contentVariables != null) {
+        // Must already be a JSON string of ONLY the template's expected keys.
+        // Never re-map through buildTwilioContentVariables(object) here — that defaults to 1–5.
         messagePayload.contentVariables =
           typeof contentVariables === "string"
             ? contentVariables
-            : buildTwilioContentVariables(contentVariables);
+            : JSON.stringify(contentVariables);
       }
       result = await client.messages.create(messagePayload);
     } else {

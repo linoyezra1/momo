@@ -4,7 +4,10 @@ import { publishDashboardEvent } from "./dashboardEvents.js";
 import { recordGuestSelfUpdate } from "./guestAuditService.js";
 import { normalizePhone, resolveSourceAfterSelfRsvp } from "../utils/guestPhone.js";
 import {
+  buildConferenceContentVariables,
   buildTwilioContentVariables,
+  CONFERENCE_RSVP_CONTENT_SID_DEFAULT,
+  resolveConferenceContentSid,
   sendTwilioWhatsAppMessage,
   toTwilioWhatsAppAddress
 } from "../utils/twilioWhatsApp.js";
@@ -31,7 +34,7 @@ const RSVP_NO_CONFERENCE_TEXT = "לא אוכל להגיע";
 const RSVP_MAYBE_TEXT = "עדיין לא יודע";
 const CONTENT_SID_DEFAULTS = {
   TWILIO_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID: "HX0ed4e1d2438f2e69bfd54610a127984d",
-  TWILIO_CONFERENCE_RSVP_CONTENT_SID: "HX109869c36946f3ecd97dc94421d45be2",
+  TWILIO_CONFERENCE_RSVP_CONTENT_SID: CONFERENCE_RSVP_CONTENT_SID_DEFAULT,
   TWILIO_RSVP_YES_FOLLOWUP_CONTENT_SID: "HX206e8cf197078c26f5258f7799471d9a",
   TWILIO_RSVP_DECLINED_FOLLOWUP_CONTENT_SID: "HX3da07cfd53de307aac93c12cd440e61a",
   TWILIO_RSVP_MAYBE_FOLLOWUP_CONTENT_SID: "HXc9ad6f35c5a025091c86fb9c699aa2a4"
@@ -45,13 +48,7 @@ function requireContentSid(envName) {
     if (preferred.startsWith("HX")) return preferred;
   }
   if (envName === "TWILIO_CONFERENCE_RSVP_CONTENT_SID") {
-    const conferenceSid = String(
-      process.env.TWILIO_CONFERENCE_RSVP_CONTENT_SID ||
-        CONTENT_SID_DEFAULTS.TWILIO_CONFERENCE_RSVP_CONTENT_SID ||
-        ""
-    ).trim();
-    if (conferenceSid.startsWith("HX")) return conferenceSid;
-    return requireContentSid("TWILIO_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID");
+    return resolveConferenceContentSid();
   }
   const sid = String(process.env[envName] || CONTENT_SID_DEFAULTS[envName] || "").trim();
   if (!sid.startsWith("HX")) {
@@ -114,12 +111,7 @@ async function loadGuestEvent(guest) {
 
 function buildPremiumInviteVariables({ guest, event, userId, origin }) {
   if (isConferenceEventType(event?.eventType)) {
-    return buildTwilioContentVariables(
-      {
-        guestName: guest.fullName || "אורח/ת יקר/ה"
-      },
-      ["1"]
-    );
+    return buildConferenceContentVariables(guest.fullName || guest.name || "משקיע/ה יקר/ה");
   }
 
   const defaults = buildWhatsAppTemplateDefaults({ event, eventId: userId, origin });

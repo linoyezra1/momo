@@ -1,9 +1,11 @@
 import ActivationCode from "../models/ActivationCode.js";
 import Guest from "../models/Guest.js";
 import {
+  buildConferenceContentVariables,
   buildTwilioContentVariables,
   fetchTwilioContentTemplate,
   isTwilioConfigured,
+  resolveConferenceContentSid,
   sendTwilioWhatsAppMessage,
   toTwilioWhatsAppAddress
 } from "../utils/twilioWhatsApp.js";
@@ -28,32 +30,18 @@ const PREMIUM_WEDDING_RSVP_CONTENT_SID =
   process.env.TWILIO_COPY_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID ||
   process.env.TWILIO_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID ||
   "HX0ed4e1d2438f2e69bfd54610a127984d";
-/** Conference card template: barak_finance_conference_invitation — only {{1}} (guest name). */
-const CONFERENCE_RSVP_CONTENT_SID_DEFAULT = "HX109869c36946f3ecd97dc94421d45be2";
-const CONFERENCE_RSVP_CONTENT_SID = String(
-  process.env.TWILIO_CONFERENCE_RSVP_CONTENT_SID || CONFERENCE_RSVP_CONTENT_SID_DEFAULT
-).trim();
 
 function getTwilioContentSid(event) {
   if (isConferenceEventType(event?.eventType)) {
-    if (CONFERENCE_RSVP_CONTENT_SID.startsWith("HX")) {
-      return CONFERENCE_RSVP_CONTENT_SID;
-    }
-    const premiumEnabled = event?.isPremiumWhatsappButtonsEnabled === true;
-    return premiumEnabled ? PREMIUM_WEDDING_RSVP_CONTENT_SID : STANDARD_INVITE_CONTENT_SID;
+    return resolveConferenceContentSid();
   }
   const premiumEnabled = event?.isPremiumWhatsappButtonsEnabled === true;
   return premiumEnabled ? PREMIUM_WEDDING_RSVP_CONTENT_SID : STANDARD_INVITE_CONTENT_SID;
 }
 
-function getTemplateVariableKeys(event, fetchedKeys) {
+function getTemplateVariableKeys(event) {
   if (isConferenceEventType(event?.eventType)) {
-    if (Array.isArray(fetchedKeys) && fetchedKeys.length === 1 && fetchedKeys[0] === "1") {
-      return ["1"];
-    }
-    if (CONFERENCE_RSVP_CONTENT_SID.startsWith("HX")) {
-      return ["1"];
-    }
+    return ["1"];
   }
   return ["1", "2", "3", "4", "5"];
 }
@@ -76,8 +64,8 @@ export function mapTwilioErrorMessage(error) {
   if (isTwilioFromAddressError(error)) {
     return "שליחת ההודעה נכשלה, נא לוודא שמספר המערכת מוגדר כראוי";
   }
-  if (Number(error?.code) === 21656) {
-    return "שליחת ההודעה נכשלה: משתני התבנית אינם תואמים ל-TWILIO_CONTENT_SID. ודאו שה-SID מתחיל ב-HX ושהתבנית כוללת את אותם משתנים (1-5).";
+  if (Number(error?.code) === 21656 || Number(error?.code) === 63028) {
+    return "שליחת ההודעה נכשלה: מספר משתני התבנית אינו תואם. לתבנית כנס יש לשלוח רק {{1}} (שם המשתתף).";
   }
   return error?.message || "שליחת ההודעה נכשלה, אנא נסה שוב מאוחר יותר";
 }
@@ -178,7 +166,8 @@ async function sendToInvitee({
   defaults,
   templateKeys,
   userId,
-  paragraphs
+  paragraphs,
+  conferenceMode = false
 }) {
   const to = toTwilioWhatsAppAddress(invitee.phone);
   if (!to) {
@@ -193,28 +182,39 @@ async function sendToInvitee({
   }
 
   try {
-    const fields = resolveInviteeTemplateFields({
-      invitee,
-      defaults,
-      eventId,
-      origin,
-      paragraphs
-    });
+    let contentVariables;
+    if (conferenceMode) {
+      // Card template embeds media + body; only {{1}} is dynamic.
+      contentVariables = buildConferenceContentVariables(
+        invitee.name || invitee.fullName || "משקיע/ה יקר/ה"
+      );
+      console.log(
+        `[Twilio] Conference send SID=${contentSid} contentVariables=${contentVariables}`
+      );
+    } else {
+      const fields = resolveInviteeTemplateFields({
+        invitee,
+        defaults,
+        eventId,
+        origin,
+        paragraphs
+      });
 
-    if (!fields.rsvpLink) {
-      throw new Error("RSVP link is missing");
+      if (!fields.rsvpLink) {
+        throw new Error("RSVP link is missing");
+      }
+
+      contentVariables = buildTwilioContentVariables(
+        {
+          guestName: fields.guestName,
+          customOpeningText: fields.customOpeningText,
+          eventDateTimeLocation: fields.eventDateTimeLocation,
+          rsvpLink: fields.rsvpLink,
+          closingSignOff: fields.closingSignOff
+        },
+        templateKeys
+      );
     }
-
-    const contentVariables = buildTwilioContentVariables(
-      {
-        guestName: fields.guestName,
-        customOpeningText: fields.customOpeningText,
-        eventDateTimeLocation: fields.eventDateTimeLocation,
-        rsvpLink: fields.rsvpLink,
-        closingSignOff: fields.closingSignOff
-      },
-      templateKeys
-    );
 
     await sendTwilioWhatsAppMessage({
       to,
@@ -226,27 +226,36 @@ async function sendToInvitee({
     return { ok: true, invitee };
   } catch (error) {
     try {
-      const debugFields = resolveInviteeTemplateFields({
-        invitee,
-        defaults,
-        eventId,
-        origin,
-        paragraphs
-      });
       console.error("[Twilio] template keys:", templateKeys?.join(", ") || "unknown");
-      console.error(
-        "[Twilio] contentVariables payload:",
-        buildTwilioContentVariables(
-          {
-            guestName: debugFields.guestName,
-            customOpeningText: debugFields.customOpeningText,
-            eventDateTimeLocation: debugFields.eventDateTimeLocation,
-            rsvpLink: debugFields.rsvpLink,
-            closingSignOff: debugFields.closingSignOff
-          },
-          templateKeys
-        )
-      );
+      console.error("[Twilio] contentSid:", contentSid);
+      console.error("[Twilio] conferenceMode:", conferenceMode);
+      if (conferenceMode) {
+        console.error(
+          "[Twilio] contentVariables payload:",
+          buildConferenceContentVariables(invitee.name || invitee.fullName || "משקיע/ה יקר/ה")
+        );
+      } else {
+        const debugFields = resolveInviteeTemplateFields({
+          invitee,
+          defaults,
+          eventId,
+          origin,
+          paragraphs
+        });
+        console.error(
+          "[Twilio] contentVariables payload:",
+          buildTwilioContentVariables(
+            {
+              guestName: debugFields.guestName,
+              customOpeningText: debugFields.customOpeningText,
+              eventDateTimeLocation: debugFields.eventDateTimeLocation,
+              rsvpLink: debugFields.rsvpLink,
+              closingSignOff: debugFields.closingSignOff
+            },
+            templateKeys
+          )
+        );
+      }
     } catch {
       /* ignore debug logging errors */
     }
@@ -331,28 +340,36 @@ export async function sendBulkWhatsApp({
       origin
     });
     const paragraphs = resolveWhatsAppInviteParagraphs(event);
+    const conferenceMode = isConferenceEventType(event?.eventType);
     const contentSid = getTwilioContentSid(event);
+    const templateKeys = getTemplateVariableKeys(event);
     console.log(
-      `[Twilio] Premium buttons ${event?.isPremiumWhatsappButtonsEnabled === true ? "enabled" : "disabled"}; selected template SID: ${contentSid}`
+      `[Twilio] eventType=${event?.eventType || "?"} conference=${conferenceMode}; ` +
+        `premium buttons ${event?.isPremiumWhatsappButtonsEnabled === true ? "enabled" : "disabled"}; ` +
+        `selected template SID: ${contentSid}; variables: ${templateKeys.join(", ")}`
     );
-    let templateKeys = getTemplateVariableKeys(event);
-    try {
-      const templateMeta = await fetchTwilioContentTemplate(contentSid);
-      templateKeys = getTemplateVariableKeys(event, templateMeta.variableKeys);
-      const expected = templateKeys.join(",");
-      if (templateMeta.variableKeys.join(",") !== expected) {
-        throw new Error(
-          `Template ${contentSid} must define variables ${expected} (found: ${templateMeta.variableKeys.join(", ")})`
+
+    if (conferenceMode) {
+      console.log(
+        `[Twilio] Conference Card template locked to SID=${contentSid} variables=1 only (no body/media overrides)`
+      );
+    } else {
+      try {
+        const templateMeta = await fetchTwilioContentTemplate(contentSid);
+        if (templateMeta.variableKeys.join(",") !== templateKeys.join(",")) {
+          throw new Error(
+            `Template ${contentSid} must define variables ${templateKeys.join(", ")} (found: ${templateMeta.variableKeys.join(", ")})`
+          );
+        }
+        console.log(
+          `[Twilio] Using template "${templateMeta.friendlyName}" (${contentSid}) variables: ${templateKeys.join(", ")}`
+        );
+      } catch (templateError) {
+        console.warn(
+          `[Twilio] Could not fetch content template metadata, using default keys ${templateKeys.join(", ")}:`,
+          templateError?.message || templateError
         );
       }
-      console.log(
-        `[Twilio] Using template "${templateMeta.friendlyName}" (${contentSid}) variables: ${templateKeys.join(", ")}`
-      );
-    } catch (templateError) {
-      console.warn(
-        `[Twilio] Could not fetch content template metadata, using default keys ${templateKeys.join(", ")}:`,
-        templateError?.message || templateError
-      );
     }
 
     const results = await Promise.all(
@@ -365,7 +382,8 @@ export async function sendBulkWhatsApp({
           defaults,
           templateKeys,
           userId,
-          paragraphs
+          paragraphs,
+          conferenceMode
         })
       )
     );
