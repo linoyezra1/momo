@@ -8,6 +8,7 @@ import {
   buildTwilioContentVariables,
   CONFERENCE_RSVP_CONTENT_SID_DEFAULT,
   resolveConferenceContentSid,
+  sendConferenceInviteWhatsApp,
   sendTwilioWhatsAppMessage,
   toTwilioWhatsAppAddress
 } from "../utils/twilioWhatsApp.js";
@@ -150,9 +151,15 @@ async function sendContentTemplate({ guest, contentSid }) {
 }
 
 async function sendPremiumMainTemplate({ guest, event, origin }) {
-  const contentSid = isConferenceEventType(event?.eventType)
-    ? requireContentSid("TWILIO_CONFERENCE_RSVP_CONTENT_SID")
-    : requireContentSid("TWILIO_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID");
+  if (isConferenceEventType(event?.eventType)) {
+    return sendConferenceInviteWhatsApp({
+      to: toTwilioWhatsAppAddress(guest.phone),
+      guestName: guest.fullName || guest.name || "משקיע/ה יקר/ה",
+      userId: guest.userId,
+      recipientPhone: guest.phone
+    });
+  }
+  const contentSid = requireContentSid("TWILIO_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID");
   return sendTwilioWhatsAppMessage({
     to: toTwilioWhatsAppAddress(guest.phone),
     contentSid,

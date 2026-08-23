@@ -4,8 +4,10 @@ import {
   buildConferenceContentVariables,
   buildTwilioContentVariables,
   fetchTwilioContentTemplate,
+  isConferenceContentSid,
   isTwilioConfigured,
   resolveConferenceContentSid,
+  sendConferenceInviteWhatsApp,
   sendTwilioWhatsAppMessage,
   toTwilioWhatsAppAddress
 } from "../utils/twilioWhatsApp.js";
@@ -182,39 +184,42 @@ async function sendToInvitee({
   }
 
   try {
-    let contentVariables;
-    if (conferenceMode) {
-      // Card template embeds media + body; only {{1}} is dynamic.
-      contentVariables = buildConferenceContentVariables(
-        invitee.name || invitee.fullName || "משקיע/ה יקר/ה"
-      );
+    if (conferenceMode || isConferenceContentSid(contentSid)) {
+      const guestName = invitee.name || invitee.fullName || "משקיע/ה יקר/ה";
       console.log(
-        `[Twilio] Conference send SID=${contentSid} contentVariables=${contentVariables}`
+        `[Twilio] Conference invite → sendConferenceInviteWhatsApp name=${guestName} sid=${resolveConferenceContentSid()}`
       );
-    } else {
-      const fields = resolveInviteeTemplateFields({
-        invitee,
-        defaults,
-        eventId,
-        origin,
-        paragraphs
+      await sendConferenceInviteWhatsApp({
+        to,
+        guestName,
+        userId: userId || eventId,
+        recipientPhone: invitee.phone
       });
-
-      if (!fields.rsvpLink) {
-        throw new Error("RSVP link is missing");
-      }
-
-      contentVariables = buildTwilioContentVariables(
-        {
-          guestName: fields.guestName,
-          customOpeningText: fields.customOpeningText,
-          eventDateTimeLocation: fields.eventDateTimeLocation,
-          rsvpLink: fields.rsvpLink,
-          closingSignOff: fields.closingSignOff
-        },
-        templateKeys
-      );
+      return { ok: true, invitee };
     }
+
+    const fields = resolveInviteeTemplateFields({
+      invitee,
+      defaults,
+      eventId,
+      origin,
+      paragraphs
+    });
+
+    if (!fields.rsvpLink) {
+      throw new Error("RSVP link is missing");
+    }
+
+    const contentVariables = buildTwilioContentVariables(
+      {
+        guestName: fields.guestName,
+        customOpeningText: fields.customOpeningText,
+        eventDateTimeLocation: fields.eventDateTimeLocation,
+        rsvpLink: fields.rsvpLink,
+        closingSignOff: fields.closingSignOff
+      },
+      templateKeys
+    );
 
     await sendTwilioWhatsAppMessage({
       to,
@@ -229,33 +234,12 @@ async function sendToInvitee({
       console.error("[Twilio] template keys:", templateKeys?.join(", ") || "unknown");
       console.error("[Twilio] contentSid:", contentSid);
       console.error("[Twilio] conferenceMode:", conferenceMode);
-      if (conferenceMode) {
-        console.error(
-          "[Twilio] contentVariables payload:",
-          buildConferenceContentVariables(invitee.name || invitee.fullName || "משקיע/ה יקר/ה")
-        );
-      } else {
-        const debugFields = resolveInviteeTemplateFields({
-          invitee,
-          defaults,
-          eventId,
-          origin,
-          paragraphs
-        });
-        console.error(
-          "[Twilio] contentVariables payload:",
-          buildTwilioContentVariables(
-            {
-              guestName: debugFields.guestName,
-              customOpeningText: debugFields.customOpeningText,
-              eventDateTimeLocation: debugFields.eventDateTimeLocation,
-              rsvpLink: debugFields.rsvpLink,
-              closingSignOff: debugFields.closingSignOff
-            },
-            templateKeys
-          )
-        );
-      }
+      console.error(
+        "[Twilio] contentVariables payload:",
+        conferenceMode || isConferenceContentSid(contentSid)
+          ? buildConferenceContentVariables(invitee.name || invitee.fullName || "משקיע/ה יקר/ה")
+          : "(non-conference)"
+      );
     } catch {
       /* ignore debug logging errors */
     }

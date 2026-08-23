@@ -145,9 +145,38 @@ export async function fetchTwilioContentTemplate(contentSid) {
  * Do not include keys 2–5 — Twilio 63028 if parameter count mismatches.
  */
 export function buildConferenceContentVariables(guestName) {
-  return JSON.stringify({
-    "1": sanitizeWhatsAppTemplateVariable(guestName, CONFERENCE_GUEST_NAME_FALLBACK)
-  });
+  const name = sanitizeWhatsAppTemplateVariable(guestName, CONFERENCE_GUEST_NAME_FALLBACK);
+  // Build JSON manually so we never accidentally include extra keys from object spreads.
+  return `{"1":${JSON.stringify(name)}}`;
+}
+
+export function isConferenceContentSid(contentSid) {
+  const sid = String(contentSid || "").trim();
+  if (!sid.startsWith("HX")) return false;
+  return sid === resolveConferenceContentSid() || sid === CONFERENCE_RSVP_CONTENT_SID_DEFAULT;
+}
+
+/**
+ * Normalize contentVariables for a conference Card send: exactly one key "1".
+ * Drops any wedding-style keys (2–5) that would trigger Twilio 63028.
+ */
+export function enforceConferenceContentVariables(contentVariables, guestNameFallback = "") {
+  let parsed = {};
+  if (typeof contentVariables === "string" && contentVariables.trim()) {
+    try {
+      parsed = JSON.parse(contentVariables);
+    } catch {
+      parsed = {};
+    }
+  } else if (contentVariables && typeof contentVariables === "object") {
+    parsed = contentVariables;
+  }
+  const name =
+    parsed["1"] ??
+    parsed[1] ??
+    guestNameFallback ??
+    CONFERENCE_GUEST_NAME_FALLBACK;
+  return buildConferenceContentVariables(name);
 }
 
 /** Twilio Content API requires string keys ("1"…"N") and a JSON-stringified payload. */
@@ -214,6 +243,8 @@ function formatTwilioFailureReason(error) {
 /**
  * Send WhatsApp via Twilio and always log SUCCESS / ERROR for Railway console tracing.
  * Optional context: userId, username, senderLabel, recipientPhone
+ *
+ * Content templates (contentSid): NEVER send `body` / `mediaUrl` — media & copy live in the template.
  */
 export async function sendTwilioWhatsAppMessage({
   to,
@@ -233,19 +264,41 @@ export async function sendTwilioWhatsAppMessage({
     const messagingServiceSid = getTwilioMessagingServiceSid();
     let result;
     if (contentSid) {
+      let variablesJson =
+        typeof contentVariables === "string"
+          ? contentVariables
+          : contentVariables != null
+            ? JSON.stringify(contentVariables)
+            : undefined;
+
+      // Absolute guard for conference Card SID — only {"1": name}, never wedding 1–5.
+      if (isConferenceContentSid(contentSid)) {
+        variablesJson = enforceConferenceContentVariables(variablesJson);
+        const keyCount = Object.keys(JSON.parse(variablesJson)).length;
+        if (keyCount !== 1) {
+          throw new Error(
+            `Conference template requires exactly 1 contentVariable, got ${keyCount}: ${variablesJson}`
+          );
+        }
+      }
+
+      // Strict whitelist — do not pass body/mediaUrl/from extras that confuse Content sends.
       const messagePayload = {
-        to,
-        contentSid,
+        to: String(to),
+        contentSid: String(contentSid).trim(),
         messagingServiceSid
       };
-      if (contentVariables != null) {
-        // Must already be a JSON string of ONLY the template's expected keys.
-        // Never re-map through buildTwilioContentVariables(object) here — that defaults to 1–5.
-        messagePayload.contentVariables =
-          typeof contentVariables === "string"
-            ? contentVariables
-            : JSON.stringify(contentVariables);
+      if (variablesJson != null && variablesJson !== "") {
+        messagePayload.contentVariables = variablesJson;
       }
+
+      console.log(
+        `[Twilio] messages.create contentSid=${messagePayload.contentSid} ` +
+          `payloadKeys=${Object.keys(messagePayload).join(",")} ` +
+          `contentVariables=${messagePayload.contentVariables || "(none)"} ` +
+          `to=${displayPhone}`
+      );
+
       result = await client.messages.create(messagePayload);
     } else {
       result = await client.messages.create({ body, messagingServiceSid, to });
@@ -262,5 +315,30 @@ export async function sendTwilioWhatsAppMessage({
     );
     throw error;
   }
+}
+
+/**
+ * Dedicated conference invite send — Card template with ONLY {{1}}.
+ * Use this for eventType כנס so wedding helpers cannot inject extra variables or body.
+ */
+export async function sendConferenceInviteWhatsApp({
+  to,
+  guestName,
+  userId,
+  username,
+  senderLabel,
+  recipientPhone
+}) {
+  const contentSid = resolveConferenceContentSid();
+  const contentVariables = buildConferenceContentVariables(guestName);
+  return sendTwilioWhatsAppMessage({
+    to,
+    contentSid,
+    contentVariables,
+    userId,
+    username,
+    senderLabel,
+    recipientPhone
+  });
 }
 
