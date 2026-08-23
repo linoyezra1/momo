@@ -4,7 +4,7 @@ const eventSchema = new mongoose.Schema(
   {
     eventType: {
       type: String,
-      enum: ["חתונה", "חינה", "אירוסין", "ברית", "בר מצווה", "בת מצווה", "אחר"],
+      enum: ["חתונה", "חינה", "אירוסין", "ברית", "בר מצווה", "בת מצווה", "כנס", "אחר"],
       required: true
     },
     groomName: { type: String, trim: true, default: "" },
@@ -13,6 +13,13 @@ const eventSchema = new mongoose.Schema(
     parentName1: { type: String, trim: true, default: "" },
     parentName2: { type: String, trim: true, default: "" },
     eventNames: { type: String, trim: true, default: "" },
+    /** Conference (כנס) fields */
+    organizerName: { type: String, trim: true, default: "" },
+    conferenceBrandName: { type: String, trim: true, default: "" },
+    socialHandle: { type: String, trim: true, default: "" },
+    locationAddress: { type: String, trim: true, default: "" },
+    parkingDetails: { type: String, trim: true, default: "" },
+    websiteUrl: { type: String, trim: true, default: "" },
     venueName: { type: String, trim: true, default: "" },
     city: { type: String, trim: true, default: "" },
     streetAndNumber: { type: String, trim: true, default: "" },

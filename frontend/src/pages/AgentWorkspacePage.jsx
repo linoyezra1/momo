@@ -9,7 +9,7 @@ import WhatsAppIcon from "../components/WhatsAppIcon.jsx";
 import { formatIsraeliDate } from "../utils/dateFormat.js";
 import { normalizeIsraeliPhone } from "../utils/phoneNormalize.js";
 import { buildGuestWhatsAppMessage, toInternationalWhatsAppPhone } from "../utils/whatsapp.js";
-import { isCoupleEventType } from "../utils/eventTypeWording.js";
+import { isCoupleEventType, isConferenceEventType } from "../utils/eventTypeWording.js";
 import "../agent-workspace.css";
 
 function getWhatsAppRoundCount(guest) {
@@ -50,6 +50,9 @@ function buildEventHosts(event) {
   }
   if (event.eventType === "ברית") {
     return [event.parentName1, event.parentName2].filter(Boolean).join(" & ") || "—";
+  }
+  if (isConferenceEventType(event.eventType)) {
+    return event.organizerName || event.conferenceBrandName || event.eventNames || "—";
   }
   return event.batMitzvahName || event.eventNames || event.parentName1 || "—";
 }

@@ -1,4 +1,4 @@
-import { EVENT_TYPES, isCoupleEventType } from "./eventTypeWording.js";
+import { EVENT_TYPES, isCoupleEventType, isConferenceEventType } from "./eventTypeWording.js";
 import { normalizeCoverFields } from "./eventCover.js";
 
 function cleanText(value) {
@@ -11,15 +11,8 @@ export function normalizeIlEventUpdatePayload(body) {
     throw new Error("סוג אירוע לא תקין");
   }
 
-  const venueName = cleanText(body?.venueName);
-  const city = cleanText(body?.city);
-  const streetAndNumber = cleanText(body?.streetAndNumber);
   const eventDate = cleanText(body?.eventDate);
   const eventTime = cleanText(body?.eventTime);
-
-  if (!venueName || !city || !streetAndNumber || !eventDate || !eventTime) {
-    throw new Error("יש למלא מתחם, עיר, כתובת, תאריך ושעה");
-  }
 
   const payload = {
     eventType,
@@ -29,9 +22,15 @@ export function normalizeIlEventUpdatePayload(body) {
     parentName1: "",
     parentName2: "",
     eventNames: "",
-    venueName,
-    city,
-    streetAndNumber,
+    organizerName: "",
+    conferenceBrandName: "",
+    socialHandle: "",
+    locationAddress: "",
+    parkingDetails: "",
+    websiteUrl: "",
+    venueName: cleanText(body?.venueName),
+    city: cleanText(body?.city),
+    streetAndNumber: cleanText(body?.streetAndNumber),
     eventDate,
     eventDateHebrew: "",
     eventTime,
@@ -41,6 +40,39 @@ export function normalizeIlEventUpdatePayload(body) {
     cover: normalizeCoverFields(body?.cover),
     clearCover: body?.clearCover === true
   };
+
+  if (isConferenceEventType(eventType)) {
+    payload.organizerName = cleanText(body?.organizerName);
+    payload.conferenceBrandName = cleanText(body?.conferenceBrandName);
+    payload.socialHandle = cleanText(body?.socialHandle);
+    payload.locationAddress = cleanText(body?.locationAddress);
+    payload.parkingDetails = cleanText(body?.parkingDetails);
+    payload.websiteUrl = cleanText(body?.websiteUrl);
+    payload.eventNames = payload.conferenceBrandName;
+    if (!payload.locationAddress && payload.streetAndNumber) {
+      payload.locationAddress = [payload.streetAndNumber, payload.city].filter(Boolean).join(", ");
+    }
+    if (!payload.streetAndNumber && payload.locationAddress) {
+      payload.streetAndNumber = payload.locationAddress;
+    }
+    if (!payload.city && payload.locationAddress) {
+      payload.city = "—";
+    }
+    if (!payload.venueName && payload.conferenceBrandName) {
+      payload.venueName = payload.conferenceBrandName;
+    }
+    if (!payload.organizerName || !payload.conferenceBrandName) {
+      throw new Error("יש למלא שם מארגן הכנס ושם הבמה / המותג");
+    }
+    if (!payload.locationAddress || !eventDate || !eventTime) {
+      throw new Error("יש למלא כתובת, תאריך ושעת התכנסות");
+    }
+    return payload;
+  }
+
+  if (!payload.venueName || !payload.city || !payload.streetAndNumber || !eventDate || !eventTime) {
+    throw new Error("יש למלא מתחם, עיר, כתובת, תאריך ושעה");
+  }
 
   if (isCoupleEventType(eventType)) {
     payload.groomName = cleanText(body?.groomName);

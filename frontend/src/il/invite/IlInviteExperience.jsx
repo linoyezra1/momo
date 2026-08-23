@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Calendar, Car, Clock, Globe, MapPin } from "lucide-react";
 import IlInviteCountdown from "./IlInviteCountdown.jsx";
 import IlTimelineIcon from "./IlTimelineIcon.jsx";
 import {
@@ -9,9 +10,10 @@ import {
   getWeekdayLine,
   getWelcomeText,
   getWeddingNames,
-  getInviteParentsLine
+  getInviteParentsLine,
+  normalizeWebsiteUrl
 } from "./ilInviteUtils.js";
-import { isCoupleEventType } from "../../utils/eventTypeWording.js";
+import { isCoupleEventType, isConferenceEventType } from "../../utils/eventTypeWording.js";
 import { getEventCoverSrc, getEventCoverSrcSet } from "../../utils/eventCover.js";
 import "./il-invite.css";
 
@@ -27,6 +29,19 @@ function attendeesCountForStatus(status, currentCount) {
     return Math.max(1, Number(currentCount) || 1);
   }
   return currentCount;
+}
+
+function ConferenceDetailRow({ icon: Icon, label, children }) {
+  if (!children) return null;
+  return (
+    <div className="il-invite-conference-row">
+      <Icon size={18} strokeWidth={1.75} aria-hidden="true" />
+      <div>
+        <p className="il-invite-conference-row__label">{label}</p>
+        <div className="il-invite-conference-row__value">{children}</div>
+      </div>
+    </div>
+  );
 }
 
 export default function IlInviteExperience({
@@ -68,6 +83,7 @@ export default function IlInviteExperience({
   if (!event) return null;
 
   const isCoupleEvent = isCoupleEventType(event.eventType);
+  const isConference = isConferenceEventType(event.eventType);
   const welcomeText = getWelcomeText(event);
   const displayNames = isCoupleEvent ? getWeddingNames(event) : getEventDisplayName(event);
   const timeline = isCoupleEvent ? getParallelTimeline(event) : [];
@@ -75,11 +91,16 @@ export default function IlInviteExperience({
   const coverSrcSet = getEventCoverSrcSet(event);
   const showCountdown = previewMode || rsvpStarted || Boolean(message);
   const showAttendeeStepper =
-    form.status === "מגיע" || form.status === "אולי" || form.status === "לא מגיע";
+    !isConference &&
+    (form.status === "מגיע" || form.status === "אולי" || form.status === "לא מגיע");
   const parentsLine = getInviteParentsLine(event);
   const isMitzvahEvent = event.eventType === "בר מצווה" || event.eventType === "בת מצווה";
   const venueLine = getVenueLine(event);
   const eventTime = String(event.eventTime || "").trim();
+  const organizerName = String(event.organizerName || "").trim();
+  const socialHandle = String(event.socialHandle || "").trim();
+  const parkingDetails = String(event.parkingDetails || "").trim();
+  const websiteUrl = normalizeWebsiteUrl(event.websiteUrl);
 
   function onChange(changeEvent) {
     const { name, value } = changeEvent.target;
@@ -95,7 +116,7 @@ export default function IlInviteExperience({
     setForm((prev) => ({
       ...prev,
       status,
-      attendeesCount: attendeesCountForStatus(status, prev.attendeesCount)
+      attendeesCount: isConference ? 1 : attendeesCountForStatus(status, prev.attendeesCount)
     }));
     setError("");
   }
@@ -117,10 +138,10 @@ export default function IlInviteExperience({
     try {
       const payload = {
         ...form,
-        attendeesCount: attendeesCountForStatus(form.status, form.attendeesCount)
+        attendeesCount: isConference ? 1 : attendeesCountForStatus(form.status, form.attendeesCount)
       };
       await onSubmitRsvp(payload);
-      setMessage("תודה! האישור נשמר בהצלחה");
+      setMessage(isConference ? "תודה! הרישום נשמר בהצלחה" : "תודה! האישור נשמר בהצלחה");
       setForm(initialRsvp);
       setRsvpStarted(false);
     } catch (submitError) {
@@ -131,7 +152,11 @@ export default function IlInviteExperience({
   }
 
   return (
-    <div className={`il-invite-page${previewMode ? " il-invite-page--preview" : ""}`} dir="rtl" lang="he">
+    <div
+      className={`il-invite-page${previewMode ? " il-invite-page--preview" : ""}${isConference ? " il-invite-page--conference" : ""}`}
+      dir="rtl"
+      lang="he"
+    >
       <div className="il-invite-shell">
         <header className="il-invite-cover">
           {coverSrc ? (
@@ -152,41 +177,85 @@ export default function IlInviteExperience({
         </header>
 
         <main className="il-invite-body">
-          {isCoupleEvent || isMitzvahEvent ? (
-            <p className="il-invite-welcome">{welcomeText}</p>
-          ) : null}
+          {isConference ? (
+            <>
+              <p className="il-invite-welcome">{welcomeText}</p>
+              <h1 className="il-invite-names">{displayNames}</h1>
+              {organizerName ? (
+                <p className="il-invite-conference-organizer">מארגן הכנס: {organizerName}</p>
+              ) : null}
+              {socialHandle ? (
+                <p className="il-invite-conference-social" dir="ltr">
+                  {socialHandle}
+                </p>
+              ) : null}
 
-          <h1 className="il-invite-names">{displayNames}</h1>
+              <section className="il-invite-conference-details" aria-label="פרטי הכנס">
+                <ConferenceDetailRow icon={Calendar} label="תאריך">
+                  <span>
+                    {getFullDateText(event)}
+                    {getWeekdayLine(event) !== "—" ? ` · ${getWeekdayLine(event)}` : ""}
+                  </span>
+                </ConferenceDetailRow>
+                <ConferenceDetailRow icon={Clock} label="שעת התכנסות">
+                  {eventTime || null}
+                </ConferenceDetailRow>
+                <ConferenceDetailRow icon={MapPin} label="כתובת">
+                  {venueLine && venueLine !== "—" ? venueLine : null}
+                </ConferenceDetailRow>
+                <ConferenceDetailRow icon={Car} label="חניה / הוראות הגעה">
+                  {parkingDetails || null}
+                </ConferenceDetailRow>
+                <ConferenceDetailRow icon={Globe} label="אתר הכנס">
+                  {websiteUrl ? (
+                    <a href={websiteUrl} target="_blank" rel="noopener noreferrer">
+                      {String(event.websiteUrl || "").trim()}
+                    </a>
+                  ) : null}
+                </ConferenceDetailRow>
+              </section>
+            </>
+          ) : (
+            <>
+              {isCoupleEvent || isMitzvahEvent ? (
+                <p className="il-invite-welcome">{welcomeText}</p>
+              ) : null}
 
-          <div className="il-invite-meta">
-            <p className="il-invite-date">{getFullDateText(event)}</p>
-            <p className="il-invite-weekday">{getWeekdayLine(event)}</p>
-            {venueLine && venueLine !== "—" ? <p className="il-invite-venue">{venueLine}</p> : null}
-            {isMitzvahEvent && eventTime ? <p className="il-invite-venue">בשעה {eventTime}</p> : null}
-          </div>
+              <h1 className="il-invite-names">{displayNames}</h1>
 
-          {isCoupleEvent && timeline.length ? (
-            <section className="il-invite-timeline" aria-label="לוח זמנים">
-              {timeline.map((item) => (
-                <div key={item.key} className="il-invite-timeline__col">
-                  <IlTimelineIcon name={item.icon} />
-                  <p className="il-invite-timeline__label">{item.label}</p>
-                  <p className="il-invite-timeline__time">{item.time}</p>
-                </div>
-              ))}
-            </section>
-          ) : !isCoupleEvent && !isMitzvahEvent && eventTime ? (
-            <p className="il-invite-single-time">בשעה {eventTime}</p>
-          ) : null}
+              <div className="il-invite-meta">
+                <p className="il-invite-date">{getFullDateText(event)}</p>
+                <p className="il-invite-weekday">{getWeekdayLine(event)}</p>
+                {venueLine && venueLine !== "—" ? <p className="il-invite-venue">{venueLine}</p> : null}
+                {isMitzvahEvent && eventTime ? <p className="il-invite-venue">בשעה {eventTime}</p> : null}
+              </div>
 
-          {parentsLine ? <p className="il-invite-parents-line">{parentsLine}</p> : null}
+              {isCoupleEvent && timeline.length ? (
+                <section className="il-invite-timeline" aria-label="לוח זמנים">
+                  {timeline.map((item) => (
+                    <div key={item.key} className="il-invite-timeline__col">
+                      <IlTimelineIcon name={item.icon} />
+                      <p className="il-invite-timeline__label">{item.label}</p>
+                      <p className="il-invite-timeline__time">{item.time}</p>
+                    </div>
+                  ))}
+                </section>
+              ) : !isCoupleEvent && !isMitzvahEvent && eventTime ? (
+                <p className="il-invite-single-time">בשעה {eventTime}</p>
+              ) : null}
+
+              {parentsLine ? <p className="il-invite-parents-line">{parentsLine}</p> : null}
+            </>
+          )}
 
           <section className="il-invite-rsvp" id="il-rsvp">
             {message ? (
               <p className="il-invite-rsvp__success">{message}</p>
             ) : (
               <>
-                <p className="il-invite-rsvp__separator">אנא אשרו את הגעתכם</p>
+                <p className="il-invite-rsvp__separator">
+                  {isConference ? "רישום משתתפים — אנא אשרו הגעה" : "אנא אשרו את הגעתכם"}
+                </p>
 
                 {!rsvpStarted ? (
                   <div className="il-invite-rsvp__actions">
@@ -196,23 +265,25 @@ export default function IlInviteExperience({
                       onClick={() => onChooseStatus("מגיע")}
                       disabled={previewMode}
                     >
-                      אגיע / אאשר הגעה
+                      {isConference ? "מאשר/ת הגעה" : "אגיע / אאשר הגעה"}
                     </button>
-                    <button
-                      type="button"
-                      className="il-invite-rsvp__btn il-invite-rsvp__btn--maybe"
-                      onClick={() => onChooseStatus("אולי")}
-                      disabled={previewMode}
-                    >
-                      אולי / עדיין לא יודע
-                    </button>
+                    {!isConference ? (
+                      <button
+                        type="button"
+                        className="il-invite-rsvp__btn il-invite-rsvp__btn--maybe"
+                        onClick={() => onChooseStatus("אולי")}
+                        disabled={previewMode}
+                      >
+                        אולי / עדיין לא יודע
+                      </button>
+                    ) : null}
                     <button
                       type="button"
                       className="il-invite-rsvp__btn il-invite-rsvp__btn--no"
                       onClick={() => onChooseStatus("לא מגיע")}
                       disabled={previewMode}
                     >
-                      לא יכול/ה להגיע
+                      {isConference ? "לא אוכל להגיע" : "לא יכול/ה להגיע"}
                     </button>
                   </div>
                 ) : (
@@ -225,7 +296,9 @@ export default function IlInviteExperience({
                       בחרתם:{" "}
                       <strong>
                         {form.status === "מגיע"
-                          ? "מגיע"
+                          ? isConference
+                            ? "מאשר/ת הגעה"
+                            : "מגיע"
                           : form.status === "אולי"
                             ? "אולי"
                             : "לא מגיע"}
@@ -313,7 +386,7 @@ export default function IlInviteExperience({
                     {error ? <p className="il-invite-rsvp__error">{error}</p> : null}
 
                     <button type="submit" className="il-invite-rsvp__submit" disabled={previewMode || submitting}>
-                      {submitting ? "שולח…" : "שליחת אישור"}
+                      {submitting ? "שולח…" : isConference ? "שליחת רישום" : "שליחת אישור"}
                     </button>
                   </form>
                 )}

@@ -7,7 +7,7 @@ import {
   serializeCoupleEventVendor,
   sanitizeCoupleEventVendorPayload
 } from "../utils/coupleVendors.js";
-import { getEventTypeNoun, isCoupleEventType } from "../utils/eventTypeWording.js";
+import { getEventTypeNoun, isCoupleEventType, isConferenceEventType } from "../utils/eventTypeWording.js";
 
 const router = express.Router();
 
@@ -34,6 +34,9 @@ function buildEventLabel(event) {
   }
   if (event.eventType === "בר מצווה" || event.eventType === "בת מצווה") {
     return event.batMitzvahName || event.parentName1 || event.eventType;
+  }
+  if (isConferenceEventType(event.eventType)) {
+    return event.conferenceBrandName || event.eventNames || event.organizerName || "כנס";
   }
   return event.eventNames || "אירוע";
 }

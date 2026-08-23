@@ -2,10 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Plus, X } from "lucide-react";
 import api from "../api";
 import { FEATURE_CHECKBOXES, emptyFeatures } from "../utils/agentFeatures.js";
-import { isCoupleEventType } from "../utils/eventTypeWording";
+import { EVENT_TYPES, isCoupleEventType, isConferenceEventType } from "../utils/eventTypeWording";
 import { uploadEventCover } from "../utils/eventCover.js";
-
-const EVENT_TYPES = ["חתונה", "חינה", "אירוסין", "ברית", "בר מצווה", "בת מצווה", "אחר"];
 
 function initialForm() {
   return {
@@ -18,6 +16,12 @@ function initialForm() {
     batMitzvahName: "",
     parentName1: "",
     parentName2: "",
+    organizerName: "",
+    conferenceBrandName: "",
+    socialHandle: "",
+    locationAddress: "",
+    parkingDetails: "",
+    websiteUrl: "",
     venueName: "",
     city: "",
     streetAndNumber: "",
@@ -150,6 +154,13 @@ export default function AgentDashboardPage() {
       setError("יש למלא שם חתן ושם כלה");
       return;
     }
+    if (
+      isConferenceEventType(form.eventType) &&
+      (!form.organizerName.trim() || !form.conferenceBrandName.trim())
+    ) {
+      setError("יש למלא שם מארגן הכנס ושם הבמה / המותג");
+      return;
+    }
 
     setSaving(true);
     try {
@@ -171,6 +182,14 @@ export default function AgentDashboardPage() {
             form.eventType === "ברית" || form.eventType === "בר מצווה" || form.eventType === "בת מצווה"
               ? form.parentName2.trim()
               : "",
+          organizerName: isConferenceEventType(form.eventType) ? form.organizerName.trim() : "",
+          conferenceBrandName: isConferenceEventType(form.eventType)
+            ? form.conferenceBrandName.trim()
+            : "",
+          socialHandle: isConferenceEventType(form.eventType) ? form.socialHandle.trim() : "",
+          locationAddress: isConferenceEventType(form.eventType) ? form.locationAddress.trim() : "",
+          parkingDetails: isConferenceEventType(form.eventType) ? form.parkingDetails.trim() : "",
+          websiteUrl: isConferenceEventType(form.eventType) ? form.websiteUrl.trim() : "",
           venueName: form.venueName.trim(),
           city: form.city.trim(),
           streetAndNumber: form.streetAndNumber.trim(),
@@ -200,7 +219,9 @@ export default function AgentDashboardPage() {
       setSuccess(
         wa?.sent
           ? "הלקוח נוצר ונשלחה הודעת Welcome בוואטסאפ (פרטי גישה יתוזמנו בהמשך)."
-          : `הלקוח נוצר. WhatsApp: ${wa?.reason || "לא נשלח"}`
+          : wa?.reason === "skipped_conference"
+            ? "חשבון כנס נוצר — לא נשלחה הודעת ברוכים הבאים / פרטי גישה בוואטסאפ"
+            : `הלקוח נוצר. WhatsApp: ${wa?.reason || "לא נשלח"}`
       );
       closeCreateForm();
       loadClients();
@@ -348,6 +369,61 @@ export default function AgentDashboardPage() {
                   </label>
                 </>
               ) : null}
+              {isConferenceEventType(form.eventType) ? (
+                <>
+                  <label className="agent-field">
+                    <span>מארגן הכנס</span>
+                    <input
+                      className="agent-field-input"
+                      value={form.organizerName}
+                      onChange={(e) => setField("organizerName", e.target.value)}
+                    />
+                  </label>
+                  <label className="agent-field">
+                    <span>שם הבמה / מותג</span>
+                    <input
+                      className="agent-field-input"
+                      value={form.conferenceBrandName}
+                      onChange={(e) => setField("conferenceBrandName", e.target.value)}
+                    />
+                  </label>
+                  <label className="agent-field">
+                    <span>הנדל בסושיאל</span>
+                    <input
+                      className="agent-field-input"
+                      value={form.socialHandle}
+                      onChange={(e) => setField("socialHandle", e.target.value)}
+                      dir="ltr"
+                    />
+                  </label>
+                  <label className="agent-field">
+                    <span>כתובת מלאה</span>
+                    <input
+                      className="agent-field-input"
+                      value={form.locationAddress}
+                      onChange={(e) => setField("locationAddress", e.target.value)}
+                    />
+                  </label>
+                  <label className="agent-field">
+                    <span>פרטי חניה</span>
+                    <input
+                      className="agent-field-input"
+                      value={form.parkingDetails}
+                      onChange={(e) => setField("parkingDetails", e.target.value)}
+                    />
+                  </label>
+                  <label className="agent-field">
+                    <span>קישור לאתר</span>
+                    <input
+                      className="agent-field-input"
+                      value={form.websiteUrl}
+                      onChange={(e) => setField("websiteUrl", e.target.value)}
+                      dir="ltr"
+                    />
+                  </label>
+                </>
+              ) : null}
+              {!isConferenceEventType(form.eventType) ? (
               <label className="agent-field">
                 <span>אולם / מקום</span>
                 <input
@@ -356,6 +432,8 @@ export default function AgentDashboardPage() {
                   onChange={(e) => setField("venueName", e.target.value)}
                 />
               </label>
+              ) : null}
+              {!isConferenceEventType(form.eventType) ? (
               <label className="agent-field">
                 <span>עיר</span>
                 <input
@@ -364,6 +442,8 @@ export default function AgentDashboardPage() {
                   onChange={(e) => setField("city", e.target.value)}
                 />
               </label>
+              ) : null}
+              {!isConferenceEventType(form.eventType) ? (
               <label className="agent-field">
                 <span>רחוב ומספר</span>
                 <input
@@ -372,6 +452,7 @@ export default function AgentDashboardPage() {
                   onChange={(e) => setField("streetAndNumber", e.target.value)}
                 />
               </label>
+              ) : null}
               <label className="agent-field">
                 <span>תאריך</span>
                 <input

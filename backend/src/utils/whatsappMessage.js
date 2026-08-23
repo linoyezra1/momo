@@ -112,6 +112,21 @@ export function buildWhatsAppTemplateDefaults({ event, eventId, origin }) {
     };
   }
 
+  if (kind === "conference") {
+    const brand = event?.conferenceBrandName || event?.eventNames || "הכנס";
+    const organizer = event?.organizerName || "";
+    const address = String(event?.locationAddress || [street, city].filter(Boolean).join(", ")).trim();
+    const time = event?.eventTime ? String(event.eventTime).trim() : "";
+    return {
+      intro: `שלום רב,\nהנכם מוזמנים להשתתף ב${brand}.`,
+      eventDetails: [dateLine, address ? `בכתובת ${address}` : "", time ? `שעת התכנסות ${time}` : ""]
+        .filter(Boolean)
+        .join("\n"),
+      rsvpLink: publicLink,
+      signature: organizer ? `בברכה,\n${organizer}` : `בברכה,\nצוות ${brand}`
+    };
+  }
+
   const owners = event?.eventNames || "";
   return {
     intro: "משפחה וחברים יקרים,\nהנכם מוזמנים לאירוע שלנו!",

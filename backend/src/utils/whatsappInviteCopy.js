@@ -1,4 +1,4 @@
-﻿import { getDefaultWelcomeParagraph, isCoupleEventType } from "./eventTypeWording.js";
+﻿import { getDefaultWelcomeParagraph, isCoupleEventType, isConferenceEventType } from "./eventTypeWording.js";
 
 /** Locked prompt above {{4}} when standard text template is used. */
 export const RSVP_PROMPT_STANDARD = "נשמח אם תוכלו לאשר הגעתכם בקישור המצורף:";
@@ -56,12 +56,19 @@ function buildVenueDetailsLine(event = {}) {
   const venue = String(event?.venueName || "").trim();
   const street = String(event?.streetAndNumber || "").trim();
   const city = String(event?.city || "").trim();
+  const locationAddress = String(event?.locationAddress || "").trim();
   const eventTime = String(event?.eventTime || "").trim();
   const receptionTime = String(event?.receptionTime || "").trim();
-  const address = [street, city].filter(Boolean).join(", ");
+  const address = locationAddress || [street, city].filter(Boolean).join(", ");
   const isCouple = isCoupleEventType(event?.eventType);
+  const isConference = isConferenceEventType(event?.eventType);
 
   const parts = [];
+  if (isConference) {
+    if (address) parts.push(`בכתובת ${address}`);
+    if (eventTime) parts.push(`שעת התכנסות ${eventTime}`);
+    return parts.join(" ").trim();
+  }
   if (venue) parts.push(`באולמי "${venue}"`);
   if (address) parts.push(`בכתובת ${address}`);
   if (isCouple) {
@@ -157,6 +164,13 @@ export function isStoredEventDetailsStale(storedDetails, event = {}) {
 }
 
 export function buildDefaultClosingParagraph(event = {}) {
+  if (isConferenceEventType(event?.eventType)) {
+    const organizer = String(event?.organizerName || "").trim();
+    const brand = String(event?.conferenceBrandName || event?.eventNames || "").trim();
+    if (organizer) return `בברכה, ${organizer}`;
+    if (brand) return `בברכה, צוות ${brand}`;
+    return "נתראה בכנס";
+  }
   const bride = String(event?.brideName || "").trim();
   const groom = String(event?.groomName || "").trim();
   if (bride || groom) {

@@ -16,6 +16,7 @@ import {
   resolveWhatsAppInviteParagraphs,
   toTemplateEventDetailsVariable
 } from "../utils/whatsappInviteCopy.js";
+import { isConferenceEventType } from "../utils/eventTypeWording.js";
 import {
   STATUS_HISTORY_LABELS,
   STATUS_HISTORY_SOURCES,
@@ -23,7 +24,9 @@ import {
 } from "../utils/guestStatusHistory.js";
 
 const RSVP_YES_TEXT = "כן אני אגיע";
+const RSVP_YES_CONFERENCE_TEXT = "מאשר/ת הגעה";
 const RSVP_NO_TEXT = "לצערי לא אוכל";
+const RSVP_NO_CONFERENCE_TEXT = "לא אוכל להגיע";
 const RSVP_MAYBE_TEXT = "עדיין לא יודע";
 const CONTENT_SID_DEFAULTS = {
   TWILIO_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID: "HX0ed4e1d2438f2e69bfd54610a127984d",
@@ -39,6 +42,11 @@ function requireContentSid(envName) {
     const preferred = String(process.env.TWILIO_COPY_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID || "").trim();
     if (preferred.startsWith("HX")) return preferred;
   }
+  if (envName === "TWILIO_CONFERENCE_RSVP_CONTENT_SID") {
+    const conferenceSid = String(process.env.TWILIO_CONFERENCE_RSVP_CONTENT_SID || "").trim();
+    if (conferenceSid.startsWith("HX")) return conferenceSid;
+    return requireContentSid("TWILIO_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID");
+  }
   const sid = String(process.env[envName] || CONTENT_SID_DEFAULTS[envName] || "").trim();
   if (!sid.startsWith("HX")) {
     throw new Error(`${envName} must be configured with a Twilio Content SID starting with HX`);
@@ -50,8 +58,28 @@ function normalizedInteractionValue(value) {
   return String(value || "").trim();
 }
 
-function interactionMatches({ payload, text, expectedPayload, expectedText }) {
-  return payload === expectedPayload || text === expectedPayload || text === expectedText;
+function interactionMatches({ payload, text, expectedPayload, expectedTexts }) {
+  const texts = Array.isArray(expectedTexts) ? expectedTexts : [expectedTexts];
+  if (payload === expectedPayload || text === expectedPayload) return true;
+  return texts.some((expected) => text === expected);
+}
+
+function isYesRsvp({ payload, text }) {
+  return interactionMatches({
+    payload,
+    text,
+    expectedPayload: "rsvp_yes",
+    expectedTexts: [RSVP_YES_TEXT, RSVP_YES_CONFERENCE_TEXT, "מאשר הגעה", "מאשרת הגעה"]
+  });
+}
+
+function isNoRsvp({ payload, text }) {
+  return interactionMatches({
+    payload,
+    text,
+    expectedPayload: "rsvp_no",
+    expectedTexts: [RSVP_NO_TEXT, RSVP_NO_CONFERENCE_TEXT, "לצערי לא אוכל להגיע"]
+  });
 }
 
 async function findConversationGuest(from) {
@@ -71,6 +99,15 @@ async function loadGuestEvent(guest) {
 }
 
 function buildPremiumInviteVariables({ guest, event, userId, origin }) {
+  if (isConferenceEventType(event?.eventType)) {
+    return buildTwilioContentVariables(
+      {
+        guestName: guest.fullName || "אורח/ת יקר/ה"
+      },
+      ["1"]
+    );
+  }
+
   const defaults = buildWhatsAppTemplateDefaults({ event, eventId: userId, origin });
   const paragraphs = resolveWhatsAppInviteParagraphs(event);
 
@@ -107,9 +144,12 @@ async function sendContentTemplate({ guest, contentSid }) {
 }
 
 async function sendPremiumMainTemplate({ guest, event, origin }) {
+  const contentSid = isConferenceEventType(event?.eventType)
+    ? requireContentSid("TWILIO_CONFERENCE_RSVP_CONTENT_SID")
+    : requireContentSid("TWILIO_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID");
   return sendTwilioWhatsAppMessage({
     to: toTwilioWhatsAppAddress(guest.phone),
-    contentSid: requireContentSid("TWILIO_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID"),
+    contentSid,
     contentVariables: buildPremiumInviteVariables({
       guest,
       event,
@@ -175,6 +215,7 @@ export async function handleIncomingWhatsAppRsvp({
 
   const payload = normalizedInteractionValue(buttonPayload);
   const text = normalizedInteractionValue(buttonText || body);
+  const conference = isConferenceEventType(context.event?.eventType);
 
   const resetRequested =
     payload === "trigger_rsvp_reset" ||
@@ -189,28 +230,25 @@ export async function handleIncomingWhatsAppRsvp({
     return { handled: true, action: "reset" };
   }
 
-  if (
-    interactionMatches({
-      payload,
-      text,
-      expectedPayload: "rsvp_yes",
-      expectedText: RSVP_YES_TEXT
-    })
-  ) {
+  if (isYesRsvp({ payload, text })) {
+    if (conference) {
+      await saveRsvp(guest, {
+        status: "מגיע",
+        attendeesCount: Math.max(1, Number(guest.attendeesCount) || 1)
+      });
+      await sendContentTemplate({
+        guest,
+        contentSid: requireContentSid("TWILIO_RSVP_YES_FOLLOWUP_CONTENT_SID")
+      });
+      return { handled: true, action: "confirmed" };
+    }
     guest.whatsappConversationState = "awaiting_guest_count";
     await guest.save();
     await sendSessionText({ guest, body: ASK_GUEST_COUNT_TEXT });
     return { handled: true, action: "awaiting_guest_count" };
   }
 
-  if (
-    interactionMatches({
-      payload,
-      text,
-      expectedPayload: "rsvp_no",
-      expectedText: RSVP_NO_TEXT
-    })
-  ) {
+  if (isNoRsvp({ payload, text })) {
     await saveRsvp(guest, { status: "לא מגיע" });
     await sendContentTemplate({
       guest,
@@ -220,11 +258,12 @@ export async function handleIncomingWhatsAppRsvp({
   }
 
   if (
+    !conference &&
     interactionMatches({
       payload,
       text,
       expectedPayload: "rsvp_maybe",
-      expectedText: RSVP_MAYBE_TEXT
+      expectedTexts: [RSVP_MAYBE_TEXT]
     })
   ) {
     await saveRsvp(guest, { status: "אולי" });

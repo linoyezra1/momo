@@ -1,5 +1,5 @@
 import { toWhatsAppPhone } from "./vendors.js";
-import { getEventTypeNoun, isCoupleEventType } from "./eventTypeWording.js";
+import { getEventTypeNoun, isCoupleEventType, isConferenceEventType } from "./eventTypeWording.js";
 
 /** Official momoEVENT sales / support phone (coupons + table dispatch + help). */
 export const MOMOEVENT_SUPPORT_PHONE = "0585915109";
@@ -32,6 +32,12 @@ function buildEventDisplayName(event = {}) {
   }
   if (event.eventType === "בר מצווה" || event.eventType === "בת מצווה") {
     return String(event.batMitzvahName || event.parentName1 || event.eventType).trim() || event.eventType;
+  }
+  if (isConferenceEventType(event.eventType)) {
+    return (
+      String(event.conferenceBrandName || event.eventNames || event.organizerName || "כנס").trim() ||
+      "כנס"
+    );
   }
   return String(event.eventNames || "האירוע שלי").trim() || "האירוע שלי";
 }

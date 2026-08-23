@@ -13,6 +13,7 @@ import {
   maxPhoneRoundsFromDealFeatures
 } from "../utils/phoneRounds.js";
 import { normalizeEventPayload, validateEvent } from "../utils/eventPayload.js";
+import { isConferenceEventType } from "../utils/eventTypeWording.js";
 import {
   normalizeDealPayload,
   PAYMENT_METHOD_LABELS,
@@ -141,17 +142,20 @@ export async function createCoupleClient({
   const managerName =
     welcomeManagerName != null ? welcomeManagerName : getAdminWelcomeDisplayName();
 
-  const welcomeWhatsApp = await sendEventManagerWelcomeWhatsApp({
-    contactPhone: phone,
-    brideName: normalizedEvent.brideName || normalizedEvent.eventNames,
-    username: user.username,
-    password: plainPassword,
-    dashboardUrl: links.clientDashboardLink,
-    invitationUrl: links.publicEventLink,
-    managerName,
-    userId: user._id,
-    senderLabel: user.username
-  });
+  let welcomeWhatsApp = { sent: false, reason: "skipped_conference" };
+  if (!isConferenceEventType(normalizedEvent.eventType)) {
+    welcomeWhatsApp = await sendEventManagerWelcomeWhatsApp({
+      contactPhone: phone,
+      brideName: normalizedEvent.brideName || normalizedEvent.eventNames,
+      username: user.username,
+      password: plainPassword,
+      dashboardUrl: links.clientDashboardLink,
+      invitationUrl: links.publicEventLink,
+      managerName,
+      userId: user._id,
+      senderLabel: user.username
+    });
+  }
 
   return {
     user,

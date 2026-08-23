@@ -1141,7 +1141,8 @@ router.put("/:userId/event", async (req, res) => {
       isPremiumWhatsappButtonsEnabled: Boolean(previous.isPremiumWhatsappButtonsEnabled),
       welcomeParagraph: previous.welcomeParagraph || "",
       eventDetailsParagraph: previous.eventDetailsParagraph || "",
-      closingParagraph: previous.closingParagraph || ""
+      closingParagraph: previous.closingParagraph || "",
+      guestCategories: Array.isArray(previous.guestCategories) ? previous.guestCategories : []
     };
     await user.save();
 

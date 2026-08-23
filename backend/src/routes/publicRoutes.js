@@ -16,7 +16,7 @@ import { logPerf, nowMs, setServerTiming } from "../utils/requestTiming.js";
 const router = express.Router();
 
 const PUBLIC_EVENT_SELECT =
-  "event.eventType event.groomName event.brideName event.batMitzvahName event.parentName1 event.parentName2 event.eventNames event.venueName event.city event.streetAndNumber event.eventDate event.eventDateHebrew event.eventTime event.receptionTime event.welcomeText event.cover event.imageDataUrl";
+  "event.eventType event.groomName event.brideName event.batMitzvahName event.parentName1 event.parentName2 event.eventNames event.organizerName event.conferenceBrandName event.socialHandle event.locationAddress event.parkingDetails event.websiteUrl event.venueName event.city event.streetAndNumber event.eventDate event.eventDateHebrew event.eventTime event.receptionTime event.welcomeText event.cover event.imageDataUrl";
 
 router.get("/event/:eventId", async (req, res) => {
   const started = nowMs();

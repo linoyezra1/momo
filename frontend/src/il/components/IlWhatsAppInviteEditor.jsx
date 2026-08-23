@@ -53,7 +53,8 @@ export default function IlWhatsAppInviteEditor({
   origin,
   value,
   onChange,
-  buttonsMode = false
+  buttonsMode = false,
+  conferenceMode = false
 }) {
   const welcome = value?.welcomeParagraph ?? "";
   const eventDetails = value?.eventDetailsParagraph ?? "";
@@ -70,6 +71,39 @@ export default function IlWhatsAppInviteEditor({
       [key]: nextValue
     });
   };
+
+  if (conferenceMode) {
+    return (
+      <div className="il-wa-phone" dir="rtl">
+        <div className="il-wa-phone-chrome" aria-hidden="true">
+          <span className="il-wa-phone-dot" />
+          <span className="il-wa-phone-title">תצוגת הודעה</span>
+        </div>
+        <div className="il-wa-chat">
+          <div className="il-wa-bubble" role="group" aria-label="הודעת הזמנה לכנס בוואטסאפ">
+            <p className="il-wa-locked">
+              שלום <span className="il-wa-token">[שם המשתתף]</span>,
+            </p>
+            <p className="il-wa-locked">
+              תבנית הכנס מותאמת אישית רק בשם המשתתף. יתר תוכן ההודעה מוגדר בתבנית המאושרת במטא.
+            </p>
+            <p className="il-wa-locked il-wa-link">{publicLink}</p>
+            <div className="il-wa-quick-replies" aria-hidden="true">
+              <span>מאשר/ת הגעה</span>
+              <span>לא אוכל להגיע</span>
+            </div>
+            <div className="il-wa-meta" aria-hidden="true">
+              <span className="il-wa-time">עכשיו</span>
+              <span className="il-wa-ticks" title="נשלח">
+                ✓✓
+              </span>
+            </div>
+          </div>
+        </div>
+        <p className="il-wa-hint">בכנס נשלח רק שם המשתתף כמשתנה דינמי (&#123;&#123;1&#125;&#125;).</p>
+      </div>
+    );
+  }
 
   return (
     <div className="il-wa-phone" dir="rtl">

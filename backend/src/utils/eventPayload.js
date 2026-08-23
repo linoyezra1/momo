@@ -1,4 +1,4 @@
-import { isCoupleEventType } from "./eventTypeWording.js";
+import { isCoupleEventType, isConferenceEventType } from "./eventTypeWording.js";
 import { normalizeCoverFields } from "./eventCover.js";
 
 export function normalizeEventPayload(rawEvent) {
@@ -8,6 +8,12 @@ export function normalizeEventPayload(rawEvent) {
   const batMitzvahName = String(rawEvent?.batMitzvahName || "").trim();
   const parentName1 = String(rawEvent?.parentName1 || "").trim();
   const parentName2 = String(rawEvent?.parentName2 || "").trim();
+  const organizerName = String(rawEvent?.organizerName || "").trim();
+  const conferenceBrandName = String(rawEvent?.conferenceBrandName || "").trim();
+  const socialHandle = String(rawEvent?.socialHandle || "").trim();
+  const locationAddress = String(rawEvent?.locationAddress || "").trim();
+  const parkingDetails = String(rawEvent?.parkingDetails || "").trim();
+  const websiteUrl = String(rawEvent?.websiteUrl || "").trim();
   const requestedMaxPhoneRounds = Number(rawEvent?.maxPhoneRounds);
   const maxPhoneRounds =
     Number.isInteger(requestedMaxPhoneRounds) &&
@@ -33,8 +39,33 @@ export function normalizeEventPayload(rawEvent) {
     brideName,
     batMitzvahName,
     parentName1,
-    parentName2
+    parentName2,
+    organizerName: "",
+    conferenceBrandName: "",
+    socialHandle: "",
+    locationAddress: "",
+    parkingDetails: "",
+    websiteUrl: ""
   };
+
+  if (isConferenceEventType(eventType)) {
+    const address =
+      locationAddress ||
+      [baseEvent.streetAndNumber, baseEvent.city].filter(Boolean).join(", ");
+    return {
+      ...baseEvent,
+      organizerName,
+      conferenceBrandName,
+      socialHandle,
+      locationAddress: address,
+      parkingDetails,
+      websiteUrl,
+      streetAndNumber: baseEvent.streetAndNumber || address,
+      city: baseEvent.city || (address ? "—" : ""),
+      venueName: baseEvent.venueName || conferenceBrandName,
+      eventNames: conferenceBrandName || String(rawEvent?.eventNames || "").trim()
+    };
+  }
 
   if (isCoupleEventType(eventType)) {
     return { ...baseEvent, eventNames: `${groomName} & ${brideName}`.trim() };
@@ -52,6 +83,11 @@ export function validateEvent(normalizedEvent) {
   if (isCoupleEventType(normalizedEvent.eventType)) {
     if (!normalizedEvent.groomName || !normalizedEvent.brideName) {
       return "יש למלא שם חתן ושם כלה";
+    }
+  }
+  if (isConferenceEventType(normalizedEvent.eventType)) {
+    if (!normalizedEvent.organizerName || !normalizedEvent.conferenceBrandName) {
+      return "יש למלא שם מארגן הכנס ושם הבמה / המותג";
     }
   }
   return "";

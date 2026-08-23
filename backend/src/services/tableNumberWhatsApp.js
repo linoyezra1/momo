@@ -31,7 +31,7 @@ import {
   sendTwilioWhatsAppMessage,
   toTwilioWhatsAppAddress
 } from "../utils/twilioWhatsApp.js";
-import { isCoupleEventType } from "../utils/eventTypeWording.js";
+import { isCoupleEventType, isConferenceEventType } from "../utils/eventTypeWording.js";
 
 const TABLE_NUMBER_CONTENT_SID_DEFAULT = "HX405726f9479a1d07e2fe8fcbe77a6be4";
 
@@ -73,6 +73,12 @@ export function buildEventHostsLabel(event = {}) {
   }
   if (event.eventType === "בר מצווה" || event.eventType === "בת מצווה") {
     return String(event.parentName1 || event.batMitzvahName || "המארחים").trim() || "המארחים";
+  }
+  if (isConferenceEventType(event.eventType)) {
+    return (
+      String(event.organizerName || event.conferenceBrandName || event.eventNames || "מארגן הכנס").trim() ||
+      "מארגן הכנס"
+    );
   }
   return String(event.eventNames || "המארחים").trim() || "המארחים";
 }

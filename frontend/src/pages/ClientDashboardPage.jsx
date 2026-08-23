@@ -35,7 +35,7 @@ import {
   MOMOEVENT_SUPPORT_PHONE,
   buildWhatsAppCouponPurchaseUrl
 } from "../utils/tableDispatchPurchase.js";
-import { isCoupleEventType } from "../utils/eventTypeWording.js";
+import { isCoupleEventType, isConferenceEventType } from "../utils/eventTypeWording.js";
 import IlInvitationEditor from "../il/components/IlInvitationEditor.jsx";
 import IlWhatsAppInviteEditor from "../il/components/IlWhatsAppInviteEditor.jsx";
 import IlMobileGuestCard from "../il/components/IlMobileGuestCard.jsx";
@@ -263,6 +263,10 @@ function getOwnerGreeting(event) {
   }
   if (event.eventType === "בר מצווה" || event.eventType === "בת מצווה") {
     return `שלום ${event.parentName1 || ""}`.trim();
+  }
+  if (isConferenceEventType(event.eventType)) {
+    const name = event.organizerName || event.conferenceBrandName || "";
+    return name ? `שלום ${name}` : "שלום";
   }
   return "שלום";
 }
@@ -2411,10 +2415,12 @@ export default function ClientDashboardPage() {
                     value={inviteCopy}
                     onChange={onInviteCopyChange}
                     buttonsMode={isWhatsAppButtonsMode(eventInfo || {})}
+                    conferenceMode={isConferenceEventType(eventInfo?.eventType)}
                   />
                 </div>
                 <p className="il-bulk-whatsapp-selected">
-                  נבחרו לשליחה: <strong>{selectedCount}</strong> מוזמנים
+                  נבחרו לשליחה: <strong>{selectedCount}</strong>{" "}
+                  {isConferenceEventType(eventInfo?.eventType) ? "משתתפים" : "מוזמנים"}
                 </p>
                 {bulkWhatsAppError ? (
                   <div className="il-bulk-whatsapp-alert" role="alert">

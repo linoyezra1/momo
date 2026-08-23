@@ -1,4 +1,4 @@
-import { EVENT_TYPES, getDefaultInviteWelcomeText } from "./eventTypeWording.js";
+import { EVENT_TYPES, getDefaultInviteWelcomeText, isConferenceEventType } from "./eventTypeWording.js";
 import { getEventCoverSrc, resolveCoverPreview } from "./eventCover.js";
 
 /** @deprecated Prefer getDefaultInviteWelcomeText(eventType) */
@@ -20,6 +20,15 @@ export function eventInfoToForm(event) {
     parentName1: source.parentName1 || "",
     parentName2: source.parentName2 || "",
     eventNames: source.eventNames || "",
+    organizerName: source.organizerName || "",
+    conferenceBrandName: source.conferenceBrandName || source.eventNames || "",
+    socialHandle: source.socialHandle || "",
+    locationAddress:
+      source.locationAddress ||
+      [source.streetAndNumber, source.city].filter(Boolean).join(", ") ||
+      "",
+    parkingDetails: source.parkingDetails || "",
+    websiteUrl: source.websiteUrl || "",
     venueName: source.venueName || "",
     city: source.city || "",
     streetAndNumber: source.streetAndNumber || "",
@@ -45,6 +54,12 @@ export function formToEventUpdatePayload(form) {
     parentName1: form.parentName1,
     parentName2: form.parentName2,
     eventNames: form.eventNames,
+    organizerName: form.organizerName,
+    conferenceBrandName: form.conferenceBrandName,
+    socialHandle: form.socialHandle,
+    locationAddress: form.locationAddress,
+    parkingDetails: form.parkingDetails,
+    websiteUrl: form.websiteUrl,
     venueName: form.venueName,
     city: form.city,
     streetAndNumber: form.streetAndNumber,
@@ -60,6 +75,7 @@ export function formToEventUpdatePayload(form) {
 export function eventFormToPreviewPayload(form) {
   const eventType = cleanText(form.eventType) || "חתונה";
   const previewSrc = resolveCoverPreview(form);
+  const conference = isConferenceEventType(eventType);
   return {
     eventType,
     groomName: cleanText(form.groomName),
@@ -67,7 +83,13 @@ export function eventFormToPreviewPayload(form) {
     batMitzvahName: cleanText(form.batMitzvahName),
     parentName1: cleanText(form.parentName1),
     parentName2: cleanText(form.parentName2),
-    eventNames: cleanText(form.eventNames),
+    eventNames: conference ? cleanText(form.conferenceBrandName) : cleanText(form.eventNames),
+    organizerName: cleanText(form.organizerName),
+    conferenceBrandName: cleanText(form.conferenceBrandName),
+    socialHandle: cleanText(form.socialHandle),
+    locationAddress: cleanText(form.locationAddress),
+    parkingDetails: cleanText(form.parkingDetails),
+    websiteUrl: cleanText(form.websiteUrl),
     venueName: cleanText(form.venueName),
     city: cleanText(form.city),
     streetAndNumber: cleanText(form.streetAndNumber),

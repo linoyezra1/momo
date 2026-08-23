@@ -5,6 +5,7 @@ import Guest from "../models/Guest.js";
 import EventVendor from "../models/EventVendor.js";
 import { buildClientUrl } from "../utils/clientUrl.js";
 import { normalizeEventPayload, normalizePaymentPayload, validateEvent } from "../utils/eventPayload.js";
+import { isConferenceEventType } from "../utils/eventTypeWording.js";
 import { applyCoverToEventPayload, clearEventCover, uploadAndAttachCover } from "../utils/eventCover.js";
 import { coverUpload } from "../middleware/coverUpload.js";
 import { isCoverStorageConfigured } from "../services/coverStorage.js";
@@ -193,16 +194,19 @@ router.post("/create-client", async (req, res) => {
 
     const links = buildClientLinks(user._id, req);
 
-    const welcomeWhatsApp = await sendEventManagerWelcomeWhatsApp({
-      contactPhone: phone,
-      brideName: normalizedEvent.brideName || normalizedEvent.eventNames,
-      username: user.username,
-      password: plainPassword,
-      dashboardUrl: links.clientDashboardLink,
-      invitationUrl: links.publicEventLink,
-      userId: user._id,
-      senderLabel: user.username
-    });
+    let welcomeWhatsApp = { sent: false, reason: "skipped_conference" };
+    if (!isConferenceEventType(normalizedEvent.eventType)) {
+      welcomeWhatsApp = await sendEventManagerWelcomeWhatsApp({
+        contactPhone: phone,
+        brideName: normalizedEvent.brideName || normalizedEvent.eventNames,
+        username: user.username,
+        password: plainPassword,
+        dashboardUrl: links.clientDashboardLink,
+        invitationUrl: links.publicEventLink,
+        userId: user._id,
+        senderLabel: user.username
+      });
+    }
 
     return res.status(201).json({
       userId: user._id,

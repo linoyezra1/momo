@@ -7,14 +7,14 @@ import {
   eventInfoToForm,
   formToEventUpdatePayload
 } from "../../utils/ilEventPreview.js";
-import { getDefaultInviteWelcomeText, getCeremonyLabel, isCoupleEventType } from "../../utils/eventTypeWording.js";
+import { getDefaultInviteWelcomeText, getCeremonyLabel, isCoupleEventType, isConferenceEventType } from "../../utils/eventTypeWording.js";
 import { resolveCoverPreview, uploadEventCover } from "../../utils/eventCover.js";
 import IlInvitationPreview from "./IlInvitationPreview.jsx";
 import IlEditorField, { ilEditorInputClass, ilEditorSelectClass } from "./IlEditorField.jsx";
 import "../../us/client-portal.css";
 import "../il-portal.css";
 
-const EVENT_TYPE_OPTIONS = ["חתונה", "חינה", "אירוסין", "ברית", "בר מצווה", "בת מצווה", "אחר"];
+const EVENT_TYPE_OPTIONS = ["חתונה", "חינה", "אירוסין", "ברית", "בר מצווה", "בת מצווה", "כנס", "אחר"];
 
 export default function IlInvitationEditor({ userId, eventInfo, onClose, onSaved }) {
   const [form, setForm] = useState(() => eventInfoToForm(eventInfo));
@@ -51,7 +51,8 @@ export default function IlInvitationEditor({ userId, eventInfo, onClose, onSaved
         currentWelcome === getDefaultInviteWelcomeText("חינה") ||
         currentWelcome === getDefaultInviteWelcomeText("אירוסין") ||
         currentWelcome === getDefaultInviteWelcomeText("בר מצווה") ||
-        currentWelcome === getDefaultInviteWelcomeText("בת מצווה");
+        currentWelcome === getDefaultInviteWelcomeText("בת מצווה") ||
+        currentWelcome === getDefaultInviteWelcomeText("כנס");
       return {
         ...prev,
         eventType: value,
@@ -300,10 +301,121 @@ export default function IlInvitationEditor({ userId, eventInfo, onClose, onSaved
                 />
               </IlEditorField>
             ) : null}
+
+            {isConferenceEventType(form.eventType) ? (
+              <>
+                <IlEditorField label="שם מארגן הכנס" htmlFor="il-organizerName">
+                  <input
+                    id="il-organizerName"
+                    className={ilEditorInputClass}
+                    name="organizerName"
+                    value={form.organizerName}
+                    onChange={onChange}
+                    placeholder="שם היזם / המארגן"
+                    autoComplete="off"
+                  />
+                </IlEditorField>
+                <IlEditorField label="שם הבמה / מותג הכנס" htmlFor="il-conferenceBrandName">
+                  <input
+                    id="il-conferenceBrandName"
+                    className={ilEditorInputClass}
+                    name="conferenceBrandName"
+                    value={form.conferenceBrandName}
+                    onChange={onChange}
+                    placeholder="שם הכנס בסושיאל"
+                    autoComplete="off"
+                  />
+                </IlEditorField>
+                <IlEditorField label="הנדל בסושיאל (אופציונלי)" htmlFor="il-socialHandle">
+                  <input
+                    id="il-socialHandle"
+                    className={ilEditorInputClass}
+                    name="socialHandle"
+                    value={form.socialHandle}
+                    onChange={onChange}
+                    placeholder="@conference"
+                    dir="ltr"
+                    autoComplete="off"
+                  />
+                </IlEditorField>
+                <IlEditorField label="טקסט פתיחה" htmlFor="il-welcomeText-conf">
+                  <textarea
+                    id="il-welcomeText-conf"
+                    className={ilEditorInputClass}
+                    name="welcomeText"
+                    value={form.welcomeText}
+                    onChange={onChange}
+                    rows={3}
+                    placeholder={getDefaultInviteWelcomeText(form.eventType)}
+                  />
+                </IlEditorField>
+              </>
+            ) : null}
           </section>
 
           <section className="us-editor-section il-editor-section">
-            <h3>מיקום וזמן</h3>
+            <h3>{isConferenceEventType(form.eventType) ? "מיקום, זמן ופרטים" : "מיקום וזמן"}</h3>
+            {isConferenceEventType(form.eventType) ? (
+              <>
+                <IlEditorField label="כתובת מלאה" htmlFor="il-locationAddress">
+                  <input
+                    id="il-locationAddress"
+                    className={ilEditorInputClass}
+                    name="locationAddress"
+                    value={form.locationAddress}
+                    onChange={onChange}
+                    placeholder="רחוב, מספר, עיר"
+                    autoComplete="off"
+                  />
+                </IlEditorField>
+                <div className="il-editor-grid-2">
+                  <IlEditorField label="תאריך" htmlFor="il-eventDate">
+                    <input
+                      id="il-eventDate"
+                      className={ilEditorInputClass}
+                      type="date"
+                      name="eventDate"
+                      value={form.eventDate}
+                      onChange={onChange}
+                    />
+                  </IlEditorField>
+                  <IlEditorField label="שעת התכנסות" htmlFor="il-eventTime">
+                    <input
+                      id="il-eventTime"
+                      className={ilEditorInputClass}
+                      type="time"
+                      name="eventTime"
+                      value={form.eventTime}
+                      onChange={onChange}
+                    />
+                  </IlEditorField>
+                </div>
+                <IlEditorField label="פרטי חניה / הוראות הגעה" htmlFor="il-parkingDetails">
+                  <textarea
+                    id="il-parkingDetails"
+                    className={ilEditorInputClass}
+                    name="parkingDetails"
+                    value={form.parkingDetails}
+                    onChange={onChange}
+                    rows={2}
+                    placeholder="חניון תת-קרקעי, כניסה מרחוב…"
+                  />
+                </IlEditorField>
+                <IlEditorField label="קישור לאתר הכנס" htmlFor="il-websiteUrl">
+                  <input
+                    id="il-websiteUrl"
+                    className={ilEditorInputClass}
+                    name="websiteUrl"
+                    value={form.websiteUrl}
+                    onChange={onChange}
+                    placeholder="https://"
+                    dir="ltr"
+                    autoComplete="off"
+                  />
+                </IlEditorField>
+              </>
+            ) : (
+              <>
             <IlEditorField label="שם המתחם" htmlFor="il-venueName">
               <input
                 id="il-venueName"
@@ -381,6 +493,8 @@ export default function IlInvitationEditor({ userId, eventInfo, onClose, onSaved
                 />
               </IlEditorField>
             ) : null}
+              </>
+            )}
           </section>
 
           <section className="us-editor-section il-editor-section">

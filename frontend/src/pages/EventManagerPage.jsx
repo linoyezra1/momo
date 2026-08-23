@@ -5,7 +5,7 @@ import api from "../api";
 import { clearEventManagerToken } from "../utils/eventManagerAuth";
 import { formatIsraeliDate, parseIsoDateParts } from "../utils/dateFormat";
 import { buildTelHref, buildWhatsAppHref, formatIls } from "../utils/vendors";
-import { isCoupleEventType } from "../utils/eventTypeWording";
+import { isCoupleEventType, isConferenceEventType } from "../utils/eventTypeWording";
 import "../us/admin-portal.css";
 import "../il/manager-dashboard.css";
 
@@ -19,6 +19,12 @@ const initialForm = {
   batMitzvahName: "",
   parentName1: "",
   parentName2: "",
+  organizerName: "",
+  conferenceBrandName: "",
+  socialHandle: "",
+  locationAddress: "",
+  parkingDetails: "",
+  websiteUrl: "",
   venueName: "",
   city: "",
   streetAndNumber: "",
@@ -39,6 +45,9 @@ function buildEventDisplayText(event) {
   if (event.eventType === "ברית") return `${event.parentName1} ו${event.parentName2}`.trim();
   if (event.eventType === "בר מצווה" || event.eventType === "בת מצווה") {
     return `${event.batMitzvahName || ""}`.trim();
+  }
+  if (isConferenceEventType(event.eventType)) {
+    return String(event.conferenceBrandName || event.eventNames || event.organizerName || "").trim();
   }
   return event.eventNames || "";
 }
@@ -156,6 +165,12 @@ export default function EventManagerPage() {
       batMitzvahName: ev.batMitzvahName || "",
       parentName1: ev.parentName1 || "",
       parentName2: ev.parentName2 || "",
+      organizerName: ev.organizerName || "",
+      conferenceBrandName: ev.conferenceBrandName || "",
+      socialHandle: ev.socialHandle || "",
+      locationAddress: ev.locationAddress || "",
+      parkingDetails: ev.parkingDetails || "",
+      websiteUrl: ev.websiteUrl || "",
       venueName: ev.venueName || "",
       city: ev.city || "",
       streetAndNumber: ev.streetAndNumber || "",
@@ -183,6 +198,12 @@ export default function EventManagerPage() {
           batMitzvahName: form.batMitzvahName,
           parentName1: form.parentName1,
           parentName2: form.parentName2,
+          organizerName: form.organizerName,
+          conferenceBrandName: form.conferenceBrandName,
+          socialHandle: form.socialHandle,
+          locationAddress: form.locationAddress,
+          parkingDetails: form.parkingDetails,
+          websiteUrl: form.websiteUrl,
           venueName: form.venueName,
           city: form.city,
           streetAndNumber: form.streetAndNumber,
@@ -200,6 +221,8 @@ export default function EventManagerPage() {
         const response = await api.post("/manager/create-client", payload);
         if (response.data?.welcomeWhatsApp?.sent) {
           setWelcomeNotice("הודעת וואטסאפ עם פרטי הגישה נשלחה לכלה");
+        } else if (response.data?.welcomeWhatsApp?.reason === "skipped_conference") {
+          setWelcomeNotice("חשבון כנס נוצר — לא נשלחה הודעת ברוכים הבאים / פרטי גישה בוואטסאפ");
         } else if (response.data?.welcomeWhatsApp?.reason === "twilio_not_configured") {
           setWelcomeNotice("החשבון נוצר, אך Twilio לא מוגדר — הודעת הוואטסאפ לא נשלחה");
         } else if (response.data?.welcomeWhatsApp?.reason === "invalid_phone") {
@@ -494,6 +517,7 @@ export default function EventManagerPage() {
                     <option value="ברית">ברית</option>
                     <option value="בר מצווה">בר מצווה</option>
                     <option value="בת מצווה">בת מצווה</option>
+                    <option value="כנס">כנס</option>
                     <option value="אחר">אחר</option>
                   </select>
                 </div>
@@ -549,6 +573,63 @@ export default function EventManagerPage() {
                     />
                   </div>
                 ) : null}
+                {isConferenceEventType(form.eventType) ? (
+                  <>
+                    <div className="us-admin-field">
+                      <label className="us-admin-field-label">מארגן הכנס</label>
+                      <input
+                        className="us-admin-field-input"
+                        value={form.organizerName}
+                        onChange={(e) => onFormChange("organizerName", e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="us-admin-field">
+                      <label className="us-admin-field-label">שם הבמה / מותג</label>
+                      <input
+                        className="us-admin-field-input"
+                        value={form.conferenceBrandName}
+                        onChange={(e) => onFormChange("conferenceBrandName", e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="us-admin-field">
+                      <label className="us-admin-field-label">הנדל בסושיאל</label>
+                      <input
+                        className="us-admin-field-input"
+                        value={form.socialHandle}
+                        onChange={(e) => onFormChange("socialHandle", e.target.value)}
+                        dir="ltr"
+                      />
+                    </div>
+                    <div className="us-admin-field">
+                      <label className="us-admin-field-label">כתובת מלאה</label>
+                      <input
+                        className="us-admin-field-input"
+                        value={form.locationAddress}
+                        onChange={(e) => onFormChange("locationAddress", e.target.value)}
+                      />
+                    </div>
+                    <div className="us-admin-field">
+                      <label className="us-admin-field-label">פרטי חניה</label>
+                      <input
+                        className="us-admin-field-input"
+                        value={form.parkingDetails}
+                        onChange={(e) => onFormChange("parkingDetails", e.target.value)}
+                      />
+                    </div>
+                    <div className="us-admin-field">
+                      <label className="us-admin-field-label">קישור לאתר</label>
+                      <input
+                        className="us-admin-field-input"
+                        value={form.websiteUrl}
+                        onChange={(e) => onFormChange("websiteUrl", e.target.value)}
+                        dir="ltr"
+                      />
+                    </div>
+                  </>
+                ) : null}
+                {!isConferenceEventType(form.eventType) ? (
                 <div className="us-admin-field">
                   <label className="us-admin-field-label">אולם</label>
                   <input
@@ -557,6 +638,9 @@ export default function EventManagerPage() {
                     onChange={(e) => onFormChange("venueName", e.target.value)}
                   />
                 </div>
+                ) : null}
+                {!isConferenceEventType(form.eventType) ? (
+                  <>
                 <div className="us-admin-field">
                   <label className="us-admin-field-label">עיר</label>
                   <input
@@ -573,6 +657,8 @@ export default function EventManagerPage() {
                     onChange={(e) => onFormChange("streetAndNumber", e.target.value)}
                   />
                 </div>
+                  </>
+                ) : null}
                 <div className="us-admin-field">
                   <label className="us-admin-field-label">תאריך</label>
                   <input
@@ -583,7 +669,9 @@ export default function EventManagerPage() {
                   />
                 </div>
                 <div className="us-admin-field">
-                  <label className="us-admin-field-label">שעה</label>
+                  <label className="us-admin-field-label">
+                    {isConferenceEventType(form.eventType) ? "שעת התכנסות" : "שעה"}
+                  </label>
                   <input
                     className="us-admin-field-input"
                     value={form.eventTime}

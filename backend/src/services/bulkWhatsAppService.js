@@ -15,7 +15,7 @@ import {
   resolveWhatsAppInviteParagraphs,
   toTemplateEventDetailsVariable
 } from "../utils/whatsappInviteCopy.js";
-import { getDefaultWelcomeParagraph } from "../utils/eventTypeWording.js";
+import { getDefaultWelcomeParagraph, isConferenceEventType } from "../utils/eventTypeWording.js";
 import { recalculateUserSupplierCost } from "../utils/supplierCost.js";
 
 // copy_copy_event_invite_structured (Text)
@@ -28,10 +28,35 @@ const PREMIUM_WEDDING_RSVP_CONTENT_SID =
   process.env.TWILIO_COPY_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID ||
   process.env.TWILIO_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID ||
   "HX0ed4e1d2438f2e69bfd54610a127984d";
+/** Conference quick-reply template — only {{1}} (guest full name). */
+const CONFERENCE_RSVP_CONTENT_SID = String(
+  process.env.TWILIO_CONFERENCE_RSVP_CONTENT_SID || ""
+).trim();
 
 function getTwilioContentSid(event) {
+  if (isConferenceEventType(event?.eventType)) {
+    if (CONFERENCE_RSVP_CONTENT_SID.startsWith("HX")) {
+      return CONFERENCE_RSVP_CONTENT_SID;
+    }
+    // Fall back to premium wedding buttons SID only if conference SID is unset
+    // (ops must configure TWILIO_CONFERENCE_RSVP_CONTENT_SID for {{1}}-only templates).
+    const premiumEnabled = event?.isPremiumWhatsappButtonsEnabled === true;
+    return premiumEnabled ? PREMIUM_WEDDING_RSVP_CONTENT_SID : STANDARD_INVITE_CONTENT_SID;
+  }
   const premiumEnabled = event?.isPremiumWhatsappButtonsEnabled === true;
   return premiumEnabled ? PREMIUM_WEDDING_RSVP_CONTENT_SID : STANDARD_INVITE_CONTENT_SID;
+}
+
+function getTemplateVariableKeys(event, fetchedKeys) {
+  if (isConferenceEventType(event?.eventType)) {
+    if (Array.isArray(fetchedKeys) && fetchedKeys.length === 1 && fetchedKeys[0] === "1") {
+      return ["1"];
+    }
+    if (CONFERENCE_RSVP_CONTENT_SID.startsWith("HX")) {
+      return ["1"];
+    }
+  }
+  return ["1", "2", "3", "4", "5"];
 }
 
 function normalizePaymentCode(rawCode) {
@@ -311,12 +336,14 @@ export async function sendBulkWhatsApp({
     console.log(
       `[Twilio] Premium buttons ${event?.isPremiumWhatsappButtonsEnabled === true ? "enabled" : "disabled"}; selected template SID: ${contentSid}`
     );
-    let templateKeys = ["1", "2", "3", "4", "5"];
+    let templateKeys = getTemplateVariableKeys(event);
     try {
       const templateMeta = await fetchTwilioContentTemplate(contentSid);
-      if (templateMeta.variableKeys.join(",") !== templateKeys.join(",")) {
+      templateKeys = getTemplateVariableKeys(event, templateMeta.variableKeys);
+      const expected = templateKeys.join(",");
+      if (templateMeta.variableKeys.join(",") !== expected) {
         throw new Error(
-          `Template ${contentSid} must define exactly variables 1-5 (found: ${templateMeta.variableKeys.join(", ")})`
+          `Template ${contentSid} must define variables ${expected} (found: ${templateMeta.variableKeys.join(", ")})`
         );
       }
       console.log(
@@ -324,7 +351,7 @@ export async function sendBulkWhatsApp({
       );
     } catch (templateError) {
       console.warn(
-        "[Twilio] Could not fetch content template metadata, using default keys 1-5:",
+        `[Twilio] Could not fetch content template metadata, using default keys ${templateKeys.join(", ")}:`,
         templateError?.message || templateError
       );
     }

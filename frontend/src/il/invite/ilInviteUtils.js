@@ -1,6 +1,6 @@
 import { getDefaultInviteWelcomeText } from "../../utils/eventTypeWording.js";
 import { formatIsraeliDate, formatIsraeliWeekdayLine, parseIsoDateParts } from "../../utils/dateFormat";
-import { getCeremonyLabel, isCoupleEventType } from "../../utils/eventTypeWording.js";
+import { getCeremonyLabel, isCoupleEventType, isConferenceEventType } from "../../utils/eventTypeWording.js";
 
 export function getCountdownTarget(event) {
   const parts = parseIsoDateParts(event?.eventDate);
@@ -34,12 +34,17 @@ export function getWeddingNames(event) {
 }
 
 export function getFullAddress(event) {
+  const locationAddress = String(event?.locationAddress || "").trim();
+  if (locationAddress) return locationAddress;
   const street = String(event?.streetAndNumber || "").trim();
   const city = String(event?.city || "").trim();
   return [street, city].filter(Boolean).join(", ") || "—";
 }
 
 export function getVenueLine(event) {
+  if (isConferenceEventType(event?.eventType)) {
+    return getFullAddress(event);
+  }
   const venue = String(event?.venueName || "").trim();
   const address = getFullAddress(event);
   if (!venue) return address;
@@ -86,6 +91,13 @@ export function getParallelTimeline(event) {
 }
 
 export function getEventDisplayName(event) {
+  if (isConferenceEventType(event?.eventType)) {
+    return (
+      String(event?.conferenceBrandName || "").trim() ||
+      String(event?.eventNames || "").trim() ||
+      "—"
+    );
+  }
   if (isCoupleEventType(event?.eventType)) return getWeddingNames(event);
   if (event?.eventType === "בר מצווה" || event?.eventType === "בת מצווה") {
     return event?.batMitzvahName || "—";
@@ -105,4 +117,11 @@ export function getInviteParentsLine(event) {
   if (!p1 && !p2) return "";
   if (p1 && p2) return `נשמח לראותכם - ${p1} ו${p2}`;
   return `נשמח לראותכם - ${p1 || p2}`;
+}
+
+export function normalizeWebsiteUrl(url) {
+  const raw = String(url || "").trim();
+  if (!raw) return "";
+  if (/^https?:\/\//i.test(raw)) return raw;
+  return `https://${raw}`;
 }
