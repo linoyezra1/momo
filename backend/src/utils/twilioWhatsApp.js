@@ -89,8 +89,10 @@ const TEMPLATE_VALUE_FALLBACKS = {
 
 const CONFERENCE_GUEST_NAME_FALLBACK = "משקיע/ה יקר/ה";
 
-/** Approved Card SID: barak_finance_conference_invitation (כנס only). */
-export const CONFERENCE_RSVP_CONTENT_SID_DEFAULT = "HX109869c36946f3ecd97dc94421d45be2";
+/** Approved Card SID: copy_barak_finance_conference_invitation (כנס only). */
+export const CONFERENCE_RSVP_CONTENT_SID_DEFAULT = "HX19ff27eee129f0405599114db4635802";
+/** Previous Card SID (keep recognizing for in-flight / old env). */
+const CONFERENCE_RSVP_CONTENT_SID_LEGACY = "HX109869c36946f3ecd97dc94421d45be2";
 
 export function resolveConferenceContentSid() {
   const fromEnv = String(process.env.TWILIO_CONFERENCE_RSVP_CONTENT_SID || "").trim();
@@ -293,7 +295,7 @@ function summarizeContentVariables(contentVariables) {
 }
 
 /**
- * Conference Card template (barak_finance_conference_invitation): ONLY {{1}} = guest name.
+ * Conference Card template (copy_barak_finance_conference_invitation): ONLY {{1}} = guest name.
  * Static media is baked into the template — do NOT pass key "2" (Twilio Support).
  */
 export function buildConferenceContentVariables(guestName) {
@@ -304,7 +306,11 @@ export function buildConferenceContentVariables(guestName) {
 export function isConferenceContentSid(contentSid) {
   const sid = String(contentSid || "").trim();
   if (!sid.startsWith("HX")) return false;
-  return sid === resolveConferenceContentSid() || sid === CONFERENCE_RSVP_CONTENT_SID_DEFAULT;
+  return (
+    sid === resolveConferenceContentSid() ||
+    sid === CONFERENCE_RSVP_CONTENT_SID_DEFAULT ||
+    sid === CONFERENCE_RSVP_CONTENT_SID_LEGACY
+  );
 }
 
 /**

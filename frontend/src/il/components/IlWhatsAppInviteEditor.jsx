@@ -101,7 +101,7 @@ export default function IlWhatsAppInviteEditor({
           </div>
         </div>
         <p className="il-wa-hint">
-          תבנית כנס (barak_finance_conference_invitation) — משתנה דינמי רק שם המשתתף (&#123;&#123;1&#125;&#125;).
+          תבנית כנס (copy_barak_finance_conference_invitation) — משתנה דינמי רק שם המשתתף (&#123;&#123;1&#125;&#125;).
         </p>
       </div>
     );
