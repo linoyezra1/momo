@@ -233,7 +233,6 @@ export async function handleIncomingWhatsAppRsvp({
 
   const payload = normalizedInteractionValue(buttonPayload);
   const text = normalizedInteractionValue(buttonText || body);
-  const conference = isConferenceEventType(context.event?.eventType);
 
   const resetRequested =
     payload === "trigger_rsvp_reset" ||
@@ -249,18 +248,9 @@ export async function handleIncomingWhatsAppRsvp({
   }
 
   if (isYesRsvp({ payload, text })) {
-    if (conference) {
-      await saveRsvp(guest, {
-        status: "מגיע",
-        attendeesCount: Math.max(1, Number(guest.attendeesCount) || 1)
-      });
-      await sendContentTemplate({
-        guest,
-        contentSid: requireContentSid("TWILIO_RSVP_YES_FOLLOWUP_CONTENT_SID")
-      });
-      return { handled: true, action: "confirmed" };
-    }
+    // Same multi-step flow for כנס and wedding: ask count first, then confirm.
     guest.whatsappConversationState = "awaiting_guest_count";
+    guest.lastWhatsAppSentAt = new Date();
     await guest.save();
     await sendSessionText({ guest, body: ASK_GUEST_COUNT_TEXT });
     return { handled: true, action: "awaiting_guest_count" };
@@ -276,7 +266,6 @@ export async function handleIncomingWhatsAppRsvp({
   }
 
   if (
-    !conference &&
     interactionMatches({
       payload,
       text,
