@@ -152,6 +152,11 @@ async function sendContentTemplate({ guest, contentSid }) {
 
 async function sendPremiumMainTemplate({ guest, event, origin }) {
   if (isConferenceEventType(event?.eventType)) {
+    console.log(
+      `[Twilio][diag-63028][rsvp-reinvite] eventType=${JSON.stringify(event?.eventType)} ` +
+        `premiumButtons=${event?.isPremiumWhatsappButtonsEnabled === true} ` +
+        `→ conference Card (buttons toggle ignored)`
+    );
     return sendConferenceInviteWhatsApp({
       to: toTwilioWhatsAppAddress(guest.phone),
       guestName: guest.fullName || guest.name || "משקיע/ה יקר/ה",

@@ -3,9 +3,12 @@ import Guest from "../models/Guest.js";
 import {
   buildConferenceContentVariables,
   buildTwilioContentVariables,
+  CONFERENCE_RSVP_CONTENT_SID_DEFAULT,
   fetchTwilioContentTemplate,
   isConferenceContentSid,
   isTwilioConfigured,
+  logTwilioContentApprovalDiagnostics,
+  logTwilioContentSidEnvSnapshot,
   resolveConferenceContentSid,
   sendConferenceInviteWhatsApp,
   sendTwilioWhatsAppMessage,
@@ -22,30 +25,117 @@ import {
 import { getDefaultWelcomeParagraph, isConferenceEventType } from "../utils/eventTypeWording.js";
 import { recalculateUserSupplierCost } from "../utils/supplierCost.js";
 
-// copy_copy_event_invite_structured (Text)
-const STANDARD_INVITE_CONTENT_SID =
-  process.env.TWILIO_STANDARD_INVITE_CONTENT_SID ||
-  process.env.TWILIO_CONTENT_SID ||
-  "HXbdfde344006c1b595fe91e738f9972c5";
-// copy_copy_wedding_rsvp_buttons (Quick Reply)
-const PREMIUM_WEDDING_RSVP_CONTENT_SID =
-  process.env.TWILIO_COPY_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID ||
-  process.env.TWILIO_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID ||
-  "HX0ed4e1d2438f2e69bfd54610a127984d";
+const STANDARD_INVITE_CONTENT_SID_DEFAULT = "HXbdfde344006c1b595fe91e738f9972c5";
+const PREMIUM_WEDDING_RSVP_CONTENT_SID_DEFAULT = "HX0ed4e1d2438f2e69bfd54610a127984d";
 
-function getTwilioContentSid(event) {
-  if (isConferenceEventType(event?.eventType)) {
-    return resolveConferenceContentSid();
+/**
+ * Template SID routing for bulk invite send.
+ *
+ * Conference ALWAYS wins over the Admin "Buttons / Quick Reply" toggle.
+ * `isPremiumWhatsappButtonsEnabled` only selects wedding QR vs standard text
+ * when eventType is NOT כנס — it must never override TWILIO_CONFERENCE_RSVP_CONTENT_SID.
+ */
+function resolveInviteContentRouting(event) {
+  const eventType = event?.eventType ?? null;
+  const premiumButtonsEnabled = event?.isPremiumWhatsappButtonsEnabled === true;
+  const conference = isConferenceEventType(eventType);
+
+  if (conference) {
+    const envRaw = String(process.env.TWILIO_CONFERENCE_RSVP_CONTENT_SID || "").trim();
+    const fromEnv = envRaw.startsWith("HX");
+    return {
+      eventType,
+      premiumButtonsEnabled,
+      conference: true,
+      contentSid: fromEnv ? envRaw : CONFERENCE_RSVP_CONTENT_SID_DEFAULT,
+      sidSource: fromEnv
+        ? "env:TWILIO_CONFERENCE_RSVP_CONTENT_SID"
+        : "default:CONFERENCE_RSVP_CONTENT_SID_DEFAULT",
+      templateKeys: ["1"],
+      buttonsAffectsRouting: false
+    };
   }
-  const premiumEnabled = event?.isPremiumWhatsappButtonsEnabled === true;
-  return premiumEnabled ? PREMIUM_WEDDING_RSVP_CONTENT_SID : STANDARD_INVITE_CONTENT_SID;
+
+  if (premiumButtonsEnabled) {
+    const envCopy = String(process.env.TWILIO_COPY_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID || "").trim();
+    const envLegacy = String(process.env.TWILIO_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID || "").trim();
+    if (envCopy.startsWith("HX")) {
+      return {
+        eventType,
+        premiumButtonsEnabled,
+        conference: false,
+        contentSid: envCopy,
+        sidSource: "env:TWILIO_COPY_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID",
+        templateKeys: ["1", "2", "3", "4", "5"],
+        buttonsAffectsRouting: true
+      };
+    }
+    if (envLegacy.startsWith("HX")) {
+      return {
+        eventType,
+        premiumButtonsEnabled,
+        conference: false,
+        contentSid: envLegacy,
+        sidSource: "env:TWILIO_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID",
+        templateKeys: ["1", "2", "3", "4", "5"],
+        buttonsAffectsRouting: true
+      };
+    }
+    return {
+      eventType,
+      premiumButtonsEnabled,
+      conference: false,
+      contentSid: PREMIUM_WEDDING_RSVP_CONTENT_SID_DEFAULT,
+      sidSource: "default:PREMIUM_WEDDING_RSVP_CONTENT_SID_DEFAULT",
+      templateKeys: ["1", "2", "3", "4", "5"],
+      buttonsAffectsRouting: true
+    };
+  }
+
+  const envStandard =
+    String(process.env.TWILIO_STANDARD_INVITE_CONTENT_SID || "").trim() ||
+    String(process.env.TWILIO_CONTENT_SID || "").trim();
+  if (envStandard.startsWith("HX")) {
+    return {
+      eventType,
+      premiumButtonsEnabled,
+      conference: false,
+      contentSid: envStandard,
+      sidSource: process.env.TWILIO_STANDARD_INVITE_CONTENT_SID
+        ? "env:TWILIO_STANDARD_INVITE_CONTENT_SID"
+        : "env:TWILIO_CONTENT_SID",
+      templateKeys: ["1", "2", "3", "4", "5"],
+      buttonsAffectsRouting: true
+    };
+  }
+
+  return {
+    eventType,
+    premiumButtonsEnabled,
+    conference: false,
+    contentSid: STANDARD_INVITE_CONTENT_SID_DEFAULT,
+    sidSource: "default:STANDARD_INVITE_CONTENT_SID_DEFAULT",
+    templateKeys: ["1", "2", "3", "4", "5"],
+    buttonsAffectsRouting: true
+  };
 }
 
-function getTemplateVariableKeys(event) {
-  if (isConferenceEventType(event?.eventType)) {
-    return ["1"];
+function logInviteTemplateRouting(routing) {
+  console.log(
+    `[Twilio][template-routing] eventType=${JSON.stringify(routing.eventType)} ` +
+      `premiumButtons=${routing.premiumButtonsEnabled} ` +
+      `conference=${routing.conference} ` +
+      `buttonsAffectsRouting=${routing.buttonsAffectsRouting} ` +
+      `selectedSid=${routing.contentSid} ` +
+      `sidSource=${routing.sidSource} ` +
+      `variables=${routing.templateKeys.join(",")}`
+  );
+  if (routing.conference && routing.premiumButtonsEnabled) {
+    console.log(
+      "[Twilio][template-routing] NOTE: Admin Buttons toggle is ON but ignored — " +
+        "כנס always uses conference Card SID (not wedding Quick Reply)."
+    );
   }
-  return ["1", "2", "3", "4", "5"];
 }
 
 function normalizePaymentCode(rawCode) {
@@ -187,15 +277,22 @@ async function sendToInvitee({
     if (conferenceMode || isConferenceContentSid(contentSid)) {
       const guestName = invitee.name || invitee.fullName || "משקיע/ה יקר/ה";
       console.log(
-        `[Twilio] Conference invite → sendConferenceInviteWhatsApp name=${guestName} sid=${resolveConferenceContentSid()}`
+        `[Twilio][diag-63028][invitee] path=sendConferenceInviteWhatsApp ` +
+          `name=${guestName} phone=${invitee.phone} conferenceMode=${conferenceMode} ` +
+          `passedContentSid=${contentSid} resolvedConferenceSid=${resolveConferenceContentSid()}`
       );
-      await sendConferenceInviteWhatsApp({
+      const created = await sendConferenceInviteWhatsApp({
         to,
         guestName,
         userId: userId || eventId,
         recipientPhone: invitee.phone
       });
-      return { ok: true, invitee };
+      console.log(
+        `[Twilio][diag-63028][invitee] CREATE_RESULT messageSid=${created?.sid || "?"} ` +
+          `status=${created?.status || "?"} errorCode=${created?.errorCode ?? "(none)"} ` +
+          `→ correlate this Message SID in Twilio Console for Warning 63028`
+      );
+      return { ok: true, invitee, messageSid: created?.sid || null };
     }
 
     const fields = resolveInviteeTemplateFields({
@@ -324,19 +421,29 @@ export async function sendBulkWhatsApp({
       origin
     });
     const paragraphs = resolveWhatsAppInviteParagraphs(event);
-    const conferenceMode = isConferenceEventType(event?.eventType);
-    const contentSid = getTwilioContentSid(event);
-    const templateKeys = getTemplateVariableKeys(event);
+    const routing = resolveInviteContentRouting(event);
+    logInviteTemplateRouting(routing);
+    logTwilioContentSidEnvSnapshot("bulk-send");
+    const conferenceMode = routing.conference;
+    const contentSid = routing.contentSid;
+    const templateKeys = routing.templateKeys;
+
     console.log(
-      `[Twilio] eventType=${event?.eventType || "?"} conference=${conferenceMode}; ` +
-        `premium buttons ${event?.isPremiumWhatsappButtonsEnabled === true ? "enabled" : "disabled"}; ` +
-        `selected template SID: ${contentSid}; variables: ${templateKeys.join(", ")}`
+      `[Twilio][diag-63028][bulk-send] userId=${userId || "?"} ` +
+        `eventTypeRaw=${JSON.stringify(event?.eventType)} ` +
+        `isConference=${conferenceMode} ` +
+        `premiumButtons=${routing.premiumButtonsEnabled} ` +
+        `selectedSid=${contentSid} sidSource=${routing.sidSource} ` +
+        `expectedKeys=[${templateKeys.join(",")}] ` +
+        `inviteeCount=${invitees.length}`
     );
 
     if (conferenceMode) {
       console.log(
         `[Twilio] Conference Card template locked to SID=${contentSid} variables=1 only (static media in template)`
       );
+      // Read-only: Content.variables vs ApprovalRequests (Meta) — key for 63028 root cause
+      await logTwilioContentApprovalDiagnostics(contentSid, "bulk-send-conference");
     } else {
       try {
         const templateMeta = await fetchTwilioContentTemplate(contentSid);

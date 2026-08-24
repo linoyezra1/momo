@@ -98,6 +98,21 @@ export function resolveConferenceContentSid() {
   return CONFERENCE_RSVP_CONTENT_SID_DEFAULT;
 }
 
+/** Where the conference Card SID came from (for Railway diagnostics). */
+export function describeConferenceContentSid() {
+  const fromEnv = String(process.env.TWILIO_CONFERENCE_RSVP_CONTENT_SID || "").trim();
+  if (fromEnv.startsWith("HX")) {
+    return {
+      contentSid: fromEnv,
+      sidSource: "env:TWILIO_CONFERENCE_RSVP_CONTENT_SID"
+    };
+  }
+  return {
+    contentSid: CONFERENCE_RSVP_CONTENT_SID_DEFAULT,
+    sidSource: "default:CONFERENCE_RSVP_CONTENT_SID_DEFAULT"
+  };
+}
+
 function collectTemplateVariableKeysFromText(text, keys) {
   if (typeof text !== "string" || !text) return;
   for (const match of text.matchAll(/\{\{(\d+)\}\}/g)) {
@@ -137,6 +152,143 @@ export async function fetchTwilioContentTemplate(contentSid) {
     variableKeys,
     defaultVariables: content.variables || {},
     contentTypes: Object.keys(content.types || {})
+  };
+}
+
+/**
+ * Diagnostic-only: dump Content variables + ApprovalRequests for 63028 investigations.
+ * Never throws — logging must not block send.
+ */
+export async function logTwilioContentApprovalDiagnostics(contentSid, label = "diag") {
+  const tag = `[Twilio][diag-63028][${label}]`;
+  const sid = String(contentSid || "").trim();
+  if (!sid.startsWith("HX")) {
+    console.warn(`${tag} skip — invalid contentSid=${sid}`);
+    return;
+  }
+
+  try {
+    const client = getTwilioClient();
+    const content = await client.content.v1.contents(sid).fetch();
+    const variableKeys = extractContentVariableKeys(content);
+    const types = content.types || {};
+    const typeSummaries = {};
+    for (const [typeName, typeDef] of Object.entries(types)) {
+      if (!typeDef || typeof typeDef !== "object") continue;
+      typeSummaries[typeName] = {
+        hasTitle: Boolean(typeDef.title),
+        hasSubtitle: Boolean(typeDef.subtitle),
+        hasBody: Boolean(typeDef.body),
+        titleSample: typeof typeDef.title === "string" ? typeDef.title.slice(0, 80) : null,
+        bodyHasVar1: typeof typeDef.body === "string" && typeDef.body.includes("{{1}}"),
+        mediaCount: Array.isArray(typeDef.media) ? typeDef.media.length : 0,
+        mediaSample: Array.isArray(typeDef.media)
+          ? typeDef.media.map((m) => String(m).slice(0, 120))
+          : [],
+        buttonCount: Array.isArray(typeDef.actions) ? typeDef.actions.length : 0
+      };
+    }
+
+    console.log(
+      `${tag} Content fetch sid=${content.sid} friendlyName=${content.friendlyName || content.friendly_name || "?"} ` +
+        `language=${content.language || "?"} variableKeys=[${variableKeys.join(",")}] ` +
+        `variablesJson=${JSON.stringify(content.variables || {})}`
+    );
+    console.log(`${tag} Content types=${JSON.stringify(typeSummaries)}`);
+
+    // Approval / WhatsApp submission shape (where Meta param count often differs from Content UI)
+    let approvalPayload = null;
+    try {
+      if (client.content?.v1?.contents?.(sid)?.approvalRequests?.fetch) {
+        approvalPayload = await client.content.v1.contents(sid).approvalRequests.fetch();
+      }
+    } catch (approvalErr) {
+      console.warn(
+        `${tag} approvalRequests.fetch failed: ${approvalErr?.message || approvalErr}`
+      );
+    }
+    if (!approvalPayload) {
+      try {
+        if (client.content?.v1?.contentAndApprovals?.(sid)?.fetch) {
+          approvalPayload = await client.content.v1.contentAndApprovals(sid).fetch();
+        }
+      } catch (caaErr) {
+        console.warn(
+          `${tag} contentAndApprovals.fetch failed: ${caaErr?.message || caaErr}`
+        );
+      }
+    }
+
+    if (approvalPayload) {
+      const slim = {
+        sid: approvalPayload.sid,
+        name: approvalPayload.name || approvalPayload.friendlyName,
+        approvalRequests: approvalPayload.approvalRequests || approvalPayload.approval_requests,
+        whatsapp: approvalPayload.whatsapp,
+        status: approvalPayload.status,
+        category: approvalPayload.category,
+        allowCategoryChange: approvalPayload.allowCategoryChange,
+        types: approvalPayload.types ? Object.keys(approvalPayload.types) : undefined,
+        variables: approvalPayload.variables
+      };
+      console.log(`${tag} Approval payload (slim)=${JSON.stringify(slim)}`);
+      try {
+        console.log(
+          `${tag} Approval payload (full, truncated)=${JSON.stringify(approvalPayload).slice(0, 4000)}`
+        );
+      } catch {
+        console.log(`${tag} Approval payload could not be stringified`);
+      }
+    } else {
+      console.warn(`${tag} No ApprovalRequests payload available — check Console manually`);
+    }
+  } catch (error) {
+    console.warn(`${tag} Content diagnostics failed: ${error?.message || error}`);
+  }
+}
+
+/** Snapshot of Twilio Content SID env vars (for deploy/env mismatch checks). */
+export function logTwilioContentSidEnvSnapshot(label = "diag") {
+  const tag = `[Twilio][diag-63028][${label}]`;
+  const pick = (name) => {
+    const raw = String(process.env[name] || "").trim();
+    return raw ? raw : "(unset)";
+  };
+  console.log(
+    `${tag} ENV SIDs ` +
+      `TWILIO_CONFERENCE_RSVP_CONTENT_SID=${pick("TWILIO_CONFERENCE_RSVP_CONTENT_SID")} ` +
+      `resolvedConference=${resolveConferenceContentSid()} ` +
+      `TWILIO_CONTENT_SID=${pick("TWILIO_CONTENT_SID")} ` +
+      `TWILIO_STANDARD_INVITE_CONTENT_SID=${pick("TWILIO_STANDARD_INVITE_CONTENT_SID")} ` +
+      `TWILIO_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID=${pick("TWILIO_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID")} ` +
+      `TWILIO_COPY_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID=${pick("TWILIO_COPY_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID")}`
+  );
+}
+
+function summarizeContentVariables(contentVariables) {
+  let raw =
+    typeof contentVariables === "string"
+      ? contentVariables
+      : contentVariables != null
+        ? JSON.stringify(contentVariables)
+        : "";
+  let keys = [];
+  let parseOk = false;
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw);
+      keys = Object.keys(parsed || {}).sort((a, b) => Number(a) - Number(b));
+      parseOk = true;
+    } catch {
+      parseOk = false;
+    }
+  }
+  return {
+    raw: raw || "(none)",
+    keys,
+    keyCount: keys.length,
+    parseOk,
+    hasKeys2to5: keys.some((k) => ["2", "3", "4", "5"].includes(k))
   };
 }
 
@@ -256,6 +408,7 @@ export async function sendTwilioWhatsAppMessage({
 }) {
   const displayPhone = formatWhatsAppRecipientPhone(recipientPhone || to);
   const displaySender = formatWhatsAppSenderLabel({ userId, username, senderLabel });
+  const diagTag = "[Twilio][diag-63028][messages.create]";
 
   try {
     const client = getTwilioClient();
@@ -268,6 +421,14 @@ export async function sendTwilioWhatsAppMessage({
           : contentVariables != null
             ? JSON.stringify(contentVariables)
             : undefined;
+
+      const varsBeforeEnforce = summarizeContentVariables(variablesJson);
+      console.log(
+        `${diagTag} BEFORE_ENFORCE contentSid=${String(contentSid).trim()} ` +
+          `isConferenceSid=${isConferenceContentSid(contentSid)} ` +
+          `keyCount=${varsBeforeEnforce.keyCount} keys=[${varsBeforeEnforce.keys.join(",")}] ` +
+          `hasKeys2to5=${varsBeforeEnforce.hasKeys2to5} raw=${varsBeforeEnforce.raw}`
+      );
 
       // Absolute guard for conference Card SID — only {"1": name} (Twilio Support).
       if (isConferenceContentSid(contentSid)) {
@@ -290,6 +451,18 @@ export async function sendTwilioWhatsAppMessage({
         messagePayload.contentVariables = variablesJson;
       }
 
+      const varsAfter = summarizeContentVariables(messagePayload.contentVariables);
+      const forbiddenKeys = ["body", "mediaUrl", "from", "statusCallback"].filter((k) =>
+        Object.prototype.hasOwnProperty.call(messagePayload, k)
+      );
+      console.log(
+        `${diagTag} FINAL_PAYLOAD payloadKeys=[${Object.keys(messagePayload).join(",")}] ` +
+          `forbiddenKeysPresent=[${forbiddenKeys.join(",") || "none"}] ` +
+          `contentSid=${messagePayload.contentSid} ` +
+          `messagingServiceSid=${messagingServiceSid} ` +
+          `contentVariables keyCount=${varsAfter.keyCount} keys=[${varsAfter.keys.join(",")}] ` +
+          `hasKeys2to5=${varsAfter.hasKeys2to5} raw=${varsAfter.raw} to=${displayPhone}`
+      );
       console.log(
         `[Twilio] messages.create contentSid=${messagePayload.contentSid} ` +
           `payloadKeys=${Object.keys(messagePayload).join(",")} ` +
@@ -298,7 +471,20 @@ export async function sendTwilioWhatsAppMessage({
       );
 
       result = await client.messages.create(messagePayload);
+
+      // Create succeeded — 63028 often appears later as Delivery Warning (async).
+      console.log(
+        `${diagTag} CREATE_OK messageSid=${result?.sid || "?"} status=${result?.status || "?"} ` +
+          `errorCode=${result?.errorCode ?? result?.error_code ?? "(none)"} ` +
+          `errorMessage=${result?.errorMessage || result?.error_message || "(none)"} ` +
+          `numMedia=${result?.numMedia ?? result?.num_media ?? "?"} ` +
+          `hasBody=${Boolean(result?.body)} bodyLen=${String(result?.body || "").length} ` +
+          `NOTE=63028 may still appear later on WhatsApp delivery even when CREATE_OK`
+      );
     } else {
+      console.log(
+        `${diagTag} FREE_TEXT_PATH (no contentSid) bodyLen=${String(body || "").length} to=${displayPhone}`
+      );
       result = await client.messages.create({ body, messagingServiceSid, to });
     }
 
@@ -308,6 +494,10 @@ export async function sendTwilioWhatsAppMessage({
     return result;
   } catch (error) {
     const reason = formatTwilioFailureReason(error);
+    console.error(
+      `${diagTag} CREATE_FAIL code=${error?.code ?? "?"} status=${error?.status ?? "?"} ` +
+        `message=${error?.message || reason}`
+    );
     console.error(
       `ERROR: שליחת וואטסאפ נכשלה למספר ${displayPhone} מאת משתמש ${displaySender}. סיבה: ${reason}`
     );
@@ -327,8 +517,12 @@ export async function sendConferenceInviteWhatsApp({
   senderLabel,
   recipientPhone
 }) {
-  const contentSid = resolveConferenceContentSid();
+  const { contentSid, sidSource } = describeConferenceContentSid();
   const contentVariables = buildConferenceContentVariables(guestName);
+  console.log(
+    `[Twilio][conference-send] contentSid=${contentSid} sidSource=${sidSource} ` +
+      `contentVariables=${contentVariables}`
+  );
   return sendTwilioWhatsAppMessage({
     to,
     contentSid,
