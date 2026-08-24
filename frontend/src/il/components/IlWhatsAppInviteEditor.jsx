@@ -81,13 +81,16 @@ export default function IlWhatsAppInviteEditor({
         </div>
         <div className="il-wa-chat">
           <div className="il-wa-bubble" role="group" aria-label="הודעת הזמנה לכנס בוואטסאפ">
+            <p className="il-wa-locked" style={{ fontWeight: 600 }}>
+              כנס המשקיעים של ברק פיננסים
+            </p>
             <p className="il-wa-locked">
               שלום <span className="il-wa-token">[שם המשתתף]</span>,
             </p>
             <p className="il-wa-locked">
-              תבנית הכנס מותאמת אישית רק בשם המשתתף. יתר תוכן ההודעה מוגדר בתבנית המאושרת במטא.
+              תוכן ההודעה והתמונה קבועים בתבנית המאושרת. נשלח רק שם המשתתף — בלי קישור להזמנה
+              ובלי עריכת טקסט מכאן.
             </p>
-            <p className="il-wa-locked il-wa-link">{publicLink}</p>
             <div className="il-wa-quick-replies" aria-hidden="true">
               <span>כן, אני אגיע!</span>
               <span>לא אוכל להגיע</span>
@@ -101,7 +104,8 @@ export default function IlWhatsAppInviteEditor({
           </div>
         </div>
         <p className="il-wa-hint">
-          תבנית כנס (copy_barak_finance_conference_invitation) — משתנה דינמי רק שם המשתתף (&#123;&#123;1&#125;&#125;).
+          תבנית כנס (barak_finance_conference_qr) — משתנה דינמי רק שם המשתתף
+          (&#123;&#123;1&#125;&#125;). אין קישור לדף ההזמנה בשליחה.
         </p>
       </div>
     );

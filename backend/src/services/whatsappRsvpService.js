@@ -28,7 +28,7 @@ import {
 } from "../utils/guestStatusHistory.js";
 
 const RSVP_YES_TEXT = "כן אני אגיע";
-/** Conference template copy_barak_finance_conference_invitation button text */
+/** Conference template barak_finance_conference_qr button text */
 const RSVP_YES_CONFERENCE_TEXT = "כן, אני אגיע!";
 const RSVP_NO_TEXT = "לצערי לא אוכל";
 const RSVP_NO_CONFERENCE_TEXT = "לא אוכל להגיע";

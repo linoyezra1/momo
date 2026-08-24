@@ -2397,7 +2397,9 @@ export default function ClientDashboardPage() {
                 <div>
                   <div className="il-bulk-whatsapp-editor-head">
                     <label className="us-field-label" htmlFor="wa-welcome-paragraph">
-                      עריכת הודעת ההזמנה
+                      {isConferenceEventType(eventInfo?.eventType)
+                        ? "תצוגת הודעת ההזמנה"
+                        : "עריכת הודעת ההזמנה"}
                     </label>
                     {inviteCopySaveState === "saving" ? (
                       <span className="il-bulk-whatsapp-save-hint">שומר…</span>
