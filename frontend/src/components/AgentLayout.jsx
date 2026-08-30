@@ -24,7 +24,10 @@ export default function AgentLayout() {
         <div className="agent-layout-top__meta">
           <span className="agent-layout-top__brand">momoEVENT · נציג</span>
           {profile?.displayName || profile?.username ? (
-            <span className="agent-layout-top__user">{profile.displayName || profile.username}</span>
+            <span className="agent-layout-top__user">
+              {profile.displayName || profile.username}
+              {profile.isMainAgent ? " · סוכן ראשי" : ""}
+            </span>
           ) : null}
         </div>
         <button type="button" className="agent-layout-logout" onClick={logout} aria-label="יציאה">

@@ -30,6 +30,7 @@ export function signAgentToken(agent = {}) {
     agentId: String(agent.id || "").trim(),
     username: String(agent.username || "").trim(),
     displayName: String(agent.displayName || agent.username || "").trim(),
+    isMainAgent: agent.isMainAgent === true,
     exp: Date.now() + TOKEN_TTL_MS
   };
   const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
@@ -60,6 +61,7 @@ export function verifyAgentToken(token) {
       agentId: String(payload.agentId),
       username: String(payload.username || ""),
       displayName: String(payload.displayName || payload.username || ""),
+      isMainAgent: payload.isMainAgent === true,
       exp: payload.exp
     };
   } catch {
@@ -77,7 +79,8 @@ export function requireAgent(req, res, next) {
   req.agent = {
     id: payload.agentId,
     username: payload.username,
-    displayName: payload.displayName
+    displayName: payload.displayName,
+    isMainAgent: payload.isMainAgent === true
   };
   return next();
 }
@@ -98,7 +101,8 @@ export function validateAgentCredentials(username, password) {
         agent: {
           id: agent.id,
           username: agent.username,
-          displayName: agent.displayName
+          displayName: agent.displayName,
+          isMainAgent: agent.isMainAgent === true
         }
       };
     }

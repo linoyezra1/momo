@@ -5,13 +5,17 @@ import "../agent-workspace.css";
 
 export default function AgentClientsPage() {
   const [clients, setClients] = useState([]);
+  const [scope, setScope] = useState("owned");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     api
       .get("/agent/clients")
-      .then((response) => setClients(response.data?.clients || []))
+      .then((response) => {
+        setClients(response.data?.clients || []);
+        setScope(response.data?.scope === "all" ? "all" : "owned");
+      })
       .catch((loadError) => setError(loadError.response?.data?.message || "טעינת לקוחות נכשלה"))
       .finally(() => setLoading(false));
   }, []);
@@ -20,7 +24,11 @@ export default function AgentClientsPage() {
     <div className="agent-container">
       <header className="agent-header">
         <h1>מרכז שיחות</h1>
-        <p>בחרו אירוע לניהול אישורי הגעה טלפוניים (רק האירועים שלכם)</p>
+        <p>
+          {scope === "all"
+            ? "בחרו אירוע מכל האירועים במערכת לניהול אישורי הגעה טלפוניים"
+            : "בחרו אירוע לניהול אישורי הגעה טלפוניים (רק האירועים שלכם)"}
+        </p>
       </header>
 
       {loading ? <p className="agent-muted">טוען רשימת אירועים…</p> : null}

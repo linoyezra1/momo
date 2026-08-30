@@ -22,6 +22,7 @@ function phoneTelHref(phone) {
 
 export default function AgentEventsPage() {
   const [clients, setClients] = useState([]);
+  const [scope, setScope] = useState("owned");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [copiedId, setCopiedId] = useState("");
@@ -29,7 +30,10 @@ export default function AgentEventsPage() {
   useEffect(() => {
     api
       .get("/agent/clients")
-      .then((response) => setClients(response.data?.clients || []))
+      .then((response) => {
+        setClients(response.data?.clients || []);
+        setScope(response.data?.scope === "all" ? "all" : "owned");
+      })
       .catch((loadError) => setError(loadError.response?.data?.message || "טעינת אירועים נכשלה"))
       .finally(() => setLoading(false));
   }, []);
@@ -48,8 +52,12 @@ export default function AgentEventsPage() {
   return (
     <div className="agent-container agent-container--wide">
       <header className="agent-header">
-        <h1>האירועים שלי</h1>
-        <p>פעולות מהירות מול הלקוחות שפתחתם</p>
+        <h1>{scope === "all" ? "כל האירועים" : "האירועים שלי"}</h1>
+        <p>
+          {scope === "all"
+            ? "גישה לכל האירועים במערכת — שיחות, וואטסאפ ופרטי לקוח"
+            : "פעולות מהירות מול הלקוחות שפתחתם"}
+        </p>
       </header>
 
       {loading ? <p className="agent-muted">טוען…</p> : null}

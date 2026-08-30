@@ -66,16 +66,18 @@ function isInAgentQueue(guest, maxPhoneRounds) {
   );
 }
 
-function agentOwnsUser(user, agentId) {
-  return String(user?.createdByAgentId || "").trim() === String(agentId || "").trim();
+function agentCanAccessUser(user, agent) {
+  if (!user || !agent) return false;
+  if (agent.isMainAgent === true) return true;
+  return String(user?.createdByAgentId || "").trim() === String(agent.id || "").trim();
 }
 
-async function findAgentOwnedUser(userId, agentId, select) {
+async function findAgentAccessibleUser(userId, agent, select) {
   const query = User.findById(userId);
   if (select) query.select(select);
   const user = await query;
   if (!user) return { error: { status: 404, message: "Client not found" } };
-  if (!agentOwnsUser(user, agentId)) {
+  if (!agentCanAccessUser(user, agent)) {
     return { error: { status: 403, message: "אין הרשאה לאירוע זה" } };
   }
   return { user };
@@ -147,7 +149,8 @@ router.get("/session", (req, res) => {
     agent: {
       id: payload.agentId,
       username: payload.username,
-      displayName: payload.displayName
+      displayName: payload.displayName,
+      isMainAgent: payload.isMainAgent === true
     }
   });
 });
@@ -156,10 +159,11 @@ router.use(requireAgent);
 
 router.get("/clients", async (req, res) => {
   try {
-    const agentId = req.agent.id;
+    const agent = req.agent;
+    const filter = agent.isMainAgent ? {} : { createdByAgentId: agent.id };
     const users = await User.find(
-      { createdByAgentId: agentId },
-      "username event createdAt payment deal loginPassword contactPhone createdByAgentId"
+      filter,
+      "username event createdAt payment deal loginPassword contactPhone createdByAgentId managedBy"
     ).sort({ createdAt: -1 });
 
     const clients = await Promise.all(
@@ -177,6 +181,7 @@ router.get("/clients", async (req, res) => {
     return res.json({
       clients,
       agent: req.agent,
+      scope: agent.isMainAgent ? "all" : "owned",
       supplierCostGrandTotal: Math.round(supplierCostGrandTotal * 100) / 100
     });
   } catch (error) {
@@ -218,7 +223,7 @@ router.post("/create-client", async (req, res) => {
 router.patch("/clients/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
-    const owned = await findAgentOwnedUser(userId, req.agent.id);
+    const owned = await findAgentAccessibleUser(userId, req.agent);
     if (owned.error) {
       return res.status(owned.error.status).json({ message: owned.error.message });
     }
@@ -263,7 +268,7 @@ router.patch("/clients/:userId", async (req, res) => {
 router.get("/:userId/audit-logs", async (req, res) => {
   try {
     const { userId } = req.params;
-    const owned = await findAgentOwnedUser(userId, req.agent.id, "_id createdByAgentId");
+    const owned = await findAgentAccessibleUser(userId, req.agent, "_id createdByAgentId");
     if (owned.error) {
       return res.status(owned.error.status).json({ message: owned.error.message });
     }
@@ -284,9 +289,9 @@ router.get("/:userId/audit-logs", async (req, res) => {
 router.get("/:userId/guests", async (req, res) => {
   try {
     const { userId } = req.params;
-    const owned = await findAgentOwnedUser(
+    const owned = await findAgentAccessibleUser(
       userId,
-      req.agent.id,
+      req.agent,
       "event username deal.includedFeatures createdByAgentId"
     );
     if (owned.error) {
@@ -341,9 +346,9 @@ router.patch("/:userId/guests/:guestId/phone-rsvp", async (req, res) => {
       return res.status(400).json({ message: "יש לבחור תוצאת שיחה תקינה" });
     }
 
-    const owned = await findAgentOwnedUser(
+    const owned = await findAgentAccessibleUser(
       userId,
-      req.agent.id,
+      req.agent,
       "event.maxPhoneRounds deal.includedFeatures createdByAgentId"
     );
     if (owned.error) {
@@ -480,7 +485,7 @@ router.post("/clients/:userId/event/cover", coverUpload.single("cover"), async (
           "אחסון תמונות לא מוגדר. יש להגדיר CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY ו-CLOUDINARY_API_SECRET"
       });
     }
-    const owned = await findAgentOwnedUser(req.params.userId, req.agent.id);
+    const owned = await findAgentAccessibleUser(req.params.userId, req.agent);
     if (owned.error) {
       return res.status(owned.error.status).json({ message: owned.error.message });
     }
@@ -493,7 +498,7 @@ router.post("/clients/:userId/event/cover", coverUpload.single("cover"), async (
 
 router.delete("/clients/:userId/event/cover", async (req, res) => {
   try {
-    const owned = await findAgentOwnedUser(req.params.userId, req.agent.id);
+    const owned = await findAgentAccessibleUser(req.params.userId, req.agent);
     if (owned.error) {
       return res.status(owned.error.status).json({ message: owned.error.message });
     }
