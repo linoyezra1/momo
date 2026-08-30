@@ -14,7 +14,7 @@ import {
   buildPhoneAttemptsUnderCapMongoClause,
   buildWhatsAppSentMongoClause,
   maxPhoneRoundsFromDealFeatures,
-  resolveAgentQueueMaxPhoneRounds
+  resolveMaxPhoneRounds
 } from "../utils/phoneRounds.js";
 import {
   STATUS_HISTORY_SOURCES,
@@ -49,6 +49,9 @@ function buildEventLabel(event) {
   }
   if (event.eventType === "בר מצווה" || event.eventType === "בת מצווה") {
     return event.batMitzvahName || event.parentName1 || event.eventType;
+  }
+  if (event.eventType === "כנס") {
+    return event.conferenceBrandName || event.eventNames || event.organizerName || "כנס";
   }
   return event.eventNames || event.eventType || "אירוע";
 }
@@ -305,15 +308,14 @@ router.get("/:userId/guests", async (req, res) => {
     const owned = await findAgentAccessibleUser(
       userId,
       req.agent,
-      "event.maxPhoneRounds event.username deal.includedFeatures createdByAgentId"
+      "event username deal.includedFeatures createdByAgentId"
     );
     if (owned.error) {
       return res.status(owned.error.status).json({ message: owned.error.message });
     }
     const user = owned.user;
 
-    const phoneRounds = resolveAgentQueueMaxPhoneRounds(user, req.agent);
-    const maxPhoneRounds = phoneRounds.effective;
+    const maxPhoneRounds = resolveMaxPhoneRounds(user);
     const candidates = await Guest.find({
       userId,
       status: { $in: ["לא ידוע", "אולי"] },
@@ -330,8 +332,6 @@ router.get("/:userId/guests", async (req, res) => {
       event: user.event,
       eventLabel: buildEventLabel(user.event),
       maxPhoneRounds,
-      configuredMaxPhoneRounds: phoneRounds.configured,
-      usingMainAgentDefault: phoneRounds.usingMainAgentDefault,
       phoneServiceEnabled: maxPhoneRounds > 0,
       queueCount: guests.length,
       guests
@@ -359,8 +359,7 @@ router.patch("/:userId/guests/:guestId/phone-rsvp", async (req, res) => {
       return res.status(owned.error.status).json({ message: owned.error.message });
     }
     const user = owned.user;
-    const phoneRounds = resolveAgentQueueMaxPhoneRounds(user, req.agent);
-    const maxPhoneRounds = phoneRounds.effective;
+    const maxPhoneRounds = resolveMaxPhoneRounds(user);
     const existingGuest = await Guest.findOne({ _id: guestId, userId });
     if (!existingGuest) {
       return res.status(404).json({ message: "Guest not found" });

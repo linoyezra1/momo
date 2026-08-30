@@ -57,6 +57,22 @@ function buildEventHosts(event) {
   return event.batMitzvahName || event.eventNames || event.parentName1 || "—";
 }
 
+function buildEventAddress(event) {
+  if (!event) return "";
+  if (isConferenceEventType(event.eventType)) {
+    return String(event.locationAddress || "").trim();
+  }
+  return [event.streetAndNumber, event.city].filter(Boolean).join(", ");
+}
+
+function buildEventVenue(event) {
+  if (!event) return "";
+  if (isConferenceEventType(event.eventType)) {
+    return event.venueName || event.conferenceBrandName || "";
+  }
+  return event.venueName || "";
+}
+
 function buildManualInviteMessage({ guest, event, userId }) {
   if (!guest || !event || !userId) return "";
   const origin = typeof window !== "undefined" ? window.location.origin : "";
@@ -100,7 +116,6 @@ export default function AgentWorkspacePage() {
   const [expandedGuestId, setExpandedGuestId] = useState("");
   const [maxPhoneRounds, setMaxPhoneRounds] = useState(0);
   const [phoneServiceEnabled, setPhoneServiceEnabled] = useState(true);
-  const [usingMainAgentDefault, setUsingMainAgentDefault] = useState(false);
   const [selectedGuestIds, setSelectedGuestIds] = useState(() => new Set());
   const [exporting, setExporting] = useState(false);
   const [attemptsFilter, setAttemptsFilter] = useState("all");
@@ -114,7 +129,6 @@ export default function AgentWorkspacePage() {
       setEventInfo(response.data?.event || null);
       setMaxPhoneRounds(Number(response.data?.maxPhoneRounds) || 0);
       setPhoneServiceEnabled(response.data?.phoneServiceEnabled !== false);
-      setUsingMainAgentDefault(response.data?.usingMainAgentDefault === true);
       setGuests(response.data?.guests || []);
     } catch (loadError) {
       setError(loadError.response?.data?.message || "טעינת מוזמנים נכשלה");
@@ -204,8 +218,13 @@ export default function AgentWorkspacePage() {
     }
   };
 
-  const eventAddress = [eventInfo?.streetAndNumber, eventInfo?.city].filter(Boolean).join(", ");
+  const isConference = isConferenceEventType(eventInfo?.eventType);
+  const eventAddress = buildEventAddress(eventInfo);
+  const eventVenue = buildEventVenue(eventInfo);
   const eventStartTime = eventInfo?.receptionTime || eventInfo?.eventTime || "";
+  const hostsLabel = isConference ? "מארגן" : "הזוג";
+  const venueLabel = isConference ? "שם הכנס / מיקום" : "אולם / מיקום";
+  const timeLabel = isConference ? "שעת התכנסות" : "שעת התחלה";
 
   return (
     <div className="agent-container agent-container--wide">
@@ -232,10 +251,19 @@ export default function AgentWorkspacePage() {
               <div className="agent-quick-info__item">
                 <Users size={19} aria-hidden="true" />
                 <div>
-                  <span>הזוג</span>
+                  <span>{hostsLabel}</span>
                   <strong>{buildEventHosts(eventInfo)}</strong>
                 </div>
               </div>
+              {isConference && eventInfo.conferenceBrandName ? (
+                <div className="agent-quick-info__item">
+                  <Users size={19} aria-hidden="true" />
+                  <div>
+                    <span>שם הבמה / מותג</span>
+                    <strong>{eventInfo.conferenceBrandName}</strong>
+                  </div>
+                </div>
+              ) : null}
               <div className="agent-quick-info__item">
                 <CalendarDays size={19} aria-hidden="true" />
                 <div>
@@ -246,14 +274,14 @@ export default function AgentWorkspacePage() {
               <div className="agent-quick-info__item">
                 <MapPin size={19} aria-hidden="true" />
                 <div>
-                  <span>אולם / מיקום</span>
-                  <strong>{eventInfo.venueName || "—"}</strong>
+                  <span>{venueLabel}</span>
+                  <strong>{eventVenue || "—"}</strong>
                 </div>
               </div>
               <div className="agent-quick-info__item">
                 <Clock3 size={19} aria-hidden="true" />
                 <div>
-                  <span>שעת התחלה</span>
+                  <span>{timeLabel}</span>
                   <strong>{eventStartTime || "—"}</strong>
                 </div>
               </div>
@@ -264,6 +292,15 @@ export default function AgentWorkspacePage() {
                   <strong>{eventAddress || "—"}</strong>
                 </div>
               </div>
+              {isConference && eventInfo.parkingDetails ? (
+                <div className="agent-quick-info__item agent-quick-info__item--wide">
+                  <MapPin size={19} aria-hidden="true" />
+                  <div>
+                    <span>חניה</span>
+                    <strong>{eventInfo.parkingDetails}</strong>
+                  </div>
+                </div>
+              ) : null}
             </div>
           </section>
         ) : null}
@@ -308,12 +345,6 @@ export default function AgentWorkspacePage() {
                 <span>
                   מוצגים רק מוזמנים שקיבלו וואטסאפ, טרם אישרו הגעה ולא הגיעו למכסת השיחות.
                 </span>
-                {usingMainAgentDefault ? (
-                  <span className="agent-muted" style={{ display: "block", marginTop: "0.35rem" }}>
-                    לא הוגדרו סבבי שיחה באירוע — מוצגים עם מכסת ברירת מחדל לסוכן ראשי (
-                    {maxPhoneRounds} ניסיונות).
-                  </span>
-                ) : null}
                 {!phoneServiceEnabled ? (
                   <span className="agent-error" style={{ display: "block", marginTop: "0.35rem" }}>
                     שירות שיחות לא מוגדר באירוע זה. יש להפעיל סבבי שיחה בחבילה (Admin).
