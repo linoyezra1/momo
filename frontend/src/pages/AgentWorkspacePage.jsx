@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { CalendarDays, ChevronDown, Clock3, MapPin, Phone, Users } from "lucide-react";
+import { CalendarDays, ChevronDown, Clock3, MapPin, Phone, Search, Users, X } from "lucide-react";
 import api from "../api";
 import AgentPhoneRsvpForm from "../components/AgentPhoneRsvpForm.jsx";
 import GuestAuditLogTable from "../components/GuestAuditLogTable.jsx";
@@ -106,6 +106,31 @@ function buildManualSmsUrl({ guest, event, userId }) {
   return `sms:${intlPhone}?body=${encodeURIComponent(message)}`;
 }
 
+function normalizePhoneForSearch(phone) {
+  let digits = String(phone || "").replace(/\D/g, "");
+  if (!digits) return "";
+  if (digits.startsWith("972")) digits = `0${digits.slice(3)}`;
+  return digits;
+}
+
+function guestMatchesSearchQuery(guest, query) {
+  const trimmed = String(query || "").trim();
+  if (!trimmed) return true;
+
+  const name = String(guest?.fullName || guest?.name || "").trim().toLowerCase();
+  if (name && name.includes(trimmed.toLowerCase())) return true;
+
+  const queryDigits = normalizePhoneForSearch(trimmed);
+  const guestDigits = normalizePhoneForSearch(guest?.phone || guest?.phoneNumber);
+  if (queryDigits && guestDigits.includes(queryDigits)) return true;
+
+  const rawGuest = String(guest?.phone || guest?.phoneNumber || "").replace(/\s|-/g, "");
+  const rawQuery = trimmed.replace(/\s|-/g, "");
+  if (rawQuery && rawGuest.toLowerCase().includes(rawQuery.toLowerCase())) return true;
+
+  return false;
+}
+
 export default function AgentWorkspacePage() {
   const { userId } = useParams();
   const [eventLabel, setEventLabel] = useState("");
@@ -119,6 +144,7 @@ export default function AgentWorkspacePage() {
   const [selectedGuestIds, setSelectedGuestIds] = useState(() => new Set());
   const [exporting, setExporting] = useState(false);
   const [attemptsFilter, setAttemptsFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const loadGuests = async () => {
     setLoading(true);
@@ -141,11 +167,18 @@ export default function AgentWorkspacePage() {
     loadGuests();
   }, [userId]);
 
-  const filteredGuests = useMemo(() => {
+  const attemptFilteredGuests = useMemo(() => {
     if (attemptsFilter === "all") return guests;
     const exactAttempts = Number(attemptsFilter);
     return guests.filter((guest) => Number(guest.phoneAttemptsCount || 0) === exactAttempts);
   }, [attemptsFilter, guests]);
+
+  const filteredGuests = useMemo(() => {
+    if (!searchQuery.trim()) return attemptFilteredGuests;
+    return attemptFilteredGuests.filter((guest) => guestMatchesSearchQuery(guest, searchQuery));
+  }, [attemptFilteredGuests, searchQuery]);
+
+  const hasActiveSearch = Boolean(searchQuery.trim());
 
   const allFilteredSelected =
     filteredGuests.length > 0 && filteredGuests.every((guest) => selectedGuestIds.has(guest._id));
@@ -355,6 +388,11 @@ export default function AgentWorkspacePage() {
                 <span>
                   מוצגים: <strong>{filteredGuests.length}</strong> מתוך {guests.length}
                 </span>
+                {hasActiveSearch ? (
+                  <span>
+                    חיפוש: <strong>{searchQuery.trim()}</strong>
+                  </span>
+                ) : null}
                 <span>
                   מכסה: <strong>{maxPhoneRounds}</strong> ניסיונות
                 </span>
@@ -366,6 +404,29 @@ export default function AgentWorkspacePage() {
               </div>
             </div>
           </>
+        ) : null}
+
+        {!loading ? (
+          <label className="agent-queue-search">
+            <Search size={18} aria-hidden="true" />
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="חיפוש לפי שם מוזמן או מספר טלפון..."
+              aria-label="חיפוש מוזמנים בתור השיחות"
+            />
+            {searchQuery ? (
+              <button
+                type="button"
+                className="agent-queue-search__clear"
+                aria-label="נקה חיפוש"
+                onClick={() => setSearchQuery("")}
+              >
+                <X size={18} aria-hidden="true" />
+              </button>
+            ) : null}
+          </label>
         ) : null}
 
         <div className="agent-table-wrap">
@@ -391,11 +452,13 @@ export default function AgentWorkspacePage() {
               {!loading && !filteredGuests.length ? (
                 <tr>
                   <td colSpan={9} className="agent-table-empty">
-                    {guests.length
-                      ? "לא נמצאו מוזמנים עם מספר ניסיונות השיחה שנבחר"
-                      : phoneServiceEnabled
-                        ? "אין כרגע מוזמנים שממתינים לשיחה (וואטסאפ נשלח + סטטוס לא ידוע/אולי)"
-                        : "שירות השיחות לא מוגדר באירוע — עדכנו סבבי שיחה ב-Admin"}
+                    {hasActiveSearch && guests.length
+                      ? "לא נמצאו מוזמנים התואמים לחיפוש"
+                      : guests.length
+                        ? "לא נמצאו מוזמנים עם מספר ניסיונות השיחה שנבחר"
+                        : phoneServiceEnabled
+                          ? "אין כרגע מוזמנים שממתינים לשיחה (וואטסאפ נשלח + סטטוס לא ידוע/אולי)"
+                          : "שירות השיחות לא מוגדר באירוע — עדכנו סבבי שיחה ב-Admin"}
                   </td>
                 </tr>
               ) : null}
