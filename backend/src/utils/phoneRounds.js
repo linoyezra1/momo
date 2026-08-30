@@ -30,3 +30,49 @@ export function resolveMaxPhoneRounds(user) {
   const fromDeal = maxPhoneRoundsFromDealFeatures(user?.deal?.includedFeatures);
   return Math.max(eventRounds, fromDeal);
 }
+
+/** Default call capacity when main agent opens an event with no phone package configured. */
+export const MAIN_AGENT_DEFAULT_PHONE_ROUNDS = 4;
+
+/**
+ * Agent call queue uses effective max — main agent gets a default when event deal has 0 rounds.
+ */
+export function resolveAgentQueueMaxPhoneRounds(user, agent) {
+  const configured = resolveMaxPhoneRounds(user);
+  if (configured > 0) {
+    return { configured, effective: configured, usingMainAgentDefault: false };
+  }
+  if (agent?.isMainAgent === true) {
+    return {
+      configured: 0,
+      effective: MAIN_AGENT_DEFAULT_PHONE_ROUNDS,
+      usingMainAgentDefault: true
+    };
+  }
+  return { configured: 0, effective: 0, usingMainAgentDefault: false };
+}
+
+/** Mongo clause: guest received at least one WhatsApp invite. */
+export function buildWhatsAppSentMongoClause() {
+  return {
+    $or: [
+      { whatsappRoundsSentCount: { $gte: 1 } },
+      { reminderRound: { $gte: 1 } },
+      { lastWhatsAppSentAt: { $ne: null } }
+    ]
+  };
+}
+
+/** Mongo clause: guest still has remaining phone attempts under the cap. */
+export function buildPhoneAttemptsUnderCapMongoClause(maxPhoneRounds) {
+  const cap = Math.max(0, Number(maxPhoneRounds) || 0);
+  if (cap <= 0) {
+    return { phoneAttemptsCount: { $lt: 0 } };
+  }
+  return {
+    $or: [
+      { phoneAttemptsCount: { $lt: cap } },
+      { phoneAttemptsCount: { $exists: false } }
+    ]
+  };
+}

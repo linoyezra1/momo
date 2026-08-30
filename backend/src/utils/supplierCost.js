@@ -1,15 +1,28 @@
 import ActivationCode from "../models/ActivationCode.js";
 import User from "../models/User.js";
 
-/** Agent / supplier share: ₪0.5 per WhatsApp message credit on a coupon. */
+/** Standard agent / supplier share: ₪0.5 per WhatsApp message credit on a coupon. */
 export const SUPPLIER_COST_PER_MESSAGE = 0.5;
 
-export function supplierCostForCredits(totalCredits) {
-  const credits = Math.max(0, Number(totalCredits) || 0);
-  return Math.round(credits * SUPPLIER_COST_PER_MESSAGE * 100) / 100;
+/** Main agent (isMainAgent) supplier share per message credit. */
+export const MAIN_AGENT_SUPPLIER_COST_PER_MESSAGE = 0.12;
+
+export function resolveSupplierCostPerMessage(agent) {
+  if (agent?.isMainAgent === true) {
+    const fromEnv = Number(process.env.MAIN_AGENT_SUPPLIER_COST_PER_MESSAGE);
+    if (Number.isFinite(fromEnv) && fromEnv >= 0) return fromEnv;
+    return MAIN_AGENT_SUPPLIER_COST_PER_MESSAGE;
+  }
+  return SUPPLIER_COST_PER_MESSAGE;
 }
 
-export function mapCouponWithSupplierCost(item) {
+export function supplierCostForCredits(totalCredits, costPerMessage = SUPPLIER_COST_PER_MESSAGE) {
+  const credits = Math.max(0, Number(totalCredits) || 0);
+  const rate = Math.max(0, Number(costPerMessage) || 0);
+  return Math.round(credits * rate * 100) / 100;
+}
+
+export function mapCouponWithSupplierCost(item, costPerMessage = SUPPLIER_COST_PER_MESSAGE) {
   const totalCredits = Number(item?.total_credits) || 0;
   return {
     codeId: item._id,
@@ -19,15 +32,15 @@ export function mapCouponWithSupplierCost(item) {
     isActive: item.isActive !== false,
     note: item.note || "",
     createdAt: item.createdAt,
-    supplierCost: supplierCostForCredits(totalCredits)
+    supplierCost: supplierCostForCredits(totalCredits, costPerMessage)
   };
 }
 
-export async function listClientCouponsWithSupplierCost(userId) {
+export async function listClientCouponsWithSupplierCost(userId, costPerMessage = SUPPLIER_COST_PER_MESSAGE) {
   const allCoupons = await ActivationCode.find({ redeemedByUserId: userId })
     .sort({ createdAt: -1 })
     .select("code total_credits remaining_credits isActive note createdAt");
-  return allCoupons.map(mapCouponWithSupplierCost);
+  return allCoupons.map((item) => mapCouponWithSupplierCost(item, costPerMessage));
 }
 
 export function sumSupplierCostFromCoupons(coupons = []) {

@@ -9,7 +9,13 @@ import {
   validateAgentCredentials,
   verifyAgentToken
 } from "../middleware/agentAuth.js";
-import { resolveMaxPhoneRounds } from "../utils/phoneRounds.js";
+import {
+  applyPhoneRoundsToDealFeatures,
+  buildPhoneAttemptsUnderCapMongoClause,
+  buildWhatsAppSentMongoClause,
+  maxPhoneRoundsFromDealFeatures,
+  resolveAgentQueueMaxPhoneRounds
+} from "../utils/phoneRounds.js";
 import {
   STATUS_HISTORY_SOURCES,
   statusHistoryPushEntry
@@ -21,13 +27,10 @@ import {
   PAYMENT_METHOD_LABELS,
   serializeDeal
 } from "../utils/dealPayload.js";
-import {
-  applyPhoneRoundsToDealFeatures,
-  maxPhoneRoundsFromDealFeatures
-} from "../utils/phoneRounds.js";
 import { normalizePaymentPayload } from "../utils/eventPayload.js";
 import {
   listClientCouponsWithSupplierCost,
+  resolveSupplierCostPerMessage,
   sumSupplierCostFromCoupons
 } from "../utils/supplierCost.js";
 import { coverUpload } from "../middleware/coverUpload.js";
@@ -51,6 +54,13 @@ function buildEventLabel(event) {
 }
 
 function getWhatsAppRoundsSent(guest) {
+  if (guest?.lastWhatsAppSentAt) {
+    return Math.max(
+      1,
+      Number(guest?.whatsappRoundsSentCount || 0),
+      Number(guest?.reminderRound || 0)
+    );
+  }
   return Math.max(
     0,
     Number(guest?.whatsappRoundsSentCount || 0),
@@ -59,6 +69,7 @@ function getWhatsAppRoundsSent(guest) {
 }
 
 function isInAgentQueue(guest, maxPhoneRounds) {
+  if (maxPhoneRounds <= 0) return false;
   return (
     getWhatsAppRoundsSent(guest) >= 1 &&
     ["לא ידוע", "אולי"].includes(guest?.status) &&
@@ -161,6 +172,7 @@ router.get("/clients", async (req, res) => {
   try {
     const agent = req.agent;
     const filter = agent.isMainAgent ? {} : { createdByAgentId: agent.id };
+    const costPerMessage = resolveSupplierCostPerMessage(agent);
     const users = await User.find(
       filter,
       "username event createdAt payment deal loginPassword contactPhone createdByAgentId managedBy"
@@ -168,7 +180,7 @@ router.get("/clients", async (req, res) => {
 
     const clients = await Promise.all(
       users.map(async (user) => {
-        const coupons = await listClientCouponsWithSupplierCost(user._id);
+        const coupons = await listClientCouponsWithSupplierCost(user._id, costPerMessage);
         return serializeAgentClient(user, coupons);
       })
     );
@@ -182,6 +194,7 @@ router.get("/clients", async (req, res) => {
       clients,
       agent: req.agent,
       scope: agent.isMainAgent ? "all" : "owned",
+      supplierCostPerMessage: costPerMessage,
       supplierCostGrandTotal: Math.round(supplierCostGrandTotal * 100) / 100
     });
   } catch (error) {
@@ -292,31 +305,19 @@ router.get("/:userId/guests", async (req, res) => {
     const owned = await findAgentAccessibleUser(
       userId,
       req.agent,
-      "event username deal.includedFeatures createdByAgentId"
+      "event.maxPhoneRounds event.username deal.includedFeatures createdByAgentId"
     );
     if (owned.error) {
       return res.status(owned.error.status).json({ message: owned.error.message });
     }
     const user = owned.user;
 
-    const maxPhoneRounds = resolveMaxPhoneRounds(user);
+    const phoneRounds = resolveAgentQueueMaxPhoneRounds(user, req.agent);
+    const maxPhoneRounds = phoneRounds.effective;
     const candidates = await Guest.find({
       userId,
       status: { $in: ["לא ידוע", "אולי"] },
-      $and: [
-        {
-          $or: [
-            { whatsappRoundsSentCount: { $gte: 1 } },
-            { reminderRound: { $gte: 1 } }
-          ]
-        },
-        {
-          $or: [
-            { phoneAttemptsCount: { $lt: maxPhoneRounds } },
-            { phoneAttemptsCount: { $exists: false } }
-          ]
-        }
-      ]
+      $and: [buildWhatsAppSentMongoClause(), buildPhoneAttemptsUnderCapMongoClause(maxPhoneRounds)]
     }).sort({ phoneAttemptsCount: 1, fullName: 1 });
     const guests = candidates.map((guest) => {
       const data = guest.toObject();
@@ -329,6 +330,9 @@ router.get("/:userId/guests", async (req, res) => {
       event: user.event,
       eventLabel: buildEventLabel(user.event),
       maxPhoneRounds,
+      configuredMaxPhoneRounds: phoneRounds.configured,
+      usingMainAgentDefault: phoneRounds.usingMainAgentDefault,
+      phoneServiceEnabled: maxPhoneRounds > 0,
       queueCount: guests.length,
       guests
     });
@@ -355,7 +359,8 @@ router.patch("/:userId/guests/:guestId/phone-rsvp", async (req, res) => {
       return res.status(owned.error.status).json({ message: owned.error.message });
     }
     const user = owned.user;
-    const maxPhoneRounds = resolveMaxPhoneRounds(user);
+    const phoneRounds = resolveAgentQueueMaxPhoneRounds(user, req.agent);
+    const maxPhoneRounds = phoneRounds.effective;
     const existingGuest = await Guest.findOne({ _id: guestId, userId });
     if (!existingGuest) {
       return res.status(404).json({ message: "Guest not found" });

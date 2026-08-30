@@ -99,6 +99,8 @@ export default function AgentWorkspacePage() {
   const [error, setError] = useState("");
   const [expandedGuestId, setExpandedGuestId] = useState("");
   const [maxPhoneRounds, setMaxPhoneRounds] = useState(0);
+  const [phoneServiceEnabled, setPhoneServiceEnabled] = useState(true);
+  const [usingMainAgentDefault, setUsingMainAgentDefault] = useState(false);
   const [selectedGuestIds, setSelectedGuestIds] = useState(() => new Set());
   const [exporting, setExporting] = useState(false);
   const [attemptsFilter, setAttemptsFilter] = useState("all");
@@ -111,6 +113,8 @@ export default function AgentWorkspacePage() {
       setEventLabel(response.data?.eventLabel || "");
       setEventInfo(response.data?.event || null);
       setMaxPhoneRounds(Number(response.data?.maxPhoneRounds) || 0);
+      setPhoneServiceEnabled(response.data?.phoneServiceEnabled !== false);
+      setUsingMainAgentDefault(response.data?.usingMainAgentDefault === true);
       setGuests(response.data?.guests || []);
     } catch (loadError) {
       setError(loadError.response?.data?.message || "טעינת מוזמנים נכשלה");
@@ -304,6 +308,17 @@ export default function AgentWorkspacePage() {
                 <span>
                   מוצגים רק מוזמנים שקיבלו וואטסאפ, טרם אישרו הגעה ולא הגיעו למכסת השיחות.
                 </span>
+                {usingMainAgentDefault ? (
+                  <span className="agent-muted" style={{ display: "block", marginTop: "0.35rem" }}>
+                    לא הוגדרו סבבי שיחה באירוע — מוצגים עם מכסת ברירת מחדל לסוכן ראשי (
+                    {maxPhoneRounds} ניסיונות).
+                  </span>
+                ) : null}
+                {!phoneServiceEnabled ? (
+                  <span className="agent-error" style={{ display: "block", marginTop: "0.35rem" }}>
+                    שירות שיחות לא מוגדר באירוע זה. יש להפעיל סבבי שיחה בחבילה (Admin).
+                  </span>
+                ) : null}
               </div>
               <div className="agent-auto-queue__stats">
                 <span>
@@ -347,7 +362,9 @@ export default function AgentWorkspacePage() {
                   <td colSpan={9} className="agent-table-empty">
                     {guests.length
                       ? "לא נמצאו מוזמנים עם מספר ניסיונות השיחה שנבחר"
-                      : "אין כרגע מוזמנים שממתינים לשיחה לפי תנאי החבילה"}
+                      : phoneServiceEnabled
+                        ? "אין כרגע מוזמנים שממתינים לשיחה (וואטסאפ נשלח + סטטוס לא ידוע/אולי)"
+                        : "שירות השיחות לא מוגדר באירוע — עדכנו סבבי שיחה ב-Admin"}
                   </td>
                 </tr>
               ) : null}
