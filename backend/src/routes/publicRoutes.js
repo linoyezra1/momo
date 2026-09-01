@@ -16,7 +16,7 @@ import { logPerf, nowMs, setServerTiming } from "../utils/requestTiming.js";
 const router = express.Router();
 
 const PUBLIC_EVENT_SELECT =
-  "event.eventType event.groomName event.brideName event.batMitzvahName event.parentName1 event.parentName2 event.eventNames event.organizerName event.conferenceBrandName event.socialHandle event.locationAddress event.parkingDetails event.websiteUrl event.venueName event.city event.streetAndNumber event.eventDate event.eventDateHebrew event.eventTime event.receptionTime event.welcomeText event.cover event.imageDataUrl";
+  "event.eventType event.groomName event.brideName event.batMitzvahName event.parentName1 event.parentName2 event.eventNames event.organizerName event.conferenceBrandName event.socialHandle event.locationAddress event.parkingDetails event.websiteUrl event.venueName event.city event.streetAndNumber event.eventDate event.eventDateHebrew event.eventTime event.receptionTime event.welcomeText event.transportationEnabled event.transportationWhatsAppLink event.foodSensitivitiesEnabled event.cover event.imageDataUrl";
 
 router.get("/event/:eventId", async (req, res) => {
   const started = nowMs();
@@ -129,13 +129,13 @@ router.post("/leads", async (req, res) => {
 router.post("/event/:eventId/rsvp", async (req, res) => {
   try {
     const { eventId } = req.params;
-    const { fullName, phone, attendeesCount, status } = req.body;
+    const { fullName, phone, attendeesCount, status, needsTransportation, foodSensitivities } = req.body;
 
     if (!fullName || !phone || !status) {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    const user = await User.findById(eventId).select("_id");
+    const user = await User.findById(eventId).select("event.transportationEnabled event.foodSensitivitiesEnabled");
     if (!user) {
       return res.status(404).json({ message: "Event not found" });
     }
@@ -144,6 +144,12 @@ router.post("/event/:eventId/rsvp", async (req, res) => {
     if (!normalizedPhone) {
       return res.status(400).json({ message: "Invalid phone number" });
     }
+
+    const transportEnabled = user.event?.transportationEnabled === true;
+    const foodEnabled = user.event?.foodSensitivitiesEnabled === true;
+    const guestTransport = transportEnabled ? needsTransportation === true : false;
+    const guestFoodSensitivities =
+      foodEnabled && typeof foodSensitivities === "string" ? foodSensitivities.trim() : "";
 
     const existing = await Guest.findOne({ userId: eventId, phone: normalizedPhone });
 
@@ -159,7 +165,9 @@ router.post("/event/:eventId/rsvp", async (req, res) => {
           attendeesCount: Math.max(0, Number(attendeesCount || 1)),
           status,
           confirmationMethod: "web",
-          source: resolveSourceAfterSelfRsvp(existing)
+          source: resolveSourceAfterSelfRsvp(existing),
+          needsTransportation: guestTransport,
+          foodSensitivities: guestFoodSensitivities
         }
       };
       const historyEntry = statusHistoryPushEntry({
@@ -191,6 +199,8 @@ router.post("/event/:eventId/rsvp", async (req, res) => {
       status,
       confirmationMethod: "web",
       source: "form",
+      needsTransportation: guestTransport,
+      foodSensitivities: guestFoodSensitivities,
       statusHistory: [
         initialStatusHistoryEntry({
           status,

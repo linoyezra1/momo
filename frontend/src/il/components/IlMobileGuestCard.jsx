@@ -29,6 +29,7 @@ export default function IlMobileGuestCard({
   editFields,
   editActions,
   editError,
+  extraTags,
   detailPanels
 }) {
   const round = Number(guest?.reminderRound) || 0;
@@ -60,6 +61,7 @@ export default function IlMobileGuestCard({
               {String(guest.guestGroup || "").trim() ? (
                 <span className="il-guest-category-badge">{String(guest.guestGroup).trim()}</span>
               ) : null}
+              {extraTags}
               <span className="il-guest-card__attendees" title="כמות מגיעים">
                 <Users size={13} aria-hidden="true" />
                 {guest.attendeesCount ?? 0}

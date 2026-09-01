@@ -36,6 +36,10 @@ export function normalizeIlEventUpdatePayload(body) {
     eventTime,
     receptionTime: cleanText(body?.receptionTime),
     welcomeText: cleanText(body?.welcomeText),
+    transportationEnabled: body?.transportationEnabled === true,
+    transportationWhatsAppLink:
+      body?.transportationEnabled === true ? cleanText(body?.transportationWhatsAppLink) : "",
+    foodSensitivitiesEnabled: body?.foodSensitivitiesEnabled === true,
     imageDataUrl: cleanText(body?.imageDataUrl),
     cover: normalizeCoverFields(body?.cover),
     clearCover: body?.clearCover === true

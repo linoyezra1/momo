@@ -96,6 +96,8 @@ const guestSchema = new mongoose.Schema(
     },
     phoneAttemptsCount: { type: Number, min: 0, default: 0 },
     agentNotes: { type: String, trim: true, default: "" },
+    needsTransportation: { type: Boolean, default: false },
+    foodSensitivities: { type: String, trim: true, default: "" },
     callTimestamp: { type: Date, default: null },
     callHistory: { type: [callHistoryEntrySchema], default: [] },
     /** Append-only primary RSVP status timeline (all channels) */

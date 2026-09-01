@@ -32,6 +32,12 @@ export function normalizeEventPayload(rawEvent) {
     eventTime: String(rawEvent?.eventTime || "").trim(),
     maxPhoneRounds,
     isPremiumWhatsappButtonsEnabled: rawEvent?.isPremiumWhatsappButtonsEnabled === true,
+    transportationEnabled: rawEvent?.transportationEnabled === true,
+    transportationWhatsAppLink:
+      rawEvent?.transportationEnabled === true
+        ? String(rawEvent?.transportationWhatsAppLink || "").trim()
+        : "",
+    foodSensitivitiesEnabled: rawEvent?.foodSensitivitiesEnabled === true,
     imageDataUrl: String(rawEvent?.imageDataUrl || "").trim(),
     cover: normalizeCoverFields(rawEvent?.cover),
     clearCover: rawEvent?.clearCover === true,

@@ -149,8 +149,41 @@ function getGuestStatusHistory(guest) {
   });
 }
 
+function hasGuestRsvpExtras(guest) {
+  return Boolean(guest?.needsTransportation) || Boolean(String(guest?.foodSensitivities || "").trim());
+}
+
 function hasGuestDetailRecord(guest) {
-  return hasPhoneRsvpRecord(guest) || getGuestStatusHistory(guest).length > 0;
+  return hasPhoneRsvpRecord(guest) || getGuestStatusHistory(guest).length > 0 || hasGuestRsvpExtras(guest);
+}
+
+function GuestRsvpExtrasBadges({ guest }) {
+  const food = String(guest?.foodSensitivities || "").trim();
+  if (!guest?.needsTransportation && !food) return null;
+  return (
+    <span className="il-guest-extra-badges">
+      {guest.needsTransportation ? (
+        <span className="il-guest-extra-badge il-guest-extra-badge--transport">מבקש הסעה</span>
+      ) : null}
+      {food ? (
+        <span className="il-guest-extra-badge il-guest-extra-badge--food" title={food}>
+          רגישות למזון
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+function GuestRsvpExtrasPanel({ guest }) {
+  const food = String(guest?.foodSensitivities || "").trim();
+  if (!guest?.needsTransportation && !food) return null;
+  return (
+    <div className="il-guest-extra-panel">
+      <p className="il-guest-extra-panel__title">פרטי אישור הגעה נוספים</p>
+      {guest.needsTransportation ? <p>הסעה / טרמפ: כן</p> : null}
+      {food ? <p>רגישות למזון: {food}</p> : null}
+    </div>
+  );
 }
 
 function formatStatusHistoryDateTime(value) {
@@ -1154,6 +1187,7 @@ export default function ClientDashboardPage() {
 
     return (
       <div className="il-guest-detail-panels">
+        <GuestRsvpExtrasPanel guest={guest} />
         {statusHistory.length ? (
           <div
             className="il-audit-log il-status-history-log"
@@ -1730,6 +1764,7 @@ export default function ClientDashboardPage() {
                       ) : (
                         <span className="il-guest-name-cell">
                           <span>{guest.fullName}</span>
+                          <GuestRsvpExtrasBadges guest={guest} />
                           {!String(guest.phone || "").trim() ? (
                             <span className="il-missing-phone-badge">חסר מספר טלפון</span>
                           ) : null}
@@ -2045,6 +2080,7 @@ export default function ClientDashboardPage() {
                     ) : null
                   }
                   detailPanels={renderGuestDetailPanels(guest)}
+                  extraTags={<GuestRsvpExtrasBadges guest={guest} />}
                 />
               );
             })

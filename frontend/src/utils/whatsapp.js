@@ -117,6 +117,19 @@ export function buildWhatsAppTemplateDefaults({ event, eventId, origin }) {
   };
 }
 
+function stripEmojisFromText(text) {
+  return String(text || "")
+    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}\u{200D}\u{20E3}]/gu, "")
+    .replace(/[ \t]+$/gm, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+/** Plain-text invite for manual wa.me / whatsapp:// links (no emojis). */
+export function buildDirectGuestWhatsAppMessage({ event, eventId, origin, guestName }) {
+  return stripEmojisFromText(buildGuestWhatsAppMessage({ event, eventId, origin, guestName }));
+}
+
 export function buildGuestWhatsAppMessage({ event, eventId, origin, guestName }) {
   const defaults = buildWhatsAppTemplateDefaults({
     event,
@@ -206,7 +219,7 @@ export function personalizeWhatsAppMessage(template, guestName) {
 export function buildWhatsAppSendUrl({ phone, event, eventId, origin, guestName }) {
   const intlPhone = toInternationalWhatsAppPhone(phone);
   if (!intlPhone) return "";
-  const message = buildGuestWhatsAppMessage({ event, eventId, origin, guestName });
+  const message = buildDirectGuestWhatsAppMessage({ event, eventId, origin, guestName });
   const encoded = encodeURIComponent(message);
   if (typeof window !== "undefined") {
     const ua = String(window.navigator?.userAgent || "").toLowerCase();

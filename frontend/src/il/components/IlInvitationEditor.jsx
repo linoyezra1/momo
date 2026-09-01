@@ -37,8 +37,15 @@ export default function IlInvitationEditor({ userId, eventInfo, onClose, onSaved
   }, []);
 
   function onChange(event) {
-    const { name, value } = event.target;
+    const { name, value, type, checked } = event.target;
     setForm((prev) => {
+      if (type === "checkbox") {
+        const next = { ...prev, [name]: checked };
+        if (name === "transportationEnabled" && !checked) {
+          next.transportationWhatsAppLink = "";
+        }
+        return next;
+      }
       if (name !== "eventType") {
         return { ...prev, [name]: value };
       }
@@ -495,6 +502,45 @@ export default function IlInvitationEditor({ userId, eventInfo, onClose, onSaved
             ) : null}
               </>
             )}
+          </section>
+
+          <section className="us-editor-section il-editor-section">
+            <h3>שאלות באישור הגעה</h3>
+            <label className="il-editor-toggle">
+              <input
+                type="checkbox"
+                name="transportationEnabled"
+                checked={Boolean(form.transportationEnabled)}
+                onChange={onChange}
+              />
+              <span>אפשר תיאום הסעות וטרמפים</span>
+            </label>
+            {form.transportationEnabled ? (
+              <IlEditorField
+                label="קישור לקבוצת וואטסאפ לטרמפים (אופציונלי)"
+                htmlFor="il-transportationWhatsAppLink"
+              >
+                <input
+                  id="il-transportationWhatsAppLink"
+                  className={ilEditorInputClass}
+                  name="transportationWhatsAppLink"
+                  value={form.transportationWhatsAppLink}
+                  onChange={onChange}
+                  placeholder="https://chat.whatsapp.com/..."
+                  dir="ltr"
+                  autoComplete="off"
+                />
+              </IlEditorField>
+            ) : null}
+            <label className="il-editor-toggle">
+              <input
+                type="checkbox"
+                name="foodSensitivitiesEnabled"
+                checked={Boolean(form.foodSensitivitiesEnabled)}
+                onChange={onChange}
+              />
+              <span>שאל לגבי רגישויות למזון / אלרגיות</span>
+            </label>
           </section>
 
           <section className="us-editor-section il-editor-section">

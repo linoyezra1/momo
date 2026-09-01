@@ -37,6 +37,9 @@ export function eventInfoToForm(event) {
     eventTime: source.eventTime || "",
     receptionTime: source.receptionTime || "",
     welcomeText: source.welcomeText || getDefaultInviteWelcomeText(eventType),
+    transportationEnabled: Boolean(source.transportationEnabled),
+    transportationWhatsAppLink: source.transportationWhatsAppLink || "",
+    foodSensitivitiesEnabled: Boolean(source.foodSensitivitiesEnabled),
     cover: source.cover || null,
     coverPreviewUrl: coverSrc,
     pendingCoverFile: null,
@@ -68,6 +71,9 @@ export function formToEventUpdatePayload(form) {
     eventTime: form.eventTime,
     receptionTime: form.receptionTime,
     welcomeText: form.welcomeText,
+    transportationEnabled: Boolean(form.transportationEnabled),
+    transportationWhatsAppLink: form.transportationEnabled ? form.transportationWhatsAppLink : "",
+    foodSensitivitiesEnabled: Boolean(form.foodSensitivitiesEnabled),
     clearCover: form.clearCover === true && !form.pendingCoverFile
   };
 }
@@ -98,6 +104,11 @@ export function eventFormToPreviewPayload(form) {
     eventTime: cleanText(form.eventTime),
     receptionTime: cleanText(form.receptionTime),
     welcomeText: cleanText(form.welcomeText) || getDefaultInviteWelcomeText(eventType),
+    transportationEnabled: Boolean(form.transportationEnabled),
+    transportationWhatsAppLink: form.transportationEnabled
+      ? cleanText(form.transportationWhatsAppLink)
+      : "",
+    foodSensitivitiesEnabled: Boolean(form.foodSensitivitiesEnabled),
     cover: form.cover || (previewSrc ? { url: previewSrc } : null),
     imageDataUrl: previewSrc.startsWith("data:image/") || previewSrc.startsWith("blob:") ? previewSrc : ""
   };

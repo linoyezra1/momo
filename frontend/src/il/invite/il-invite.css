@@ -380,6 +380,57 @@
   color: var(--il-ink);
 }
 
+.il-invite-rsvp__transport-success {
+  display: grid;
+  gap: 0.85rem;
+  border: 1px solid #ccebd8;
+  border-radius: 0.75rem;
+  background: #f7fcf9;
+}
+
+.il-invite-rsvp__transport-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  padding: 0.65rem 1rem;
+  border-radius: 999px;
+  background: #1f7a4c;
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.il-invite-rsvp__binary {
+  display: flex;
+  gap: 0.55rem;
+}
+
+.il-invite-rsvp__binary-btn {
+  flex: 1;
+  min-height: 2.5rem;
+  border: 1px solid var(--il-border);
+  border-radius: 0.65rem;
+  background: #fff;
+  color: var(--il-ink);
+  font: inherit;
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+
+.il-invite-rsvp__binary-btn.is-active {
+  border-color: #1f7a4c;
+  background: #edf8f1;
+  color: #145c38;
+  font-weight: 600;
+}
+
+.il-invite-rsvp__binary-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 /* Countdown — no boxes */
 .il-invite-countdown {
   padding-top: 1.5rem;

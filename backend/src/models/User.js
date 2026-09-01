@@ -46,7 +46,12 @@ const eventSchema = new mongoose.Schema(
     eventDetailsParagraph: { type: String, trim: true, default: "" },
     closingParagraph: { type: String, trim: true, default: "" },
     /** Dynamic guest category labels for this event (e.g. צד חתן, חברים) */
-    guestCategories: { type: [String], default: [] }
+    guestCategories: { type: [String], default: [] },
+    /** RSVP: offer ride-sharing / transportation coordination */
+    transportationEnabled: { type: Boolean, default: false },
+    transportationWhatsAppLink: { type: String, trim: true, default: "" },
+    /** RSVP: ask guests about food allergies / sensitivities */
+    foodSensitivitiesEnabled: { type: Boolean, default: false }
   },
   { _id: false }
 );

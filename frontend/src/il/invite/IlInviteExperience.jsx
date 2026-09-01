@@ -21,7 +21,10 @@ const initialRsvp = {
   fullName: "",
   phone: "",
   attendeesCount: 1,
-  status: ""
+  status: "",
+  needsTransportation: null,
+  hasFoodSensitivity: null,
+  foodSensitivities: ""
 };
 
 function attendeesCountForStatus(status, currentCount) {
@@ -53,6 +56,7 @@ export default function IlInviteExperience({
 }) {
   const [form, setForm] = useState(initialRsvp);
   const [message, setMessage] = useState("");
+  const [transportSuccess, setTransportSuccess] = useState(null);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [rsvpStarted, setRsvpStarted] = useState(false);
@@ -89,7 +93,7 @@ export default function IlInviteExperience({
   const timeline = isCoupleEvent ? getParallelTimeline(event) : [];
   const coverSrc = getEventCoverSrc(event);
   const coverSrcSet = getEventCoverSrcSet(event);
-  const showCountdown = previewMode || rsvpStarted || Boolean(message);
+  const showCountdown = previewMode || rsvpStarted || Boolean(message) || Boolean(transportSuccess);
   const showAttendeeStepper =
     !isConference &&
     (form.status === "מגיע" || form.status === "אולי" || form.status === "לא מגיע");
@@ -101,6 +105,11 @@ export default function IlInviteExperience({
   const socialHandle = String(event.socialHandle || "").trim();
   const parkingDetails = String(event.parkingDetails || "").trim();
   const websiteUrl = normalizeWebsiteUrl(event.websiteUrl);
+  const transportationEnabled = event.transportationEnabled === true;
+  const foodSensitivitiesEnabled = event.foodSensitivitiesEnabled === true;
+  const transportationWhatsAppLink = String(event.transportationWhatsAppLink || "").trim();
+  const showRsvpExtras =
+    form.status === "מגיע" || form.status === "אולי";
 
   function onChange(changeEvent) {
     const { name, value } = changeEvent.target;
@@ -110,13 +119,27 @@ export default function IlInviteExperience({
     }));
   }
 
+  function onChooseBooleanField(name, value) {
+    if (previewMode) return;
+    setForm((prev) => {
+      const next = { ...prev, [name]: value };
+      if (name === "hasFoodSensitivity" && !value) {
+        next.foodSensitivities = "";
+      }
+      return next;
+    });
+  }
+
   function onChooseStatus(status) {
     if (previewMode) return;
     setRsvpStarted(true);
     setForm((prev) => ({
       ...prev,
       status,
-      attendeesCount: isConference ? 1 : attendeesCountForStatus(status, prev.attendeesCount)
+      attendeesCount: isConference ? 1 : attendeesCountForStatus(status, prev.attendeesCount),
+      needsTransportation: null,
+      hasFoodSensitivity: null,
+      foodSensitivities: ""
     }));
     setError("");
   }
@@ -132,16 +155,52 @@ export default function IlInviteExperience({
   async function onSubmit(submitEvent) {
     submitEvent.preventDefault();
     if (previewMode || !onSubmitRsvp) return;
+    if (transportationEnabled && showRsvpExtras && form.needsTransportation == null) {
+      setError("יש לבחור האם נדרשת הסעה / טרמפ");
+      return;
+    }
+    if (foodSensitivitiesEnabled && showRsvpExtras && form.hasFoodSensitivity == null) {
+      setError("יש לבחור האם קיימת רגישות למזון");
+      return;
+    }
+    if (
+      foodSensitivitiesEnabled &&
+      showRsvpExtras &&
+      form.hasFoodSensitivity === true &&
+      !String(form.foodSensitivities || "").trim()
+    ) {
+      setError("יש לפרט את הרגישות למזון");
+      return;
+    }
     setMessage("");
+    setTransportSuccess(null);
     setError("");
     setSubmitting(true);
     try {
       const payload = {
-        ...form,
+        fullName: form.fullName,
+        phone: form.phone,
+        status: form.status,
         attendeesCount: isConference ? 1 : attendeesCountForStatus(form.status, form.attendeesCount)
       };
+      if (transportationEnabled && showRsvpExtras && form.needsTransportation != null) {
+        payload.needsTransportation = form.needsTransportation === true;
+      }
+      if (foodSensitivitiesEnabled && showRsvpExtras && form.hasFoodSensitivity === true) {
+        payload.foodSensitivities = String(form.foodSensitivities || "").trim();
+      }
       await onSubmitRsvp(payload);
-      setMessage(isConference ? "תודה! הרישום נשמר בהצלחה" : "תודה! האישור נשמר בהצלחה");
+      if (transportationEnabled && payload.needsTransportation) {
+        setTransportSuccess(
+          transportationWhatsAppLink
+            ? { type: "link", href: transportationWhatsAppLink }
+            : { type: "no-link" }
+        );
+        setMessage("");
+      } else {
+        setMessage(isConference ? "תודה! הרישום נשמר בהצלחה" : "תודה! האישור נשמר בהצלחה");
+        setTransportSuccess(null);
+      }
       setForm(initialRsvp);
       setRsvpStarted(false);
     } catch (submitError) {
@@ -249,7 +308,27 @@ export default function IlInviteExperience({
           )}
 
           <section className="il-invite-rsvp" id="il-rsvp">
-            {message ? (
+            {transportSuccess ? (
+              <div className="il-invite-rsvp__success il-invite-rsvp__transport-success">
+                {transportSuccess.type === "link" ? (
+                  <>
+                    <p>
+                      תודה על העדכון! פתחנו קבוצת וואטסאפ לתיאום טרמפים, מוזמנים להצטרף:
+                    </p>
+                    <a
+                      className="il-invite-rsvp__transport-link"
+                      href={transportSuccess.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      הצטרפות לקבוצת הטרמפים
+                    </a>
+                  </>
+                ) : (
+                  <p>תודה על העדכון! רשמנו לפנינו ונשתדל לדאוג לפתרון הסעה בהתאם.</p>
+                )}
+              </div>
+            ) : message ? (
               <p className="il-invite-rsvp__success">{message}</p>
             ) : (
               <>
@@ -381,6 +460,81 @@ export default function IlInviteExperience({
                           </button>
                         </div>
                       </div>
+                    ) : null}
+
+                    {showRsvpExtras && transportationEnabled ? (
+                      <div className="il-invite-field">
+                        <span className="il-invite-field__label">צריכים הסעה / טרמפ?</span>
+                        <div className="il-invite-rsvp__binary">
+                          <button
+                            type="button"
+                            className={`il-invite-rsvp__binary-btn${
+                              form.needsTransportation === true ? " is-active" : ""
+                            }`}
+                            onClick={() => onChooseBooleanField("needsTransportation", true)}
+                            disabled={previewMode}
+                          >
+                            כן
+                          </button>
+                          <button
+                            type="button"
+                            className={`il-invite-rsvp__binary-btn${
+                              form.needsTransportation === false ? " is-active" : ""
+                            }`}
+                            onClick={() => onChooseBooleanField("needsTransportation", false)}
+                            disabled={previewMode}
+                          >
+                            לא
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {showRsvpExtras && foodSensitivitiesEnabled ? (
+                      <>
+                        <div className="il-invite-field">
+                          <span className="il-invite-field__label">יש רגישות למזון או אלרגיה כלשהי?</span>
+                          <div className="il-invite-rsvp__binary">
+                            <button
+                              type="button"
+                              className={`il-invite-rsvp__binary-btn${
+                                form.hasFoodSensitivity === true ? " is-active" : ""
+                              }`}
+                              onClick={() => onChooseBooleanField("hasFoodSensitivity", true)}
+                              disabled={previewMode}
+                            >
+                              כן
+                            </button>
+                            <button
+                              type="button"
+                              className={`il-invite-rsvp__binary-btn${
+                                form.hasFoodSensitivity === false ? " is-active" : ""
+                              }`}
+                              onClick={() => onChooseBooleanField("hasFoodSensitivity", false)}
+                              disabled={previewMode}
+                            >
+                              לא
+                            </button>
+                          </div>
+                        </div>
+                        {form.hasFoodSensitivity === true ? (
+                          <label className="il-invite-field" htmlFor="il-rsvp-foodSensitivities">
+                            <span className="il-invite-field__label">
+                              פרט/י כאן את הרגישות (למשל: צליאק, אלרגיה לאגוזים, טבעוני וכו&apos;)
+                            </span>
+                            <textarea
+                              id="il-rsvp-foodSensitivities"
+                              className="il-invite-field__input"
+                              name="foodSensitivities"
+                              rows={3}
+                              value={form.foodSensitivities}
+                              onChange={onChange}
+                              disabled={previewMode}
+                              required
+                            />
+                          </label>
+                        ) : null}
+                      </>
                     ) : null}
 
                     {error ? <p className="il-invite-rsvp__error">{error}</p> : null}

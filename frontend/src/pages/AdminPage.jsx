@@ -116,6 +116,9 @@ const initialForm = {
   eventTime: "",
   maxPhoneRounds: 0,
   isPremiumWhatsappButtonsEnabled: false,
+  transportationEnabled: false,
+  transportationWhatsAppLink: "",
+  foodSensitivitiesEnabled: false,
   cover: null,
   coverPreviewUrl: "",
   pendingCoverFile: null,
@@ -499,7 +502,13 @@ ${publicEventUrl}`
 
   const onChange = (event) => {
     const { checked, name, type, value } = event.target;
-    setForm((prev) => ({ ...prev, [name]: type === "checkbox" ? checked : value }));
+    setForm((prev) => {
+      const next = { ...prev, [name]: type === "checkbox" ? checked : value };
+      if (name === "transportationEnabled" && !checked) {
+        next.transportationWhatsAppLink = "";
+      }
+      return next;
+    });
   };
 
   const onImageChange = (event) => {
@@ -601,6 +610,9 @@ ${publicEventUrl}`
           eventTime: form.eventTime,
           maxPhoneRounds: Number(form.maxPhoneRounds) || 0,
           isPremiumWhatsappButtonsEnabled: Boolean(form.isPremiumWhatsappButtonsEnabled),
+          transportationEnabled: Boolean(form.transportationEnabled),
+          transportationWhatsAppLink: form.transportationEnabled ? form.transportationWhatsAppLink.trim() : "",
+          foodSensitivitiesEnabled: Boolean(form.foodSensitivitiesEnabled),
           clearCover: form.clearCover === true && !form.pendingCoverFile
         }
       };
@@ -717,6 +729,9 @@ ${publicEventUrl}`
       eventTime: client.event?.eventTime || "",
       maxPhoneRounds: Number(client.event?.maxPhoneRounds) || 0,
       isPremiumWhatsappButtonsEnabled: Boolean(client.event?.isPremiumWhatsappButtonsEnabled),
+      transportationEnabled: Boolean(client.event?.transportationEnabled),
+      transportationWhatsAppLink: client.event?.transportationWhatsAppLink || "",
+      foodSensitivitiesEnabled: Boolean(client.event?.foodSensitivitiesEnabled),
       cover: client.event?.cover || null,
       coverPreviewUrl: getEventCoverSrc(client.event),
       pendingCoverFile: null,
@@ -1708,6 +1723,44 @@ ${publicEventUrl}`
                   value={form.eventTime}
                   onChange={onChange}
                 />
+              </div>
+              <div className="us-admin-field us-admin-field--full">
+                <label className="us-admin-checkbox">
+                  <input
+                    type="checkbox"
+                    name="transportationEnabled"
+                    checked={Boolean(form.transportationEnabled)}
+                    onChange={onChange}
+                  />
+                  <span>אפשר תיאום הסעות וטרמפים</span>
+                </label>
+              </div>
+              {form.transportationEnabled ? (
+                <div className="us-admin-field us-admin-field--full">
+                  <label className="us-admin-field-label" htmlFor="transportationWhatsAppLink">
+                    קישור לקבוצת וואטסאפ לטרמפים (אופציונלי)
+                  </label>
+                  <input
+                    id="transportationWhatsAppLink"
+                    className="us-admin-field-input"
+                    name="transportationWhatsAppLink"
+                    value={form.transportationWhatsAppLink}
+                    onChange={onChange}
+                    dir="ltr"
+                    placeholder="https://chat.whatsapp.com/..."
+                  />
+                </div>
+              ) : null}
+              <div className="us-admin-field us-admin-field--full">
+                <label className="us-admin-checkbox">
+                  <input
+                    type="checkbox"
+                    name="foodSensitivitiesEnabled"
+                    checked={Boolean(form.foodSensitivitiesEnabled)}
+                    onChange={onChange}
+                  />
+                  <span>שאל לגבי רגישויות למזון / אלרגיות</span>
+                </label>
               </div>
               <div className="us-admin-field">
                 <label className="us-admin-field-label" htmlFor="maxPhoneRounds">

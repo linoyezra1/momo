@@ -1142,7 +1142,12 @@ router.put("/:userId/event", async (req, res) => {
       welcomeParagraph: previous.welcomeParagraph || "",
       eventDetailsParagraph: previous.eventDetailsParagraph || "",
       closingParagraph: previous.closingParagraph || "",
-      guestCategories: Array.isArray(previous.guestCategories) ? previous.guestCategories : []
+      guestCategories: Array.isArray(previous.guestCategories) ? previous.guestCategories : [],
+      transportationEnabled: Boolean(withCover.transportationEnabled),
+      transportationWhatsAppLink: withCover.transportationEnabled
+        ? String(withCover.transportationWhatsAppLink || "").trim()
+        : "",
+      foodSensitivitiesEnabled: Boolean(withCover.foodSensitivitiesEnabled)
     };
     await user.save();
 

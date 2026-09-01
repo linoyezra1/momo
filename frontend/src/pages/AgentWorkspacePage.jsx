@@ -8,7 +8,7 @@ import SmsIcon from "../components/SmsIcon.jsx";
 import WhatsAppIcon from "../components/WhatsAppIcon.jsx";
 import { formatIsraeliDate } from "../utils/dateFormat.js";
 import { normalizeIsraeliPhone } from "../utils/phoneNormalize.js";
-import { buildGuestWhatsAppMessage, toInternationalWhatsAppPhone } from "../utils/whatsapp.js";
+import { buildDirectGuestWhatsAppMessage, toInternationalWhatsAppPhone } from "../utils/whatsapp.js";
 import { isCoupleEventType, isConferenceEventType } from "../utils/eventTypeWording.js";
 import "../agent-workspace.css";
 
@@ -76,7 +76,7 @@ function buildEventVenue(event) {
 function buildManualInviteMessage({ guest, event, userId }) {
   if (!guest || !event || !userId) return "";
   const origin = typeof window !== "undefined" ? window.location.origin : "";
-  return buildGuestWhatsAppMessage({
+  return buildDirectGuestWhatsAppMessage({
     event,
     eventId: userId,
     origin,
