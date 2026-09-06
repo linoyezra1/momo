@@ -1497,6 +1497,12 @@
   margin-right: auto;
 }
 
+.il-bulk-action-bar-actions .us-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
 @media (max-width: 640px) {
   .il-status-donut-card {
     align-items: center;

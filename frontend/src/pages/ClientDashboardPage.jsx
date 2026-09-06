@@ -1062,6 +1062,38 @@ export default function ClientDashboardPage() {
     });
   };
 
+  const exportSelectedGuests = () => {
+    const selected = guests.filter((guest) => selectedGuestIds.has(guest._id));
+    if (!selected.length) return;
+
+    import("xlsx").then((XLSX) => {
+      const rows = selected.map((guest) => {
+        const arrived = isGuestActuallyArrived(guest);
+        const actualCount = Number(guest.actualArrivedCount);
+        return {
+          "שם מלא": guest.fullName || "",
+          טלפון: guest.phone || "",
+          קטגוריה: getGuestCategory(guest),
+          "סטטוס אישור הגעה": guest.status || "",
+          "כמות מגיעים": guest.attendeesCount ?? "",
+          "הגיע לאירוע בפועל": arrived ? "כן" : "לא",
+          "כמות שהגיעה בפועל":
+            arrived && Number.isFinite(actualCount) && actualCount > 0
+              ? actualCount
+              : arrived
+                ? guest.attendeesCount ?? ""
+                : "",
+          הערות: String(guest.agentNotes || "").trim()
+        };
+      });
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "מוזמנים");
+      const stamp = new Date().toISOString().slice(0, 10);
+      XLSX.writeFile(workbook, `מוזמנים-נבחרים-${stamp}.xlsx`);
+    });
+  };
+
   const downloadTemplate = () => {
     import("xlsx").then((XLSX) => {
       const rows = [
@@ -2545,6 +2577,14 @@ export default function ClientDashboardPage() {
               נבחרו <strong>{selectedCount}</strong> מוזמנים
             </p>
             <div className="il-bulk-action-bar-actions">
+              <button
+                className="us-btn"
+                type="button"
+                onClick={exportSelectedGuests}
+              >
+                <Download size={16} aria-hidden="true" />
+                ייצוא נבחרים לאקסל
+              </button>
               <button
                 className="us-btn il-bulk-send-btn"
                 type="button"
