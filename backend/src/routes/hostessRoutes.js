@@ -52,7 +52,27 @@ function buildEventLabel(event = {}) {
 }
 
 function countGuestSeats(guest) {
+  const actual = Number(guest?.actualArrivedCount);
+  if (Number.isFinite(actual) && actual > 0) return Math.max(1, actual);
   return Math.max(1, Number(guest?.attendeesCount) || 1);
+}
+
+function resolveActualArrivedCount(body, guest) {
+  const raw =
+    body?.actualArrivedCount ??
+    body?.arrivedGuestCount ??
+    body?.attendeesCount;
+  if (raw !== undefined && raw !== null && raw !== "") {
+    const parsed = Number(raw);
+    if (Number.isFinite(parsed)) {
+      return Math.max(1, Math.min(50, Math.round(parsed)));
+    }
+  }
+  const existingActual = Number(guest?.actualArrivedCount);
+  if (Number.isFinite(existingActual) && existingActual > 0) {
+    return Math.max(1, Math.min(50, Math.round(existingActual)));
+  }
+  return Math.max(1, Math.min(50, Number(guest?.attendeesCount) || 1));
 }
 
 function buildTablesWithAvailability(tables = [], guests = []) {
@@ -145,6 +165,7 @@ router.post("/:eventId/guests", async (req, res) => {
       fullName,
       phone,
       attendeesCount,
+      actualArrivedCount: attendeesCount,
       giftAmount: 0,
       status,
       source: "manual",
@@ -227,6 +248,10 @@ router.post("/:eventId/guests/:guestId/arrive", async (req, res) => {
     if (!existing) return res.status(404).json({ message: "המוזמן לא נמצא" });
 
     const previousStatus = existing.status;
+    const previousAttendeesCount = Number(existing.attendeesCount) || 0;
+    const previousActualArrivedCount =
+      existing.actualArrivedCount == null ? null : Number(existing.actualArrivedCount);
+    const actualArrivedCount = resolveActualArrivedCount(req.body, existing);
     const arrivedAt = new Date();
 
     pushStatusHistoryOnGuest(existing, {
@@ -234,12 +259,14 @@ router.post("/:eventId/guests/:guestId/arrive", async (req, res) => {
       status: HOSTESS_ARRIVED_STATUS,
       updatedBy: STATUS_HISTORY_LABELS[STATUS_HISTORY_SOURCES.HOSTESS],
       source: STATUS_HISTORY_SOURCES.HOSTESS,
-      note: "סומן כהגיע לאירוע",
+      note: `סומן כהגיע לאירוע · ${actualArrivedCount} בפועל`,
       updatedAt: arrivedAt
     });
     existing.status = HOSTESS_ARRIVED_STATUS;
     existing.hostessArrivedAt = arrivedAt;
     existing.arrivalMarkedBy = HOSTESS_MARKED_BY;
+    existing.actualArrivedCount = actualArrivedCount;
+    existing.attendeesCount = actualArrivedCount;
     if (existing.declinedWhileSeatedAt) {
       existing.declinedWhileSeatedAt = undefined;
     }
@@ -254,12 +281,14 @@ router.post("/:eventId/guests/:guestId/arrive", async (req, res) => {
       action: "HOSTESS_ARRIVED",
       status: "ok",
       phone: existing.phone,
-      description: `${existing.fullName} סומן כ'הגיע לאירוע' על ידי דיילת אירוע`,
+      description: `${existing.fullName} סומן כ'הגיע לאירוע' (${actualArrivedCount}) על ידי דיילת אירוע`,
       metadata: {
         guestId: String(existing._id),
         guestName: existing.fullName,
         previousStatus,
         nextStatus: HOSTESS_ARRIVED_STATUS,
+        actualArrivedCount,
+        previousAttendeesCount,
         markedBy: HOSTESS_MARKED_BY,
         markedByLabel: "סומן על ידי דיילת אירוע",
         tableLabel,
@@ -279,10 +308,13 @@ router.post("/:eventId/guests/:guestId/arrive", async (req, res) => {
       performerLabel: "דיילת אירוע",
       metadata: {
         markedBy: HOSTESS_MARKED_BY,
-        tableLabel
+        tableLabel,
+        actualArrivedCount
       },
       changes: {
-        status: { from: previousStatus, to: HOSTESS_ARRIVED_STATUS }
+        status: { from: previousStatus, to: HOSTESS_ARRIVED_STATUS },
+        attendeesCount: { from: previousAttendeesCount, to: actualArrivedCount },
+        actualArrivedCount: { from: previousActualArrivedCount, to: actualArrivedCount }
       }
     });
 
@@ -296,6 +328,7 @@ router.post("/:eventId/guests/:guestId/arrive", async (req, res) => {
       tableLabel,
       status: HOSTESS_ARRIVED_STATUS,
       markedBy: HOSTESS_MARKED_BY,
+      actualArrivedCount,
       message: tableLabel
         ? `${existing.fullName} יושב/ת בשולחן ${tableLabel}`
         : `${existing.fullName} עדיין לא משובץ/ת לשולחן`

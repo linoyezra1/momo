@@ -73,6 +73,8 @@ export function guestForSeating(guest) {
     fullName: guest.fullName,
     phone: guest.phone,
     attendeesCount: guest.attendeesCount,
+    actualArrivedCount:
+      guest.actualArrivedCount == null ? null : Number(guest.actualArrivedCount),
     status: guest.status,
     source: guest.source,
     guestSide: guest.guestSide || "",

@@ -661,6 +661,63 @@
   outline-offset: 1px;
 }
 
+.il-hostess-count-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  margin: 1.15rem 0 0.25rem;
+}
+
+.il-hostess-count-stepper__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 1px solid var(--hostess-border);
+  border-radius: 0.75rem;
+  background: var(--hostess-bg);
+  color: var(--hostess-fg);
+  font-size: 1.35rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.il-hostess-count-stepper__btn:hover:not(:disabled) {
+  border-color: var(--hostess-accent);
+  background: color-mix(in srgb, var(--hostess-accent) 10%, #fff);
+}
+
+.il-hostess-count-stepper__btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.il-hostess-count-stepper__value {
+  width: 4.5rem;
+  height: 2.75rem;
+  border: 1px solid var(--hostess-border);
+  border-radius: 0.75rem;
+  background: #fff;
+  color: var(--hostess-fg);
+  font: inherit;
+  font-size: 1.25rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.il-hostess-count-stepper__value:focus {
+  outline: 2px solid color-mix(in srgb, var(--hostess-accent) 45%, transparent);
+  outline-offset: 1px;
+}
+
+.il-hostess-tag--count {
+  background: color-mix(in srgb, var(--hostess-accent) 12%, #fff);
+  color: var(--hostess-fg);
+}
+
 .il-hostess-table-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

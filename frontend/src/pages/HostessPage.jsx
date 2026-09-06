@@ -29,6 +29,14 @@ function isGuestArrived(guest) {
   return guest.status === "הגיע לאירוע" || Boolean(guest.hostessArrivedAt);
 }
 
+function defaultCheckInCount(guest) {
+  const actual = Number(guest?.actualArrivedCount);
+  if (Number.isFinite(actual) && actual > 0) return Math.max(1, Math.min(50, Math.round(actual)));
+  const confirmed = Number(guest?.attendeesCount ?? guest?.guestCount ?? guest?.arrivingCount);
+  if (Number.isFinite(confirmed) && confirmed > 0) return Math.max(1, Math.min(50, Math.round(confirmed)));
+  return 1;
+}
+
 function guestHasPhone(guest) {
   return Boolean(String(guest?.phone || "").trim());
 }
@@ -50,6 +58,8 @@ export default function HostessPage() {
   const [query, setQuery] = useState("");
   const [canSendTableWhatsApp, setCanSendTableWhatsApp] = useState(false);
   const [arriveModal, setArriveModal] = useState(null);
+  const [checkInGuest, setCheckInGuest] = useState(null);
+  const [checkInCount, setCheckInCount] = useState(1);
   const [toast, setToast] = useState(null);
   const [busyGuestId, setBusyGuestId] = useState("");
   const [seatGuest, setSeatGuest] = useState(null);
@@ -113,7 +123,22 @@ export default function HostessPage() {
 
   const seatNeeded = Math.max(1, Number(seatGuest?.attendeesCount) || 1);
 
-  const markArrived = async (guest) => {
+  const openCheckInModal = (guest) => {
+    setCheckInGuest(guest);
+    setCheckInCount(defaultCheckInCount(guest));
+  };
+
+  const closeCheckInModal = () => {
+    if (busyGuestId) return;
+    setCheckInGuest(null);
+  };
+
+  const adjustCheckInCount = (delta) => {
+    setCheckInCount((prev) => Math.max(1, Math.min(50, Number(prev || 1) + delta)));
+  };
+
+  const markArrived = async (guest, actualArrivedCount) => {
+    const count = Math.max(1, Math.min(50, Number(actualArrivedCount) || defaultCheckInCount(guest)));
     setBusyGuestId(guest._id);
     const previous = { ...guest };
     setGuests((prev) =>
@@ -123,13 +148,17 @@ export default function HostessPage() {
               ...item,
               status: "הגיע לאירוע",
               hostessArrivedAt: new Date().toISOString(),
-              arrivalMarkedBy: "HOSTESS"
+              arrivalMarkedBy: "HOSTESS",
+              actualArrivedCount: count,
+              attendeesCount: count
             }
           : item
       )
     );
     try {
-      const { data } = await api.post(`/hostess/${eventId}/guests/${guest._id}/arrive`);
+      const { data } = await api.post(`/hostess/${eventId}/guests/${guest._id}/arrive`, {
+        actualArrivedCount: count
+      });
       setGuests((prev) =>
         prev.map((item) =>
           item._id === guest._id
@@ -138,18 +167,22 @@ export default function HostessPage() {
                 ...(data.guest || {}),
                 tableLabel: data.tableLabel || item.tableLabel,
                 status: data.status || data.guest?.status || "הגיע לאירוע",
-                arrivalMarkedBy: data.markedBy || "HOSTESS"
+                arrivalMarkedBy: data.markedBy || "HOSTESS",
+                actualArrivedCount: data.actualArrivedCount ?? data.guest?.actualArrivedCount ?? count,
+                attendeesCount: data.guest?.attendeesCount ?? count
               }
             : item
         )
       );
+      setCheckInGuest(null);
       setArriveModal({
         fullName: guest.fullName,
         tableLabel: data.tableLabel || guest.tableLabel || "",
         message: data.message,
         guestId: guest._id,
         phone: guest.phone || data.guest?.phone || "",
-        seatingTableId: data.guest?.seatingTableId || guest.seatingTableId || ""
+        seatingTableId: data.guest?.seatingTableId || guest.seatingTableId || "",
+        actualArrivedCount: data.actualArrivedCount ?? count
       });
     } catch (arriveError) {
       setGuests((prev) => prev.map((item) => (item._id === guest._id ? previous : item)));
@@ -157,6 +190,11 @@ export default function HostessPage() {
     } finally {
       setBusyGuestId("");
     }
+  };
+
+  const confirmCheckIn = () => {
+    if (!checkInGuest) return;
+    markArrived(checkInGuest, checkInCount);
   };
 
   const openWhatsAppFlow = (guest) => {
@@ -381,6 +419,11 @@ export default function HostessPage() {
                       <span className={`il-hostess-tag ${statusTagClass(guest.status)}`}>
                         {guest.status || "לא ידוע"}
                       </span>
+                      <span className="il-hostess-tag il-hostess-tag--count">
+                        <Users size={12} aria-hidden="true" />
+                        {guest.actualArrivedCount || guest.attendeesCount || 1}
+                        {guest.actualArrivedCount ? " הגיעו" : " מאושר"}
+                      </span>
                     </div>
                   </div>
                   <div className="il-hostess-card__actions">
@@ -388,7 +431,7 @@ export default function HostessPage() {
                       type="button"
                       className={`il-hostess-btn ${arrived ? "il-hostess-btn--outline" : "il-hostess-btn--primary"}`}
                       disabled={busyGuestId === guest._id}
-                      onClick={() => markArrived(guest)}
+                      onClick={() => openCheckInModal(guest)}
                     >
                       <Check size={14} aria-hidden="true" />
                       {arrived ? "עדכון הגעה" : "המוזמן הגיע"}
@@ -442,6 +485,98 @@ export default function HostessPage() {
         </div>
       ) : null}
 
+      {checkInGuest ? (
+        <div className="us-modal-backdrop" role="presentation" onClick={closeCheckInModal}>
+          <form
+            className="us-modal-card il-hostess-modal il-hostess-modal--checkin"
+            role="dialog"
+            aria-modal="true"
+            aria-label="אישור כניסה"
+            onClick={(event) => event.stopPropagation()}
+            onSubmit={(event) => {
+              event.preventDefault();
+              confirmCheckIn();
+            }}
+          >
+            <div className="il-hostess-modal__head">
+              <div>
+                <h2>אישור כניסה - כמה הגיעו בפועל?</h2>
+                <p>
+                  מוזמן: <strong>{checkInGuest.fullName}</strong>
+                  {!isGuestArrived(checkInGuest) && Number(checkInGuest.attendeesCount) > 0 ? (
+                    <>
+                      {" "}
+                      · מאושר מראש: <strong>{checkInGuest.attendeesCount}</strong>
+                    </>
+                  ) : null}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="il-hostess-modal__close"
+                aria-label="סגירה"
+                onClick={closeCheckInModal}
+                disabled={busyGuestId === checkInGuest._id}
+              >
+                <X size={20} aria-hidden="true" />
+              </button>
+            </div>
+
+            <div className="il-hostess-count-stepper" role="group" aria-label="כמות שהגיעה בפועל">
+              <button
+                type="button"
+                className="il-hostess-count-stepper__btn"
+                aria-label="הקטנה"
+                onClick={() => adjustCheckInCount(-1)}
+                disabled={checkInCount <= 1 || busyGuestId === checkInGuest._id}
+              >
+                −
+              </button>
+              <input
+                className="il-hostess-count-stepper__value"
+                type="number"
+                min="1"
+                max="50"
+                value={checkInCount}
+                onChange={(event) =>
+                  setCheckInCount(Math.max(1, Math.min(50, Number(event.target.value) || 1)))
+                }
+                disabled={busyGuestId === checkInGuest._id}
+                aria-label="כמות שהגיעה בפועל"
+                required
+              />
+              <button
+                type="button"
+                className="il-hostess-count-stepper__btn"
+                aria-label="הגדלה"
+                onClick={() => adjustCheckInCount(1)}
+                disabled={checkInCount >= 50 || busyGuestId === checkInGuest._id}
+              >
+                +
+              </button>
+            </div>
+
+            <div className="us-modal-actions">
+              <button
+                className="il-hostess-btn il-hostess-btn--primary"
+                type="submit"
+                disabled={busyGuestId === checkInGuest._id}
+              >
+                {busyGuestId === checkInGuest._id ? "שומר…" : "אישור כניסה"}
+              </button>
+              <button
+                className="il-hostess-btn il-hostess-btn--outline"
+                type="button"
+                disabled={busyGuestId === checkInGuest._id}
+                onClick={closeCheckInModal}
+              >
+                ביטול
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
+
       {arriveModal ? (
         <div className="us-modal-backdrop" role="presentation" onClick={() => setArriveModal(null)}>
           <div
@@ -456,6 +591,9 @@ export default function HostessPage() {
                 ? `${arriveModal.fullName} יושב/ת בשולחן ${arriveModal.tableLabel}`
                 : arriveModal.message || `${arriveModal.fullName} עדיין לא משובץ/ת לשולחן`}
             </p>
+            {arriveModal.actualArrivedCount ? (
+              <p className="il-hostess-modal__meta">הגיעו בפועל: {arriveModal.actualArrivedCount}</p>
+            ) : null}
             <div className="us-modal-actions il-hostess-modal__arrive-actions">
               {arriveModal.tableLabel || arriveModal.seatingTableId ? (
                 <>

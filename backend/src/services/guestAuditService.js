@@ -86,7 +86,12 @@ export function buildHostessGuestCreatedDescription(guest = {}) {
 
 export function buildHostessArrivedDescription(guest = {}) {
   const status = guest.status || "הגיע לאירוע";
-  return `עודכן ע״י דיילת אירוע: **${status}**`;
+  const actual = Number(guest.actualArrivedCount);
+  const count = Number.isFinite(actual) && actual > 0 ? actual : Number(guest.attendeesCount);
+  return `עודכן ע״י דיילת אירוע: **${status}**${formatGuestCountPart(
+    status,
+    Number.isFinite(count) ? count : undefined
+  )}`;
 }
 
 function resolveActionFromChanges(before = {}, after = {}, fallback = "guest_updated") {

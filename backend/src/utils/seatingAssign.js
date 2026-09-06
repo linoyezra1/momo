@@ -5,6 +5,8 @@ export function isGuestEligibleForSeating(guest) {
 }
 
 export function countSeatsForGuest(guest) {
+  const actual = Number(guest?.actualArrivedCount);
+  if (Number.isFinite(actual) && actual > 0) return Math.max(1, actual);
   return Math.max(1, Number(guest?.attendeesCount || 1));
 }
 

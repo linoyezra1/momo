@@ -73,6 +73,8 @@ const guestSchema = new mongoose.Schema(
     declinedWhileSeatedAt: { type: Date, default: null },
     /** Hostess marked guest as arrived on event day */
     hostessArrivedAt: { type: Date, default: null },
+    /** Actual headcount that arrived (hostess check-in) */
+    actualArrivedCount: { type: Number, min: 0, default: null },
     /** Who marked arrival — e.g. HOSTESS */
     arrivalMarkedBy: { type: String, trim: true, default: "" },
     reminderRound: { type: Number, min: 0, default: 0 },
