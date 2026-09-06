@@ -1616,6 +1616,18 @@ export default function ClientDashboardPage() {
                     >
                       ייצוא לאקסל
                     </button>
+                    {selectedCount > 0 ? (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setActionsMenuOpen(false);
+                          exportSelectedGuests();
+                        }}
+                      >
+                        ייצוא נבחרים לאקסל ({selectedCount})
+                      </button>
+                    ) : null}
                     <button
                       type="button"
                       role="menuitem"
@@ -2222,6 +2234,18 @@ export default function ClientDashboardPage() {
               <Download size={16} aria-hidden="true" />
               ייצוא לאקסל
             </button>
+            {selectedCount > 0 ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileActionsOpen(false);
+                  exportSelectedGuests();
+                }}
+              >
+                <Download size={16} aria-hidden="true" />
+                ייצוא נבחרים לאקסל ({selectedCount})
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={() => {
@@ -2577,14 +2601,6 @@ export default function ClientDashboardPage() {
               נבחרו <strong>{selectedCount}</strong> מוזמנים
             </p>
             <div className="il-bulk-action-bar-actions">
-              <button
-                className="us-btn"
-                type="button"
-                onClick={exportSelectedGuests}
-              >
-                <Download size={16} aria-hidden="true" />
-                ייצוא נבחרים לאקסל
-              </button>
               <button
                 className="us-btn il-bulk-send-btn"
                 type="button"
