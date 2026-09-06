@@ -227,7 +227,7 @@ router.get("/:userId/guests", async (req, res) => {
         const count = Math.max(0, Number(guest.attendeesCount || 0));
         const arrivedHeadcount = Math.max(
           0,
-          Number(guest.actualArrivedCount ?? guest.attendeesCount || 0)
+          Number(guest.actualArrivedCount ?? guest.attendeesCount ?? 0)
         );
         acc.totalInvited += count;
         if (guest.status === "מגיע") {
