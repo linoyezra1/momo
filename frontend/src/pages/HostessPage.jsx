@@ -117,7 +117,19 @@ export default function HostessPage() {
   }, [guests, query]);
 
   const arrivedCount = useMemo(
-    () => guests.filter((guest) => isGuestArrived(guest)).length,
+    () =>
+      guests.reduce((sum, guest) => {
+        if (!isGuestArrived(guest)) return sum;
+        const count = Number(
+          guest.actualArrivedCount ??
+            guest.arrivedCount ??
+            guest.attendeesCount ??
+            guest.guestCount ??
+            guest.arrivingCount ??
+            1
+        );
+        return sum + (Number.isFinite(count) && count > 0 ? count : 1);
+      }, 0),
     [guests]
   );
 
