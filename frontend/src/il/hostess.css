@@ -85,6 +85,14 @@
   margin-top: 0.15rem;
 }
 
+.il-hostess-arrived-count__sub {
+  margin-top: 0.2rem;
+  font-size: 0.58rem;
+  line-height: 1.2;
+  opacity: 0.65;
+  white-space: nowrap;
+}
+
 .il-hostess-search {
   display: flex;
   align-items: center;
@@ -161,6 +169,10 @@
 
   .il-hostess-arrived-count__label {
     font-size: 0.7rem;
+  }
+
+  .il-hostess-arrived-count__sub {
+    font-size: 0.65rem;
   }
 
   .il-hostess-search {
@@ -706,6 +718,14 @@
   font-size: 1.25rem;
   font-weight: 700;
   text-align: center;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.il-hostess-count-stepper__value::-webkit-outer-spin-button,
+.il-hostess-count-stepper__value::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 .il-hostess-count-stepper__value:focus {

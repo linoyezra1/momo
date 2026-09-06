@@ -225,9 +225,15 @@ router.get("/:userId/guests", async (req, res) => {
     const summary = guests.reduce(
       (acc, guest) => {
         const count = Math.max(0, Number(guest.attendeesCount || 0));
+        const arrivedHeadcount = Math.max(
+          0,
+          Number(guest.actualArrivedCount ?? guest.attendeesCount || 0)
+        );
         acc.totalInvited += count;
-        if (guest.status === "מגיע" || guest.status === "הגיע לאירוע") {
+        if (guest.status === "מגיע") {
           acc.totalComing += count;
+        } else if (guest.status === "הגיע לאירוע" || guest.hostessArrivedAt) {
+          acc.totalArrived += arrivedHeadcount || count;
         } else if (guest.status === "לא מגיע") {
           acc.totalNotComing += count;
         } else if (guest.status === "אולי") {
@@ -240,6 +246,7 @@ router.get("/:userId/guests", async (req, res) => {
       {
         totalInvited: 0,
         totalComing: 0,
+        totalArrived: 0,
         totalNotComing: 0,
         totalMaybe: 0,
         totalUnknown: 0

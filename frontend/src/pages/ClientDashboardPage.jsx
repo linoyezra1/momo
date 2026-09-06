@@ -3,6 +3,7 @@ import { Link, useLocation, useParams } from "react-router-dom";
 import {
   Check,
   ChevronDown,
+  CircleCheck,
   Clock,
   Contact,
   Download,
@@ -77,7 +78,8 @@ const STATUS_OPTIONS = [
 
 const STATUS_FILTER_OPTIONS = [
   { value: "all", label: "הכל" },
-  { value: "מגיע", label: "מגיע / הגיע" },
+  { value: "מגיע", label: "מגיעים" },
+  { value: "הגיע לאירוע", label: "הגיעו לאירוע" },
   { value: "לא מגיע", label: "לא מגיע" },
   { value: "אולי", label: "אולי" },
   { value: "לא ידוע", label: "לא ידוע" }
@@ -110,6 +112,10 @@ function getGuestRowClass(status) {
 function isUnknownGuestStatus(status) {
   const normalized = String(status || "").trim().toLowerCase();
   return !normalized || normalized === "לא ידוע" || normalized === "unknown" || normalized === "pending";
+}
+
+function isGuestActuallyArrived(guest) {
+  return guest?.status === "הגיע לאירוע" || Boolean(guest?.hostessArrivedAt);
 }
 
 function getReminderRound(guest) {
@@ -266,8 +272,10 @@ function getGuestCallHistory(guest) {
 }
 
 function buildStatusDonutGradient(summary) {
+  const attending =
+    Number(summary.totalComing || 0) + Number(summary.totalArrived || 0);
   const values = [
-    { value: Number(summary.totalComing || 0), color: "#d57e7e" },
+    { value: attending, color: "#d57e7e" },
     { value: Number(summary.totalNotComing || 0), color: "#9b5a5a" },
     { value: Number(summary.totalMaybe || 0), color: "#d4af37" },
     { value: Number(summary.totalUnknown || 0), color: "#94a3b8" }
@@ -326,6 +334,7 @@ export default function ClientDashboardPage() {
   const [summary, setSummary] = useState({
     totalInvited: 0,
     totalComing: 0,
+    totalArrived: 0,
     totalNotComing: 0,
     totalMaybe: 0,
     totalUnknown: 0
@@ -414,7 +423,9 @@ export default function ClientDashboardPage() {
     if (statusFilter === "לא ידוע") {
       list = list.filter((guest) => isUnknownGuestStatus(guest.status));
     } else if (statusFilter === "מגיע") {
-      list = list.filter((guest) => guest.status === "מגיע" || guest.status === "הגיע לאירוע");
+      list = list.filter((guest) => guest.status === "מגיע");
+    } else if (statusFilter === "הגיע לאירוע") {
+      list = list.filter((guest) => isGuestActuallyArrived(guest));
     } else if (statusFilter !== "all") {
       list = list.filter((guest) => guest.status === statusFilter);
     }
@@ -704,9 +715,22 @@ export default function ClientDashboardPage() {
   const phoneServiceEnabled = maxPhoneRounds > 0;
   const guestTableColumnCount = phoneServiceEnabled ? 13 : 12;
   const totalInvited = Number(displaySummary.totalInvited || 0);
-  const totalAttending = Number(displaySummary.totalComing || 0);
+  const totalAttending =
+    Number(displaySummary.totalComing || 0) + Number(displaySummary.totalArrived || 0);
   const attendingPercentage =
     totalInvited > 0 ? Math.round((totalAttending / totalInvited) * 100) : 0;
+
+  const statusFilterCounts = useMemo(
+    () => ({
+      all: displaySummary.totalInvited,
+      מגיע: displaySummary.totalComing,
+      "הגיע לאירוע": displaySummary.totalArrived || 0,
+      "לא מגיע": displaySummary.totalNotComing,
+      אולי: displaySummary.totalMaybe,
+      "לא ידוע": displaySummary.totalUnknown || 0
+    }),
+    [displaySummary]
+  );
   const allFilteredSelected =
     filteredGuests.length > 0 && filteredGuests.every((guest) => selectedGuestIds.has(guest._id));
 
@@ -1387,6 +1411,20 @@ export default function ClientDashboardPage() {
               <strong>{displaySummary.totalComing}</strong>
             </button>
             <button
+              className={`il-metric-card il-metric-card--arrived${
+                statusFilter === "הגיע לאירוע" ? " is-active" : ""
+              }`}
+              type="button"
+              onClick={() => setStatusFilter("הגיע לאירוע")}
+              aria-pressed={statusFilter === "הגיע לאירוע"}
+            >
+              <span className="il-metric-card__label">
+                <CircleCheck size={15} aria-hidden="true" />
+                הגיעו לאירוע
+              </span>
+              <strong>{displaySummary.totalArrived || 0}</strong>
+            </button>
+            <button
               className={`il-metric-card il-metric-card--not-coming${statusFilter === "לא מגיע" ? " is-active" : ""}`}
               type="button"
               onClick={() => setStatusFilter("לא מגיע")}
@@ -1615,7 +1653,12 @@ export default function ClientDashboardPage() {
                     onClick={() => setStatusFilter(option.value)}
                     aria-pressed={statusFilter === option.value}
                   >
-                    {option.label}
+                    <span>{option.label}</span>
+                    {option.value !== "all" ? (
+                      <span className="il-status-filter-tab__count">
+                        {statusFilterCounts[option.value] ?? 0}
+                      </span>
+                    ) : null}
                   </button>
                 ))}
               </div>

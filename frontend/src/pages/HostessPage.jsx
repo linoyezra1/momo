@@ -133,6 +133,11 @@ export default function HostessPage() {
     [guests]
   );
 
+  const arrivedRecordsCount = useMemo(
+    () => guests.filter((guest) => isGuestArrived(guest)).length,
+    [guests]
+  );
+
   const seatNeeded = Math.max(1, Number(seatGuest?.attendeesCount) || 1);
 
   const openCheckInModal = (guest) => {
@@ -352,9 +357,15 @@ export default function HostessPage() {
                 <p className="il-hostess-eyebrow">שלום, דיילת</p>
                 <h1>קבלת פנים · {eventLabel || "דיילת דיגיטלית"}</h1>
               </div>
-              <div className="il-hostess-arrived-count" aria-label={`${arrivedCount} הגיעו`}>
+              <div
+                className="il-hostess-arrived-count"
+                aria-label={`${arrivedCount} הגיעו מתוך ${arrivedRecordsCount} הזמנות`}
+              >
                 <span className="il-hostess-arrived-count__num">{arrivedCount}</span>
                 <span className="il-hostess-arrived-count__label">הגיעו</span>
+                <span className="il-hostess-arrived-count__sub">
+                  מתוך {arrivedRecordsCount} הזמנות
+                </span>
               </div>
             </div>
 

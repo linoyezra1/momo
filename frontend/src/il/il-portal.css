@@ -175,7 +175,7 @@
 
 .il-analytics__stats {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 0.55rem;
 }
 
@@ -226,6 +226,7 @@
 }
 
 .il-metric-card--coming strong { color: var(--us-rose); }
+.il-metric-card--arrived strong { color: #2f7a4f; }
 .il-metric-card--not-coming strong { color: #9b5a5a; }
 .il-metric-card--maybe strong { color: #a67c3d; }
 .il-metric-card--unknown strong { color: #687481; }
@@ -1303,6 +1304,9 @@
 }
 
 .il-status-filter-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   border: 1px solid var(--us-border);
   border-radius: 999px;
   background: #fff;
@@ -1312,11 +1316,30 @@
   cursor: pointer;
 }
 
+.il-status-filter-tab__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 999px;
+  background: #f3ece6;
+  color: var(--us-espresso);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
 .il-status-filter-tab.is-active {
   background: #1f2937;
   border-color: #1f2937;
   color: #fff;
   font-weight: 600;
+}
+
+.il-status-filter-tab.is-active .il-status-filter-tab__count {
+  background: rgb(255 255 255 / 18%);
+  color: #fff;
 }
 
 .il-reminder-filter-select {
