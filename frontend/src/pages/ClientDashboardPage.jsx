@@ -1410,20 +1410,22 @@ export default function ClientDashboardPage() {
               </span>
               <strong>{displaySummary.totalComing}</strong>
             </button>
-            <button
-              className={`il-metric-card il-metric-card--arrived${
-                statusFilter === "הגיע לאירוע" ? " is-active" : ""
-              }`}
-              type="button"
-              onClick={() => setStatusFilter("הגיע לאירוע")}
-              aria-pressed={statusFilter === "הגיע לאירוע"}
-            >
-              <span className="il-metric-card__label">
-                <CircleCheck size={15} aria-hidden="true" />
-                הגיעו לאירוע
-              </span>
-              <strong>{displaySummary.totalArrived || 0}</strong>
-            </button>
+            {Number(displaySummary.totalArrived || 0) > 0 ? (
+              <button
+                className={`il-metric-card il-metric-card--arrived${
+                  statusFilter === "הגיע לאירוע" ? " is-active" : ""
+                }`}
+                type="button"
+                onClick={() => setStatusFilter("הגיע לאירוע")}
+                aria-pressed={statusFilter === "הגיע לאירוע"}
+              >
+                <span className="il-metric-card__label">
+                  <CircleCheck size={15} aria-hidden="true" />
+                  הגיעו לאירוע
+                </span>
+                <strong>{displaySummary.totalArrived}</strong>
+              </button>
+            ) : null}
             <button
               className={`il-metric-card il-metric-card--not-coming${statusFilter === "לא מגיע" ? " is-active" : ""}`}
               type="button"
