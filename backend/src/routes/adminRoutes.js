@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import User from "../models/User.js";
 import Guest from "../models/Guest.js";
 import WhatsAppDeliveryLog from "../models/WhatsAppDeliveryLog.js";
+import { syncWhatsAppFailuresFromTwilio } from "../services/whatsappDeliveryLogService.js";
 import ActivationCode from "../models/ActivationCode.js";
 import Lead from "../models/Lead.js";
 import { normalizePhone } from "../utils/guestPhone.js";
@@ -398,6 +399,19 @@ router.get("/clients/:userId/whatsapp-delivery-failures", async (req, res) => {
     const user = await User.findById(userId).select("_id");
     if (!user) return res.status(404).json({ message: "Client not found" });
 
+    const force = String(req.query.sync || "") === "force";
+    const shouldSync = req.query.sync !== "0";
+    let sync = { imported: 0, scanned: 0, skipped: true };
+    let syncError = "";
+    if (shouldSync) {
+      try {
+        sync = await syncWhatsAppFailuresFromTwilio({ userId, force });
+      } catch (error) {
+        syncError = error.message || "סנכרון היסטוריית Twilio נכשל";
+        console.error("[Twilio status] history sync failed:", syncError);
+      }
+    }
+
     const logs = await WhatsAppDeliveryLog.find({
       userId,
       status: { $in: ["failed", "undelivered"] }
@@ -406,6 +420,14 @@ router.get("/clients/:userId/whatsapp-delivery-failures", async (req, res) => {
       .lean();
 
     return res.json({
+      sync: {
+        imported: sync.imported || 0,
+        scanned: sync.scanned || 0,
+        matched: sync.matched || 0,
+        skipped: Boolean(sync.skipped),
+        reason: sync.reason || "",
+        error: syncError
+      },
       logs: logs.map((log) => ({
         id: String(log._id),
         guestId: log.guestId ? String(log.guestId) : "",

@@ -862,11 +862,18 @@
   gap: 0.75rem;
 }
 
-.us-admin-wa-failures__head .us-admin-btn {
+.us-admin-wa-failures__head .us-admin-btn,
+.us-admin-wa-failures__actions .us-admin-btn {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
   flex-shrink: 0;
+}
+
+.us-admin-wa-failures__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
 }
 
 .us-admin-wa-failures__search {

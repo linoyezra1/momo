@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Download, Search } from "lucide-react";
+import { Download, RefreshCw, Search } from "lucide-react";
 import api from "../api";
 
 function formatStamp(value) {
@@ -20,33 +20,41 @@ export default function AdminWhatsAppFailures({ userId }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
+  const [syncNote, setSyncNote] = useState("");
 
-  useEffect(() => {
+  const loadFailures = (mode = "auto") => {
     if (!userId) {
       setLogs([]);
-      return undefined;
+      return;
     }
-    let cancelled = false;
     setLoading(true);
     setError("");
-    setQuery("");
+    if (mode === "auto") setQuery("");
+    const params = mode === "force" ? { sync: "force" } : undefined;
     api
-      .get(`/admin/clients/${userId}/whatsapp-delivery-failures`)
+      .get(`/admin/clients/${userId}/whatsapp-delivery-failures`, { params })
       .then((response) => {
-        if (!cancelled) setLogs(response.data?.logs || []);
-      })
-      .catch((loadError) => {
-        if (!cancelled) {
-          setLogs([]);
-          setError(loadError.response?.data?.message || "טעינת דוח כשלים נכשלה");
+        setLogs(response.data?.logs || []);
+        const sync = response.data?.sync || {};
+        if (sync.error) {
+          setSyncNote(sync.error);
+        } else if (sync.imported > 0) {
+          setSyncNote(`עודכנו ${sync.imported} כשלים מהיסטוריית Twilio`);
+        } else if (sync.reason === "twilio_not_configured") {
+          setSyncNote("לא ניתן למשוך היסטוריה — Twilio לא מוגדר בשרת");
+        } else {
+          setSyncNote("");
         }
       })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
+      .catch((loadError) => {
+        setLogs([]);
+        setError(loadError.response?.data?.message || "טעינת דוח כשלים נכשלה");
+      })
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadFailures("auto");
   }, [userId]);
 
   const filtered = useMemo(() => {
@@ -85,15 +93,26 @@ export default function AdminWhatsAppFailures({ userId }) {
           <p className="us-admin-share-title">דוח כשלים והודעות שלא נמסרו</p>
           <p className="us-admin-field-hint">הודעות וואטסאפ שסטטוסן failed או undelivered בלבד.</p>
         </div>
-        <button
-          className="us-admin-btn"
-          type="button"
-          onClick={exportFailures}
-          disabled={!filtered.length}
-        >
-          <Download size={14} aria-hidden="true" />
-          ייצוא לאקסל
-        </button>
+        <div className="us-admin-wa-failures__actions">
+          <button
+            className="us-admin-btn"
+            type="button"
+            onClick={() => loadFailures("force")}
+            disabled={loading}
+          >
+            <RefreshCw size={14} aria-hidden="true" />
+            רענון מ-Twilio
+          </button>
+          <button
+            className="us-admin-btn"
+            type="button"
+            onClick={exportFailures}
+            disabled={!filtered.length}
+          >
+            <Download size={14} aria-hidden="true" />
+            ייצוא לאקסל
+          </button>
+        </div>
       </div>
 
       <label className="us-admin-wa-failures__search">
@@ -107,7 +126,8 @@ export default function AdminWhatsAppFailures({ userId }) {
         />
       </label>
 
-      {loading ? <p className="us-admin-empty">טוען דוח…</p> : null}
+      {loading ? <p className="us-admin-empty">מעדכן כשלים מ-Twilio…</p> : null}
+      {syncNote ? <p className="us-admin-field-hint">{syncNote}</p> : null}
       {error ? <p className="us-admin-message us-admin-message--error">{error}</p> : null}
       {!loading && !error && !filtered.length ? (
         <p className="us-admin-empty">אין הודעות שנכשלו או שלא נמסרו</p>
