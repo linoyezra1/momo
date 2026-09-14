@@ -2,6 +2,7 @@ import express from "express";
 import bcrypt from "bcryptjs";
 import User from "../models/User.js";
 import Guest from "../models/Guest.js";
+import WhatsAppDeliveryLog from "../models/WhatsAppDeliveryLog.js";
 import ActivationCode from "../models/ActivationCode.js";
 import Lead from "../models/Lead.js";
 import { normalizePhone } from "../utils/guestPhone.js";
@@ -388,6 +389,38 @@ router.post("/clients/:userId/send-credentials", async (req, res) => {
     return res.status(500).json({
       message: error.message || "Failed to send credentials WhatsApp"
     });
+  }
+});
+
+router.get("/clients/:userId/whatsapp-delivery-failures", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await User.findById(userId).select("_id");
+    if (!user) return res.status(404).json({ message: "Client not found" });
+
+    const logs = await WhatsAppDeliveryLog.find({
+      userId,
+      status: { $in: ["failed", "undelivered"] }
+    })
+      .sort({ failedAt: -1, createdAt: -1 })
+      .lean();
+
+    return res.json({
+      logs: logs.map((log) => ({
+        id: String(log._id),
+        guestId: log.guestId ? String(log.guestId) : "",
+        guestName: log.guestName || "",
+        guestPhone: log.guestPhone || "",
+        status: log.status,
+        errorCode: log.errorCode || "",
+        errorMessage: log.errorMessage || "",
+        errorMessageHe: log.errorMessageHe || "",
+        sentAt: log.sentAt || null,
+        failedAt: log.failedAt || null
+      }))
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "טעינת דוח כשלים נכשלה", error: error.message });
   }
 });
 

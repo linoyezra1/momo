@@ -285,7 +285,8 @@ async function sendToInvitee({
         to,
         guestName,
         userId: userId || eventId,
-        recipientPhone: invitee.phone
+        recipientPhone: invitee.phone,
+        guestId: invitee.guestId
       });
       console.log(
         `[Twilio][diag-63028][invitee] CREATE_RESULT messageSid=${created?.sid || "?"} ` +
@@ -318,14 +319,16 @@ async function sendToInvitee({
       templateKeys
     );
 
-    await sendTwilioWhatsAppMessage({
+    const created = await sendTwilioWhatsAppMessage({
       to,
       contentSid,
       contentVariables,
       userId: userId || eventId,
-      recipientPhone: invitee.phone
+      recipientPhone: invitee.phone,
+      guestId: invitee.guestId,
+      guestName: invitee.name
     });
-    return { ok: true, invitee };
+    return { ok: true, invitee, messageSid: created?.sid || null };
   } catch (error) {
     try {
       console.error("[Twilio] template keys:", templateKeys?.join(", ") || "unknown");

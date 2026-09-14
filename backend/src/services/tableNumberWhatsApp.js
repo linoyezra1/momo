@@ -158,7 +158,9 @@ export async function sendTableNumberWhatsApp({ user, guest, tableLabel, table }
           hostsLabel
         }),
         userId: user?._id,
-        recipientPhone: guest.phone
+        recipientPhone: guest.phone,
+        guestId: guest?._id,
+        guestName
       });
     } else if (allowFreeText) {
       await sendTwilioWhatsAppMessage({
@@ -170,7 +172,9 @@ export async function sendTableNumberWhatsApp({ user, guest, tableLabel, table }
           hostsLabel
         }),
         userId: user?._id,
-        recipientPhone: guest.phone
+        recipientPhone: guest.phone,
+        guestId: guest?._id,
+        guestName
       });
     } else {
       return {

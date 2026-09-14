@@ -849,3 +849,67 @@
     padding: 1.35rem 1rem;
   }
 }
+
+.us-admin-wa-failures {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.us-admin-wa-failures__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.us-admin-wa-failures__head .us-admin-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.us-admin-wa-failures__search {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--us-border, #e5e7eb);
+  border-radius: 0.65rem;
+  background: #fff;
+}
+
+.us-admin-wa-failures__search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.us-admin-wa-failures__table-wrap {
+  overflow-x: auto;
+}
+
+.us-admin-wa-failures__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+}
+
+.us-admin-wa-failures__table th,
+.us-admin-wa-failures__table td {
+  padding: 0.5rem 0.55rem;
+  border-bottom: 1px solid #eee;
+  text-align: right;
+  vertical-align: top;
+}
+
+.us-admin-wa-failures__table th {
+  font-size: 0.75rem;
+  color: #666;
+  font-weight: 700;
+  white-space: nowrap;
+}

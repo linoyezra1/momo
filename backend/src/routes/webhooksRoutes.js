@@ -2,6 +2,7 @@ import express from "express";
 import twilio from "twilio";
 import { handleGetAccessDetailsRequest } from "../services/whatsappAccessDetailsService.js";
 import { handleIncomingWhatsAppRsvp } from "../services/whatsappRsvpService.js";
+import { recordWhatsAppDeliveryFailure } from "../services/whatsappDeliveryLogService.js";
 import { getClientBaseUrl } from "../utils/clientUrl.js";
 
 const router = express.Router();
@@ -94,5 +95,53 @@ async function twilioWhatsAppWebhook(req, res) {
 router.post("/twilio-whatsapp", twilioWhatsAppWebhook);
 /** Alias for ops / docs that expect /api/webhooks/whatsapp */
 router.post("/whatsapp", twilioWhatsAppWebhook);
+
+function getStatusCallbackRequestUrl(req) {
+  const protocol = req.get("x-forwarded-proto") || req.protocol || "https";
+  const host = req.get("x-forwarded-host") || req.get("host");
+  const path = String(req.originalUrl || "").split("?")[0];
+  return `${protocol}://${host}${path}`;
+}
+
+function hasValidStatusCallbackSignature(req) {
+  if (process.env.TWILIO_VALIDATE_WEBHOOK_SIGNATURE === "false") return true;
+  const signature = req.get("x-twilio-signature");
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  if (!signature || !authToken) return false;
+  return twilio.validateRequest(authToken, signature, getStatusCallbackRequestUrl(req), req.body);
+}
+
+router.post("/twilio/message-status", async (req, res) => {
+  if (!hasValidStatusCallbackSignature(req)) {
+    console.warn("[Twilio status] Rejected callback: invalid signature");
+    return res.status(403).send("Invalid Twilio signature");
+  }
+
+  const messageStatus = String(req.body?.MessageStatus || "").trim().toLowerCase();
+  const messageSid = String(req.body?.MessageSid || "").trim();
+
+  console.log(
+    `[Twilio status] ${messageSid || "unknown"} status=${messageStatus || "?"} ` +
+      `code=${req.body?.ErrorCode || "-"} to=${req.body?.To || "-"}`
+  );
+
+  if (messageStatus === "undelivered" || messageStatus === "failed") {
+    try {
+      await recordWhatsAppDeliveryFailure({
+        messageSid,
+        messageStatus,
+        errorCode: req.body?.ErrorCode,
+        errorMessage: req.body?.ErrorMessage,
+        to: req.body?.To,
+        from: req.body?.From
+      });
+    } catch (error) {
+      console.error("[Twilio status] Failed to store delivery failure:", error?.message || error);
+      return res.status(500).send("Failed to store status");
+    }
+  }
+
+  return res.status(200).send("ok");
+});
 
 export default router;

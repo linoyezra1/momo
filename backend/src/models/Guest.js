@@ -85,6 +85,9 @@ const guestSchema = new mongoose.Schema(
       default: "idle"
     },
     lastWhatsAppSentAt: { type: Date, default: null },
+    lastWhatsAppMessageSid: { type: String, trim: true, default: "" },
+    whatsappDeliveryStatus: { type: String, trim: true, default: "" },
+    whatsappErrorCode: { type: String, trim: true, default: "" },
     confirmationMethod: {
       type: String,
       enum: ["whatsapp", "phone", "web"],

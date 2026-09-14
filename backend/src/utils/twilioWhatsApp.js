@@ -1,4 +1,5 @@
 import twilio from "twilio";
+import { recordWhatsAppOutbound } from "../services/whatsappDeliveryLogService.js";
 import { normalizePhone } from "./guestPhone.js";
 
 const DEFAULT_MESSAGING_SERVICE_SID = "MG42b953157d0a2c06edaa8e088177c31b";
@@ -389,6 +390,16 @@ export function formatWhatsAppSenderLabel({ userId, username, senderLabel } = {}
   return parts.length ? parts.join(" / ") : "לא ידוע";
 }
 
+export function getTwilioStatusCallbackUrl() {
+  const explicit = String(process.env.TWILIO_STATUS_CALLBACK_URL || "").trim();
+  if (explicit) return explicit;
+  const base = String(process.env.BACKEND_URL || "").trim().replace(/\/+$/, "");
+  if (base) return `${base}/api/webhooks/twilio/message-status`;
+  const railway = String(process.env.RAILWAY_PUBLIC_DOMAIN || "").trim();
+  if (railway) return `https://${railway}/api/webhooks/twilio/message-status`;
+  return "";
+}
+
 function formatTwilioFailureReason(error) {
   if (!error) return "שגיאה לא ידועה";
   const bits = [];
@@ -413,7 +424,9 @@ export async function sendTwilioWhatsAppMessage({
   userId,
   username,
   senderLabel,
-  recipientPhone
+  recipientPhone,
+  guestId,
+  guestName
 }) {
   const displayPhone = formatWhatsAppRecipientPhone(recipientPhone || to);
   const displaySender = formatWhatsAppSenderLabel({ userId, username, senderLabel });
@@ -422,6 +435,12 @@ export async function sendTwilioWhatsAppMessage({
   try {
     const client = getTwilioClient();
     const messagingServiceSid = getTwilioMessagingServiceSid();
+    const statusCallback = getTwilioStatusCallbackUrl();
+    if (!statusCallback) {
+      console.warn(
+        "[Twilio] statusCallback skipped — set BACKEND_URL (e.g. https://momoevent.up.railway.app)"
+      );
+    }
     let result;
     if (contentSid) {
       let variablesJson =
@@ -459,9 +478,12 @@ export async function sendTwilioWhatsAppMessage({
       if (variablesJson != null && variablesJson !== "") {
         messagePayload.contentVariables = variablesJson;
       }
+      if (statusCallback) {
+        messagePayload.statusCallback = statusCallback;
+      }
 
       const varsAfter = summarizeContentVariables(messagePayload.contentVariables);
-      const forbiddenKeys = ["body", "mediaUrl", "from", "statusCallback"].filter((k) =>
+      const forbiddenKeys = ["body", "mediaUrl", "from"].filter((k) =>
         Object.prototype.hasOwnProperty.call(messagePayload, k)
       );
       console.log(
@@ -494,7 +516,23 @@ export async function sendTwilioWhatsAppMessage({
       console.log(
         `${diagTag} FREE_TEXT_PATH (no contentSid) bodyLen=${String(body || "").length} to=${displayPhone}`
       );
-      result = await client.messages.create({ body, messagingServiceSid, to });
+      const freeTextPayload = { body, messagingServiceSid, to };
+      if (statusCallback) freeTextPayload.statusCallback = statusCallback;
+      result = await client.messages.create(freeTextPayload);
+    }
+
+    if (result?.sid && userId) {
+      try {
+        await recordWhatsAppOutbound({
+          messageSid: result.sid,
+          userId,
+          guestId,
+          guestName,
+          guestPhone: recipientPhone || to
+        });
+      } catch (logError) {
+        console.error("[Twilio] Failed to store outbound message ref:", logError?.message || logError);
+      }
     }
 
     console.log(
@@ -524,7 +562,8 @@ export async function sendConferenceInviteWhatsApp({
   userId,
   username,
   senderLabel,
-  recipientPhone
+  recipientPhone,
+  guestId
 }) {
   const { contentSid, sidSource } = describeConferenceContentSid();
   const contentVariables = buildConferenceContentVariables(guestName);
@@ -539,7 +578,9 @@ export async function sendConferenceInviteWhatsApp({
     userId,
     username,
     senderLabel,
-    recipientPhone
+    recipientPhone,
+    guestId,
+    guestName
   });
 }
 

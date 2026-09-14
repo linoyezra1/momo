@@ -137,7 +137,9 @@ async function sendSessionText({ guest, body }) {
     to: toTwilioWhatsAppAddress(guest.phone),
     body,
     userId: guest.userId,
-    recipientPhone: guest.phone
+    recipientPhone: guest.phone,
+    guestId: guest._id,
+    guestName: guest.fullName
   });
 }
 
@@ -146,7 +148,9 @@ async function sendContentTemplate({ guest, contentSid }) {
     to: toTwilioWhatsAppAddress(guest.phone),
     contentSid,
     userId: guest.userId,
-    recipientPhone: guest.phone
+    recipientPhone: guest.phone,
+    guestId: guest._id,
+    guestName: guest.fullName
   });
 }
 
@@ -161,7 +165,8 @@ async function sendPremiumMainTemplate({ guest, event, origin }) {
       to: toTwilioWhatsAppAddress(guest.phone),
       guestName: guest.fullName || guest.name || "משקיע/ה יקר/ה",
       userId: guest.userId,
-      recipientPhone: guest.phone
+      recipientPhone: guest.phone,
+      guestId: guest._id
     });
   }
   const contentSid = requireContentSid("TWILIO_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID");
@@ -175,7 +180,9 @@ async function sendPremiumMainTemplate({ guest, event, origin }) {
       origin
     }),
     userId: guest.userId,
-    recipientPhone: guest.phone
+    recipientPhone: guest.phone,
+    guestId: guest._id,
+    guestName: guest.fullName
   });
 }
 

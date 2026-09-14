@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Copy, Pencil, Trash2, X } from "lucide-react";
 import api from "../api";
+import AdminWhatsAppFailures from "../components/AdminWhatsAppFailures.jsx";
 import { clearAdminToken } from "../utils/adminAuth";
 import { buildClientOnboardingMessage } from "../utils/clientOnboardingMessage";
 import { formatIsraeliDate } from "../utils/dateFormat";
@@ -1392,6 +1393,8 @@ ${publicEventUrl}`
                       {clientMessageCopied ? "הודעה הועתקה" : "העתק הודעה ללקוח"}
                     </button>
                   </div>
+
+                  <AdminWhatsAppFailures userId={selectedClient.userId} />
                 </>
               )}
             </div>
