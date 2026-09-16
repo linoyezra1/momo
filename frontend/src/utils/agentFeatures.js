@@ -1,8 +1,12 @@
+import {
+  deriveWhatsAppFlagsFromTemplate,
+  resolveWhatsAppInviteTemplateFromFlags,
+  WHATSAPP_INVITE_TEMPLATE_OPTIONS
+} from "./whatsappInviteTemplates.js";
+
 export const FEATURE_CHECKBOXES = [
   { key: "whatsappRound1", label: "וואטסאפ — סבב 1" },
   { key: "whatsappRound2", label: "וואטסאפ — סבב 2" },
-  { key: "isPremiumWhatsappButtonsEnabled", label: "ווצאפ כפתורים מהירים (Premium)" },
-  { key: "isPremiumWhatsappCardEnabled", label: "וואטסאפ כרטיס עם תמונה (Premium Card)" },
   { key: "phoneCallsRound1", label: "שיחות טלפון — סבב 1" },
   { key: "phoneCallsRound2", label: "שיחות טלפון — סבב 2" },
   { key: "phoneCallsRound3", label: "שיחות טלפון — סבב 3" },
@@ -12,12 +16,15 @@ export const FEATURE_CHECKBOXES = [
   { key: "thankYouMessage", label: "הודעת תודה" }
 ];
 
+export { WHATSAPP_INVITE_TEMPLATE_OPTIONS, deriveWhatsAppFlagsFromTemplate, resolveWhatsAppInviteTemplateFromFlags };
+
 export function emptyFeatures() {
   return {
     whatsappRound1: false,
     whatsappRound2: false,
     isPremiumWhatsappButtonsEnabled: false,
     isPremiumWhatsappCardEnabled: false,
+    whatsappInviteTemplate: "standard",
     phoneCallsRound1: false,
     phoneCallsRound2: false,
     phoneCallsRound3: false,

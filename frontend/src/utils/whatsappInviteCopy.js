@@ -16,6 +16,15 @@ export function getRsvpLinkPrompt(buttonsEnabled = false) {
 }
 
 export function isWhatsAppButtonsMode(event = {}) {
+  const template = String(event?.whatsappInviteTemplate || "").trim();
+  if (
+    template === "buttons_qr" ||
+    template === "card_direct_rsvp_buttons" ||
+    template === "card_buttons" ||
+    template === "card_view_invite_button"
+  ) {
+    return true;
+  }
   return (
     event?.isPremiumWhatsappButtonsEnabled === true ||
     event?.isPremiumWhatsappCardEnabled === true ||
@@ -27,6 +36,14 @@ export function isWhatsAppButtonsMode(event = {}) {
 }
 
 export function isWhatsAppCardMode(event = {}) {
+  const template = String(event?.whatsappInviteTemplate || "").trim();
+  if (
+    template === "card_direct_rsvp_buttons" ||
+    template === "card_buttons" ||
+    template === "card_view_invite_button"
+  ) {
+    return true;
+  }
   return (
     event?.isPremiumWhatsappCardEnabled === true ||
     event?.includedFeatures?.isPremiumWhatsappCardEnabled === true ||

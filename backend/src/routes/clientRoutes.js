@@ -261,6 +261,14 @@ router.get("/:userId/guests", async (req, res) => {
     event.isPremiumWhatsappCardEnabled =
       user.event?.isPremiumWhatsappCardEnabled === true ||
       user.deal?.includedFeatures?.isPremiumWhatsappCardEnabled === true;
+    event.whatsappInviteTemplate =
+      user.event?.whatsappInviteTemplate ||
+      user.deal?.includedFeatures?.whatsappInviteTemplate ||
+      (event.isPremiumWhatsappCardEnabled
+        ? "card_direct_rsvp_buttons"
+        : event.isPremiumWhatsappButtonsEnabled
+          ? "buttons_qr"
+          : "standard");
 
     const hasEventManager = coupleHasEventManager(user);
     return res.json({
@@ -1055,7 +1063,7 @@ router.post("/:userId/whatsapp/bulk-send", async (req, res) => {
     const { paymentCode, guestIds } = req.body;
 
     const user = await User.findById(userId).select(
-      "event deal.includedFeatures.isPremiumWhatsappButtonsEnabled deal.includedFeatures.isPremiumWhatsappCardEnabled"
+      "event deal.includedFeatures.isPremiumWhatsappButtonsEnabled deal.includedFeatures.isPremiumWhatsappCardEnabled deal.includedFeatures.whatsappInviteTemplate"
     );
     if (!user) {
       return res.status(404).json({ message: "Client not found" });
@@ -1077,6 +1085,14 @@ router.post("/:userId/whatsapp/bulk-send", async (req, res) => {
     event.isPremiumWhatsappCardEnabled =
       user.event?.isPremiumWhatsappCardEnabled === true ||
       user.deal?.includedFeatures?.isPremiumWhatsappCardEnabled === true;
+    event.whatsappInviteTemplate =
+      user.event?.whatsappInviteTemplate ||
+      user.deal?.includedFeatures?.whatsappInviteTemplate ||
+      (event.isPremiumWhatsappCardEnabled
+        ? "card_direct_rsvp_buttons"
+        : event.isPremiumWhatsappButtonsEnabled
+          ? "buttons_qr"
+          : "standard");
 
     const origin = getClientBaseUrl(req);
     const result = await sendBulkWhatsApp({
@@ -1153,6 +1169,7 @@ router.put("/:userId/event", async (req, res) => {
       maxPhoneRounds: Number(previous.maxPhoneRounds) || 0,
       isPremiumWhatsappButtonsEnabled: Boolean(previous.isPremiumWhatsappButtonsEnabled),
       isPremiumWhatsappCardEnabled: Boolean(previous.isPremiumWhatsappCardEnabled),
+      whatsappInviteTemplate: previous.whatsappInviteTemplate || "standard",
       welcomeParagraph: previous.welcomeParagraph || "",
       eventDetailsParagraph: previous.eventDetailsParagraph || "",
       closingParagraph: previous.closingParagraph || "",

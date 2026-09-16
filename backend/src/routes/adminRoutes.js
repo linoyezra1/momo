@@ -49,6 +49,7 @@ import {
   normalizePaymentPayload,
   validateEvent
 } from "../utils/eventPayload.js";
+import { deriveLegacyWhatsAppFlags } from "../utils/whatsappInviteTemplates.js";
 
 const router = express.Router();
 
@@ -92,8 +93,14 @@ function applyDealToUser(user, rawDeal) {
     deal.includedFeatures.isPremiumWhatsappButtonsEnabled
   );
   const premiumCardEnabled = Boolean(deal.includedFeatures.isPremiumWhatsappCardEnabled);
-  user.set("event.isPremiumWhatsappButtonsEnabled", premiumButtonsEnabled);
-  user.set("event.isPremiumWhatsappCardEnabled", premiumCardEnabled);
+  const inviteTemplate = normalizeWhatsAppInviteTemplate(
+    deal.includedFeatures.whatsappInviteTemplate,
+    { cardEnabled: premiumCardEnabled, buttonsEnabled: premiumButtonsEnabled }
+  );
+  const legacyFlags = deriveLegacyWhatsAppFlags(inviteTemplate);
+  user.set("event.whatsappInviteTemplate", legacyFlags.whatsappInviteTemplate);
+  user.set("event.isPremiumWhatsappButtonsEnabled", legacyFlags.isPremiumWhatsappButtonsEnabled);
+  user.set("event.isPremiumWhatsappCardEnabled", legacyFlags.isPremiumWhatsappCardEnabled);
   user.set("event.maxPhoneRounds", maxFromDeal);
   user.markModified("event");
   user.payment = {
@@ -256,6 +263,8 @@ router.patch("/clients/:userId", async (req, res) => {
         closingParagraph: previousEvent.closingParagraph || ""
       };
       const synchronizedDeal = normalizeDealPayload({}, user.deal || {});
+      synchronizedDeal.includedFeatures.whatsappInviteTemplate =
+        normalizedEvent.whatsappInviteTemplate || "standard";
       synchronizedDeal.includedFeatures.isPremiumWhatsappButtonsEnabled =
         normalizedEvent.isPremiumWhatsappButtonsEnabled === true;
       synchronizedDeal.includedFeatures.isPremiumWhatsappCardEnabled =

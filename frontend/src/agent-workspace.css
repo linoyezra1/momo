@@ -1712,6 +1712,66 @@
   font-size: 0.84rem;
 }
 
+.us-admin-whatsapp-templates {
+  display: grid;
+  gap: 0.55rem;
+  margin-bottom: 0.9rem;
+}
+
+.us-admin-whatsapp-template {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid #e5e0d8;
+  border-radius: 0.55rem;
+  background: #fffefb;
+  cursor: pointer;
+}
+
+.us-admin-whatsapp-template.is-selected {
+  border-color: #c4a574;
+  background: #faf6f0;
+}
+
+.us-admin-whatsapp-template input {
+  margin-top: 0.2rem;
+  accent-color: #8b7355;
+}
+
+.us-admin-whatsapp-template__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.us-admin-whatsapp-template__title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.55rem;
+}
+
+.us-admin-whatsapp-template__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  background: #efe6d8;
+  color: #5c4a32;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.us-admin-field-hint {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #6b7280;
+  line-height: 1.35;
+}
+
 @media (max-width: 720px) {
   .agent-dash-summary {
     grid-template-columns: 1fr;

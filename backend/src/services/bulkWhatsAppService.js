@@ -9,16 +9,16 @@ import {
   isTwilioConfigured,
   logTwilioContentApprovalDiagnostics,
   logTwilioContentSidEnvSnapshot,
-  PREMIUM_WEDDING_BUTTONS_TEMPLATE_KEYS,
-  PREMIUM_WEDDING_CARD_TEMPLATE_KEYS,
   resolveConferenceContentSid,
   resolveEventCoverMediaPath,
-  resolvePremiumWeddingButtonsContentSid,
-  resolvePremiumWeddingCardContentSid,
   sendConferenceInviteWhatsApp,
   sendTwilioWhatsAppMessage,
   toTwilioWhatsAppAddress
 } from "../utils/twilioWhatsApp.js";
+import {
+  getTemplateFieldKeyMap,
+  resolveInviteTemplateRouting
+} from "../utils/whatsappInviteTemplates.js";
 import {
   buildPublicEventLink,
   buildWhatsAppTemplateDefaults
@@ -30,18 +30,12 @@ import {
 import { getDefaultWelcomeParagraph, isConferenceEventType } from "../utils/eventTypeWording.js";
 import { recalculateUserSupplierCost } from "../utils/supplierCost.js";
 
-const STANDARD_INVITE_CONTENT_SID_DEFAULT = "HXbdfde344006c1b595fe91e738f9972c5";
-
 /**
  * Template SID routing for bulk invite send.
- *
- * Priority: כנס Card → wedding Card+image → wedding Quick Reply buttons → standard text.
- * Admin feature toggles never override TWILIO_CONFERENCE_RSVP_CONTENT_SID.
+ * Conference ALWAYS wins; otherwise use event.whatsappInviteTemplate (with legacy boolean fallback).
  */
 function resolveInviteContentRouting(event) {
   const eventType = event?.eventType ?? null;
-  const premiumButtonsEnabled = event?.isPremiumWhatsappButtonsEnabled === true;
-  const premiumCardEnabled = event?.isPremiumWhatsappCardEnabled === true;
   const conference = isConferenceEventType(eventType);
 
   if (conference) {
@@ -49,87 +43,35 @@ function resolveInviteContentRouting(event) {
     const fromEnv = envRaw.startsWith("HX");
     return {
       eventType,
-      premiumButtonsEnabled,
-      premiumCardEnabled,
+      templateId: "conference",
+      premiumButtonsEnabled: false,
+      premiumCardEnabled: false,
       conference: true,
       contentSid: fromEnv ? envRaw : CONFERENCE_RSVP_CONTENT_SID_DEFAULT,
       sidSource: fromEnv
         ? "env:TWILIO_CONFERENCE_RSVP_CONTENT_SID"
         : "default:CONFERENCE_RSVP_CONTENT_SID_DEFAULT",
       templateKeys: ["1"],
+      fieldKeyMap: { guestName: "1" },
       requiresCoverMedia: false,
+      includesRsvpLink: false,
       buttonsAffectsRouting: false
     };
   }
 
-  if (premiumCardEnabled) {
-    const contentSid = resolvePremiumWeddingCardContentSid();
-    const fromEnv = String(process.env.TWILIO_COPY_WEDDING_RSVP_CARD_CONTENT_SID || "")
-      .trim()
-      .startsWith("HX");
-    return {
-      eventType,
-      premiumButtonsEnabled,
-      premiumCardEnabled,
-      conference: false,
-      contentSid,
-      sidSource: fromEnv
-        ? "env:TWILIO_COPY_WEDDING_RSVP_CARD_CONTENT_SID"
-        : "default:PREMIUM_WEDDING_RSVP_CARD_CONTENT_SID_DEFAULT",
-      templateKeys: PREMIUM_WEDDING_CARD_TEMPLATE_KEYS,
-      requiresCoverMedia: true,
-      buttonsAffectsRouting: true
-    };
-  }
-
-  if (premiumButtonsEnabled) {
-    const contentSid = resolvePremiumWeddingButtonsContentSid();
-    const preferred = String(process.env.TWILIO_COPY_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID || "").trim();
-    const legacy = String(process.env.TWILIO_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID || "").trim();
-    let sidSource = "default:PREMIUM_WEDDING_RSVP_BUTTONS_CONTENT_SID_DEFAULT";
-    if (preferred.startsWith("HX")) sidSource = "env:TWILIO_COPY_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID";
-    else if (legacy.startsWith("HX")) sidSource = "env:TWILIO_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID";
-    return {
-      eventType,
-      premiumButtonsEnabled,
-      premiumCardEnabled,
-      conference: false,
-      contentSid,
-      sidSource,
-      templateKeys: PREMIUM_WEDDING_BUTTONS_TEMPLATE_KEYS,
-      requiresCoverMedia: false,
-      buttonsAffectsRouting: true
-    };
-  }
-
-  const envStandard =
-    String(process.env.TWILIO_STANDARD_INVITE_CONTENT_SID || "").trim() ||
-    String(process.env.TWILIO_CONTENT_SID || "").trim();
-  if (envStandard.startsWith("HX")) {
-    return {
-      eventType,
-      premiumButtonsEnabled,
-      premiumCardEnabled,
-      conference: false,
-      contentSid: envStandard,
-      sidSource: process.env.TWILIO_STANDARD_INVITE_CONTENT_SID
-        ? "env:TWILIO_STANDARD_INVITE_CONTENT_SID"
-        : "env:TWILIO_CONTENT_SID",
-      templateKeys: PREMIUM_WEDDING_BUTTONS_TEMPLATE_KEYS,
-      requiresCoverMedia: false,
-      buttonsAffectsRouting: true
-    };
-  }
-
+  const invite = resolveInviteTemplateRouting(event);
   return {
     eventType,
-    premiumButtonsEnabled,
-    premiumCardEnabled,
+    templateId: invite.templateId,
+    premiumButtonsEnabled: invite.premiumButtonsEnabled,
+    premiumCardEnabled: invite.premiumCardEnabled,
     conference: false,
-    contentSid: STANDARD_INVITE_CONTENT_SID_DEFAULT,
-    sidSource: "default:STANDARD_INVITE_CONTENT_SID_DEFAULT",
-    templateKeys: PREMIUM_WEDDING_BUTTONS_TEMPLATE_KEYS,
-    requiresCoverMedia: false,
+    contentSid: invite.contentSid,
+    sidSource: invite.sidSource,
+    templateKeys: invite.templateKeys,
+    fieldKeyMap: getTemplateFieldKeyMap(invite.templateId),
+    requiresCoverMedia: invite.requiresCoverMedia,
+    includesRsvpLink: invite.includesRsvpLink,
     buttonsAffectsRouting: true
   };
 }
@@ -137,18 +79,19 @@ function resolveInviteContentRouting(event) {
 function logInviteTemplateRouting(routing) {
   console.log(
     `[Twilio][template-routing] eventType=${JSON.stringify(routing.eventType)} ` +
+      `templateId=${routing.templateId} ` +
       `premiumButtons=${routing.premiumButtonsEnabled} ` +
       `premiumCard=${routing.premiumCardEnabled} ` +
       `conference=${routing.conference} ` +
-      `buttonsAffectsRouting=${routing.buttonsAffectsRouting} ` +
       `selectedSid=${routing.contentSid} ` +
       `sidSource=${routing.sidSource} ` +
       `variables=${routing.templateKeys.join(",")} ` +
-      `requiresCover=${routing.requiresCoverMedia}`
+      `requiresCover=${routing.requiresCoverMedia} ` +
+      `includesRsvpLink=${routing.includesRsvpLink}`
   );
-  if (routing.conference && (routing.premiumButtonsEnabled || routing.premiumCardEnabled)) {
+  if (routing.conference) {
     console.log(
-      "[Twilio][template-routing] NOTE: Admin WhatsApp toggles are ON but ignored — " +
+      "[Twilio][template-routing] NOTE: Admin WhatsApp template selection ignored — " +
         "כנס always uses conference Card SID."
     );
   }
@@ -273,6 +216,8 @@ async function sendToInvitee({
   contentSid,
   defaults,
   templateKeys,
+  fieldKeyMap,
+  includesRsvpLink = true,
   userId,
   paragraphs,
   event,
@@ -321,9 +266,12 @@ async function sendToInvitee({
       paragraphs
     });
 
-    if (!fields.rsvpLink) {
+    if (includesRsvpLink && !fields.rsvpLink) {
       throw new Error("RSVP link is missing");
     }
+
+    const mediaFieldKey = fieldKeyMap?.mediaPath;
+    const needsMedia = Boolean(mediaFieldKey && templateKeys.includes(String(mediaFieldKey)));
 
     const contentVariables = buildTwilioContentVariables(
       {
@@ -332,9 +280,10 @@ async function sendToInvitee({
         eventDateTimeLocation: fields.eventDateTimeLocation,
         rsvpLink: fields.rsvpLink,
         closingSignOff: fields.closingSignOff,
-        mediaPath: templateKeys.includes("6") ? resolveEventCoverMediaPath(event) : undefined
+        mediaPath: needsMedia ? resolveEventCoverMediaPath(event) : undefined
       },
-      templateKeys
+      templateKeys,
+      fieldKeyMap
     );
 
     const created = await sendTwilioWhatsAppMessage({
@@ -460,13 +409,14 @@ export async function sendBulkWhatsApp({
     const conferenceMode = routing.conference;
     const contentSid = routing.contentSid;
     const templateKeys = routing.templateKeys;
+    const fieldKeyMap = routing.fieldKeyMap;
+    const includesRsvpLink = routing.includesRsvpLink !== false;
 
     console.log(
       `[Twilio][diag-63028][bulk-send] userId=${userId || "?"} ` +
         `eventTypeRaw=${JSON.stringify(event?.eventType)} ` +
+        `templateId=${routing.templateId} ` +
         `isConference=${conferenceMode} ` +
-        `premiumButtons=${routing.premiumButtonsEnabled} ` +
-        `premiumCard=${routing.premiumCardEnabled} ` +
         `selectedSid=${contentSid} sidSource=${routing.sidSource} ` +
         `expectedKeys=[${templateKeys.join(",")}] ` +
         `inviteeCount=${invitees.length}`
@@ -476,18 +426,20 @@ export async function sendBulkWhatsApp({
       console.log(
         `[Twilio] Conference Card template locked to SID=${contentSid} variables=1 only (static media in template)`
       );
-      // Read-only: Content.variables vs ApprovalRequests (Meta) — key for 63028 root cause
       await logTwilioContentApprovalDiagnostics(contentSid, "bulk-send-conference");
     } else {
       try {
         const templateMeta = await fetchTwilioContentTemplate(contentSid);
         if (templateMeta.variableKeys.join(",") !== templateKeys.join(",")) {
-          throw new Error(
-            `Template ${contentSid} must define variables ${templateKeys.join(", ")} (found: ${templateMeta.variableKeys.join(", ")})`
+          console.warn(
+            `[Twilio] Template ${contentSid} variable keys differ from registry ` +
+              `(expected ${templateKeys.join(", ")}, found ${templateMeta.variableKeys.join(", ")}). ` +
+              `Using registry mapping for ${routing.templateId}.`
           );
         }
         console.log(
-          `[Twilio] Using template "${templateMeta.friendlyName}" (${contentSid}) variables: ${templateKeys.join(", ")}`
+          `[Twilio] Using template "${templateMeta.friendlyName}" (${contentSid}) ` +
+            `registry=${routing.templateId} variables: ${templateKeys.join(", ")}`
         );
       } catch (templateError) {
         console.warn(
@@ -506,6 +458,8 @@ export async function sendBulkWhatsApp({
           contentSid,
           defaults,
           templateKeys,
+          fieldKeyMap,
+          includesRsvpLink,
           userId,
           paragraphs,
           event,

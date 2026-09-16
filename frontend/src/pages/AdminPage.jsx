@@ -8,6 +8,11 @@ import { buildClientOnboardingMessage } from "../utils/clientOnboardingMessage";
 import { formatIsraeliDate } from "../utils/dateFormat";
 import { getCeremonyLabel, isCoupleEventType, isConferenceEventType } from "../utils/eventTypeWording";
 import { getEventCoverSrc, uploadEventCover } from "../utils/eventCover.js";
+import {
+  deriveWhatsAppFlagsFromTemplate,
+  resolveWhatsAppInviteTemplateFromFlags,
+  WHATSAPP_INVITE_TEMPLATE_OPTIONS
+} from "../utils/whatsappInviteTemplates.js";
 import "../us/admin-portal.css";
 
 const PACKAGE_TYPE_OPTIONS = [
@@ -28,8 +33,6 @@ const DEAL_PAYMENT_METHOD_OPTIONS = [
 const FEATURE_CHECKBOXES = [
   { key: "whatsappRound1", label: "וואטסאפ — סבב 1" },
   { key: "whatsappRound2", label: "וואטסאפ — סבב 2" },
-  { key: "isPremiumWhatsappButtonsEnabled", label: "ווצאפ כפתורים מהירים (Premium)" },
-  { key: "isPremiumWhatsappCardEnabled", label: "וואטסאפ כרטיס עם תמונה (Premium Card)" },
   { key: "phoneCallsRound1", label: "שיחות טלפון — סבב 1" },
   { key: "phoneCallsRound2", label: "שיחות טלפון — סבב 2" },
   { key: "phoneCallsRound3", label: "שיחות טלפון — סבב 3" },
@@ -47,6 +50,7 @@ function defaultDealDraft() {
       whatsappRound2: false,
       isPremiumWhatsappButtonsEnabled: false,
       isPremiumWhatsappCardEnabled: false,
+      whatsappInviteTemplate: "standard",
       phoneCallsRound1: false,
       phoneCallsRound2: false,
       phoneCallsRound3: false,
@@ -71,12 +75,17 @@ function defaultDealDraft() {
 function dealDraftFromClient(client) {
   const deal = client?.deal || {};
   const features = { ...defaultDealDraft().includedFeatures, ...(deal.includedFeatures || {}) };
-  features.isPremiumWhatsappButtonsEnabled =
-    client?.event?.isPremiumWhatsappButtonsEnabled === true ||
-    deal.includedFeatures?.isPremiumWhatsappButtonsEnabled === true;
-  features.isPremiumWhatsappCardEnabled =
-    client?.event?.isPremiumWhatsappCardEnabled === true ||
-    deal.includedFeatures?.isPremiumWhatsappCardEnabled === true;
+  const templateId = resolveWhatsAppInviteTemplateFromFlags({
+    whatsappInviteTemplate:
+      client?.event?.whatsappInviteTemplate || features.whatsappInviteTemplate,
+    isPremiumWhatsappCardEnabled:
+      client?.event?.isPremiumWhatsappCardEnabled === true ||
+      features.isPremiumWhatsappCardEnabled === true,
+    isPremiumWhatsappButtonsEnabled:
+      client?.event?.isPremiumWhatsappButtonsEnabled === true ||
+      features.isPremiumWhatsappButtonsEnabled === true
+  });
+  Object.assign(features, deriveWhatsAppFlagsFromTemplate(templateId));
   const amount =
     deal.paymentAmount != null && deal.paymentAmount !== ""
       ? deal.paymentAmount
@@ -122,6 +131,7 @@ const initialForm = {
   eventTime: "",
   receptionTime: "",
   maxPhoneRounds: 0,
+  whatsappInviteTemplate: "standard",
   isPremiumWhatsappButtonsEnabled: false,
   isPremiumWhatsappCardEnabled: false,
   transportationEnabled: false,
@@ -630,6 +640,7 @@ ${publicEventUrl}`
           eventTime: form.eventTime,
           receptionTime: isCoupleEventType(form.eventType) ? form.receptionTime : "",
           maxPhoneRounds: Number(form.maxPhoneRounds) || 0,
+          whatsappInviteTemplate: form.whatsappInviteTemplate || "standard",
           isPremiumWhatsappButtonsEnabled: Boolean(form.isPremiumWhatsappButtonsEnabled),
           isPremiumWhatsappCardEnabled: Boolean(form.isPremiumWhatsappCardEnabled),
           transportationEnabled: Boolean(form.transportationEnabled),
@@ -751,8 +762,13 @@ ${publicEventUrl}`
       eventTime: client.event?.eventTime || "",
       receptionTime: client.event?.receptionTime || "",
       maxPhoneRounds: Number(client.event?.maxPhoneRounds) || 0,
-      isPremiumWhatsappButtonsEnabled: Boolean(client.event?.isPremiumWhatsappButtonsEnabled),
-      isPremiumWhatsappCardEnabled: Boolean(client.event?.isPremiumWhatsappCardEnabled),
+      ...deriveWhatsAppFlagsFromTemplate(
+        resolveWhatsAppInviteTemplateFromFlags({
+          whatsappInviteTemplate: client.event?.whatsappInviteTemplate,
+          isPremiumWhatsappCardEnabled: client.event?.isPremiumWhatsappCardEnabled,
+          isPremiumWhatsappButtonsEnabled: client.event?.isPremiumWhatsappButtonsEnabled
+        })
+      ),
       transportationEnabled: Boolean(client.event?.transportationEnabled),
       transportationWhatsAppLink: client.event?.transportationWhatsAppLink || "",
       foodSensitivitiesEnabled: Boolean(client.event?.foodSensitivitiesEnabled),
@@ -1218,6 +1234,47 @@ ${publicEventUrl}`
 
                     <fieldset className="us-admin-deal-features">
                       <legend>פיצ׳רים וסבבים כלולים (SYSTEM_ADMIN בלבד)</legend>
+                      <div className="us-admin-whatsapp-templates" role="radiogroup" aria-label="תבנית וואטסאפ בחבילה">
+                        {WHATSAPP_INVITE_TEMPLATE_OPTIONS.map((option) => {
+                          const checked =
+                            (dealDraft.includedFeatures?.whatsappInviteTemplate || "standard") ===
+                            option.id;
+                          return (
+                            <label
+                              key={option.id}
+                              className={`us-admin-whatsapp-template${checked ? " is-selected" : ""}`}
+                            >
+                              <input
+                                type="radio"
+                                name="deal-whatsappInviteTemplate"
+                                value={option.id}
+                                checked={checked}
+                                onChange={() => {
+                                  const flags = deriveWhatsAppFlagsFromTemplate(option.id);
+                                  setDealDraft((prev) => ({
+                                    ...prev,
+                                    includedFeatures: {
+                                      ...prev.includedFeatures,
+                                      ...flags
+                                    }
+                                  }));
+                                }}
+                              />
+                              <span className="us-admin-whatsapp-template__body">
+                                <span className="us-admin-whatsapp-template__title-row">
+                                  <strong>{option.label}</strong>
+                                  {option.badge ? (
+                                    <span className="us-admin-whatsapp-template__badge">
+                                      {option.badge}
+                                    </span>
+                                  ) : null}
+                                </span>
+                                <span className="us-admin-field-hint">{option.adminHint}</span>
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
                       <div className="us-admin-deal-features__grid">
                         {FEATURE_CHECKBOXES.map((feature) => (
                           <label key={feature.key} className="us-admin-deal-check">
@@ -1840,35 +1897,39 @@ ${publicEventUrl}`
                   המוזמן יוסר אוטומטית מתור הסוכן לאחר מיצוי המכסה.
                 </p>
               </div>
-              <div className="us-admin-field">
-                <label className="us-admin-deal-check" htmlFor="isPremiumWhatsappButtonsEnabled">
-                  <input
-                    id="isPremiumWhatsappButtonsEnabled"
-                    type="checkbox"
-                    name="isPremiumWhatsappButtonsEnabled"
-                    checked={form.isPremiumWhatsappButtonsEnabled}
-                    onChange={onChange}
-                  />
-                  <span>ווצאפ כפתורים מהירים (Premium)</span>
-                </label>
-                <p className="us-admin-field-hint">
-                  תבנית מלל + כפתורי אישור הגעה (ללא תמונה).
-                </p>
-              </div>
-              <div className="us-admin-field">
-                <label className="us-admin-deal-check" htmlFor="isPremiumWhatsappCardEnabled">
-                  <input
-                    id="isPremiumWhatsappCardEnabled"
-                    type="checkbox"
-                    name="isPremiumWhatsappCardEnabled"
-                    checked={form.isPremiumWhatsappCardEnabled}
-                    onChange={onChange}
-                  />
-                  <span>וואטסאפ כרטיס עם תמונה (Premium Card)</span>
-                </label>
-                <p className="us-admin-field-hint">
-                  תבנית תמונה + מלל + כפתורים. דורשת תמונת כיסוי לאירוע. אם שתי האפשרויות מסומנות — נשלח הכרטיס עם התמונה.
-                </p>
+              <div className="us-admin-field us-admin-field--full">
+                <span className="us-admin-field-label">תבנית וואטסאפ להזמנה</span>
+                <div className="us-admin-whatsapp-templates" role="radiogroup" aria-label="תבנית וואטסאפ">
+                  {WHATSAPP_INVITE_TEMPLATE_OPTIONS.map((option) => {
+                    const checked = form.whatsappInviteTemplate === option.id;
+                    return (
+                      <label
+                        key={option.id}
+                        className={`us-admin-whatsapp-template${checked ? " is-selected" : ""}`}
+                      >
+                        <input
+                          type="radio"
+                          name="whatsappInviteTemplate"
+                          value={option.id}
+                          checked={checked}
+                          onChange={() => {
+                            const flags = deriveWhatsAppFlagsFromTemplate(option.id);
+                            setForm((prev) => ({ ...prev, ...flags }));
+                          }}
+                        />
+                        <span className="us-admin-whatsapp-template__body">
+                          <span className="us-admin-whatsapp-template__title-row">
+                            <strong>{option.label}</strong>
+                            {option.badge ? (
+                              <span className="us-admin-whatsapp-template__badge">{option.badge}</span>
+                            ) : null}
+                          </span>
+                          <span className="us-admin-field-hint">{option.adminHint}</span>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
               <div className="us-admin-field">
                 <label className="us-admin-field-label" htmlFor="eventImage">

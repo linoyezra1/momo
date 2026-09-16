@@ -29,8 +29,23 @@ const eventSchema = new mongoose.Schema(
     receptionTime: { type: String, trim: true, default: "" },
     maxPhoneRounds: { type: Number, min: 0, max: 4, default: 0 },
     isPremiumWhatsappButtonsEnabled: { type: Boolean, default: false },
-    /** WhatsApp Card template with dynamic cover image (copy_wedding_rsvp_card) */
+    /** @deprecated Prefer `whatsappInviteTemplate` — kept for migration */
     isPremiumWhatsappCardEnabled: { type: Boolean, default: false },
+    /**
+     * Active WhatsApp invite Content template for this event.
+     * standard | buttons_qr | card_direct_rsvp_buttons | card_buttons | card_view_invite_button
+     */
+    whatsappInviteTemplate: {
+      type: String,
+      enum: [
+        "standard",
+        "buttons_qr",
+        "card_direct_rsvp_buttons",
+        "card_buttons",
+        "card_view_invite_button"
+      ],
+      default: "standard"
+    },
     welcomeText: { type: String, trim: true, default: "" },
     /** @deprecated Prefer structured `cover` metadata (Cloudinary). Kept for migration. */
     imageDataUrl: { type: String, default: "" },
@@ -72,6 +87,17 @@ const includedFeaturesSchema = new mongoose.Schema(
     whatsappRound2: { type: Boolean, default: false },
     isPremiumWhatsappButtonsEnabled: { type: Boolean, default: false },
     isPremiumWhatsappCardEnabled: { type: Boolean, default: false },
+    whatsappInviteTemplate: {
+      type: String,
+      enum: [
+        "standard",
+        "buttons_qr",
+        "card_direct_rsvp_buttons",
+        "card_buttons",
+        "card_view_invite_button"
+      ],
+      default: "standard"
+    },
     phoneCallsRound1: { type: Boolean, default: false },
     phoneCallsRound2: { type: Boolean, default: false },
     phoneCallsRound3: { type: Boolean, default: false },

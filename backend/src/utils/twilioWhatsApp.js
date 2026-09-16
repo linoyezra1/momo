@@ -95,9 +95,9 @@ export const PREMIUM_WEDDING_RSVP_BUTTONS_CONTENT_SID_DEFAULT =
 export const PREMIUM_WEDDING_RSVP_CONTENT_SID_DEFAULT =
   PREMIUM_WEDDING_RSVP_BUTTONS_CONTENT_SID_DEFAULT;
 
-/** Approved WhatsApp Card + dynamic cover: copy_wedding_rsvp_card */
+/** @deprecated Prefer CARD_DIRECT_RSVP_BUTTONS via whatsappInviteTemplates.js */
 export const PREMIUM_WEDDING_RSVP_CARD_CONTENT_SID_DEFAULT =
-  "HX321ed50ff0c45c671d9bc3cd17af6b92";
+  "HX1805fa82d187715cf26afe9e6f18c9e9";
 
 export const PREMIUM_WEDDING_BUTTONS_TEMPLATE_KEYS = ["1", "2", "3", "4", "5"];
 export const PREMIUM_WEDDING_CARD_TEMPLATE_KEYS = ["1", "2", "3", "4", "5", "6"];
@@ -111,9 +111,13 @@ export function resolvePremiumWeddingButtonsContentSid() {
 }
 
 export function resolvePremiumWeddingCardContentSid() {
-  const fromEnv = String(process.env.TWILIO_COPY_WEDDING_RSVP_CARD_CONTENT_SID || "").trim();
+  const fromEnv = String(
+    process.env.TWILIO_CARD_DIRECT_RSVP_BUTTONS_CONTENT_SID ||
+      process.env.TWILIO_COPY_WEDDING_RSVP_CARD_CONTENT_SID ||
+      ""
+  ).trim();
   if (fromEnv.startsWith("HX")) return fromEnv;
-  return PREMIUM_WEDDING_RSVP_CARD_CONTENT_SID_DEFAULT;
+  return "HX1805fa82d187715cf26afe9e6f18c9e9";
 }
 
 const CONFERENCE_GUEST_NAME_FALLBACK = "משקיע/ה יקר/ה";
@@ -354,6 +358,9 @@ export function logTwilioContentSidEnvSnapshot(label = "diag") {
       `TWILIO_STANDARD_INVITE_CONTENT_SID=${pick("TWILIO_STANDARD_INVITE_CONTENT_SID")} ` +
       `TWILIO_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID=${pick("TWILIO_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID")} ` +
       `TWILIO_COPY_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID=${pick("TWILIO_COPY_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID")} ` +
+      `TWILIO_CARD_DIRECT_RSVP_BUTTONS_CONTENT_SID=${pick("TWILIO_CARD_DIRECT_RSVP_BUTTONS_CONTENT_SID")} ` +
+      `TWILIO_CARD_BUTTONS_CONTENT_SID=${pick("TWILIO_CARD_BUTTONS_CONTENT_SID")} ` +
+      `TWILIO_CARD_VIEW_INVITE_BUTTON_CONTENT_SID=${pick("TWILIO_CARD_VIEW_INVITE_BUTTON_CONTENT_SID")} ` +
       `TWILIO_COPY_WEDDING_RSVP_CARD_CONTENT_SID=${pick("TWILIO_COPY_WEDDING_RSVP_CARD_CONTENT_SID")} ` +
       `resolvedButtons=${resolvePremiumWeddingButtonsContentSid()} ` +
       `resolvedCard=${resolvePremiumWeddingCardContentSid()}`
@@ -438,7 +445,8 @@ export function buildTwilioContentVariables(
     closingSignOff,
     mediaPath
   },
-  templateKeys = ["1", "2", "3", "4", "5"]
+  templateKeys = ["1", "2", "3", "4", "5"],
+  fieldKeyMap = null
 ) {
   const keys = Array.isArray(templateKeys) && templateKeys.length ? templateKeys : ["1", "2", "3", "4", "5"];
 
@@ -447,18 +455,38 @@ export function buildTwilioContentVariables(
     return buildConferenceContentVariables(guestName);
   }
 
-  const mappedValues = {
-    "1": guestName,
-    "2": customOpeningText,
-    "3": eventDateTimeLocation,
-    "4": rsvpLink,
-    "5": closingSignOff,
-    "6": mediaPath
+  const semantic = {
+    guestName,
+    customOpeningText,
+    eventDateTimeLocation,
+    rsvpLink,
+    closingSignOff,
+    mediaPath
   };
+
+  /** Default full mapping (legacy 1–6). */
+  const defaultMap = {
+    guestName: "1",
+    customOpeningText: "2",
+    eventDateTimeLocation: "3",
+    rsvpLink: "4",
+    closingSignOff: "5",
+    mediaPath: "6"
+  };
+  const map = fieldKeyMap && typeof fieldKeyMap === "object" ? fieldKeyMap : defaultMap;
+
+  const mappedValues = {};
+  for (const [field, key] of Object.entries(map)) {
+    if (!keys.includes(String(key))) continue;
+    mappedValues[String(key)] = semantic[field];
+  }
 
   const variables = {};
   for (const key of keys) {
-    if (key === "6") {
+    const isMediaKey = Object.entries(map).some(
+      ([field, mappedKey]) => field === "mediaPath" && String(mappedKey) === String(key)
+    );
+    if (isMediaKey) {
       const media = sanitizeWhatsAppMediaPathVariable(mappedValues[key]);
       if (!media) {
         throw new Error(

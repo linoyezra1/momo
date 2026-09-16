@@ -731,6 +731,21 @@ export default function ClientDashboardPage() {
     }),
     [displaySummary]
   );
+  const visibleStatusFilterOptions = useMemo(
+    () =>
+      STATUS_FILTER_OPTIONS.filter(
+        (option) =>
+          option.value !== "הגיע לאירוע" || Number(displaySummary.totalArrived || 0) > 0
+      ),
+    [displaySummary.totalArrived]
+  );
+
+  useEffect(() => {
+    if (statusFilter === "הגיע לאירוע" && Number(displaySummary.totalArrived || 0) === 0) {
+      setStatusFilter("all");
+    }
+  }, [statusFilter, displaySummary.totalArrived]);
+
   const allFilteredSelected =
     filteredGuests.length > 0 && filteredGuests.every((guest) => selectedGuestIds.has(guest._id));
 
@@ -1691,7 +1706,7 @@ export default function ClientDashboardPage() {
           <div className="il-guest-filters il-guest-filters--strip">
             <div className="il-guest-filter-group" role="group" aria-label="סינון לפי סטטוס הגעה">
               <div className="il-status-filter-tabs">
-                {STATUS_FILTER_OPTIONS.map((option) => (
+                {visibleStatusFilterOptions.map((option) => (
                   <button
                     key={option.value}
                     type="button"

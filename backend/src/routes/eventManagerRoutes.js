@@ -279,6 +279,7 @@ router.patch("/clients/:userId", async (req, res) => {
         maxPhoneRounds: Number(previousEvent.maxPhoneRounds) || 0,
         isPremiumWhatsappButtonsEnabled: Boolean(previousEvent.isPremiumWhatsappButtonsEnabled),
         isPremiumWhatsappCardEnabled: Boolean(previousEvent.isPremiumWhatsappCardEnabled),
+        whatsappInviteTemplate: previousEvent.whatsappInviteTemplate || "standard",
         welcomeParagraph: previousEvent.welcomeParagraph || "",
         eventDetailsParagraph: previousEvent.eventDetailsParagraph || "",
         closingParagraph: previousEvent.closingParagraph || ""

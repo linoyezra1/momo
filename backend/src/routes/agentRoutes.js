@@ -267,6 +267,10 @@ router.patch("/clients/:userId", async (req, res) => {
       "event.isPremiumWhatsappCardEnabled",
       Boolean(deal.includedFeatures.isPremiumWhatsappCardEnabled)
     );
+    user.set(
+      "event.whatsappInviteTemplate",
+      deal.includedFeatures.whatsappInviteTemplate || "standard"
+    );
     user.set("event.maxPhoneRounds", maxFromDeal);
     user.markModified("event");
     user.payment = {

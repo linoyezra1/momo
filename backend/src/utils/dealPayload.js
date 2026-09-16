@@ -1,3 +1,8 @@
+import {
+  deriveLegacyWhatsAppFlags,
+  normalizeWhatsAppInviteTemplate
+} from "./whatsappInviteTemplates.js";
+
 const PACKAGE_TYPES = new Set(["custom", "digital", "vip_2_rounds", "vip_4_rounds"]);
 export const DEAL_PAYMENT_METHODS = new Set(["bit", "paybox", "bank_transfer", "cash", "other"]);
 
@@ -46,6 +51,7 @@ export function defaultIncludedFeatures() {
     whatsappRound2: false,
     isPremiumWhatsappButtonsEnabled: false,
     isPremiumWhatsappCardEnabled: false,
+    whatsappInviteTemplate: "standard",
     phoneCallsRound1: false,
     phoneCallsRound2: false,
     phoneCallsRound3: false,
@@ -64,6 +70,7 @@ export function emptyIncludedFeatures() {
     whatsappRound2: false,
     isPremiumWhatsappButtonsEnabled: false,
     isPremiumWhatsappCardEnabled: false,
+    whatsappInviteTemplate: "standard",
     phoneCallsRound1: false,
     phoneCallsRound2: false,
     phoneCallsRound3: false,
@@ -116,6 +123,17 @@ export function normalizeDealPayload(rawDeal = {}, existingDeal = {}, options = 
       includedFeatures[key] = incomingFeatures[key];
     }
   }
+
+  const incomingTemplate =
+    incomingFeatures.whatsappInviteTemplate ?? rawDeal?.whatsappInviteTemplate;
+  const normalizedTemplate = normalizeWhatsAppInviteTemplate(incomingTemplate, {
+    cardEnabled: includedFeatures.isPremiumWhatsappCardEnabled === true,
+    buttonsEnabled: includedFeatures.isPremiumWhatsappButtonsEnabled === true
+  });
+  const legacyFlags = deriveLegacyWhatsAppFlags(normalizedTemplate);
+  includedFeatures.whatsappInviteTemplate = legacyFlags.whatsappInviteTemplate;
+  includedFeatures.isPremiumWhatsappButtonsEnabled = legacyFlags.isPremiumWhatsappButtonsEnabled;
+  includedFeatures.isPremiumWhatsappCardEnabled = legacyFlags.isPremiumWhatsappCardEnabled;
 
   if (typeof incomingFeatures.canSendTableWhatsApp === "boolean") {
     includedFeatures.eventDayTableNumber = incomingFeatures.canSendTableWhatsApp;

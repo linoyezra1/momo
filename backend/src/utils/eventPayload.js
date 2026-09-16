@@ -1,5 +1,9 @@
 import { isCoupleEventType, isConferenceEventType } from "./eventTypeWording.js";
 import { normalizeCoverFields } from "./eventCover.js";
+import {
+  deriveLegacyWhatsAppFlags,
+  normalizeWhatsAppInviteTemplate
+} from "./whatsappInviteTemplates.js";
 
 export function normalizeEventPayload(rawEvent) {
   const eventType = String(rawEvent?.eventType || "").trim() || "חתונה";
@@ -22,6 +26,12 @@ export function normalizeEventPayload(rawEvent) {
       ? requestedMaxPhoneRounds
       : 0;
 
+  const whatsappInviteTemplate = normalizeWhatsAppInviteTemplate(rawEvent?.whatsappInviteTemplate, {
+    cardEnabled: rawEvent?.isPremiumWhatsappCardEnabled === true,
+    buttonsEnabled: rawEvent?.isPremiumWhatsappButtonsEnabled === true
+  });
+  const legacyFlags = deriveLegacyWhatsAppFlags(whatsappInviteTemplate);
+
   const baseEvent = {
     eventType,
     venueName: String(rawEvent?.venueName || "").trim(),
@@ -32,8 +42,9 @@ export function normalizeEventPayload(rawEvent) {
     eventTime: String(rawEvent?.eventTime || "").trim(),
     receptionTime: isCoupleEventType(eventType) ? String(rawEvent?.receptionTime || "").trim() : "",
     maxPhoneRounds,
-    isPremiumWhatsappButtonsEnabled: rawEvent?.isPremiumWhatsappButtonsEnabled === true,
-    isPremiumWhatsappCardEnabled: rawEvent?.isPremiumWhatsappCardEnabled === true,
+    whatsappInviteTemplate: legacyFlags.whatsappInviteTemplate,
+    isPremiumWhatsappButtonsEnabled: legacyFlags.isPremiumWhatsappButtonsEnabled,
+    isPremiumWhatsappCardEnabled: legacyFlags.isPremiumWhatsappCardEnabled,
     transportationEnabled: rawEvent?.transportationEnabled === true,
     transportationWhatsAppLink:
       rawEvent?.transportationEnabled === true

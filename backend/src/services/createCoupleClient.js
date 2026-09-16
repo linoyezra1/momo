@@ -19,6 +19,7 @@ import {
   PAYMENT_METHOD_LABELS,
   serializeDeal
 } from "../utils/dealPayload.js";
+import { deriveLegacyWhatsAppFlags } from "../utils/whatsappInviteTemplates.js";
 import {
   getAdminWelcomeDisplayName,
   sendEventManagerWelcomeWhatsApp
@@ -91,12 +92,14 @@ export async function createCoupleClient({
   };
   const normalizedDeal = normalizeDealPayload(body?.deal || {}, {}, dealOptions);
 
-  // Sync premium + phone rounds from features (agent picks features; admin may send both)
+  // Sync WhatsApp template + phone rounds from features (agent picks features; admin may send both)
   if (featuresMode === "agent") {
-    normalizedEvent.isPremiumWhatsappButtonsEnabled =
-      normalizedDeal.includedFeatures.isPremiumWhatsappButtonsEnabled === true;
-    normalizedEvent.isPremiumWhatsappCardEnabled =
-      normalizedDeal.includedFeatures.isPremiumWhatsappCardEnabled === true;
+    const flags = deriveLegacyWhatsAppFlags(
+      normalizedDeal.includedFeatures.whatsappInviteTemplate
+    );
+    normalizedEvent.whatsappInviteTemplate = flags.whatsappInviteTemplate;
+    normalizedEvent.isPremiumWhatsappButtonsEnabled = flags.isPremiumWhatsappButtonsEnabled;
+    normalizedEvent.isPremiumWhatsappCardEnabled = flags.isPremiumWhatsappCardEnabled;
     const maxFromDeal = maxPhoneRoundsFromDealFeatures(normalizedDeal.includedFeatures);
     normalizedDeal.includedFeatures = applyPhoneRoundsToDealFeatures(
       maxFromDeal,
@@ -104,13 +107,17 @@ export async function createCoupleClient({
     );
     normalizedEvent.maxPhoneRounds = maxFromDeal;
   } else {
+    const flags = deriveLegacyWhatsAppFlags(normalizedEvent.whatsappInviteTemplate);
+    normalizedEvent.whatsappInviteTemplate = flags.whatsappInviteTemplate;
+    normalizedEvent.isPremiumWhatsappButtonsEnabled = flags.isPremiumWhatsappButtonsEnabled;
+    normalizedEvent.isPremiumWhatsappCardEnabled = flags.isPremiumWhatsappCardEnabled;
+    normalizedDeal.includedFeatures.whatsappInviteTemplate = flags.whatsappInviteTemplate;
     normalizedDeal.includedFeatures.isPremiumWhatsappButtonsEnabled =
-      normalizedEvent.isPremiumWhatsappButtonsEnabled === true;
+      flags.isPremiumWhatsappButtonsEnabled;
     normalizedDeal.includedFeatures.isPremiumWhatsappCardEnabled =
-      normalizedEvent.isPremiumWhatsappCardEnabled === true;
+      flags.isPremiumWhatsappCardEnabled;
     const maxFromDeal = maxPhoneRoundsFromDealFeatures(normalizedDeal.includedFeatures);
     if (maxFromDeal > 0 || normalizedEvent.maxPhoneRounds === 0) {
-      // Prefer deal-derived rounds when phone feature flags are set
       if (maxFromDeal > 0) {
         normalizedEvent.maxPhoneRounds = maxFromDeal;
         normalizedDeal.includedFeatures = applyPhoneRoundsToDealFeatures(

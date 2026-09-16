@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { Plus, X } from "lucide-react";
 import api from "../api";
-import { FEATURE_CHECKBOXES, emptyFeatures } from "../utils/agentFeatures.js";
+import {
+  FEATURE_CHECKBOXES,
+  emptyFeatures,
+  WHATSAPP_INVITE_TEMPLATE_OPTIONS,
+  deriveWhatsAppFlagsFromTemplate
+} from "../utils/agentFeatures.js";
 import { EVENT_TYPES, isCoupleEventType, isConferenceEventType } from "../utils/eventTypeWording";
 import { uploadEventCover } from "../utils/eventCover.js";
 
@@ -488,6 +493,41 @@ export default function AgentDashboardPage() {
 
             <fieldset className="agent-features">
               <legend>פיצ׳רים ללקוח</legend>
+              <div className="us-admin-whatsapp-templates" role="radiogroup" aria-label="תבנית וואטסאפ">
+                {WHATSAPP_INVITE_TEMPLATE_OPTIONS.map((option) => {
+                  const checked =
+                    (form.includedFeatures.whatsappInviteTemplate || "standard") === option.id;
+                  return (
+                    <label
+                      key={option.id}
+                      className={`us-admin-whatsapp-template${checked ? " is-selected" : ""}`}
+                    >
+                      <input
+                        type="radio"
+                        name="agent-whatsappInviteTemplate"
+                        value={option.id}
+                        checked={checked}
+                        onChange={() => {
+                          const flags = deriveWhatsAppFlagsFromTemplate(option.id);
+                          setForm((prev) => ({
+                            ...prev,
+                            includedFeatures: { ...prev.includedFeatures, ...flags }
+                          }));
+                        }}
+                      />
+                      <span className="us-admin-whatsapp-template__body">
+                        <span className="us-admin-whatsapp-template__title-row">
+                          <strong>{option.label}</strong>
+                          {option.badge ? (
+                            <span className="us-admin-whatsapp-template__badge">{option.badge}</span>
+                          ) : null}
+                        </span>
+                        <span className="us-admin-field-hint">{option.adminHint}</span>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
               <div className="agent-features__grid">
                 {FEATURE_CHECKBOXES.map((feature) => (
                   <label key={feature.key} className="agent-feature-check">
