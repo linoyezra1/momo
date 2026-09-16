@@ -88,6 +88,34 @@ const TEMPLATE_VALUE_FALLBACKS = {
   "5": "נתראה בשמחה"
 };
 
+/** Approved WhatsApp Quick Reply (no media): copy_copy_wedding_rsvp_buttons */
+export const PREMIUM_WEDDING_RSVP_BUTTONS_CONTENT_SID_DEFAULT =
+  "HX0ed4e1d2438f2e69bfd54610a127984d";
+/** @deprecated Use PREMIUM_WEDDING_RSVP_BUTTONS_CONTENT_SID_DEFAULT */
+export const PREMIUM_WEDDING_RSVP_CONTENT_SID_DEFAULT =
+  PREMIUM_WEDDING_RSVP_BUTTONS_CONTENT_SID_DEFAULT;
+
+/** Approved WhatsApp Card + dynamic cover: copy_wedding_rsvp_card */
+export const PREMIUM_WEDDING_RSVP_CARD_CONTENT_SID_DEFAULT =
+  "HX321ed50ff0c45c671d9bc3cd17af6b92";
+
+export const PREMIUM_WEDDING_BUTTONS_TEMPLATE_KEYS = ["1", "2", "3", "4", "5"];
+export const PREMIUM_WEDDING_CARD_TEMPLATE_KEYS = ["1", "2", "3", "4", "5", "6"];
+
+export function resolvePremiumWeddingButtonsContentSid() {
+  const preferred = String(process.env.TWILIO_COPY_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID || "").trim();
+  if (preferred.startsWith("HX")) return preferred;
+  const legacy = String(process.env.TWILIO_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID || "").trim();
+  if (legacy.startsWith("HX")) return legacy;
+  return PREMIUM_WEDDING_RSVP_BUTTONS_CONTENT_SID_DEFAULT;
+}
+
+export function resolvePremiumWeddingCardContentSid() {
+  const fromEnv = String(process.env.TWILIO_COPY_WEDDING_RSVP_CARD_CONTENT_SID || "").trim();
+  if (fromEnv.startsWith("HX")) return fromEnv;
+  return PREMIUM_WEDDING_RSVP_CARD_CONTENT_SID_DEFAULT;
+}
+
 const CONFERENCE_GUEST_NAME_FALLBACK = "משקיע/ה יקר/ה";
 
 /** Approved WhatsApp Card SID: barak_finance_conference_qr (כנס only). */
@@ -126,6 +154,14 @@ function collectTemplateVariableKeysFromText(text, keys) {
   }
 }
 
+function collectTemplateVariableKeysFromMedia(media, keys) {
+  if (!media) return;
+  const entries = Array.isArray(media) ? media : [media];
+  for (const entry of entries) {
+    collectTemplateVariableKeysFromText(String(entry || ""), keys);
+  }
+}
+
 function extractContentVariableKeys(content) {
   const keys = new Set(Object.keys(content?.variables || {}));
   for (const typeDef of Object.values(content?.types || {})) {
@@ -135,8 +171,58 @@ function extractContentVariableKeys(content) {
     // Card templates (twilio/card): title + body hold {{n}} placeholders
     collectTemplateVariableKeysFromText(typeDef.title, keys);
     collectTemplateVariableKeysFromText(typeDef.subtitle, keys);
+    collectTemplateVariableKeysFromText(typeDef.header_text, keys);
+    collectTemplateVariableKeysFromMedia(typeDef.media, keys);
   }
   return [...keys].sort((a, b) => Number(a) - Number(b));
+}
+
+/**
+ * Twilio WhatsApp Card media variable: path after https://res.cloudinary.com/{cloud}/
+ * Sample: image/upload/c_limit,f_auto,q_auto,w_960/v123/momo/event-covers/id.jpg
+ */
+export function toTwilioCloudinaryMediaPath(coverUrl, { format = "jpg" } = {}) {
+  const raw = String(coverUrl || "").trim();
+  if (!raw || raw.startsWith("data:")) return "";
+
+  try {
+    const parsed = new URL(raw);
+    if (!parsed.hostname.endsWith("cloudinary.com")) return "";
+
+    const pathMatch = parsed.pathname.match(/^\/[^/]+\/(.+)$/);
+    if (!pathMatch) return "";
+
+    let path = pathMatch[1];
+    const lastSegment = path.split("/").pop() || "";
+    if (!/\.(jpe?g|png|webp|gif)$/i.test(lastSegment)) {
+      const ext = String(format || "jpg").replace(/^\./, "") || "jpg";
+      path = `${path}.${ext}`;
+    }
+    return path;
+  } catch {
+    return "";
+  }
+}
+
+export function resolveEventCoverMediaPath(event) {
+  const cover = event?.cover;
+  const variants = cover?.variants || {};
+  const coverUrl =
+    cover?.url ||
+    variants["960"] ||
+    variants["720"] ||
+    variants["480"] ||
+    String(event?.imageDataUrl || "").trim();
+
+  return toTwilioCloudinaryMediaPath(coverUrl, { format: cover?.format || "jpg" });
+}
+
+function sanitizeWhatsAppMediaPathVariable(value) {
+  return toContentVariableString(value)
+    .replace(/[\n\r\t]+/g, "")
+    .trim()
+    .split("?")[0]
+    .trim();
 }
 
 export async function fetchTwilioContentTemplate(contentSid) {
@@ -267,7 +353,10 @@ export function logTwilioContentSidEnvSnapshot(label = "diag") {
       `TWILIO_CONTENT_SID=${pick("TWILIO_CONTENT_SID")} ` +
       `TWILIO_STANDARD_INVITE_CONTENT_SID=${pick("TWILIO_STANDARD_INVITE_CONTENT_SID")} ` +
       `TWILIO_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID=${pick("TWILIO_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID")} ` +
-      `TWILIO_COPY_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID=${pick("TWILIO_COPY_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID")}`
+      `TWILIO_COPY_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID=${pick("TWILIO_COPY_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID")} ` +
+      `TWILIO_COPY_WEDDING_RSVP_CARD_CONTENT_SID=${pick("TWILIO_COPY_WEDDING_RSVP_CARD_CONTENT_SID")} ` +
+      `resolvedButtons=${resolvePremiumWeddingButtonsContentSid()} ` +
+      `resolvedCard=${resolvePremiumWeddingCardContentSid()}`
   );
 }
 
@@ -346,7 +435,8 @@ export function buildTwilioContentVariables(
     customOpeningText,
     eventDateTimeLocation,
     rsvpLink,
-    closingSignOff
+    closingSignOff,
+    mediaPath
   },
   templateKeys = ["1", "2", "3", "4", "5"]
 ) {
@@ -362,15 +452,26 @@ export function buildTwilioContentVariables(
     "2": customOpeningText,
     "3": eventDateTimeLocation,
     "4": rsvpLink,
-    "5": closingSignOff
+    "5": closingSignOff,
+    "6": mediaPath
   };
 
   const variables = {};
   for (const key of keys) {
-    variables[key] = sanitizeWhatsAppTemplateVariable(
-      mappedValues[key],
-      TEMPLATE_VALUE_FALLBACKS[key] || "-"
-    );
+    if (key === "6") {
+      const media = sanitizeWhatsAppMediaPathVariable(mappedValues[key]);
+      if (!media) {
+        throw new Error(
+          "לתבנית כרטיס עם תמונה חובה להעלות תמונת כיסוי לאירוע לפני שליחת וואטסאפ"
+        );
+      }
+      variables[key] = media;
+    } else {
+      variables[key] = sanitizeWhatsAppTemplateVariable(
+        mappedValues[key],
+        TEMPLATE_VALUE_FALLBACKS[key] || "-"
+      );
+    }
   }
 
   return JSON.stringify(variables);

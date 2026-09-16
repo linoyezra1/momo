@@ -95,6 +95,8 @@ export async function createCoupleClient({
   if (featuresMode === "agent") {
     normalizedEvent.isPremiumWhatsappButtonsEnabled =
       normalizedDeal.includedFeatures.isPremiumWhatsappButtonsEnabled === true;
+    normalizedEvent.isPremiumWhatsappCardEnabled =
+      normalizedDeal.includedFeatures.isPremiumWhatsappCardEnabled === true;
     const maxFromDeal = maxPhoneRoundsFromDealFeatures(normalizedDeal.includedFeatures);
     normalizedDeal.includedFeatures = applyPhoneRoundsToDealFeatures(
       maxFromDeal,
@@ -104,6 +106,8 @@ export async function createCoupleClient({
   } else {
     normalizedDeal.includedFeatures.isPremiumWhatsappButtonsEnabled =
       normalizedEvent.isPremiumWhatsappButtonsEnabled === true;
+    normalizedDeal.includedFeatures.isPremiumWhatsappCardEnabled =
+      normalizedEvent.isPremiumWhatsappCardEnabled === true;
     const maxFromDeal = maxPhoneRoundsFromDealFeatures(normalizedDeal.includedFeatures);
     if (maxFromDeal > 0 || normalizedEvent.maxPhoneRounds === 0) {
       // Prefer deal-derived rounds when phone feature flags are set

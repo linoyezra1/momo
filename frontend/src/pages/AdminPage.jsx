@@ -6,7 +6,7 @@ import AdminWhatsAppFailures from "../components/AdminWhatsAppFailures.jsx";
 import { clearAdminToken } from "../utils/adminAuth";
 import { buildClientOnboardingMessage } from "../utils/clientOnboardingMessage";
 import { formatIsraeliDate } from "../utils/dateFormat";
-import { isCoupleEventType, isConferenceEventType } from "../utils/eventTypeWording";
+import { getCeremonyLabel, isCoupleEventType, isConferenceEventType } from "../utils/eventTypeWording";
 import { getEventCoverSrc, uploadEventCover } from "../utils/eventCover.js";
 import "../us/admin-portal.css";
 
@@ -29,6 +29,7 @@ const FEATURE_CHECKBOXES = [
   { key: "whatsappRound1", label: "וואטסאפ — סבב 1" },
   { key: "whatsappRound2", label: "וואטסאפ — סבב 2" },
   { key: "isPremiumWhatsappButtonsEnabled", label: "ווצאפ כפתורים מהירים (Premium)" },
+  { key: "isPremiumWhatsappCardEnabled", label: "וואטסאפ כרטיס עם תמונה (Premium Card)" },
   { key: "phoneCallsRound1", label: "שיחות טלפון — סבב 1" },
   { key: "phoneCallsRound2", label: "שיחות טלפון — סבב 2" },
   { key: "phoneCallsRound3", label: "שיחות טלפון — סבב 3" },
@@ -45,6 +46,7 @@ function defaultDealDraft() {
       whatsappRound1: true,
       whatsappRound2: false,
       isPremiumWhatsappButtonsEnabled: false,
+      isPremiumWhatsappCardEnabled: false,
       phoneCallsRound1: false,
       phoneCallsRound2: false,
       phoneCallsRound3: false,
@@ -72,6 +74,9 @@ function dealDraftFromClient(client) {
   features.isPremiumWhatsappButtonsEnabled =
     client?.event?.isPremiumWhatsappButtonsEnabled === true ||
     deal.includedFeatures?.isPremiumWhatsappButtonsEnabled === true;
+  features.isPremiumWhatsappCardEnabled =
+    client?.event?.isPremiumWhatsappCardEnabled === true ||
+    deal.includedFeatures?.isPremiumWhatsappCardEnabled === true;
   const amount =
     deal.paymentAmount != null && deal.paymentAmount !== ""
       ? deal.paymentAmount
@@ -115,8 +120,10 @@ const initialForm = {
   eventDate: "",
   eventDateHebrew: "",
   eventTime: "",
+  receptionTime: "",
   maxPhoneRounds: 0,
   isPremiumWhatsappButtonsEnabled: false,
+  isPremiumWhatsappCardEnabled: false,
   transportationEnabled: false,
   transportationWhatsAppLink: "",
   foodSensitivitiesEnabled: false,
@@ -236,9 +243,21 @@ export default function AdminPage() {
     () => clients.find((client) => String(client.userId) === String(selectedClientId)) || null,
     [clients, selectedClientId]
   );
+  const shareTimeLine = createdEvent
+    ? isCoupleEventType(createdEvent.eventType)
+      ? [
+          createdEvent.receptionTime ? `קבלת פנים: ${createdEvent.receptionTime}` : "",
+          createdEvent.eventTime
+            ? `${getCeremonyLabel(createdEvent.eventType)}: ${createdEvent.eventTime}`
+            : ""
+        ]
+          .filter(Boolean)
+          .join(" | ") || "שעה: —"
+      : `שעה: ${createdEvent.eventTime || "—"}`
+    : "";
   const shareMessage = createdEvent
     ? `הזמנה לאירוע ${createdEvent.eventType} של ${eventDisplayText}
-תאריך: ${formatIsraeliDate(createdEvent.eventDate)} | שעה: ${createdEvent.eventTime}
+תאריך: ${formatIsraeliDate(createdEvent.eventDate)} | ${shareTimeLine}
 מיקום: ${createdEvent.venueName}, ${createdEvent.city}, ${createdEvent.streetAndNumber}
 
 נא אשרו הגעה בקישור:
@@ -609,8 +628,10 @@ ${publicEventUrl}`
           eventDate: form.eventDate,
           eventDateHebrew: form.eventType === "ברית" ? form.eventDateHebrew : "",
           eventTime: form.eventTime,
+          receptionTime: isCoupleEventType(form.eventType) ? form.receptionTime : "",
           maxPhoneRounds: Number(form.maxPhoneRounds) || 0,
           isPremiumWhatsappButtonsEnabled: Boolean(form.isPremiumWhatsappButtonsEnabled),
+          isPremiumWhatsappCardEnabled: Boolean(form.isPremiumWhatsappCardEnabled),
           transportationEnabled: Boolean(form.transportationEnabled),
           transportationWhatsAppLink: form.transportationEnabled ? form.transportationWhatsAppLink.trim() : "",
           foodSensitivitiesEnabled: Boolean(form.foodSensitivitiesEnabled),
@@ -728,8 +749,10 @@ ${publicEventUrl}`
       eventDate: client.event?.eventDate || "",
       eventDateHebrew: client.event?.eventDateHebrew || "",
       eventTime: client.event?.eventTime || "",
+      receptionTime: client.event?.receptionTime || "",
       maxPhoneRounds: Number(client.event?.maxPhoneRounds) || 0,
       isPremiumWhatsappButtonsEnabled: Boolean(client.event?.isPremiumWhatsappButtonsEnabled),
+      isPremiumWhatsappCardEnabled: Boolean(client.event?.isPremiumWhatsappCardEnabled),
       transportationEnabled: Boolean(client.event?.transportationEnabled),
       transportationWhatsAppLink: client.event?.transportationWhatsAppLink || "",
       foodSensitivitiesEnabled: Boolean(client.event?.foodSensitivitiesEnabled),
@@ -1714,19 +1737,50 @@ ${publicEventUrl}`
                   <p className="us-admin-field-hint">מוצג בדף ההזמנה לברית ליד יום השבוע. אם ריק — לא יוצג.</p>
                 </div>
               ) : null}
-              <div className="us-admin-field">
-                <label className="us-admin-field-label" htmlFor="eventTime">
-                  שעה
-                </label>
-                <input
-                  id="eventTime"
-                  className="us-admin-field-input"
-                  type="time"
-                  name="eventTime"
-                  value={form.eventTime}
-                  onChange={onChange}
-                />
-              </div>
+              {isCoupleEventType(form.eventType) ? (
+                <>
+                  <div className="us-admin-field">
+                    <label className="us-admin-field-label" htmlFor="receptionTime">
+                      שעת קבלת פנים
+                    </label>
+                    <input
+                      id="receptionTime"
+                      className="us-admin-field-input"
+                      type="time"
+                      name="receptionTime"
+                      value={form.receptionTime}
+                      onChange={onChange}
+                    />
+                  </div>
+                  <div className="us-admin-field">
+                    <label className="us-admin-field-label" htmlFor="eventTime">
+                      {`שעת ${getCeremonyLabel(form.eventType)}`}
+                    </label>
+                    <input
+                      id="eventTime"
+                      className="us-admin-field-input"
+                      type="time"
+                      name="eventTime"
+                      value={form.eventTime}
+                      onChange={onChange}
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className="us-admin-field">
+                  <label className="us-admin-field-label" htmlFor="eventTime">
+                    {isConferenceEventType(form.eventType) ? "שעת התכנסות" : "שעה"}
+                  </label>
+                  <input
+                    id="eventTime"
+                    className="us-admin-field-input"
+                    type="time"
+                    name="eventTime"
+                    value={form.eventTime}
+                    onChange={onChange}
+                  />
+                </div>
+              )}
               <div className="us-admin-field us-admin-field--full">
                 <label className="us-admin-checkbox">
                   <input
@@ -1798,7 +1852,22 @@ ${publicEventUrl}`
                   <span>ווצאפ כפתורים מהירים (Premium)</span>
                 </label>
                 <p className="us-admin-field-hint">
-                  מפעיל תבנית הזמנה אינטראקטיבית מאושרת עם כפתורי אישור הגעה.
+                  תבנית מלל + כפתורי אישור הגעה (ללא תמונה).
+                </p>
+              </div>
+              <div className="us-admin-field">
+                <label className="us-admin-deal-check" htmlFor="isPremiumWhatsappCardEnabled">
+                  <input
+                    id="isPremiumWhatsappCardEnabled"
+                    type="checkbox"
+                    name="isPremiumWhatsappCardEnabled"
+                    checked={form.isPremiumWhatsappCardEnabled}
+                    onChange={onChange}
+                  />
+                  <span>וואטסאפ כרטיס עם תמונה (Premium Card)</span>
+                </label>
+                <p className="us-admin-field-hint">
+                  תבנית תמונה + מלל + כפתורים. דורשת תמונת כיסוי לאירוע. אם שתי האפשרויות מסומנות — נשלח הכרטיס עם התמונה.
                 </p>
               </div>
               <div className="us-admin-field">

@@ -7,7 +7,13 @@ import {
   buildConferenceContentVariables,
   buildTwilioContentVariables,
   CONFERENCE_RSVP_CONTENT_SID_DEFAULT,
+  PREMIUM_WEDDING_BUTTONS_TEMPLATE_KEYS,
+  PREMIUM_WEDDING_CARD_TEMPLATE_KEYS,
+  PREMIUM_WEDDING_RSVP_BUTTONS_CONTENT_SID_DEFAULT,
   resolveConferenceContentSid,
+  resolveEventCoverMediaPath,
+  resolvePremiumWeddingButtonsContentSid,
+  resolvePremiumWeddingCardContentSid,
   sendConferenceInviteWhatsApp,
   sendTwilioWhatsAppMessage,
   toTwilioWhatsAppAddress
@@ -34,7 +40,7 @@ const RSVP_NO_TEXT = "לצערי לא אוכל";
 const RSVP_NO_CONFERENCE_TEXT = "לא אוכל להגיע";
 const RSVP_MAYBE_TEXT = "עדיין לא יודע";
 const CONTENT_SID_DEFAULTS = {
-  TWILIO_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID: "HX0ed4e1d2438f2e69bfd54610a127984d",
+  TWILIO_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID: PREMIUM_WEDDING_RSVP_BUTTONS_CONTENT_SID_DEFAULT,
   TWILIO_CONFERENCE_RSVP_CONTENT_SID: CONFERENCE_RSVP_CONTENT_SID_DEFAULT,
   TWILIO_RSVP_YES_FOLLOWUP_CONTENT_SID: "HX206e8cf197078c26f5258f7799471d9a",
   TWILIO_RSVP_DECLINED_FOLLOWUP_CONTENT_SID: "HX3da07cfd53de307aac93c12cd440e61a",
@@ -45,8 +51,10 @@ const ASK_GUEST_COUNT_TEXT =
 
 function requireContentSid(envName) {
   if (envName === "TWILIO_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID") {
-    const preferred = String(process.env.TWILIO_COPY_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID || "").trim();
-    if (preferred.startsWith("HX")) return preferred;
+    return resolvePremiumWeddingButtonsContentSid();
+  }
+  if (envName === "TWILIO_COPY_WEDDING_RSVP_CARD_CONTENT_SID") {
+    return resolvePremiumWeddingCardContentSid();
   }
   if (envName === "TWILIO_CONFERENCE_RSVP_CONTENT_SID") {
     return resolveConferenceContentSid();
@@ -110,13 +118,16 @@ async function loadGuestEvent(guest) {
   return { event: user.event, user };
 }
 
-function buildPremiumInviteVariables({ guest, event, userId, origin }) {
+function buildPremiumInviteVariables({ guest, event, userId, origin, useCard }) {
   if (isConferenceEventType(event?.eventType)) {
     return buildConferenceContentVariables(guest.fullName || guest.name || "משקיע/ה יקר/ה");
   }
 
   const defaults = buildWhatsAppTemplateDefaults({ event, eventId: userId, origin });
   const paragraphs = resolveWhatsAppInviteParagraphs(event);
+  const templateKeys = useCard
+    ? PREMIUM_WEDDING_CARD_TEMPLATE_KEYS
+    : PREMIUM_WEDDING_BUTTONS_TEMPLATE_KEYS;
 
   return buildTwilioContentVariables(
     {
@@ -126,9 +137,10 @@ function buildPremiumInviteVariables({ guest, event, userId, origin }) {
         paragraphs.eventDetailsParagraph || defaults.eventDetails
       ),
       rsvpLink: buildPublicEventLink({ eventId: userId, origin }) || defaults.rsvpLink,
-      closingSignOff: paragraphs.closingParagraph || defaults.signature
+      closingSignOff: paragraphs.closingParagraph || defaults.signature,
+      mediaPath: useCard ? resolveEventCoverMediaPath(event) : undefined
     },
-    ["1", "2", "3", "4", "5"]
+    templateKeys
   );
 }
 
@@ -159,6 +171,7 @@ async function sendPremiumMainTemplate({ guest, event, origin }) {
     console.log(
       `[Twilio][diag-63028][rsvp-reinvite] eventType=${JSON.stringify(event?.eventType)} ` +
         `premiumButtons=${event?.isPremiumWhatsappButtonsEnabled === true} ` +
+        `premiumCard=${event?.isPremiumWhatsappCardEnabled === true} ` +
         `→ conference Card (buttons toggle ignored)`
     );
     return sendConferenceInviteWhatsApp({
@@ -169,7 +182,12 @@ async function sendPremiumMainTemplate({ guest, event, origin }) {
       guestId: guest._id
     });
   }
-  const contentSid = requireContentSid("TWILIO_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID");
+
+  const useCard = event?.isPremiumWhatsappCardEnabled === true;
+  const contentSid = useCard
+    ? requireContentSid("TWILIO_COPY_WEDDING_RSVP_CARD_CONTENT_SID")
+    : requireContentSid("TWILIO_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID");
+
   return sendTwilioWhatsAppMessage({
     to: toTwilioWhatsAppAddress(guest.phone),
     contentSid,
@@ -177,7 +195,8 @@ async function sendPremiumMainTemplate({ guest, event, origin }) {
       guest,
       event,
       userId: guest.userId,
-      origin
+      origin,
+      useCard
     }),
     userId: guest.userId,
     recipientPhone: guest.phone,
@@ -277,7 +296,7 @@ export async function handleIncomingWhatsAppRsvp({
       payload,
       text,
       expectedPayload: "rsvp_maybe",
-      expectedTexts: [RSVP_MAYBE_TEXT]
+      expectedTexts: [RSVP_MAYBE_TEXT, "עדיין לא יודע/ת"]
     })
   ) {
     await saveRsvp(guest, { status: "אולי" });

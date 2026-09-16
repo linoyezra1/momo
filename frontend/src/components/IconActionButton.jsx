@@ -8,25 +8,28 @@ export default function IconActionButton({
   className = "",
   children,
   type,
+  "aria-label": ariaLabel,
   ...rest
 }) {
   const Comp = as;
   const classes = ["il-icon-action", className].filter(Boolean).join(" ");
   const buttonType = Comp === "button" ? type || "button" : undefined;
+  const accessibleName = ariaLabel || tooltip;
 
   return (
     <Comp
       className={classes}
       type={buttonType}
-      aria-label={tooltip}
-      data-tooltip={tooltip}
-      title={tooltip}
+      aria-label={accessibleName}
+      data-tooltip={tooltip || undefined}
       {...rest}
     >
       {children}
-      <span className="il-icon-action__tooltip" role="tooltip">
-        {tooltip}
-      </span>
+      {tooltip ? (
+        <span className="il-icon-action__tooltip" aria-hidden="true">
+          {tooltip}
+        </span>
+      ) : null}
     </Comp>
   );
 }

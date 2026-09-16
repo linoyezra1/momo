@@ -258,6 +258,9 @@ router.get("/:userId/guests", async (req, res) => {
     event.isPremiumWhatsappButtonsEnabled =
       user.event?.isPremiumWhatsappButtonsEnabled === true ||
       user.deal?.includedFeatures?.isPremiumWhatsappButtonsEnabled === true;
+    event.isPremiumWhatsappCardEnabled =
+      user.event?.isPremiumWhatsappCardEnabled === true ||
+      user.deal?.includedFeatures?.isPremiumWhatsappCardEnabled === true;
 
     const hasEventManager = coupleHasEventManager(user);
     return res.json({
@@ -1052,7 +1055,7 @@ router.post("/:userId/whatsapp/bulk-send", async (req, res) => {
     const { paymentCode, guestIds } = req.body;
 
     const user = await User.findById(userId).select(
-      "event deal.includedFeatures.isPremiumWhatsappButtonsEnabled"
+      "event deal.includedFeatures.isPremiumWhatsappButtonsEnabled deal.includedFeatures.isPremiumWhatsappCardEnabled"
     );
     if (!user) {
       return res.status(404).json({ message: "Client not found" });
@@ -1071,6 +1074,9 @@ router.post("/:userId/whatsapp/bulk-send", async (req, res) => {
     event.isPremiumWhatsappButtonsEnabled =
       user.event?.isPremiumWhatsappButtonsEnabled === true ||
       user.deal?.includedFeatures?.isPremiumWhatsappButtonsEnabled === true;
+    event.isPremiumWhatsappCardEnabled =
+      user.event?.isPremiumWhatsappCardEnabled === true ||
+      user.deal?.includedFeatures?.isPremiumWhatsappCardEnabled === true;
 
     const origin = getClientBaseUrl(req);
     const result = await sendBulkWhatsApp({
@@ -1146,6 +1152,7 @@ router.put("/:userId/event", async (req, res) => {
       ...withCover,
       maxPhoneRounds: Number(previous.maxPhoneRounds) || 0,
       isPremiumWhatsappButtonsEnabled: Boolean(previous.isPremiumWhatsappButtonsEnabled),
+      isPremiumWhatsappCardEnabled: Boolean(previous.isPremiumWhatsappCardEnabled),
       welcomeParagraph: previous.welcomeParagraph || "",
       eventDetailsParagraph: previous.eventDetailsParagraph || "",
       closingParagraph: previous.closingParagraph || "",

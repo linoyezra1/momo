@@ -91,7 +91,9 @@ function applyDealToUser(user, rawDeal) {
   const premiumButtonsEnabled = Boolean(
     deal.includedFeatures.isPremiumWhatsappButtonsEnabled
   );
+  const premiumCardEnabled = Boolean(deal.includedFeatures.isPremiumWhatsappCardEnabled);
   user.set("event.isPremiumWhatsappButtonsEnabled", premiumButtonsEnabled);
+  user.set("event.isPremiumWhatsappCardEnabled", premiumCardEnabled);
   user.set("event.maxPhoneRounds", maxFromDeal);
   user.markModified("event");
   user.payment = {
@@ -256,6 +258,8 @@ router.patch("/clients/:userId", async (req, res) => {
       const synchronizedDeal = normalizeDealPayload({}, user.deal || {});
       synchronizedDeal.includedFeatures.isPremiumWhatsappButtonsEnabled =
         normalizedEvent.isPremiumWhatsappButtonsEnabled === true;
+      synchronizedDeal.includedFeatures.isPremiumWhatsappCardEnabled =
+        normalizedEvent.isPremiumWhatsappCardEnabled === true;
       synchronizedDeal.includedFeatures = applyPhoneRoundsToDealFeatures(
         normalizedEvent.maxPhoneRounds,
         synchronizedDeal.includedFeatures

@@ -9,7 +9,12 @@ import {
   isTwilioConfigured,
   logTwilioContentApprovalDiagnostics,
   logTwilioContentSidEnvSnapshot,
+  PREMIUM_WEDDING_BUTTONS_TEMPLATE_KEYS,
+  PREMIUM_WEDDING_CARD_TEMPLATE_KEYS,
   resolveConferenceContentSid,
+  resolveEventCoverMediaPath,
+  resolvePremiumWeddingButtonsContentSid,
+  resolvePremiumWeddingCardContentSid,
   sendConferenceInviteWhatsApp,
   sendTwilioWhatsAppMessage,
   toTwilioWhatsAppAddress
@@ -26,18 +31,17 @@ import { getDefaultWelcomeParagraph, isConferenceEventType } from "../utils/even
 import { recalculateUserSupplierCost } from "../utils/supplierCost.js";
 
 const STANDARD_INVITE_CONTENT_SID_DEFAULT = "HXbdfde344006c1b595fe91e738f9972c5";
-const PREMIUM_WEDDING_RSVP_CONTENT_SID_DEFAULT = "HX0ed4e1d2438f2e69bfd54610a127984d";
 
 /**
  * Template SID routing for bulk invite send.
  *
- * Conference ALWAYS wins over the Admin "Buttons / Quick Reply" toggle.
- * `isPremiumWhatsappButtonsEnabled` only selects wedding QR vs standard text
- * when eventType is NOT כנס — it must never override TWILIO_CONFERENCE_RSVP_CONTENT_SID.
+ * Priority: כנס Card → wedding Card+image → wedding Quick Reply buttons → standard text.
+ * Admin feature toggles never override TWILIO_CONFERENCE_RSVP_CONTENT_SID.
  */
 function resolveInviteContentRouting(event) {
   const eventType = event?.eventType ?? null;
   const premiumButtonsEnabled = event?.isPremiumWhatsappButtonsEnabled === true;
+  const premiumCardEnabled = event?.isPremiumWhatsappCardEnabled === true;
   const conference = isConferenceEventType(eventType);
 
   if (conference) {
@@ -46,48 +50,54 @@ function resolveInviteContentRouting(event) {
     return {
       eventType,
       premiumButtonsEnabled,
+      premiumCardEnabled,
       conference: true,
       contentSid: fromEnv ? envRaw : CONFERENCE_RSVP_CONTENT_SID_DEFAULT,
       sidSource: fromEnv
         ? "env:TWILIO_CONFERENCE_RSVP_CONTENT_SID"
         : "default:CONFERENCE_RSVP_CONTENT_SID_DEFAULT",
       templateKeys: ["1"],
+      requiresCoverMedia: false,
       buttonsAffectsRouting: false
     };
   }
 
-  if (premiumButtonsEnabled) {
-    const envCopy = String(process.env.TWILIO_COPY_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID || "").trim();
-    const envLegacy = String(process.env.TWILIO_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID || "").trim();
-    if (envCopy.startsWith("HX")) {
-      return {
-        eventType,
-        premiumButtonsEnabled,
-        conference: false,
-        contentSid: envCopy,
-        sidSource: "env:TWILIO_COPY_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID",
-        templateKeys: ["1", "2", "3", "4", "5"],
-        buttonsAffectsRouting: true
-      };
-    }
-    if (envLegacy.startsWith("HX")) {
-      return {
-        eventType,
-        premiumButtonsEnabled,
-        conference: false,
-        contentSid: envLegacy,
-        sidSource: "env:TWILIO_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID",
-        templateKeys: ["1", "2", "3", "4", "5"],
-        buttonsAffectsRouting: true
-      };
-    }
+  if (premiumCardEnabled) {
+    const contentSid = resolvePremiumWeddingCardContentSid();
+    const fromEnv = String(process.env.TWILIO_COPY_WEDDING_RSVP_CARD_CONTENT_SID || "")
+      .trim()
+      .startsWith("HX");
     return {
       eventType,
       premiumButtonsEnabled,
+      premiumCardEnabled,
       conference: false,
-      contentSid: PREMIUM_WEDDING_RSVP_CONTENT_SID_DEFAULT,
-      sidSource: "default:PREMIUM_WEDDING_RSVP_CONTENT_SID_DEFAULT",
-      templateKeys: ["1", "2", "3", "4", "5"],
+      contentSid,
+      sidSource: fromEnv
+        ? "env:TWILIO_COPY_WEDDING_RSVP_CARD_CONTENT_SID"
+        : "default:PREMIUM_WEDDING_RSVP_CARD_CONTENT_SID_DEFAULT",
+      templateKeys: PREMIUM_WEDDING_CARD_TEMPLATE_KEYS,
+      requiresCoverMedia: true,
+      buttonsAffectsRouting: true
+    };
+  }
+
+  if (premiumButtonsEnabled) {
+    const contentSid = resolvePremiumWeddingButtonsContentSid();
+    const preferred = String(process.env.TWILIO_COPY_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID || "").trim();
+    const legacy = String(process.env.TWILIO_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID || "").trim();
+    let sidSource = "default:PREMIUM_WEDDING_RSVP_BUTTONS_CONTENT_SID_DEFAULT";
+    if (preferred.startsWith("HX")) sidSource = "env:TWILIO_COPY_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID";
+    else if (legacy.startsWith("HX")) sidSource = "env:TWILIO_COPY_WEDDING_RSVP_BUTTONS_CONTENT_SID";
+    return {
+      eventType,
+      premiumButtonsEnabled,
+      premiumCardEnabled,
+      conference: false,
+      contentSid,
+      sidSource,
+      templateKeys: PREMIUM_WEDDING_BUTTONS_TEMPLATE_KEYS,
+      requiresCoverMedia: false,
       buttonsAffectsRouting: true
     };
   }
@@ -99,12 +109,14 @@ function resolveInviteContentRouting(event) {
     return {
       eventType,
       premiumButtonsEnabled,
+      premiumCardEnabled,
       conference: false,
       contentSid: envStandard,
       sidSource: process.env.TWILIO_STANDARD_INVITE_CONTENT_SID
         ? "env:TWILIO_STANDARD_INVITE_CONTENT_SID"
         : "env:TWILIO_CONTENT_SID",
-      templateKeys: ["1", "2", "3", "4", "5"],
+      templateKeys: PREMIUM_WEDDING_BUTTONS_TEMPLATE_KEYS,
+      requiresCoverMedia: false,
       buttonsAffectsRouting: true
     };
   }
@@ -112,10 +124,12 @@ function resolveInviteContentRouting(event) {
   return {
     eventType,
     premiumButtonsEnabled,
+    premiumCardEnabled,
     conference: false,
     contentSid: STANDARD_INVITE_CONTENT_SID_DEFAULT,
     sidSource: "default:STANDARD_INVITE_CONTENT_SID_DEFAULT",
-    templateKeys: ["1", "2", "3", "4", "5"],
+    templateKeys: PREMIUM_WEDDING_BUTTONS_TEMPLATE_KEYS,
+    requiresCoverMedia: false,
     buttonsAffectsRouting: true
   };
 }
@@ -124,16 +138,18 @@ function logInviteTemplateRouting(routing) {
   console.log(
     `[Twilio][template-routing] eventType=${JSON.stringify(routing.eventType)} ` +
       `premiumButtons=${routing.premiumButtonsEnabled} ` +
+      `premiumCard=${routing.premiumCardEnabled} ` +
       `conference=${routing.conference} ` +
       `buttonsAffectsRouting=${routing.buttonsAffectsRouting} ` +
       `selectedSid=${routing.contentSid} ` +
       `sidSource=${routing.sidSource} ` +
-      `variables=${routing.templateKeys.join(",")}`
+      `variables=${routing.templateKeys.join(",")} ` +
+      `requiresCover=${routing.requiresCoverMedia}`
   );
-  if (routing.conference && routing.premiumButtonsEnabled) {
+  if (routing.conference && (routing.premiumButtonsEnabled || routing.premiumCardEnabled)) {
     console.log(
-      "[Twilio][template-routing] NOTE: Admin Buttons toggle is ON but ignored — " +
-        "כנס always uses conference Card SID (not wedding Quick Reply)."
+      "[Twilio][template-routing] NOTE: Admin WhatsApp toggles are ON but ignored — " +
+        "כנס always uses conference Card SID."
     );
   }
 }
@@ -259,6 +275,7 @@ async function sendToInvitee({
   templateKeys,
   userId,
   paragraphs,
+  event,
   conferenceMode = false
 }) {
   const to = toTwilioWhatsAppAddress(invitee.phone);
@@ -314,7 +331,8 @@ async function sendToInvitee({
         customOpeningText: fields.customOpeningText,
         eventDateTimeLocation: fields.eventDateTimeLocation,
         rsvpLink: fields.rsvpLink,
-        closingSignOff: fields.closingSignOff
+        closingSignOff: fields.closingSignOff,
+        mediaPath: templateKeys.includes("6") ? resolveEventCoverMediaPath(event) : undefined
       },
       templateKeys
     );
@@ -412,6 +430,21 @@ export async function sendBulkWhatsApp({
     }
 
     const requestedCount = invitees.length;
+    const routing = resolveInviteContentRouting(event);
+    logInviteTemplateRouting(routing);
+    logTwilioContentSidEnvSnapshot("bulk-send");
+
+    if (routing.requiresCoverMedia && !resolveEventCoverMediaPath(event)) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          message:
+            "לתבנית וואטסאפ עם תמונה חובה להעלות תמונת כיסוי לאירוע לפני השליחה. העלו תמונה בהגדרות האירוע ונסו שוב."
+        }
+      };
+    }
+
     const reservation = await reserveCredits(codeRecord, requestedCount);
     if (!reservation.ok) {
       return { status: 400, body: { success: false, message: reservation.message } };
@@ -424,9 +457,6 @@ export async function sendBulkWhatsApp({
       origin
     });
     const paragraphs = resolveWhatsAppInviteParagraphs(event);
-    const routing = resolveInviteContentRouting(event);
-    logInviteTemplateRouting(routing);
-    logTwilioContentSidEnvSnapshot("bulk-send");
     const conferenceMode = routing.conference;
     const contentSid = routing.contentSid;
     const templateKeys = routing.templateKeys;
@@ -436,6 +466,7 @@ export async function sendBulkWhatsApp({
         `eventTypeRaw=${JSON.stringify(event?.eventType)} ` +
         `isConference=${conferenceMode} ` +
         `premiumButtons=${routing.premiumButtonsEnabled} ` +
+        `premiumCard=${routing.premiumCardEnabled} ` +
         `selectedSid=${contentSid} sidSource=${routing.sidSource} ` +
         `expectedKeys=[${templateKeys.join(",")}] ` +
         `inviteeCount=${invitees.length}`
@@ -477,6 +508,7 @@ export async function sendBulkWhatsApp({
           templateKeys,
           userId,
           paragraphs,
+          event,
           conferenceMode
         })
       )

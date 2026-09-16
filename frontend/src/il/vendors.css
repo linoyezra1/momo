@@ -113,6 +113,97 @@
   padding: 0 0.75rem 0.75rem;
 }
 
+/* Icon actions: icon-only with hover tooltip (shared with manager-event) */
+.il-vendor-card__actions .il-icon-action,
+.il-vendors-page .il-icon-action {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.15rem;
+  height: 2.15rem;
+  padding: 0;
+  border: 1px solid var(--us-border, #e5e0d8);
+  border-radius: 0.45rem;
+  background: #fff;
+  color: #4b5563;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.il-vendor-card__actions .il-icon-action:hover,
+.il-vendor-card__actions .il-icon-action:focus-visible,
+.il-vendors-page .il-icon-action:hover,
+.il-vendors-page .il-icon-action:focus-visible {
+  background: #f8f5f0;
+  border-color: #cfc6ba;
+  color: #1f2937;
+  outline: none;
+}
+
+.il-vendor-card__actions .il-icon-action--whatsapp,
+.il-vendors-page .il-icon-action--whatsapp {
+  color: #128c7e;
+  border-color: #a7e0d4;
+  background: #f0faf7;
+}
+
+.il-vendor-card__actions .il-icon-action--phone,
+.il-vendors-page .il-icon-action--phone {
+  color: #2563eb;
+  border-color: #bfdbfe;
+  background: #eff6ff;
+}
+
+.il-vendor-card__actions .il-icon-action--danger,
+.il-vendors-page .il-icon-action--danger {
+  color: #9b1c1c;
+  border-color: #f5b8b8;
+  background: #fff5f5;
+}
+
+.il-vendor-card__actions .il-icon-action__tooltip,
+.il-vendors-page .il-icon-action__tooltip {
+  position: absolute;
+  bottom: calc(100% + 0.4rem);
+  left: 50%;
+  transform: translateX(-50%) translateY(0.15rem);
+  padding: 0.28rem 0.5rem;
+  border-radius: 0.4rem;
+  background: #1f2937;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease, transform 0.12s ease;
+  z-index: 20;
+}
+
+.il-vendor-card__actions .il-icon-action__tooltip::after,
+.il-vendors-page .il-icon-action__tooltip::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: #1f2937;
+}
+
+.il-vendor-card__actions .il-icon-action:hover .il-icon-action__tooltip,
+.il-vendor-card__actions .il-icon-action:focus-visible .il-icon-action__tooltip,
+.il-vendors-page .il-icon-action:hover .il-icon-action__tooltip,
+.il-vendors-page .il-icon-action:focus-visible .il-icon-action__tooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
 .il-vendor-drawer-backdrop {
   position: fixed;
   inset: 0;

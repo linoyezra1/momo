@@ -30,8 +30,10 @@ export function normalizeEventPayload(rawEvent) {
     eventDate: String(rawEvent?.eventDate || "").trim(),
     eventDateHebrew: eventType === "ברית" ? String(rawEvent?.eventDateHebrew || "").trim() : "",
     eventTime: String(rawEvent?.eventTime || "").trim(),
+    receptionTime: isCoupleEventType(eventType) ? String(rawEvent?.receptionTime || "").trim() : "",
     maxPhoneRounds,
     isPremiumWhatsappButtonsEnabled: rawEvent?.isPremiumWhatsappButtonsEnabled === true,
+    isPremiumWhatsappCardEnabled: rawEvent?.isPremiumWhatsappCardEnabled === true,
     transportationEnabled: rawEvent?.transportationEnabled === true,
     transportationWhatsAppLink:
       rawEvent?.transportationEnabled === true
