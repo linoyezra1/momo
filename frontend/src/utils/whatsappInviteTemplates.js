@@ -35,12 +35,21 @@ export const WHATSAPP_INVITE_TEMPLATE_OPTIONS = [
 
 export function resolveWhatsAppInviteTemplateFromFlags({
   whatsappInviteTemplate,
+  dealWhatsappInviteTemplate,
   isPremiumWhatsappCardEnabled,
   isPremiumWhatsappButtonsEnabled
 } = {}) {
-  const explicit = String(whatsappInviteTemplate || "").trim();
-  if (WHATSAPP_INVITE_TEMPLATE_OPTIONS.some((option) => option.id === explicit)) {
-    return explicit;
+  const candidates = [
+    String(whatsappInviteTemplate || "").trim(),
+    String(dealWhatsappInviteTemplate || "").trim()
+  ];
+  for (const candidate of candidates) {
+    if (
+      WHATSAPP_INVITE_TEMPLATE_OPTIONS.some((option) => option.id === candidate) &&
+      candidate !== "standard"
+    ) {
+      return candidate;
+    }
   }
   if (isPremiumWhatsappCardEnabled) return "card_direct_rsvp_buttons";
   if (isPremiumWhatsappButtonsEnabled) return "buttons_qr";

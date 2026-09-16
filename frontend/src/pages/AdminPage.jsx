@@ -78,6 +78,7 @@ function dealDraftFromClient(client) {
   const templateId = resolveWhatsAppInviteTemplateFromFlags({
     whatsappInviteTemplate:
       client?.event?.whatsappInviteTemplate || features.whatsappInviteTemplate,
+    dealWhatsappInviteTemplate: features.whatsappInviteTemplate,
     isPremiumWhatsappCardEnabled:
       client?.event?.isPremiumWhatsappCardEnabled === true ||
       features.isPremiumWhatsappCardEnabled === true,
@@ -765,8 +766,13 @@ ${publicEventUrl}`
       ...deriveWhatsAppFlagsFromTemplate(
         resolveWhatsAppInviteTemplateFromFlags({
           whatsappInviteTemplate: client.event?.whatsappInviteTemplate,
-          isPremiumWhatsappCardEnabled: client.event?.isPremiumWhatsappCardEnabled,
-          isPremiumWhatsappButtonsEnabled: client.event?.isPremiumWhatsappButtonsEnabled
+          dealWhatsappInviteTemplate: client.deal?.includedFeatures?.whatsappInviteTemplate,
+          isPremiumWhatsappCardEnabled:
+            client.event?.isPremiumWhatsappCardEnabled === true ||
+            client.deal?.includedFeatures?.isPremiumWhatsappCardEnabled === true,
+          isPremiumWhatsappButtonsEnabled:
+            client.event?.isPremiumWhatsappButtonsEnabled === true ||
+            client.deal?.includedFeatures?.isPremiumWhatsappButtonsEnabled === true
         })
       ),
       transportationEnabled: Boolean(client.event?.transportationEnabled),

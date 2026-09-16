@@ -123,23 +123,52 @@ export function isWhatsAppInviteTemplateId(value) {
 }
 
 /**
- * Resolve template id from event (+ legacy booleans for migration).
- * Priority: explicit enum → card flag → buttons flag → standard.
+ * Resolve template id from event (+ deal features + legacy booleans).
+ *
+ * Important: mongoose/default `"standard"` must NOT block a non-standard template
+ * saved on the deal, or legacy premium booleans still set on the event.
  */
-export function resolveWhatsAppInviteTemplateId(event = {}) {
-  const explicit = String(event?.whatsappInviteTemplate || "").trim();
-  if (isWhatsAppInviteTemplateId(explicit) && explicit !== "standard") {
-    return /** @type {WhatsAppInviteTemplateId} */ (explicit);
-  }
-  if (explicit === "standard") return "standard";
+export function resolveWhatsAppInviteTemplateId(event = {}, dealFeatures = null) {
+  const features = dealFeatures || event?.includedFeatures || event?.deal?.includedFeatures || {};
 
-  if (event?.isPremiumWhatsappCardEnabled === true) {
-    return "card_direct_rsvp_buttons";
+  const candidates = [
+    String(event?.whatsappInviteTemplate || "").trim(),
+    String(features?.whatsappInviteTemplate || "").trim()
+  ];
+
+  for (const candidate of candidates) {
+    if (isWhatsAppInviteTemplateId(candidate) && candidate !== "standard") {
+      return /** @type {WhatsAppInviteTemplateId} */ (candidate);
+    }
   }
-  if (event?.isPremiumWhatsappButtonsEnabled === true) {
-    return "buttons_qr";
-  }
+
+  const cardEnabled =
+    event?.isPremiumWhatsappCardEnabled === true || features?.isPremiumWhatsappCardEnabled === true;
+  const buttonsEnabled =
+    event?.isPremiumWhatsappButtonsEnabled === true ||
+    features?.isPremiumWhatsappButtonsEnabled === true;
+
+  if (cardEnabled) return "card_direct_rsvp_buttons";
+  if (buttonsEnabled) return "buttons_qr";
   return "standard";
+}
+
+/**
+ * Merge event + deal WhatsApp invite settings into a plain event object for send/UI.
+ */
+export function mergeEventWhatsAppInviteSettings(event = {}, deal = {}) {
+  const features = deal?.includedFeatures || {};
+  const merged = { ...(event || {}) };
+  merged.isPremiumWhatsappButtonsEnabled =
+    event?.isPremiumWhatsappButtonsEnabled === true ||
+    features?.isPremiumWhatsappButtonsEnabled === true;
+  merged.isPremiumWhatsappCardEnabled =
+    event?.isPremiumWhatsappCardEnabled === true || features?.isPremiumWhatsappCardEnabled === true;
+  merged.whatsappInviteTemplate = resolveWhatsAppInviteTemplateId(merged, features);
+  const flags = deriveLegacyWhatsAppFlags(merged.whatsappInviteTemplate);
+  merged.isPremiumWhatsappButtonsEnabled = flags.isPremiumWhatsappButtonsEnabled;
+  merged.isPremiumWhatsappCardEnabled = flags.isPremiumWhatsappCardEnabled;
+  return merged;
 }
 
 export function isCardInviteTemplate(templateId) {
@@ -270,7 +299,8 @@ export function deriveLegacyWhatsAppFlags(templateId) {
 
 export function normalizeWhatsAppInviteTemplate(raw, { cardEnabled, buttonsEnabled } = {}) {
   const explicit = String(raw || "").trim();
-  if (isWhatsAppInviteTemplateId(explicit)) return explicit;
+  // Non-standard explicit wins; "standard"/empty may still be overridden by legacy flags.
+  if (isWhatsAppInviteTemplateId(explicit) && explicit !== "standard") return explicit;
   if (cardEnabled === true) return "card_direct_rsvp_buttons";
   if (buttonsEnabled === true) return "buttons_qr";
   return "standard";

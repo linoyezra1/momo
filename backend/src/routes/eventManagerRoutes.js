@@ -9,6 +9,10 @@ import { isConferenceEventType } from "../utils/eventTypeWording.js";
 import { applyCoverToEventPayload, clearEventCover, uploadAndAttachCover } from "../utils/eventCover.js";
 import { coverUpload } from "../middleware/coverUpload.js";
 import { isCoverStorageConfigured } from "../services/coverStorage.js";
+import {
+  deriveLegacyWhatsAppFlags,
+  resolveWhatsAppInviteTemplateId
+} from "../utils/whatsappInviteTemplates.js";
 import { normalizePhone } from "../utils/guestPhone.js";
 import {
   applyCouplePassword,
@@ -277,9 +281,7 @@ router.patch("/clients/:userId", async (req, res) => {
       user.event = {
         ...normalizedEvent,
         maxPhoneRounds: Number(previousEvent.maxPhoneRounds) || 0,
-        isPremiumWhatsappButtonsEnabled: Boolean(previousEvent.isPremiumWhatsappButtonsEnabled),
-        isPremiumWhatsappCardEnabled: Boolean(previousEvent.isPremiumWhatsappCardEnabled),
-        whatsappInviteTemplate: previousEvent.whatsappInviteTemplate || "standard",
+        ...deriveLegacyWhatsAppFlags(resolveWhatsAppInviteTemplateId(previousEvent)),
         welcomeParagraph: previousEvent.welcomeParagraph || "",
         eventDetailsParagraph: previousEvent.eventDetailsParagraph || "",
         closingParagraph: previousEvent.closingParagraph || ""

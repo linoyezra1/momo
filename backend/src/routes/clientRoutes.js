@@ -18,8 +18,13 @@ import { normalizeIlEventUpdatePayload } from "../utils/ilEvent.js";
 import { applyCoverToEventPayload, clearEventCover, uploadAndAttachCover } from "../utils/eventCover.js";
 import { coverUpload } from "../middleware/coverUpload.js";
 import { isCoverStorageConfigured } from "../services/coverStorage.js";
+import {
+  deriveLegacyWhatsAppFlags,
+  resolveWhatsAppInviteTemplateId
+} from "../utils/whatsappInviteTemplates.js";
 import { sendBulkWhatsApp } from "../services/bulkWhatsAppService.js";
 import { getClientBaseUrl } from "../utils/clientUrl.js";
+import { mergeEventWhatsAppInviteSettings } from "../utils/whatsappInviteTemplates.js";
 import ActivationCode from "../models/ActivationCode.js";
 import { subscribeToDashboardEvents } from "../services/dashboardEvents.js";
 import {
@@ -253,22 +258,11 @@ router.get("/:userId/guests", async (req, res) => {
       }
     );
 
-    const event = user.event?.toObject ? user.event.toObject() : { ...(user.event || {}) };
+    const event = mergeEventWhatsAppInviteSettings(
+      user.event?.toObject ? user.event.toObject() : { ...(user.event || {}) },
+      user.deal
+    );
     event.maxPhoneRounds = resolveMaxPhoneRounds(user);
-    event.isPremiumWhatsappButtonsEnabled =
-      user.event?.isPremiumWhatsappButtonsEnabled === true ||
-      user.deal?.includedFeatures?.isPremiumWhatsappButtonsEnabled === true;
-    event.isPremiumWhatsappCardEnabled =
-      user.event?.isPremiumWhatsappCardEnabled === true ||
-      user.deal?.includedFeatures?.isPremiumWhatsappCardEnabled === true;
-    event.whatsappInviteTemplate =
-      user.event?.whatsappInviteTemplate ||
-      user.deal?.includedFeatures?.whatsappInviteTemplate ||
-      (event.isPremiumWhatsappCardEnabled
-        ? "card_direct_rsvp_buttons"
-        : event.isPremiumWhatsappButtonsEnabled
-          ? "buttons_qr"
-          : "standard");
 
     const hasEventManager = coupleHasEventManager(user);
     return res.json({
@@ -1078,21 +1072,17 @@ router.post("/:userId/whatsapp/bulk-send", async (req, res) => {
       return res.status(400).json({ message: "חלק מהמוזמנים שנבחרו לא נמצאו ברשימה" });
     }
 
-    const event = user.event?.toObject ? user.event.toObject() : { ...(user.event || {}) };
-    event.isPremiumWhatsappButtonsEnabled =
-      user.event?.isPremiumWhatsappButtonsEnabled === true ||
-      user.deal?.includedFeatures?.isPremiumWhatsappButtonsEnabled === true;
-    event.isPremiumWhatsappCardEnabled =
-      user.event?.isPremiumWhatsappCardEnabled === true ||
-      user.deal?.includedFeatures?.isPremiumWhatsappCardEnabled === true;
-    event.whatsappInviteTemplate =
-      user.event?.whatsappInviteTemplate ||
-      user.deal?.includedFeatures?.whatsappInviteTemplate ||
-      (event.isPremiumWhatsappCardEnabled
-        ? "card_direct_rsvp_buttons"
-        : event.isPremiumWhatsappButtonsEnabled
-          ? "buttons_qr"
-          : "standard");
+    const event = mergeEventWhatsAppInviteSettings(
+      user.event?.toObject ? user.event.toObject() : { ...(user.event || {}) },
+      user.deal
+    );
+    console.log(
+      `[Twilio][bulk-send-route] userId=${userId} ` +
+        `eventTemplate=${JSON.stringify(user.event?.whatsappInviteTemplate)} ` +
+        `dealTemplate=${JSON.stringify(user.deal?.includedFeatures?.whatsappInviteTemplate)} ` +
+        `resolvedTemplate=${event.whatsappInviteTemplate} ` +
+        `card=${event.isPremiumWhatsappCardEnabled} buttons=${event.isPremiumWhatsappButtonsEnabled}`
+    );
 
     const origin = getClientBaseUrl(req);
     const result = await sendBulkWhatsApp({
@@ -1167,9 +1157,7 @@ router.put("/:userId/event", async (req, res) => {
     user.event = {
       ...withCover,
       maxPhoneRounds: Number(previous.maxPhoneRounds) || 0,
-      isPremiumWhatsappButtonsEnabled: Boolean(previous.isPremiumWhatsappButtonsEnabled),
-      isPremiumWhatsappCardEnabled: Boolean(previous.isPremiumWhatsappCardEnabled),
-      whatsappInviteTemplate: previous.whatsappInviteTemplate || "standard",
+      ...deriveLegacyWhatsAppFlags(resolveWhatsAppInviteTemplateId(previous)),
       welcomeParagraph: previous.welcomeParagraph || "",
       eventDetailsParagraph: previous.eventDetailsParagraph || "",
       closingParagraph: previous.closingParagraph || "",
