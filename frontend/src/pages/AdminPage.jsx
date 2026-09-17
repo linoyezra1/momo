@@ -188,19 +188,33 @@ function buildClientLabel(client) {
 }
 
 function buildClientSubline(client) {
-  const parts = [];
-  if (client?.createdByAgentName) parts.push(`סוכן: ${client.createdByAgentName}`);
-  else if (client?.createdByAgentId) parts.push(`סוכן: ${client.createdByAgentId}`);
-  if (client?.etsyOrderId) parts.push(`אטסי #${client.etsyOrderId}`);
-  if (client?.contactEmail) parts.push(client.contactEmail);
-  if (Number(client?.deal?.packagePrice) > 0) {
-    parts.push(`₪${Number(client.deal.packagePrice).toLocaleString("he-IL")}`);
-  } else if (Number(client?.deal?.paymentAmount) > 0) {
-    parts.push(`₪${Number(client.deal.paymentAmount).toLocaleString("he-IL")}`);
-  } else if (Number(client?.payment?.amountPaid) > 0) {
-    parts.push(`₪${Number(client.payment.amountPaid).toLocaleString("he-IL")}`);
-  }
-  return parts.join(" · ") || client?.username || "";
+  const eventDate = client?.event?.eventDate;
+  if (eventDate) return formatIsraeliDate(eventDate);
+  return "ללא תאריך אירוע";
+}
+
+function clientMatchesSearch(client, rawQuery) {
+  const query = String(rawQuery || "").trim().toLowerCase();
+  if (!query) return true;
+  const haystack = [
+    buildClientLabel(client),
+    client?.username,
+    client?.contactPhone,
+    client?.contactEmail,
+    client?.event?.eventType,
+    client?.event?.groomName,
+    client?.event?.brideName,
+    client?.event?.venueName,
+    client?.event?.city,
+    client?.event?.eventDate,
+    client?.event?.eventDate ? formatIsraeliDate(client.event.eventDate) : "",
+    client?.createdByAgentName,
+    client?.createdByAgentId
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  return haystack.includes(query);
 }
 
 function formatCreatedAt(value) {
@@ -215,6 +229,7 @@ export default function AdminPage() {
   const navigate = useNavigate();
   const [form, setForm] = useState(initialForm);
   const [clients, setClients] = useState([]);
+  const [clientSearch, setClientSearch] = useState("");
   const [selectedClientId, setSelectedClientId] = useState("");
   const [showCreateWizard, setShowCreateWizard] = useState(false);
   const [wizardMode, setWizardMode] = useState("create");
@@ -247,12 +262,28 @@ export default function AdminPage() {
   const [leadsLoading, setLeadsLoading] = useState(false);
   const [leadsError, setLeadsError] = useState("");
   const [leadsNewCount, setLeadsNewCount] = useState(0);
+  const [eventManagers, setEventManagers] = useState([]);
+  const [eventManagersEnv, setEventManagersEnv] = useState(null);
+  const [eventManagersLoading, setEventManagersLoading] = useState(false);
+  const [eventManagersError, setEventManagersError] = useState("");
+  const [eventManagersNotice, setEventManagersNotice] = useState("");
+  const [eventManagerForm, setEventManagerForm] = useState({
+    username: "",
+    password: "",
+    displayName: ""
+  });
+  const [eventManagerSaving, setEventManagerSaving] = useState(false);
+  const [eventManagerPasswordEdits, setEventManagerPasswordEdits] = useState({});
   const publicEventUrl = toAppUrl(result?.publicEventLink);
   const clientDashboardUrl = toAppUrl(result?.clientDashboardLink);
   const eventDisplayText = buildEventDisplayText(createdEvent);
   const selectedClient = useMemo(
     () => clients.find((client) => String(client.userId) === String(selectedClientId)) || null,
     [clients, selectedClientId]
+  );
+  const filteredClients = useMemo(
+    () => clients.filter((client) => clientMatchesSearch(client, clientSearch)),
+    [clients, clientSearch]
   );
   const shareTimeLine = createdEvent
     ? isCoupleEventType(createdEvent.eventType)
@@ -345,6 +376,65 @@ ${publicEventUrl}`
     }
   };
 
+  const loadEventManagers = async () => {
+    setEventManagersLoading(true);
+    setEventManagersError("");
+    try {
+      const response = await api.get("/admin/event-managers");
+      setEventManagers(Array.isArray(response.data?.eventManagers) ? response.data.eventManagers : []);
+      setEventManagersEnv(response.data?.envBootstrap || null);
+    } catch (loadError) {
+      setEventManagersError(loadError.response?.data?.message || "טעינת מנהלי אירוע נכשלה");
+    } finally {
+      setEventManagersLoading(false);
+    }
+  };
+
+  const createEventManager = async (event) => {
+    event.preventDefault();
+    setEventManagerSaving(true);
+    setEventManagersError("");
+    setEventManagersNotice("");
+    try {
+      await api.post("/admin/event-managers", {
+        username: eventManagerForm.username,
+        password: eventManagerForm.password,
+        displayName: eventManagerForm.displayName
+      });
+      setEventManagerForm({ username: "", password: "", displayName: "" });
+      setEventManagersNotice("מנהל אירוע נוצר בהצלחה");
+      await loadEventManagers();
+    } catch (createError) {
+      setEventManagersError(createError.response?.data?.message || "יצירת מנהל אירוע נכשלה");
+    } finally {
+      setEventManagerSaving(false);
+    }
+  };
+
+  const updateEventManager = async (id, patch) => {
+    setEventManagersError("");
+    setEventManagersNotice("");
+    try {
+      const response = await api.patch(`/admin/event-managers/${id}`, patch);
+      const updated = response.data?.eventManager;
+      if (updated) {
+        setEventManagers((prev) =>
+          prev.map((row) => (String(row.id) === String(updated.id) ? { ...row, ...updated } : row))
+        );
+      }
+      if (patch.password) {
+        setEventManagerPasswordEdits((prev) => {
+          const next = { ...prev };
+          delete next[id];
+          return next;
+        });
+      }
+      setEventManagersNotice("עודכן בהצלחה");
+    } catch (updateError) {
+      setEventManagersError(updateError.response?.data?.message || "עדכון מנהל אירוע נכשל");
+    }
+  };
+
   const updateLeadStatus = async (leadId, status) => {
     try {
       const response = await api.patch(`/admin/leads/${leadId}`, { status });
@@ -425,6 +515,7 @@ ${publicEventUrl}`
   useEffect(() => {
     loadClients();
     loadLeads();
+    loadEventManagers();
   }, []);
 
   useEffect(() => {
@@ -847,8 +938,7 @@ ${publicEventUrl}`
         <header className="us-admin-header">
           <h1>מרכז ניהול אירועים</h1>
           <p>
-            ניהול לקוחות, פרטי הזמנה וקישורים לדשבורד · חשבונות מנהל אירוע (EVENT_MANAGER) מוגדרים
-            בשרת בלבד ורק ע״י SYSTEM_ADMIN
+            ניהול לקוחות, פרטי הזמנה וקישורים לדשבורד · פתיחת חשבונות מנהל אירוע להתחברות ב־/manager
           </p>
         </header>
 
@@ -894,6 +984,159 @@ ${publicEventUrl}`
             </div>
           </section>
         ) : null}
+
+        <section className="us-admin-card" style={{ marginBottom: "1.25rem" }}>
+          <div className="us-admin-toolbar" style={{ marginBottom: "0.75rem" }}>
+            <h2 className="us-admin-card-title" style={{ margin: 0 }}>
+              מנהלי אירוע
+            </h2>
+            <button
+              className="us-admin-btn"
+              type="button"
+              onClick={loadEventManagers}
+              disabled={eventManagersLoading}
+            >
+              {eventManagersLoading ? "מרענן…" : "רענון"}
+            </button>
+          </div>
+          <div className="us-admin-card-body">
+            {eventManagersError ? (
+              <p className="us-admin-message us-admin-message--error">{eventManagersError}</p>
+            ) : null}
+            {eventManagersNotice ? <p className="us-admin-message">{eventManagersNotice}</p> : null}
+            {eventManagersEnv?.configured ? (
+              <p className="us-admin-empty" style={{ marginBottom: "0.75rem" }}>
+                חשבון bootstrap מהשרת (env):{" "}
+                <strong dir="ltr">{eventManagersEnv.username}</strong>
+                {eventManagersEnv.displayName
+                  ? ` · ${eventManagersEnv.displayName}`
+                  : ""}{" "}
+                — הסיסמה נשמרת רק ב־EVENT_MANAGER_PASSWORD
+              </p>
+            ) : null}
+
+            <form
+              onSubmit={createEventManager}
+              className="us-admin-toolbar"
+              style={{ flexWrap: "wrap", gap: "0.5rem", marginBottom: "1rem", alignItems: "flex-end" }}
+            >
+              <label className="us-admin-field">
+                שם לתצוגה
+                <input
+                  className="us-admin-field-input"
+                  value={eventManagerForm.displayName}
+                  onChange={(e) =>
+                    setEventManagerForm((prev) => ({ ...prev, displayName: e.target.value }))
+                  }
+                  placeholder="הפקות אדיה"
+                />
+              </label>
+              <label className="us-admin-field">
+                שם משתמש
+                <input
+                  className="us-admin-field-input"
+                  dir="ltr"
+                  value={eventManagerForm.username}
+                  onChange={(e) =>
+                    setEventManagerForm((prev) => ({ ...prev, username: e.target.value }))
+                  }
+                  placeholder="manager2"
+                  required
+                  autoComplete="off"
+                />
+              </label>
+              <label className="us-admin-field">
+                סיסמה
+                <input
+                  className="us-admin-field-input"
+                  dir="ltr"
+                  type="text"
+                  value={eventManagerForm.password}
+                  onChange={(e) =>
+                    setEventManagerForm((prev) => ({ ...prev, password: e.target.value }))
+                  }
+                  placeholder="סיסמה להתחברות"
+                  required
+                  autoComplete="off"
+                />
+              </label>
+              <button
+                className="us-admin-btn us-admin-btn--primary"
+                type="submit"
+                disabled={eventManagerSaving}
+              >
+                {eventManagerSaving ? "יוצר…" : "פתיחת מנהל אירוע"}
+              </button>
+            </form>
+
+            {eventManagersLoading && !eventManagers.length ? (
+              <p className="us-admin-empty">טוען מנהלי אירוע…</p>
+            ) : null}
+            {!eventManagersLoading && !eventManagers.length ? (
+              <p className="us-admin-empty">אין עדיין מנהלי אירוע במערכת — אפשר לפתוח כאן</p>
+            ) : null}
+            {eventManagers.length ? (
+              <div className="us-admin-leads-list">
+                {eventManagers.map((manager) => (
+                  <article key={manager.id} className="us-admin-lead-card">
+                    <div className="us-admin-lead-head">
+                      <strong>{manager.displayName || manager.username}</strong>
+                      <span dir="ltr">{manager.username}</span>
+                    </div>
+                    <div className="us-admin-lead-meta">
+                      <span>סטטוס: {manager.active ? "פעיל" : "מושבת"}</span>
+                      <span dir="ltr">
+                        סיסמה נוכחית: {manager.loginPassword || "—"}
+                      </span>
+                    </div>
+                    <div className="us-admin-lead-actions" style={{ flexWrap: "wrap", gap: "0.5rem" }}>
+                      <label>
+                        סיסמה חדשה
+                        <input
+                          className="us-admin-field-input"
+                          dir="ltr"
+                          type="text"
+                          value={eventManagerPasswordEdits[manager.id] || ""}
+                          onChange={(e) =>
+                            setEventManagerPasswordEdits((prev) => ({
+                              ...prev,
+                              [manager.id]: e.target.value
+                            }))
+                          }
+                          placeholder="השאר ריק אם לא משנים"
+                          autoComplete="off"
+                        />
+                      </label>
+                      <button
+                        className="us-admin-btn us-admin-btn--xs"
+                        type="button"
+                        onClick={() => {
+                          const password = String(eventManagerPasswordEdits[manager.id] || "").trim();
+                          if (!password) {
+                            setEventManagersError("יש להזין סיסמה חדשה לפני שמירה");
+                            return;
+                          }
+                          updateEventManager(manager.id, { password });
+                        }}
+                      >
+                        עדכון סיסמה
+                      </button>
+                      <button
+                        className="us-admin-btn us-admin-btn--xs"
+                        type="button"
+                        onClick={() =>
+                          updateEventManager(manager.id, { active: !manager.active })
+                        }
+                      >
+                        {manager.active ? "השבתה" : "הפעלה"}
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        </section>
 
         <section className="us-admin-card" style={{ marginBottom: "1.25rem" }}>
           <div className="us-admin-toolbar" style={{ marginBottom: "0.75rem" }}>
@@ -950,11 +1193,25 @@ ${publicEventUrl}`
           <div className="us-admin-card">
             <h2 className="us-admin-card-title">לקוחות פעילים</h2>
             <div className="us-admin-card-body">
+              <label className="us-admin-client-search">
+                <span className="us-admin-sr-only">חיפוש לקוחות</span>
+                <input
+                  type="search"
+                  className="us-admin-field-input"
+                  placeholder="חיפוש מהיר: שם, תאריך, טלפון, משתמש…"
+                  value={clientSearch}
+                  onChange={(event) => setClientSearch(event.target.value)}
+                  aria-label="חיפוש לקוחות"
+                />
+              </label>
               {loadingClients ? <p className="us-admin-empty">טוען רשימה…</p> : null}
               {clientsError ? <p className="us-admin-message us-admin-message--error">{clientsError}</p> : null}
               {!loadingClients && !clients.length ? <p className="us-admin-empty">אין לקוחות להצגה</p> : null}
+              {!loadingClients && clients.length && !filteredClients.length ? (
+                <p className="us-admin-empty">לא נמצאו לקוחות התואמים לחיפוש</p>
+              ) : null}
               <div className="us-admin-client-list">
-                {clients.map((client) => (
+                {filteredClients.map((client) => (
                   <div
                     key={client.userId}
                     className={`us-admin-client-row ${String(selectedClientId) === String(client.userId) ? "is-active" : ""}`}

@@ -203,6 +203,27 @@
   overflow-y: auto;
 }
 
+.us-admin-client-search {
+  display: block;
+  margin-bottom: 0.75rem;
+}
+
+.us-admin-client-search .us-admin-field-input {
+  width: 100%;
+}
+
+.us-admin-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .us-admin-client-row {
   display: flex;
   align-items: stretch;

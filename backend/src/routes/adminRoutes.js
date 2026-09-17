@@ -6,6 +6,7 @@ import WhatsAppDeliveryLog from "../models/WhatsAppDeliveryLog.js";
 import { syncWhatsAppFailuresFromTwilio } from "../services/whatsappDeliveryLogService.js";
 import ActivationCode from "../models/ActivationCode.js";
 import Lead from "../models/Lead.js";
+import EventManager from "../models/EventManager.js";
 import { normalizePhone } from "../utils/guestPhone.js";
 import {
   applyCoverToEventPayload,
@@ -16,6 +17,7 @@ import { coverUpload } from "../middleware/coverUpload.js";
 import { isCoverStorageConfigured } from "../services/coverStorage.js";
 import {
   applyCouplePassword,
+  normalizeLoginPassword,
   normalizeLoginUsername
 } from "../utils/loginCredentials.js";
 import {
@@ -28,6 +30,7 @@ import {
   validateAdminCredentials,
   verifyAdminToken
 } from "../middleware/adminAuth.js";
+import { serializeEventManagerAccount } from "../middleware/eventManagerAuth.js";
 import {
   getAdminWelcomeDisplayName,
   sendLoginCredentialsQuickReply
@@ -780,6 +783,136 @@ router.delete("/clients/:userId/event/cover", async (req, res) => {
     return res.json({ message: "תמונת הקאבר הוסרה", event: user.event });
   } catch (error) {
     return res.status(error.status || 400).json({ message: error.message || "מחיקת התמונה נכשלה" });
+  }
+});
+
+router.get("/event-managers", async (_req, res) => {
+  try {
+    const accounts = await EventManager.find().sort({ createdAt: -1 }).exec();
+    const envUsername = String(process.env.EVENT_MANAGER_USERNAME || "").trim();
+    return res.json({
+      eventManagers: accounts.map((doc) =>
+        serializeEventManagerAccount(doc, { includePassword: true })
+      ),
+      envBootstrap: envUsername
+        ? {
+            configured: true,
+            username: envUsername,
+            displayName: String(
+              process.env.EVENT_MANAGER_DISPLAY_NAME || envUsername
+            ).trim()
+          }
+        : { configured: false }
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Failed to load event managers",
+      error: error.message
+    });
+  }
+});
+
+router.post("/event-managers", async (req, res) => {
+  try {
+    const username = normalizeLoginUsername(req.body?.username);
+    const password = normalizeLoginPassword(req.body?.password);
+    const displayName = String(req.body?.displayName || "").trim();
+
+    if (!username || !password) {
+      return res.status(400).json({ message: "יש למלא שם משתמש וסיסמה" });
+    }
+
+    const existing = await EventManager.findOne({ username }).select("_id").exec();
+    if (existing) {
+      return res.status(409).json({ message: "שם משתמש כבר קיים" });
+    }
+
+    const envUsername = String(process.env.EVENT_MANAGER_USERNAME || "").trim();
+    if (envUsername && username === envUsername) {
+      return res.status(409).json({
+        message: "שם המשתמש תפוס ע״י חשבון ה־env (EVENT_MANAGER_USERNAME)"
+      });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const account = await EventManager.create({
+      username,
+      passwordHash,
+      loginPassword: password,
+      displayName: displayName || username,
+      active: true
+    });
+
+    return res.status(201).json({
+      eventManager: serializeEventManagerAccount(account, { includePassword: true })
+    });
+  } catch (error) {
+    if (error?.code === 11000) {
+      return res.status(409).json({ message: "שם משתמש כבר קיים" });
+    }
+    return res.status(500).json({
+      message: "Failed to create event manager",
+      error: error.message
+    });
+  }
+});
+
+router.patch("/event-managers/:id", async (req, res) => {
+  try {
+    const account = await EventManager.findById(req.params.id).exec();
+    if (!account) {
+      return res.status(404).json({ message: "מנהל אירוע לא נמצא" });
+    }
+
+    if (req.body?.displayName != null) {
+      const displayName = String(req.body.displayName || "").trim();
+      account.displayName = displayName || account.username;
+    }
+
+    if (req.body?.active != null) {
+      account.active = Boolean(req.body.active);
+    }
+
+    if (req.body?.password != null && String(req.body.password).length > 0) {
+      const password = normalizeLoginPassword(req.body.password);
+      if (!password) {
+        return res.status(400).json({ message: "סיסמה אינה תקינה" });
+      }
+      account.passwordHash = await bcrypt.hash(password, 10);
+      account.loginPassword = password;
+    }
+
+    if (req.body?.username != null) {
+      const nextUsername = normalizeLoginUsername(req.body.username);
+      if (nextUsername && nextUsername !== account.username) {
+        const existing = await EventManager.findOne({ username: nextUsername })
+          .select("_id")
+          .exec();
+        if (existing) {
+          return res.status(409).json({ message: "שם משתמש כבר קיים" });
+        }
+        const envUsername = String(process.env.EVENT_MANAGER_USERNAME || "").trim();
+        if (envUsername && nextUsername === envUsername) {
+          return res.status(409).json({
+            message: "שם המשתמש תפוס ע״י חשבון ה־env (EVENT_MANAGER_USERNAME)"
+          });
+        }
+        account.username = nextUsername;
+      }
+    }
+
+    await account.save();
+    return res.json({
+      eventManager: serializeEventManagerAccount(account, { includePassword: true })
+    });
+  } catch (error) {
+    if (error?.code === 11000) {
+      return res.status(409).json({ message: "שם משתמש כבר קיים" });
+    }
+    return res.status(500).json({
+      message: "Failed to update event manager",
+      error: error.message
+    });
   }
 });
 

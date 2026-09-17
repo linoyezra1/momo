@@ -186,6 +186,8 @@ const userSchema = new mongoose.Schema(
       default: "admin",
       index: true
     },
+    /** When managedBy=eventManager: owning EventManager account id (empty = legacy/env manager). */
+    managedByEventManagerId: { type: String, default: "", index: true, trim: true },
     /** Env agent id from AGENTS_JSON (or "default" for legacy AGENT_USERNAME) */
     createdByAgentId: { type: String, trim: true, default: "", index: true }
   },

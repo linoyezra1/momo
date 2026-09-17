@@ -30,21 +30,48 @@ import {
 
 const router = express.Router();
 
-router.post("/login", (req, res) => {
+function eventManagerClientFilter(payload) {
+  const filter = { managedBy: "eventManager" };
+  const managerId = String(payload?.eventManagerId || "").trim();
+  if (managerId) {
+    filter.managedByEventManagerId = managerId;
+  } else {
+    filter.$or = [
+      { managedByEventManagerId: "" },
+      { managedByEventManagerId: { $exists: false } },
+      { managedByEventManagerId: null }
+    ];
+  }
+  return filter;
+}
+
+router.post("/login", async (req, res) => {
   const username = String(req.body?.username || "").trim();
   const password = String(req.body?.password || "");
 
-  const validation = validateEventManagerCredentials(username, password);
+  const validation = await validateEventManagerCredentials(username, password);
   if (validation.reason === "not_configured") {
     return res.status(503).json({ message: "התחברות מנהל אירועים לא מוגדרת בשרת" });
+  }
+  if (validation.reason === "inactive") {
+    return res.status(401).json({ message: "חשבון מנהל האירוע אינו פעיל" });
   }
   if (!validation.ok) {
     return res.status(401).json({ message: "שם משתמש או סיסמה שגויים" });
   }
 
   try {
-    const token = signEventManagerToken();
-    return res.json({ token });
+    const token = signEventManagerToken({
+      eventManagerId: validation.eventManagerId,
+      username: validation.username,
+      displayName: validation.displayName,
+      source: validation.source
+    });
+    return res.json({
+      token,
+      username: validation.username,
+      displayName: validation.displayName
+    });
   } catch (error) {
     return res.status(500).json({ message: error.message || "Failed to create event manager session" });
   }
@@ -53,10 +80,17 @@ router.post("/login", (req, res) => {
 router.get("/session", (req, res) => {
   const authHeader = String(req.headers.authorization || "");
   const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
-  if (!verifyEventManagerToken(token)) {
+  const payload = verifyEventManagerToken(token);
+  if (!payload) {
     return res.status(401).json({ authenticated: false });
   }
-  return res.json({ authenticated: true, role: "eventManager" });
+  return res.json({
+    authenticated: true,
+    role: "eventManager",
+    username: payload.username || "",
+    displayName: payload.displayName || payload.username || "",
+    eventManagerId: payload.eventManagerId || ""
+  });
 });
 
 router.use(requireEventManager);
@@ -71,8 +105,8 @@ function buildClientLinks(userId, req) {
 router.get("/clients", async (req, res) => {
   try {
     const users = await User.find(
-      { managedBy: "eventManager" },
-      "username event createdAt payment loginPassword managedBy contactPhone"
+      eventManagerClientFilter(req.eventManager),
+      "username event createdAt payment loginPassword managedBy managedByEventManagerId contactPhone"
     ).sort({
       createdAt: -1
     });
@@ -193,7 +227,8 @@ router.post("/create-client", async (req, res) => {
       loginPassword: plainPassword,
       contactPhone: phone,
       event: normalizedEvent,
-      managedBy: "eventManager"
+      managedBy: "eventManager",
+      managedByEventManagerId: String(req.eventManager?.eventManagerId || "").trim()
     });
 
     const links = buildClientLinks(user._id, req);
@@ -236,7 +271,10 @@ router.patch("/clients/:userId", async (req, res) => {
     const { userId } = req.params;
     const { username, password, event, contactPhone } = req.body;
 
-    const user = await User.findOne({ _id: userId, managedBy: "eventManager" });
+    const user = await User.findOne({
+      _id: userId,
+      ...eventManagerClientFilter(req.eventManager)
+    });
     if (!user) {
       return res.status(404).json({ message: "Client not found" });
     }
@@ -306,7 +344,10 @@ router.patch("/clients/:userId", async (req, res) => {
 router.delete("/clients/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
-    const user = await User.findOneAndDelete({ _id: userId, managedBy: "eventManager" });
+    const user = await User.findOneAndDelete({
+      _id: userId,
+      ...eventManagerClientFilter(req.eventManager)
+    });
     if (!user) {
       return res.status(404).json({ message: "Client not found" });
     }
@@ -324,7 +365,10 @@ router.post("/clients/:userId/event/cover", coverUpload.single("cover"), async (
           "אחסון תמונות לא מוגדר. יש להגדיר CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY ו-CLOUDINARY_API_SECRET"
       });
     }
-    const user = await User.findOne({ _id: req.params.userId, managedBy: "eventManager" });
+    const user = await User.findOne({
+      _id: req.params.userId,
+      ...eventManagerClientFilter(req.eventManager)
+    });
     if (!user) {
       return res.status(404).json({ message: "Client not found" });
     }
@@ -337,7 +381,10 @@ router.post("/clients/:userId/event/cover", coverUpload.single("cover"), async (
 
 router.delete("/clients/:userId/event/cover", async (req, res) => {
   try {
-    const user = await User.findOne({ _id: req.params.userId, managedBy: "eventManager" });
+    const user = await User.findOne({
+      _id: req.params.userId,
+      ...eventManagerClientFilter(req.eventManager)
+    });
     if (!user) {
       return res.status(404).json({ message: "Client not found" });
     }
