@@ -258,20 +258,29 @@ router.patch("/clients/:userId", async (req, res) => {
 
     const maxFromDeal = maxPhoneRoundsFromDealFeatures(deal.includedFeatures);
     deal.includedFeatures = applyPhoneRoundsToDealFeatures(maxFromDeal, deal.includedFeatures);
-    user.deal = deal;
-    user.set(
-      "event.isPremiumWhatsappButtonsEnabled",
-      Boolean(deal.includedFeatures.isPremiumWhatsappButtonsEnabled)
-    );
-    user.set(
-      "event.isPremiumWhatsappCardEnabled",
-      Boolean(deal.includedFeatures.isPremiumWhatsappCardEnabled)
-    );
-    user.set(
-      "event.whatsappInviteTemplate",
-      deal.includedFeatures.whatsappInviteTemplate || "standard"
-    );
-    user.set("event.maxPhoneRounds", maxFromDeal);
+    const inviteTemplate =
+      deal.includedFeatures.whatsappInviteTemplate ||
+      (deal.includedFeatures.isPremiumWhatsappCardEnabled
+        ? "card_direct_rsvp_buttons"
+        : deal.includedFeatures.isPremiumWhatsappButtonsEnabled
+          ? "buttons_qr"
+          : "standard");
+    deal.includedFeatures.whatsappInviteTemplate = inviteTemplate;
+
+    user.set("deal", deal);
+    user.markModified("deal");
+    user.markModified("deal.includedFeatures");
+
+    const previousEvent = user.event?.toObject ? user.event.toObject() : { ...(user.event || {}) };
+    user.set("event", {
+      ...previousEvent,
+      whatsappInviteTemplate: inviteTemplate,
+      isPremiumWhatsappButtonsEnabled: Boolean(
+        deal.includedFeatures.isPremiumWhatsappButtonsEnabled
+      ),
+      isPremiumWhatsappCardEnabled: Boolean(deal.includedFeatures.isPremiumWhatsappCardEnabled),
+      maxPhoneRounds: maxFromDeal
+    });
     user.markModified("event");
     user.payment = {
       amountPaid:

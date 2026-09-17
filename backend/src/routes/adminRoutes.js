@@ -88,21 +88,33 @@ function applyDealToUser(user, rawDeal) {
   const deal = normalizeDealPayload(rawDeal, user.deal || {}, { allowCouponCode: true });
   const maxFromDeal = maxPhoneRoundsFromDealFeatures(deal.includedFeatures);
   deal.includedFeatures = applyPhoneRoundsToDealFeatures(maxFromDeal, deal.includedFeatures);
-  user.deal = deal;
-  const premiumButtonsEnabled = Boolean(
-    deal.includedFeatures.isPremiumWhatsappButtonsEnabled
-  );
-  const premiumCardEnabled = Boolean(deal.includedFeatures.isPremiumWhatsappCardEnabled);
+
   const inviteTemplate = normalizeWhatsAppInviteTemplate(
     deal.includedFeatures.whatsappInviteTemplate,
-    { cardEnabled: premiumCardEnabled, buttonsEnabled: premiumButtonsEnabled }
+    {
+      cardEnabled: deal.includedFeatures.isPremiumWhatsappCardEnabled === true,
+      buttonsEnabled: deal.includedFeatures.isPremiumWhatsappButtonsEnabled === true
+    }
   );
   const legacyFlags = deriveLegacyWhatsAppFlags(inviteTemplate);
-  user.set("event.whatsappInviteTemplate", legacyFlags.whatsappInviteTemplate);
-  user.set("event.isPremiumWhatsappButtonsEnabled", legacyFlags.isPremiumWhatsappButtonsEnabled);
-  user.set("event.isPremiumWhatsappCardEnabled", legacyFlags.isPremiumWhatsappCardEnabled);
-  user.set("event.maxPhoneRounds", maxFromDeal);
+  deal.includedFeatures = {
+    ...deal.includedFeatures,
+    ...legacyFlags
+  };
+
+  // Replace nested deal/event wholesale + markModified so mongoose persists template enum.
+  user.set("deal", deal);
+  user.markModified("deal");
+  user.markModified("deal.includedFeatures");
+
+  const previousEvent = user.event?.toObject ? user.event.toObject() : { ...(user.event || {}) };
+  user.set("event", {
+    ...previousEvent,
+    ...legacyFlags,
+    maxPhoneRounds: maxFromDeal
+  });
   user.markModified("event");
+
   user.payment = {
     amountPaid:
       deal.packagePrice != null && deal.packagePrice !== ""
@@ -341,12 +353,23 @@ router.patch("/clients/:userId/deal", async (req, res) => {
     const deal = applyDealToUser(user, req.body?.deal || req.body || {});
     await user.save();
 
+    // Re-read so response matches what mongoose actually persisted.
+    const fresh = await User.findById(userId).select("event deal payment");
+    const payment = normalizePaymentPayload(fresh?.payment || user.payment || {});
+    const savedDeal = serializeDeal(fresh?.deal || deal, payment, { allowCouponCode: true });
+
+    console.log(
+      `[Admin][deal-save] userId=${userId} ` +
+        `savedDealTemplate=${savedDeal?.includedFeatures?.whatsappInviteTemplate} ` +
+        `savedEventTemplate=${fresh?.event?.whatsappInviteTemplate}`
+    );
+
     return res.json({
       message: "פרטי העסקה נשמרו",
       userId: user._id,
-      deal,
-      payment: user.payment,
-      event: user.event
+      deal: savedDeal,
+      payment,
+      event: fresh?.event || user.event
     });
   } catch (error) {
     return res.status(500).json({ message: error.message || "Failed to update deal" });

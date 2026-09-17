@@ -75,16 +75,16 @@ function defaultDealDraft() {
 function dealDraftFromClient(client) {
   const deal = client?.deal || {};
   const features = { ...defaultDealDraft().includedFeatures, ...(deal.includedFeatures || {}) };
+  // Prefer deal template (what admin edits in this panel), then event.
   const templateId = resolveWhatsAppInviteTemplateFromFlags({
-    whatsappInviteTemplate:
-      client?.event?.whatsappInviteTemplate || features.whatsappInviteTemplate,
-    dealWhatsappInviteTemplate: features.whatsappInviteTemplate,
+    whatsappInviteTemplate: features.whatsappInviteTemplate,
+    dealWhatsappInviteTemplate: client?.event?.whatsappInviteTemplate,
     isPremiumWhatsappCardEnabled:
-      client?.event?.isPremiumWhatsappCardEnabled === true ||
-      features.isPremiumWhatsappCardEnabled === true,
+      features.isPremiumWhatsappCardEnabled === true ||
+      client?.event?.isPremiumWhatsappCardEnabled === true,
     isPremiumWhatsappButtonsEnabled:
-      client?.event?.isPremiumWhatsappButtonsEnabled === true ||
-      features.isPremiumWhatsappButtonsEnabled === true
+      features.isPremiumWhatsappButtonsEnabled === true ||
+      client?.event?.isPremiumWhatsappButtonsEnabled === true
   });
   Object.assign(features, deriveWhatsAppFlagsFromTemplate(templateId));
   const amount =
@@ -468,9 +468,15 @@ ${publicEventUrl}`
     setDealSaving(true);
     setError("");
     try {
+      const templateFlags = deriveWhatsAppFlagsFromTemplate(
+        dealDraft.includedFeatures?.whatsappInviteTemplate || "standard"
+      );
       const payload = {
         packageType: dealDraft.packageType || "custom",
-        includedFeatures: dealDraft.includedFeatures,
+        includedFeatures: {
+          ...dealDraft.includedFeatures,
+          ...templateFlags
+        },
         marketingSource: dealDraft.marketingSource.trim(),
         paymentAmount:
           dealDraft.paymentAmount === "" || dealDraft.paymentAmount == null
@@ -491,18 +497,29 @@ ${publicEventUrl}`
         agentNotes: dealDraft.agentNotes.trim()
       };
       const response = await api.patch(`/admin/clients/${selectedClientId}/deal`, payload);
-      await loadClients();
-      if (response.data?.deal) {
-        setDealDraft(
-          dealDraftFromClient({
-            deal: response.data.deal,
-            payment: response.data.payment,
-            event: response.data.event
-          })
-        );
-      }
+      const savedClientPatch = {
+        deal: response.data?.deal,
+        payment: response.data?.payment,
+        event: response.data?.event
+      };
+      // Update local clients list immediately so refresh/useEffect keep the saved template.
+      setClients((prev) =>
+        prev.map((client) =>
+          String(client.userId) === String(selectedClientId)
+            ? {
+                ...client,
+                deal: savedClientPatch.deal || client.deal,
+                payment: savedClientPatch.payment || client.payment,
+                event: savedClientPatch.event || client.event
+              }
+            : client
+        )
+      );
+      setDealDraft(dealDraftFromClient({ ...selectedClient, ...savedClientPatch }));
       setDealSaved(true);
       window.setTimeout(() => setDealSaved(false), 2000);
+      // Refresh list in background (don't let it wipe draft before patch is applied).
+      loadClients();
     } catch (dealErr) {
       setError(dealErr.response?.data?.message || "שמירת פרטי העסקה נכשלה");
     } finally {

@@ -126,10 +126,19 @@ export function normalizeDealPayload(rawDeal = {}, existingDeal = {}, options = 
 
   const incomingTemplate =
     incomingFeatures.whatsappInviteTemplate ?? rawDeal?.whatsappInviteTemplate;
-  const normalizedTemplate = normalizeWhatsAppInviteTemplate(incomingTemplate, {
-    cardEnabled: includedFeatures.isPremiumWhatsappCardEnabled === true,
-    buttonsEnabled: includedFeatures.isPremiumWhatsappButtonsEnabled === true
-  });
+  // Prefer an explicit non-standard template from the request BEFORE merging booleans
+  // that might still reflect a previous selection in `existing`.
+  const incomingBooleans = {
+    cardEnabled:
+      typeof incomingFeatures.isPremiumWhatsappCardEnabled === "boolean"
+        ? incomingFeatures.isPremiumWhatsappCardEnabled
+        : includedFeatures.isPremiumWhatsappCardEnabled === true,
+    buttonsEnabled:
+      typeof incomingFeatures.isPremiumWhatsappButtonsEnabled === "boolean"
+        ? incomingFeatures.isPremiumWhatsappButtonsEnabled
+        : includedFeatures.isPremiumWhatsappButtonsEnabled === true
+  };
+  const normalizedTemplate = normalizeWhatsAppInviteTemplate(incomingTemplate, incomingBooleans);
   const legacyFlags = deriveLegacyWhatsAppFlags(normalizedTemplate);
   includedFeatures.whatsappInviteTemplate = legacyFlags.whatsappInviteTemplate;
   includedFeatures.isPremiumWhatsappButtonsEnabled = legacyFlags.isPremiumWhatsappButtonsEnabled;
