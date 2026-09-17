@@ -51,16 +51,16 @@ export const WHATSAPP_INVITE_TEMPLATE_OPTIONS = [
   {
     id: "card_buttons_special_requests",
     label: "תבנית תמונה ומלל + כפתורים + קישור לאלרגיות והסעות",
-    badge: "כרטיס + אלרגיות/הסעות + Waze",
+    badge: "כרטיס + קישור אלרגיות/הסעות",
     adminHint:
-      "כרטיס עם תמונה, כפתורי מענה, קישור לעמוד אלרגיות/הסעות וכפתור ניווט Waze. דורשת תמונת כיסוי."
+      "כרטיס עם תמונה, 3 כפתורי RSVP, וקישור להזמנה הדיגיטלית (אלרגיות/הסעות). בלי Waze. דורשת תמונת כיסוי."
   },
   {
     id: "michl_card_buttons",
     label: "מיכל - תבנית ספיישל עם כפתורים",
     badge: "כרטיס מיכל + Waze",
     adminHint:
-      "תבנית מיכל — כרטיס מעוצב, כפתורי RSVP וכפתור ניווט Waze. דורשת תמונת כיסוי וכתובת/מתחם."
+      "תבנית מותאמת למיכל — כרטיס, כפתורי RSVP (כן/לא) וכפתור ניווט Waze. דורשת תמונת כיסוי וכתובת/מתחם."
   }
 ];
 
@@ -75,10 +75,10 @@ export const CARD_BUTTONS_CONTENT_SID_DEFAULT = "HX2bc50f016c421b1ad7f331307cf19
 /** Card image + single URL CTA: card_view_invite_button */
 export const CARD_VIEW_INVITE_BUTTON_CONTENT_SID_DEFAULT =
   "HX7b6233fe6eeb1da0abb624d7a7a6d05c";
-/** Card + RSVP buttons + allergies/rides link + Waze: card_buttons_special_requests */
+/** Card + RSVP QR + invite link (allergies/rides) — no Waze: card_buttons_special_requests */
 export const CARD_BUTTONS_SPECIAL_REQUESTS_CONTENT_SID_DEFAULT =
   "HX7e74b8c361f4ada06b3211ab5868b2db";
-/** Michl designed card + buttons: michl_card_buttons */
+/** Michl card + RSVP QR + Waze URL button: michl_card_buttons */
 export const MICHL_CARD_BUTTONS_CONTENT_SID_DEFAULT = "HX045cca6026c633c1127a8cda0c9d55f8";
 
 /**
@@ -132,22 +132,22 @@ const TEMPLATE_FIELD_KEYS = {
     mediaPath: "6"
   },
   /**
-   * Card + QR buttons + URL for allergies/rides + Waze navigation.
-   * {{1}} name · {{2}} opening · {{3}} details · {{4}} special-requests link ·
-   * {{5}} Waze query · {{6}} media
-   * (Waze button shape may differ — confirm against Twilio Content when available.)
+   * card_buttons_special_requests (approved) — NO Waze button.
+   * Body: name {{1}} · opening {{2}} · details {{3}} · invite link {{4}} · closing {{5}}
+   * Media {{6}} · QR: yes / maybe / no
+   * Body copy points {{4}} at allergies/rides + digital invite.
    */
   card_buttons_special_requests: {
     guestName: "1",
     customOpeningText: "2",
     eventDateTimeLocation: "3",
-    specialRequestsLink: "4",
-    wazeQuery: "5",
+    rsvpLink: "4",
+    closingSignOff: "5",
     mediaPath: "6"
   },
   /**
-   * michl_card_buttons (approved):
-   * Body {{1}}–{{4}} · Media header {{5}} · Visit Website Waze: https://waze.com/ul?q={{6}}
+   * michl_card_buttons (approved) — HAS Waze Visit Website button.
+   * Body {{1}}–{{4}} · Media {{5}} · Waze URL https://waze.com/ul?q={{6}}
    * QR: rsvp_yes / rsvp_no
    */
   michl_card_buttons: {
