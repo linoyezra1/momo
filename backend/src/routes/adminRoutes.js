@@ -49,7 +49,7 @@ import {
   normalizePaymentPayload,
   validateEvent
 } from "../utils/eventPayload.js";
-import { deriveLegacyWhatsAppFlags } from "../utils/whatsappInviteTemplates.js";
+import { deriveLegacyWhatsAppFlags, normalizeWhatsAppInviteTemplate } from "../utils/whatsappInviteTemplates.js";
 
 const router = express.Router();
 
