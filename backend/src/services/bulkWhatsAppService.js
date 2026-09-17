@@ -16,6 +16,8 @@ import {
   toTwilioWhatsAppAddress
 } from "../utils/twilioWhatsApp.js";
 import {
+  buildWazeNavigationLink,
+  buildWazeQueryVariable,
   getTemplateFieldKeyMap,
   resolveInviteTemplateRouting
 } from "../utils/whatsappInviteTemplates.js";
@@ -272,6 +274,22 @@ async function sendToInvitee({
 
     const mediaFieldKey = fieldKeyMap?.mediaPath;
     const needsMedia = Boolean(mediaFieldKey && templateKeys.includes(String(mediaFieldKey)));
+    const needsSpecialRequests = Boolean(fieldKeyMap?.specialRequestsLink);
+    const needsWazeLink = Boolean(fieldKeyMap?.wazeLink);
+    const needsWazeQuery = Boolean(fieldKeyMap?.wazeQuery);
+    const specialRequestsLink = needsSpecialRequests ? fields.rsvpLink : undefined;
+    const wazeLink = needsWazeLink ? buildWazeNavigationLink(event) : undefined;
+    const wazeQuery = needsWazeQuery ? buildWazeQueryVariable(event) : undefined;
+
+    if (needsSpecialRequests && !specialRequestsLink) {
+      throw new Error("קישור לאלרגיות/הסעות חסר (עמוד ההזמנה)");
+    }
+    if (needsWazeLink && !wazeLink) {
+      throw new Error("לא ניתן לבנות קישור Waze — חסר כתובת/מיקום לאירוע");
+    }
+    if (needsWazeQuery && !wazeQuery) {
+      throw new Error("לא ניתן לבנות ניווט Waze — חסר שם מתחם/כתובת לאירוע");
+    }
 
     const contentVariables = buildTwilioContentVariables(
       {
@@ -280,7 +298,10 @@ async function sendToInvitee({
         eventDateTimeLocation: fields.eventDateTimeLocation,
         rsvpLink: fields.rsvpLink,
         closingSignOff: fields.closingSignOff,
-        mediaPath: needsMedia ? resolveEventCoverMediaPath(event) : undefined
+        mediaPath: needsMedia ? resolveEventCoverMediaPath(event) : undefined,
+        specialRequestsLink,
+        wazeLink,
+        wazeQuery
       },
       templateKeys,
       fieldKeyMap

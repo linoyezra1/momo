@@ -21,7 +21,9 @@ export function isWhatsAppButtonsMode(event = {}) {
     template === "buttons_qr" ||
     template === "card_direct_rsvp_buttons" ||
     template === "card_buttons" ||
-    template === "card_view_invite_button"
+    template === "card_view_invite_button" ||
+    template === "card_buttons_special_requests" ||
+    template === "michl_card_buttons"
   ) {
     return true;
   }
@@ -40,7 +42,9 @@ export function isWhatsAppCardMode(event = {}) {
   if (
     template === "card_direct_rsvp_buttons" ||
     template === "card_buttons" ||
-    template === "card_view_invite_button"
+    template === "card_view_invite_button" ||
+    template === "card_buttons_special_requests" ||
+    template === "michl_card_buttons"
   ) {
     return true;
   }

@@ -8,10 +8,14 @@ export const WHATSAPP_INVITE_TEMPLATE_IDS = [
   "buttons_qr",
   "card_direct_rsvp_buttons",
   "card_buttons",
-  "card_view_invite_button"
+  "card_view_invite_button",
+  "card_buttons_special_requests",
+  "michl_card_buttons"
 ];
 
-/** @typedef {"standard"|"buttons_qr"|"card_direct_rsvp_buttons"|"card_buttons"|"card_view_invite_button"} WhatsAppInviteTemplateId */
+/**
+ * @typedef {"standard"|"buttons_qr"|"card_direct_rsvp_buttons"|"card_buttons"|"card_view_invite_button"|"card_buttons_special_requests"|"michl_card_buttons"} WhatsAppInviteTemplateId
+ */
 
 export const WHATSAPP_INVITE_TEMPLATE_OPTIONS = [
   {
@@ -43,6 +47,20 @@ export const WHATSAPP_INVITE_TEMPLATE_OPTIONS = [
     label: "כרטיס הפניה",
     badge: "כרטיס הפניה (כפתור קישור יחיד)",
     adminHint: "תמונה + מלל + כפתור URL יחיד לעמוד ההזמנה הדיגיטלית."
+  },
+  {
+    id: "card_buttons_special_requests",
+    label: "תבנית תמונה ומלל + כפתורים + קישור לאלרגיות והסעות",
+    badge: "כרטיס + אלרגיות/הסעות + Waze",
+    adminHint:
+      "כרטיס עם תמונה, כפתורי מענה, קישור לעמוד אלרגיות/הסעות וכפתור ניווט Waze. דורשת תמונת כיסוי."
+  },
+  {
+    id: "michl_card_buttons",
+    label: "מיכל - תבנית ספיישל עם כפתורים",
+    badge: "כרטיס מיכל + Waze",
+    adminHint:
+      "תבנית מיכל — כרטיס מעוצב, כפתורי RSVP וכפתור ניווט Waze. דורשת תמונת כיסוי וכתובת/מתחם."
   }
 ];
 
@@ -57,6 +75,11 @@ export const CARD_BUTTONS_CONTENT_SID_DEFAULT = "HX2bc50f016c421b1ad7f331307cf19
 /** Card image + single URL CTA: card_view_invite_button */
 export const CARD_VIEW_INVITE_BUTTON_CONTENT_SID_DEFAULT =
   "HX7b6233fe6eeb1da0abb624d7a7a6d05c";
+/** Card + RSVP buttons + allergies/rides link + Waze: card_buttons_special_requests */
+export const CARD_BUTTONS_SPECIAL_REQUESTS_CONTENT_SID_DEFAULT =
+  "HX7e74b8c361f4ada06b3211ab5868b2db";
+/** Michl designed card + buttons: michl_card_buttons */
+export const MICHL_CARD_BUTTONS_CONTENT_SID_DEFAULT = "HX045cca6026c633c1127a8cda0c9d55f8";
 
 /**
  * Semantic fields → Twilio Content variable keys per template.
@@ -107,6 +130,33 @@ const TEMPLATE_FIELD_KEYS = {
     rsvpLink: "4",
     closingSignOff: "5",
     mediaPath: "6"
+  },
+  /**
+   * Card + QR buttons + URL for allergies/rides + Waze navigation.
+   * {{1}} name · {{2}} opening · {{3}} details · {{4}} special-requests link ·
+   * {{5}} Waze query · {{6}} media
+   * (Waze button shape may differ — confirm against Twilio Content when available.)
+   */
+  card_buttons_special_requests: {
+    guestName: "1",
+    customOpeningText: "2",
+    eventDateTimeLocation: "3",
+    specialRequestsLink: "4",
+    wazeQuery: "5",
+    mediaPath: "6"
+  },
+  /**
+   * michl_card_buttons (approved):
+   * Body {{1}}–{{4}} · Media header {{5}} · Visit Website Waze: https://waze.com/ul?q={{6}}
+   * QR: rsvp_yes / rsvp_no
+   */
+  michl_card_buttons: {
+    guestName: "1",
+    customOpeningText: "2",
+    eventDateTimeLocation: "3",
+    closingSignOff: "4",
+    mediaPath: "5",
+    wazeQuery: "6"
   }
 };
 
@@ -175,7 +225,9 @@ export function isCardInviteTemplate(templateId) {
   return (
     templateId === "card_direct_rsvp_buttons" ||
     templateId === "card_buttons" ||
-    templateId === "card_view_invite_button"
+    templateId === "card_view_invite_button" ||
+    templateId === "card_buttons_special_requests" ||
+    templateId === "michl_card_buttons"
   );
 }
 
@@ -199,6 +251,38 @@ export function templateRequiresCoverMedia(templateId) {
 export function templateIncludesRsvpLink(templateId) {
   const map = getTemplateFieldKeyMap(templateId);
   return Boolean(map.rsvpLink);
+}
+
+export function templateIncludesSpecialRequestsLink(templateId) {
+  const map = getTemplateFieldKeyMap(templateId);
+  return Boolean(map.specialRequestsLink);
+}
+
+export function templateIncludesWazeLink(templateId) {
+  const map = getTemplateFieldKeyMap(templateId);
+  return Boolean(map.wazeLink || map.wazeQuery);
+}
+
+/**
+ * Venue address text used as Waze `q=` variable.
+ * Template button URL is fixed as: https://waze.com/ul?q={{N}}
+ * — send ONLY the search query here, never the full https://waze.com URL.
+ */
+export function buildWazeQueryVariable(event = {}) {
+  const locationAddress = String(event?.locationAddress || "").trim();
+  const street = String(event?.streetAndNumber || "").trim();
+  const city = String(event?.city || "").trim();
+  const venue = String(event?.venueName || "").trim();
+  return locationAddress || [venue, street, city].filter(Boolean).join(" ").trim();
+}
+
+/**
+ * Full Waze deep-link (legacy / templates that expect a complete URL in a body variable).
+ */
+export function buildWazeNavigationLink(event = {}) {
+  const query = buildWazeQueryVariable(event);
+  if (!query) return "";
+  return `https://waze.com/ul?q=${encodeURIComponent(query)}&navigate=yes`;
 }
 
 /**
@@ -268,6 +352,34 @@ export function resolveInviteTemplateRouting(event = {}) {
       requiresCoverMedia,
       includesRsvpLink,
       premiumButtonsEnabled: false,
+      premiumCardEnabled: true
+    };
+  }
+
+  if (templateId === "card_buttons_special_requests") {
+    const fromEnv = readEnvSid("TWILIO_CARD_BUTTONS_SPECIAL_REQUESTS_CONTENT_SID");
+    return {
+      templateId,
+      contentSid: fromEnv?.contentSid || CARD_BUTTONS_SPECIAL_REQUESTS_CONTENT_SID_DEFAULT,
+      sidSource: fromEnv?.sidSource || "default:CARD_BUTTONS_SPECIAL_REQUESTS_CONTENT_SID_DEFAULT",
+      templateKeys,
+      requiresCoverMedia,
+      includesRsvpLink,
+      premiumButtonsEnabled: true,
+      premiumCardEnabled: true
+    };
+  }
+
+  if (templateId === "michl_card_buttons") {
+    const fromEnv = readEnvSid("TWILIO_MICHL_CARD_BUTTONS_CONTENT_SID");
+    return {
+      templateId,
+      contentSid: fromEnv?.contentSid || MICHL_CARD_BUTTONS_CONTENT_SID_DEFAULT,
+      sidSource: fromEnv?.sidSource || "default:MICHL_CARD_BUTTONS_CONTENT_SID_DEFAULT",
+      templateKeys,
+      requiresCoverMedia,
+      includesRsvpLink,
+      premiumButtonsEnabled: true,
       premiumCardEnabled: true
     };
   }

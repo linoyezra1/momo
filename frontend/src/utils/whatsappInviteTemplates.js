@@ -30,8 +30,30 @@ export const WHATSAPP_INVITE_TEMPLATE_OPTIONS = [
     label: "כרטיס הפניה",
     badge: "כרטיס הפניה (כפתור קישור יחיד)",
     adminHint: "תמונה + מלל + כפתור URL יחיד לעמוד ההזמנה. דורשת תמונת כיסוי."
+  },
+  {
+    id: "card_buttons_special_requests",
+    label: "תבנית תמונה ומלל + כפתורים + קישור לאלרגיות והסעות",
+    badge: "כרטיס + אלרגיות/הסעות + Waze",
+    adminHint:
+      "כרטיס עם תמונה, כפתורי מענה, קישור לאלרגיות/הסעות וכפתור Waze. דורשת תמונת כיסוי."
+  },
+  {
+    id: "michl_card_buttons",
+    label: "מיכל - תבנית ספיישל עם כפתורים",
+    badge: "כרטיס מיכל + Waze",
+    adminHint:
+      "תבנית מיכל — כרטיס מעוצב, כפתורי RSVP וכפתור ניווט Waze. דורשת תמונת כיסוי וכתובת/מתחם."
   }
 ];
+
+const CARD_TEMPLATE_IDS = new Set([
+  "card_direct_rsvp_buttons",
+  "card_buttons",
+  "card_view_invite_button",
+  "card_buttons_special_requests",
+  "michl_card_buttons"
+]);
 
 export function resolveWhatsAppInviteTemplateFromFlags({
   whatsappInviteTemplate,
@@ -60,10 +82,7 @@ export function deriveWhatsAppFlagsFromTemplate(templateId) {
   const id = WHATSAPP_INVITE_TEMPLATE_OPTIONS.some((option) => option.id === templateId)
     ? templateId
     : "standard";
-  const isCard =
-    id === "card_direct_rsvp_buttons" ||
-    id === "card_buttons" ||
-    id === "card_view_invite_button";
+  const isCard = CARD_TEMPLATE_IDS.has(id);
   return {
     whatsappInviteTemplate: id,
     isPremiumWhatsappButtonsEnabled: id === "buttons_qr" || isCard,

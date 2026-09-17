@@ -33,7 +33,7 @@ const eventSchema = new mongoose.Schema(
     isPremiumWhatsappCardEnabled: { type: Boolean, default: false },
     /**
      * Active WhatsApp invite Content template for this event.
-     * standard | buttons_qr | card_direct_rsvp_buttons | card_buttons | card_view_invite_button
+     * standard | buttons_qr | card_* | michl_card_buttons
      */
     whatsappInviteTemplate: {
       type: String,
@@ -42,7 +42,9 @@ const eventSchema = new mongoose.Schema(
         "buttons_qr",
         "card_direct_rsvp_buttons",
         "card_buttons",
-        "card_view_invite_button"
+        "card_view_invite_button",
+        "card_buttons_special_requests",
+        "michl_card_buttons"
       ],
       default: "standard"
     },
@@ -94,7 +96,9 @@ const includedFeaturesSchema = new mongoose.Schema(
         "buttons_qr",
         "card_direct_rsvp_buttons",
         "card_buttons",
-        "card_view_invite_button"
+        "card_view_invite_button",
+        "card_buttons_special_requests",
+        "michl_card_buttons"
       ],
       default: "standard"
     },

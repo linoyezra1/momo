@@ -14,6 +14,8 @@ import {
   toTwilioWhatsAppAddress
 } from "../utils/twilioWhatsApp.js";
 import {
+  buildWazeNavigationLink,
+  buildWazeQueryVariable,
   getTemplateFieldKeyMap,
   resolveInviteTemplateRouting,
   resolveWhatsAppInviteTemplateId
@@ -124,6 +126,10 @@ function buildPremiumInviteVariables({ guest, event, userId, origin, templateId 
   });
   const fieldKeyMap = getTemplateFieldKeyMap(routing.templateId);
   const needsMedia = Boolean(fieldKeyMap.mediaPath);
+  const publicLink = buildPublicEventLink({ eventId: userId, origin }) || defaults.rsvpLink;
+  const specialRequestsLink = fieldKeyMap.specialRequestsLink ? publicLink : undefined;
+  const wazeLink = fieldKeyMap.wazeLink ? buildWazeNavigationLink(event) : undefined;
+  const wazeQuery = fieldKeyMap.wazeQuery ? buildWazeQueryVariable(event) : undefined;
 
   return buildTwilioContentVariables(
     {
@@ -132,9 +138,12 @@ function buildPremiumInviteVariables({ guest, event, userId, origin, templateId 
       eventDateTimeLocation: toTemplateEventDetailsVariable(
         paragraphs.eventDetailsParagraph || defaults.eventDetails
       ),
-      rsvpLink: buildPublicEventLink({ eventId: userId, origin }) || defaults.rsvpLink,
+      rsvpLink: publicLink,
       closingSignOff: paragraphs.closingParagraph || defaults.signature,
-      mediaPath: needsMedia ? resolveEventCoverMediaPath(event) : undefined
+      mediaPath: needsMedia ? resolveEventCoverMediaPath(event) : undefined,
+      specialRequestsLink,
+      wazeLink,
+      wazeQuery
     },
     routing.templateKeys,
     fieldKeyMap

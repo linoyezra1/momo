@@ -443,7 +443,10 @@ export function buildTwilioContentVariables(
     eventDateTimeLocation,
     rsvpLink,
     closingSignOff,
-    mediaPath
+    mediaPath,
+    specialRequestsLink,
+    wazeLink,
+    wazeQuery
   },
   templateKeys = ["1", "2", "3", "4", "5"],
   fieldKeyMap = null
@@ -461,7 +464,10 @@ export function buildTwilioContentVariables(
     eventDateTimeLocation,
     rsvpLink,
     closingSignOff,
-    mediaPath
+    mediaPath,
+    specialRequestsLink,
+    wazeLink,
+    wazeQuery
   };
 
   /** Default full mapping (legacy 1–6). */
