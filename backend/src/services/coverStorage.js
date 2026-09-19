@@ -103,13 +103,26 @@ export async function uploadCoverBuffer(buffer, { mimeType, folder = "momo/event
   }
 
   const options = {
-    folder,
     resource_type: "image",
     overwrite: true,
     invalidate: true,
     transformation: [{ width: 1600, crop: "limit", quality: "auto", fetch_format: "auto" }]
   };
-  if (publicId) options.public_id = publicId;
+
+  const trimmedPublicId = String(publicId || "").trim().replace(/^\/+/, "");
+  if (trimmedPublicId) {
+    // Cloudinary nests folder+public_id when public_id already includes the folder path.
+    if (folder && (trimmedPublicId === folder || trimmedPublicId.startsWith(`${folder}/`))) {
+      options.public_id = trimmedPublicId;
+    } else if (trimmedPublicId.includes("/")) {
+      options.public_id = trimmedPublicId;
+    } else {
+      options.folder = folder;
+      options.public_id = trimmedPublicId;
+    }
+  } else if (folder) {
+    options.folder = folder;
+  }
 
   const result = await new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(options, (err, uploaded) => {

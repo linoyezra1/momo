@@ -185,6 +185,14 @@ function extractContentVariableKeys(content) {
  * Twilio WhatsApp Card media variable: path after https://res.cloudinary.com/{cloud}/
  * Sample: image/upload/c_limit,f_auto,q_auto,w_960/v123/momo/event-covers/id.jpg
  */
+export function normalizeCloudinaryMediaPath(path) {
+  return String(path || "")
+    .trim()
+    .replace(/\\/g, "/")
+    .split("?")[0]
+    .trim();
+}
+
 export function toTwilioCloudinaryMediaPath(coverUrl, { format = "jpg" } = {}) {
   const raw = String(coverUrl || "").trim();
   if (!raw || raw.startsWith("data:")) return "";
@@ -196,7 +204,7 @@ export function toTwilioCloudinaryMediaPath(coverUrl, { format = "jpg" } = {}) {
     const pathMatch = parsed.pathname.match(/^\/[^/]+\/(.+)$/);
     if (!pathMatch) return "";
 
-    let path = pathMatch[1];
+    let path = normalizeCloudinaryMediaPath(pathMatch[1]);
     const lastSegment = path.split("/").pop() || "";
     if (!/\.(jpe?g|png|webp|gif)$/i.test(lastSegment)) {
       const ext = String(format || "jpg").replace(/^\./, "") || "jpg";
@@ -222,11 +230,7 @@ export function resolveEventCoverMediaPath(event) {
 }
 
 function sanitizeWhatsAppMediaPathVariable(value) {
-  return toContentVariableString(value)
-    .replace(/[\n\r\t]+/g, "")
-    .trim()
-    .split("?")[0]
-    .trim();
+  return normalizeCloudinaryMediaPath(toContentVariableString(value));
 }
 
 export async function fetchTwilioContentTemplate(contentSid) {

@@ -264,25 +264,28 @@ export function templateIncludesWazeLink(templateId) {
 }
 
 /**
- * Venue address text used as Waze `q=` variable.
+ * Venue address text for Waze `q=` URL-button variable.
  * Template button URL is fixed as: https://waze.com/ul?q={{N}}
- * — send ONLY the search query here, never the full https://waze.com URL.
+ * WhatsApp rejects URL buttons with whitespace (63013) — always encode the query.
  */
 export function buildWazeQueryVariable(event = {}) {
   const locationAddress = String(event?.locationAddress || "").trim();
   const street = String(event?.streetAndNumber || "").trim();
   const city = String(event?.city || "").trim();
   const venue = String(event?.venueName || "").trim();
-  return locationAddress || [venue, street, city].filter(Boolean).join(" ").trim();
+  const query = locationAddress || [venue, street, city].filter(Boolean).join(" ").trim();
+  if (!query) return "";
+  // encodeURIComponent → no spaces/Hebrew raw in the URL variable (Twilio 63013).
+  return encodeURIComponent(query);
 }
 
 /**
  * Full Waze deep-link (legacy / templates that expect a complete URL in a body variable).
  */
 export function buildWazeNavigationLink(event = {}) {
-  const query = buildWazeQueryVariable(event);
-  if (!query) return "";
-  return `https://waze.com/ul?q=${encodeURIComponent(query)}&navigate=yes`;
+  const encodedQuery = buildWazeQueryVariable(event);
+  if (!encodedQuery) return "";
+  return `https://waze.com/ul?q=${encodedQuery}&navigate=yes`;
 }
 
 /**
