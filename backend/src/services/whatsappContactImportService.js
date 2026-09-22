@@ -22,7 +22,6 @@ import {
   STATUS_HISTORY_SOURCES
 } from "../utils/guestStatusHistory.js";
 import {
-  getTwilioClient,
   sendTwilioWhatsAppMessage,
   toTwilioWhatsAppAddress
 } from "../utils/twilioWhatsApp.js";
@@ -30,6 +29,38 @@ import {
 const SUPPORT_PHONE =
   String(process.env.MOMOEVENT_SUPPORT_PHONE || "0585915109").trim() || "0585915109";
 
+function looksLikeVcard(text) {
+  return /BEGIN:VCARD/i.test(String(text || ""));
+}
+
+function looksLikeTwilioMediaXml(text) {
+  const raw = String(text || "").trim();
+  return (
+    raw.startsWith("<?xml") ||
+    raw.includes("<TwilioResponse>") ||
+    raw.includes("<Media>")
+  );
+}
+
+function basicAuthHeader(accountSid, authToken) {
+  return `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString("base64")}`;
+}
+
+function resolveRedirectUrl(baseUrl, location) {
+  const loc = String(location || "").trim();
+  if (!loc) return "";
+  try {
+    return new URL(loc, baseUrl).toString();
+  } catch {
+    return loc;
+  }
+}
+
+/**
+ * Twilio MediaUrl returns 307 → temporary S3 URL.
+ * Do NOT forward Authorization to S3 (causes XML/metadata or rejection).
+ * Flow: auth request with redirect:manual → GET Location without auth.
+ */
 async function downloadTwilioMediaAsText(mediaUrl) {
   const url = String(mediaUrl || "").trim();
   if (!url) {
@@ -42,32 +73,92 @@ async function downloadTwilioMediaAsText(mediaUrl) {
     throw new Error("twilio_credentials_missing");
   }
 
-  // Prefer Twilio SDK helper when available; fall back to authenticated fetch.
-  try {
-    const client = getTwilioClient();
-    if (typeof client?.request === "function") {
-      const response = await client.request({ method: "GET", uri: url });
-      const body = response?.body;
-      if (typeof body === "string") return body;
-      if (Buffer.isBuffer(body)) return body.toString("utf8");
+  const authHeader = basicAuthHeader(accountSid, authToken);
+  const acceptHeader = "text/vcard, text/x-vcard, text/directory, text/plain, */*";
+
+  const first = await fetch(url, {
+    method: "GET",
+    headers: {
+      Authorization: authHeader,
+      Accept: acceptHeader
+    },
+    redirect: "manual"
+  });
+
+  let binaryResponse = null;
+
+  if (first.status >= 300 && first.status < 400) {
+    const location = resolveRedirectUrl(url, first.headers.get("location"));
+    if (!location) {
+      throw new Error(`media_redirect_missing_location_${first.status}`);
     }
-  } catch (sdkError) {
+    console.log(
+      `[WhatsApp contacts] Twilio media redirect ${first.status} → ${location.slice(0, 80)}…`
+    );
+    binaryResponse = await fetch(location, {
+      method: "GET",
+      headers: { Accept: acceptHeader },
+      redirect: "follow"
+    });
+  } else if (first.ok) {
+    binaryResponse = first;
+  } else {
+    throw new Error(`media_download_failed_${first.status}`);
+  }
+
+  if (!binaryResponse.ok) {
+    throw new Error(`media_download_failed_${binaryResponse.status}`);
+  }
+
+  let text = await binaryResponse.text();
+
+  // If we still got API XML metadata, try the Uri from the payload (then redirect again).
+  if (looksLikeTwilioMediaXml(text) && !looksLikeVcard(text)) {
     console.warn(
-      "[WhatsApp contacts] Twilio SDK media download failed, falling back to fetch:",
-      sdkError?.message || sdkError
+      "[WhatsApp contacts] Received Twilio Media XML instead of vCard — retrying via Media Uri"
+    );
+    const uriMatch = text.match(/<Uri>([^<]+)<\/Uri>/i);
+    const mediaUri = String(uriMatch?.[1] || "").trim();
+    if (mediaUri) {
+      const retryUrl = mediaUri.startsWith("http")
+        ? mediaUri
+        : `https://api.twilio.com${mediaUri.startsWith("/") ? "" : "/"}${mediaUri}`;
+      const retryFirst = await fetch(retryUrl, {
+        method: "GET",
+        headers: {
+          Authorization: authHeader,
+          Accept: acceptHeader
+        },
+        redirect: "manual"
+      });
+      if (retryFirst.status >= 300 && retryFirst.status < 400) {
+        const location = resolveRedirectUrl(retryUrl, retryFirst.headers.get("location"));
+        if (!location) {
+          throw new Error("media_retry_redirect_missing_location");
+        }
+        const retryBinary = await fetch(location, {
+          method: "GET",
+          headers: { Accept: acceptHeader },
+          redirect: "follow"
+        });
+        if (!retryBinary.ok) {
+          throw new Error(`media_retry_download_failed_${retryBinary.status}`);
+        }
+        text = await retryBinary.text();
+      } else if (retryFirst.ok) {
+        text = await retryFirst.text();
+      }
+    }
+  }
+
+  if (!looksLikeVcard(text)) {
+    const preview = String(text || "").replace(/\s+/g, " ").slice(0, 160);
+    throw new Error(
+      `media_not_vcard: expected BEGIN:VCARD, got: ${preview || "(empty)"}`
     );
   }
 
-  const auth = Buffer.from(`${accountSid}:${authToken}`).toString("base64");
-  const response = await fetch(url, {
-    method: "GET",
-    headers: { Authorization: `Basic ${auth}` },
-    redirect: "follow"
-  });
-  if (!response.ok) {
-    throw new Error(`media_download_failed_${response.status}`);
-  }
-  return response.text();
+  return text;
 }
 
 async function sendReply({ toPhone, body, userId }) {
