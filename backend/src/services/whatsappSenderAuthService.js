@@ -20,19 +20,23 @@ export const MSG_WELCOME =
   "לאיזה חשבון לרשום את המוזמנים?\n" +
   "אנא השב/י עם מספר הטלפון של הכלה/החתן/בעלי האירוע.";
 
-export const MSG_NOT_FOUND =
-  "לא מצאנו אירוע שמשויך למספר הזה 🧐 אנא בדוק/י ושלח/י שוב את מספר הטלפון של בעלי האירוע.";
+function buildNotFoundMessage(phone) {
+  const shown = String(phone || "").trim() || "שנשלח";
+  return (
+    `לא מצאנו אירוע המשויך למספר שהזנת (${shown}). אנא נסה/י שוב עם המספר המדויק.`
+  );
+}
 
 function buildSuccessMessage(eventName) {
   return (
     `מעולה! החשבון זוהה בהצלחה עבור האירוע של ${eventName} 🎉\n` +
-    "מעכשיו אפשר פשוט לשתף לכאן אנשי קשר מהטלפון והם ייקלטו אוטומטית ברשימת המוזמנים!"
+    "מעכשיו ניתן לשתף לכאן אנשי קשר."
   );
 }
 
 const MSG_PENDING_NEED_PHONE =
-  "כדי לקלוט אנשי קשר, קודם צריך לקשר חשבון.\n" +
-  "אנא השב/י עם מספר הטלפון של הכלה/החתן/בעלי האירוע.";
+  "קיבלנו את ההודעה 🙂\n" +
+  "אנא שלח/י את מספר הטלפון המלא של הכלה/החתן/בעלי האירוע (לדוגמה: 05XXXXXXXX).";
 
 function eventDisplayLabel(event = {}) {
   if (isCoupleEventType(event.eventType)) {
@@ -54,8 +58,28 @@ function eventDisplayLabel(event = {}) {
   return String(event.eventNames || event.conferenceBrandName || event.eventType || "האירוע").trim();
 }
 
-function normalizeSenderPhone(fromOrPhone) {
-  return normalizePhone(String(fromOrPhone || "").replace(/^whatsapp:/i, ""));
+/** Canonical Israeli local form for storage + lookup (05XXXXXXXX). */
+export function normalizeSenderPhone(fromOrPhone) {
+  const raw = String(fromOrPhone || "")
+    .trim()
+    .replace(/^whatsapp:/i, "");
+  const normalized = normalizePhone(raw);
+  if (normalized) return normalized;
+
+  // Fallback: keep digits only so lookup still works across formats
+  const digits = raw.replace(/\D/g, "");
+  if (digits.startsWith("972") && digits.length >= 11) {
+    return `0${digits.slice(3)}`;
+  }
+  if (digits.startsWith("5") && digits.length === 9) {
+    return `0${digits}`;
+  }
+  return digits;
+}
+
+function senderPhoneLookupValues(senderPhone) {
+  const canonical = normalizeSenderPhone(senderPhone);
+  return [...new Set([canonical, ...phoneLookupVariants(canonical)].filter(Boolean))];
 }
 
 function isResetCommand(text) {
@@ -81,7 +105,6 @@ export function extractAccountPhoneCandidate(text) {
   const raw = String(text || "").trim();
   if (!raw) return "";
 
-  // Prefer digit/+ only so mixed Hebrew sentences still normalize to 05…
   const digitsHeavy = raw.replace(/[^\d+]/g, "");
   const direct = normalizePhone(digitsHeavy || raw);
   if (direct && (isValidIsraeliMobilePhone(direct) || hasUsablePhoneDigits(direct))) {
@@ -119,7 +142,7 @@ async function findUsersByContactPhone(accountPhone) {
   const candidates = await User.find({
     $or: [
       { contactPhone: { $in: variants } },
-      ...(national.length >= 9 ? [{ contactPhone: { $regex: `${national}$` } }] : [])
+      ...(national.length >= 8 ? [{ contactPhone: { $regex: `${national}$` } }] : [])
     ]
   })
     .select(
@@ -157,20 +180,53 @@ function pickBestUserForLink(users) {
   return users[0];
 }
 
+/**
+ * Find existing link across phone format variants; always persist canonical senderPhone.
+ */
+async function findSenderLink(senderPhone) {
+  const canonical = normalizeSenderPhone(senderPhone);
+  const variants = senderPhoneLookupValues(canonical);
+  const link = await WhatsAppSenderLink.findOne({
+    senderPhone: { $in: variants }
+  }).exec();
+
+  if (link && link.senderPhone !== canonical) {
+    link.senderPhone = canonical;
+    try {
+      await link.save();
+    } catch (error) {
+      // Unique race — keep existing doc
+      console.warn("[WhatsApp auth] Could not canonicalize senderPhone:", error?.message || error);
+    }
+  }
+  return link;
+}
+
 async function getOrCreateSenderLink(senderPhone) {
-  let link = await WhatsAppSenderLink.findOne({ senderPhone }).exec();
-  if (link) return { link, created: false };
-  link = await WhatsAppSenderLink.create({
-    senderPhone,
-    status: "pending_auth",
-    linkedUserId: null,
-    linkedEventId: null
-  });
-  return { link, created: true };
+  const canonical = normalizeSenderPhone(senderPhone);
+  let link = await findSenderLink(canonical);
+  if (link) return { link, created: false, canonical };
+
+  try {
+    link = await WhatsAppSenderLink.create({
+      senderPhone: canonical,
+      status: "pending_auth",
+      linkedUserId: null,
+      linkedEventId: null
+    });
+    return { link, created: true, canonical };
+  } catch (error) {
+    // Duplicate key from race / format mismatch — re-fetch
+    if (error?.code === 11000) {
+      link = await findSenderLink(canonical);
+      if (link) return { link, created: false, canonical };
+    }
+    throw error;
+  }
 }
 
 /**
- * Gate every inbound WhatsApp message through sender auth state.
+ * Gate inbound WhatsApp through sender auth state.
  * Returns { handled, link, allowContactImport }.
  */
 export async function handleWhatsAppSenderAuth(reqBody = {}) {
@@ -181,22 +237,21 @@ export async function handleWhatsAppSenderAuth(reqBody = {}) {
   const hasVcard = extractTwilioVcardMedia(reqBody).length > 0;
 
   if (!senderPhone) {
+    console.log("[Auth Debug] Sender: (empty) Found Link: null IncomingText:", bodyText);
     return { handled: false, reason: "invalid_sender", allowContactImport: false };
   }
 
-  let { link, created } = await getOrCreateSenderLink(senderPhone);
+  const { link, created, canonical } = await getOrCreateSenderLink(senderPhone);
 
-  // —— First contact / newly created ——
-  if (created || (!link.linkedUserId && link.status !== "pending_auth")) {
-    if (link.status !== "pending_auth") {
-      link.status = "pending_auth";
-      link.linkedUserId = null;
-      link.linkedEventId = null;
-      await link.save();
-    }
+  console.log(
+    `[Auth Debug] Sender: ${canonical} Found Link: ${link?.status || "null"} IncomingText: ${bodyText}`
+  );
+
+  // —— Brand new sender only ——
+  if (created) {
     await sendReply({ toPhone: inboundPhoneRaw, body: MSG_WELCOME });
     console.log(
-      `[WhatsApp auth] New sender ${senderPhone} → pending_auth (vcardIgnored=${hasVcard})`
+      `[WhatsApp auth] New sender ${canonical} → pending_auth (vcardIgnored=${hasVcard})`
     );
     return {
       handled: true,
@@ -206,14 +261,15 @@ export async function handleWhatsAppSenderAuth(reqBody = {}) {
     };
   }
 
-  // —— Reset command (active or pending) ——
+  // —— Reset command ——
   if (isResetCommand(bodyText)) {
     link.status = "pending_auth";
     link.linkedUserId = null;
     link.linkedEventId = null;
+    link.senderPhone = canonical;
     await link.save();
     await sendReply({ toPhone: inboundPhoneRaw, body: MSG_WELCOME });
-    console.log(`[WhatsApp auth] Sender ${senderPhone} reset → pending_auth`);
+    console.log(`[WhatsApp auth] Sender ${canonical} reset → pending_auth`);
     return {
       handled: true,
       reason: "reset",
@@ -222,14 +278,17 @@ export async function handleWhatsAppSenderAuth(reqBody = {}) {
     };
   }
 
-  // —— Pending: expect account phone ——
+  // —— Existing pending_auth: expect account phone (never re-send welcome) ——
   if (link.status === "pending_auth") {
     const accountPhone = extractAccountPhoneCandidate(bodyText);
+    console.log(
+      `[Auth Debug] pending_auth extract phone from "${bodyText}" → "${accountPhone || "(none)"}"`
+    );
+
     if (!accountPhone) {
-      // vCard or unrelated text while pending — don't import yet
       await sendReply({
         toPhone: inboundPhoneRaw,
-        body: hasVcard ? MSG_PENDING_NEED_PHONE : MSG_WELCOME
+        body: MSG_PENDING_NEED_PHONE
       });
       return {
         handled: true,
@@ -242,19 +301,23 @@ export async function handleWhatsAppSenderAuth(reqBody = {}) {
     const users = await findUsersByContactPhone(accountPhone);
     const user = pickBestUserForLink(users);
     if (!user) {
-      await sendReply({ toPhone: inboundPhoneRaw, body: MSG_NOT_FOUND });
+      await sendReply({
+        toPhone: inboundPhoneRaw,
+        body: buildNotFoundMessage(accountPhone)
+      });
       return {
         handled: true,
         reason: "account_not_found",
         allowContactImport: false,
-        link
+        link,
+        accountPhone
       };
     }
 
     link.status = "active";
     link.linkedUserId = user._id;
-    // Event is embedded on User — guests are keyed by userId.
     link.linkedEventId = user._id;
+    link.senderPhone = canonical;
     await link.save();
 
     const eventName = eventDisplayLabel(user.event || {});
@@ -264,7 +327,7 @@ export async function handleWhatsAppSenderAuth(reqBody = {}) {
       userId: user._id
     });
     console.log(
-      `[WhatsApp auth] Sender ${senderPhone} linked → user=${user._id} event=${user._id} (${eventName})`
+      `[WhatsApp auth] Sender ${canonical} linked → user=${user._id} (${eventName})`
     );
     return {
       handled: true,
@@ -277,6 +340,10 @@ export async function handleWhatsAppSenderAuth(reqBody = {}) {
 
   // —— Active ——
   if (link.status === "active" && link.linkedUserId) {
+    if (link.senderPhone !== canonical) {
+      link.senderPhone = canonical;
+      await link.save().catch(() => {});
+    }
     if (hasVcard) {
       return {
         handled: false,
@@ -285,7 +352,6 @@ export async function handleWhatsAppSenderAuth(reqBody = {}) {
         link
       };
     }
-    // Non-vCard traffic (credentials / RSVP) continues downstream
     return {
       handled: false,
       reason: "active_passthrough",
@@ -294,10 +360,11 @@ export async function handleWhatsAppSenderAuth(reqBody = {}) {
     };
   }
 
-  // Corrupt active without link ids → force re-auth
+  // Corrupt state → re-auth once
   link.status = "pending_auth";
   link.linkedUserId = null;
   link.linkedEventId = null;
+  link.senderPhone = canonical;
   await link.save();
   await sendReply({ toPhone: inboundPhoneRaw, body: MSG_WELCOME });
   return {
