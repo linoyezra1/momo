@@ -1,9 +1,11 @@
 import express from "express";
 import twilio from "twilio";
 import { handleGetAccessDetailsRequest } from "../services/whatsappAccessDetailsService.js";
+import { handleIncomingWhatsAppContactShare } from "../services/whatsappContactImportService.js";
 import { handleIncomingWhatsAppRsvp } from "../services/whatsappRsvpService.js";
 import { recordWhatsAppDeliveryFailure } from "../services/whatsappDeliveryLogService.js";
 import { getClientBaseUrl } from "../utils/clientUrl.js";
+import { extractTwilioVcardMedia } from "../utils/vcardParse.js";
 
 const router = express.Router();
 
@@ -57,22 +59,36 @@ async function processInboundWhatsApp(req) {
     origin: getClientBaseUrl(req)
   };
 
+  const vcardCount = extractTwilioVcardMedia(req.body).length;
   console.log(
-    `[Twilio WhatsApp] Inbound: ${req.body.MessageSid || "unknown"} from ${req.body.From || "unknown"} payload=${req.body.ButtonPayload || "-"} text=${req.body.ButtonText || req.body.Body || "-"}`
+    `[Twilio WhatsApp] Inbound: ${req.body.MessageSid || "unknown"} from ${req.body.From || "unknown"} ` +
+      `payload=${req.body.ButtonPayload || "-"} text=${req.body.ButtonText || req.body.Body || "-"} ` +
+      `numMedia=${req.body.NumMedia || 0} vcardMedia=${vcardCount}`
   );
 
+  // 1) Contact share (vCard) → add guest to couple's event
+  if (vcardCount > 0) {
+    const contactResult = await handleIncomingWhatsAppContactShare(req.body);
+    if (contactResult.handled) {
+      return contactResult;
+    }
+  }
+
+  // 2) Couple Quick Reply → session credentials (GET_CREDENTIALS)
   const accessResult = await handleGetAccessDetailsRequest(inbound);
   if (accessResult.handled) {
     return accessResult;
   }
 
+  // 3) Guest RSVP button / reply flow
   return handleIncomingWhatsAppRsvp(inbound);
 }
 
 /**
  * Inbound WhatsApp:
- * 1) Couple Quick Reply → session credentials (GET_CREDENTIALS)
- * 2) Guest RSVP button / reply flow
+ * 1) Contact vCard share → create guest
+ * 2) Couple Quick Reply → session credentials (GET_CREDENTIALS)
+ * 3) Guest RSVP button / reply flow
  *
  * Responds 200 immediately, then processes asynchronously.
  */

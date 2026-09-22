@@ -9,6 +9,8 @@
     "build:frontend": "npm --prefix frontend run build"
   },
   "dependencies": {
-    "twilio": "^6.0.2"
+    "axios": "^1.20.0",
+    "twilio": "^6.0.2",
+    "vcf": "^2.1.2"
   }
 }
