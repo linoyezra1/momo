@@ -2,6 +2,7 @@ import express from "express";
 import twilio from "twilio";
 import { handleGetAccessDetailsRequest } from "../services/whatsappAccessDetailsService.js";
 import { handleIncomingWhatsAppContactShare } from "../services/whatsappContactImportService.js";
+import { handleWhatsAppSenderAuth } from "../services/whatsappSenderAuthService.js";
 import { handleIncomingWhatsAppRsvp } from "../services/whatsappRsvpService.js";
 import { recordWhatsAppDeliveryFailure } from "../services/whatsappDeliveryLogService.js";
 import { getClientBaseUrl } from "../utils/clientUrl.js";
@@ -66,29 +67,38 @@ async function processInboundWhatsApp(req) {
       `numMedia=${req.body.NumMedia || 0} vcardMedia=${vcardCount}`
   );
 
-  // 1) Contact share (vCard) → add guest to couple's event
-  if (vcardCount > 0) {
-    const contactResult = await handleIncomingWhatsAppContactShare(req.body);
-    if (contactResult.handled) {
-      return contactResult;
-    }
-  }
-
-  // 2) Couple Quick Reply → session credentials (GET_CREDENTIALS)
+  // 1) Couple Quick Reply → session credentials (before sender-auth onboarding)
   const accessResult = await handleGetAccessDetailsRequest(inbound);
   if (accessResult.handled) {
     return accessResult;
   }
 
-  // 3) Guest RSVP button / reply flow
-  return handleIncomingWhatsAppRsvp(inbound);
+  // 2) Guest RSVP flow (known guest phone) — must not be captured by auth onboarding
+  const rsvpResult = await handleIncomingWhatsAppRsvp(inbound);
+  if (rsvpResult?.handled) {
+    return rsvpResult;
+  }
+
+  // 3) Sender auth / event linking for contact-import onboarding
+  const authResult = await handleWhatsAppSenderAuth(req.body);
+  if (authResult.handled) {
+    return authResult;
+  }
+
+  // 4) Authenticated sender + vCard → add guest to linked event
+  if (vcardCount > 0 && authResult.allowContactImport) {
+    return handleIncomingWhatsAppContactShare(req.body, authResult.link);
+  }
+
+  return { handled: false, reason: "unhandled_inbound" };
 }
 
 /**
  * Inbound WhatsApp:
- * 1) Contact vCard share → create guest
- * 2) Couple Quick Reply → session credentials (GET_CREDENTIALS)
- * 3) Guest RSVP button / reply flow
+ * 1) Couple Quick Reply → session credentials (GET_CREDENTIALS)
+ * 2) Guest RSVP button / reply flow
+ * 3) Sender auth / link to couple event
+ * 4) Contact vCard share → create guest
  *
  * Responds 200 immediately, then processes asynchronously.
  */

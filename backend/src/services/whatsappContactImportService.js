@@ -26,9 +26,6 @@ import {
   toTwilioWhatsAppAddress
 } from "../utils/twilioWhatsApp.js";
 
-const SUPPORT_PHONE =
-  String(process.env.MOMOEVENT_SUPPORT_PHONE || "0585915109").trim() || "0585915109";
-
 function looksLikeVcard(text) {
   return /BEGIN:VCARD/i.test(String(text || ""));
 }
@@ -217,9 +214,11 @@ async function createGuestFromContact({ userId, fullName, phone }) {
 }
 
 /**
- * Handle inbound WhatsApp vCard media. Returns { handled: true } when media was vCard.
+ * Handle inbound WhatsApp vCard media for an authenticated sender link.
+ * @param {object} reqBody
+ * @param {{ linkedUserId?: import("mongoose").Types.ObjectId, linkedEventId?: import("mongoose").Types.ObjectId } | null} senderLink
  */
-export async function handleIncomingWhatsAppContactShare(reqBody = {}) {
+export async function handleIncomingWhatsAppContactShare(reqBody = {}, senderLink = null) {
   const vcardMedia = extractTwilioVcardMedia(reqBody);
   if (!vcardMedia.length) {
     return { handled: false, reason: "no_vcard_media" };
@@ -227,20 +226,23 @@ export async function handleIncomingWhatsAppContactShare(reqBody = {}) {
 
   const from = String(reqBody.From || "").trim();
   const inboundPhoneRaw = from.replace(/^whatsapp:/i, "").trim();
-  const users = await findUsersByWhatsAppPhone(from);
-  const user = users[0] || null;
 
-  if (!user) {
+  let userId = senderLink?.linkedUserId || senderLink?.linkedEventId || null;
+  if (!userId) {
+    const users = await findUsersByWhatsAppPhone(from);
+    userId = users[0]?._id || null;
+  }
+
+  if (!userId) {
     await sendReply({
       toPhone: inboundPhoneRaw,
       body:
-        `קיבלנו איש קשר, אבל המספר שממנו שלחתם אינו משויך לאירוע פעיל ב-momoEVENT.\n` +
-        `ליצירת קשר עם התמיכה: ${SUPPORT_PHONE}`
+        "קיבלנו איש קשר, אבל עדיין לא קושר חשבון למספר הזה.\n" +
+        "שלחו את מספר הטלפון של בעלי האירוע לקישור, ואז שתפו שוב את איש הקשר."
     });
     return { handled: true, reason: "sender_not_linked", imported: 0 };
   }
 
-  const userId = user._id;
   const parsedContacts = [];
 
   for (const media of vcardMedia) {
@@ -308,6 +310,7 @@ export async function handleIncomingWhatsAppContactShare(reqBody = {}) {
         fullName,
         phone: normalizedPhone
       });
+      console.log(`[WhatsApp Import] Saved guest ${guest.fullName} to event ${userId}`);
       imported.push({
         id: String(guest._id),
         fullName: guest.fullName,
