@@ -121,18 +121,19 @@ const TEMPLATE_FIELD_KEYS = {
     mediaPath: "5"
   },
   /**
-   * Single URL button. Approved button URL is
-   * https://momoevent.up.railway.app/event/{{4}}
-   * so {{4}} must be only the event id (a full URL is rejected after accept).
-   * Body {{1}}–{{3}} + closing {{5}}, media {{6}}.
+   * Approved card_view_invite_button (HX7b6233fe6eeb1da0abb624d7a7a6d05c).
+   * Body: שלום {{1}} · {{2}} · האירוע יתקיים ב{{3}} · {{4}}
+   * Media: https://res.cloudinary.com/uixpvcen/{{5}}  (path only)
+   * Button "לאישור הגעה": https://momoevent.up.railway.app/event/{{6}}
+   * {{6}} is only the event id. A full URL is rejected (63013).
    */
   card_view_invite_button: {
     guestName: "1",
     customOpeningText: "2",
     eventDateTimeLocation: "3",
-    inviteButtonPath: "4",
-    closingSignOff: "5",
-    mediaPath: "6"
+    closingSignOff: "4",
+    mediaPath: "5",
+    inviteButtonPath: "6"
   },
   /**
    * card_buttons_special_requests (approved) — NO Waze button.

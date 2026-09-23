@@ -9,6 +9,7 @@ import {
   CONFERENCE_RSVP_CONTENT_SID_DEFAULT,
   resolveConferenceContentSid,
   resolveEventCoverMediaPath,
+  toWhatsAppCoverMediaVariable,
   sendConferenceInviteWhatsApp,
   sendTwilioWhatsAppMessage,
   toTwilioWhatsAppAddress
@@ -126,6 +127,8 @@ function buildPremiumInviteVariables({ guest, event, userId, origin, templateId 
     whatsappInviteTemplate: templateId || resolveWhatsAppInviteTemplateId(event)
   });
   const fieldKeyMap = getTemplateFieldKeyMap(routing.templateId);
+  const templateKeys = routing.templateKeys;
+  const mediaVariableMode = "path";
   const needsMedia = Boolean(fieldKeyMap.mediaPath);
   const publicLink = buildPublicEventLink({ eventId: userId, origin }) || defaults.rsvpLink;
   const specialRequestsLink = fieldKeyMap.specialRequestsLink ? publicLink : undefined;
@@ -144,13 +147,15 @@ function buildPremiumInviteVariables({ guest, event, userId, origin, templateId 
       ),
       rsvpLink: publicLink,
       closingSignOff: paragraphs.closingParagraph || defaults.signature,
-      mediaPath: needsMedia ? resolveEventCoverMediaPath(event) : undefined,
+      mediaPath: needsMedia
+        ? toWhatsAppCoverMediaVariable(resolveEventCoverMediaPath(event), mediaVariableMode)
+        : undefined,
       specialRequestsLink,
       wazeLink,
       wazeQuery,
       inviteButtonPath
     },
-    routing.templateKeys,
+    templateKeys,
     fieldKeyMap
   );
 }

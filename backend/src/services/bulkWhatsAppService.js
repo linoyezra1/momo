@@ -11,6 +11,7 @@ import {
   logTwilioContentSidEnvSnapshot,
   resolveConferenceContentSid,
   resolveEventCoverMediaPath,
+  toWhatsAppCoverMediaVariable,
   sendConferenceInviteWhatsApp,
   sendTwilioWhatsAppMessage,
   toTwilioWhatsAppAddress
@@ -224,7 +225,8 @@ async function sendToInvitee({
   userId,
   paragraphs,
   event,
-  conferenceMode = false
+  conferenceMode = false,
+  mediaVariableMode = "path"
 }) {
   const to = toTwilioWhatsAppAddress(invitee.phone);
   if (!to) {
@@ -306,7 +308,9 @@ async function sendToInvitee({
         eventDateTimeLocation: fields.eventDateTimeLocation,
         rsvpLink: fields.rsvpLink,
         closingSignOff: fields.closingSignOff,
-        mediaPath: needsMedia ? resolveEventCoverMediaPath(event) : undefined,
+        mediaPath: needsMedia
+          ? toWhatsAppCoverMediaVariable(resolveEventCoverMediaPath(event), mediaVariableMode)
+          : undefined,
         specialRequestsLink,
         wazeLink,
         wazeQuery,
@@ -438,8 +442,9 @@ export async function sendBulkWhatsApp({
     const paragraphs = resolveWhatsAppInviteParagraphs(event);
     const conferenceMode = routing.conference;
     const contentSid = routing.contentSid;
-    const templateKeys = routing.templateKeys;
-    const fieldKeyMap = routing.fieldKeyMap;
+    let templateKeys = routing.templateKeys;
+    let fieldKeyMap = routing.fieldKeyMap;
+    let mediaVariableMode = "path";
     const includesRsvpLink = routing.includesRsvpLink !== false;
 
     console.log(
@@ -460,13 +465,13 @@ export async function sendBulkWhatsApp({
     } else {
       try {
         const templateMeta = await fetchTwilioContentTemplate(contentSid);
-        if (templateMeta.variableKeys.join(",") !== templateKeys.join(",")) {
-          console.warn(
-            `[Twilio] Template ${contentSid} variable keys differ from registry ` +
-              `(expected ${templateKeys.join(", ")}, found ${templateMeta.variableKeys.join(", ")}). ` +
-              `Using registry mapping for ${routing.templateId}.`
-          );
-        }
+        const shape = templateMeta.shape || {};
+        console.log(
+          `[Twilio][card-shape] template=${routing.templateId} friendly=${templateMeta.friendlyName} ` +
+            `media=${JSON.stringify(shape.media || [])} buttons=${JSON.stringify(shape.buttons || [])} ` +
+            `bodyKeys=${(shape.bodyKeys || []).join(",") || "-"} ` +
+            `snippets=${JSON.stringify(shape.snippets || [])}`
+        );
         console.log(
           `[Twilio] Using template "${templateMeta.friendlyName}" (${contentSid}) ` +
             `registry=${routing.templateId} variables: ${templateKeys.join(", ")}`
@@ -493,7 +498,8 @@ export async function sendBulkWhatsApp({
           userId,
           paragraphs,
           event,
-          conferenceMode
+          conferenceMode,
+          mediaVariableMode
         })
       )
     );

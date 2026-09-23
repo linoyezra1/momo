@@ -231,7 +231,107 @@ export function resolveEventCoverMediaPath(event) {
 }
 
 function sanitizeWhatsAppMediaPathVariable(value) {
-  return normalizeCloudinaryMediaPath(toContentVariableString(value));
+  return normalizeCloudinaryMediaPath(toContentVariableString(value)).replace(/f_auto/g, "f_jpg");
+}
+
+export function toWhatsAppCoverMediaVariable(mediaPath, mode = "path") {
+  const cleaned = sanitizeWhatsAppMediaPathVariable(mediaPath);
+  if (!cleaned) return "";
+  if (mode !== "full" || /^https?:\/\//i.test(cleaned)) return cleaned;
+  const cloud = String(process.env.CLOUDINARY_CLOUD_NAME || "uixpvcen").trim();
+  return `https://res.cloudinary.com/${cloud}/${cleaned.replace(/^\/+/, "")}`;
+}
+
+/**
+ * Read the approved template (body, media URL, button URL) so variable slots
+ * are taken from Twilio instead of a guessed map.
+ */
+export function inspectTwilioContentShape(types) {
+  const media = [];
+  const buttons = [];
+  const bodyKeys = [];
+  const snippets = [];
+
+  const walk = (node, prop) => {
+    if (typeof node === "string") {
+      const keys = [...node.matchAll(/\{\{(\d+)\}\}/g)].map((match) => match[1]);
+      if (!keys.length) return;
+      if (prop === "media" || prop === "header_media") {
+        for (const key of keys) {
+          const before = node.slice(0, node.indexOf(`{{${key}}}`));
+          media.push({
+            key,
+            mode: /https?:\/\//i.test(before) ? "path" : "full",
+            sample: node.slice(0, 180)
+          });
+        }
+      } else if (prop === "url" || prop === "uri") {
+        for (const key of keys) {
+          const before = node.slice(0, node.indexOf(`{{${key}}}`));
+          buttons.push({
+            key,
+            mode: /https?:\/\//i.test(before) ? "suffix" : "full",
+            sample: node.slice(0, 180)
+          });
+        }
+      } else if (prop === "body" || prop === "title" || prop === "subtitle" || prop === "header_text") {
+        bodyKeys.push(...keys);
+        snippets.push(node.slice(0, 240));
+      }
+      return;
+    }
+    if (Array.isArray(node)) {
+      node.forEach((item) => walk(item, prop));
+      return;
+    }
+    if (node && typeof node === "object") {
+      for (const [key, value] of Object.entries(node)) walk(value, key);
+    }
+  };
+
+  walk(types || {}, "");
+  return { media, buttons, bodyKeys: [...new Set(bodyKeys)], snippets };
+}
+
+const CARD_VIEW_TEXT_FIELDS = [
+  "guestName",
+  "customOpeningText",
+  "eventDateTimeLocation",
+  "closingSignOff"
+];
+
+export function fieldMapFromContentShape(shape, fallback = {}) {
+  const media = shape?.media || [];
+  const buttons = shape?.buttons || [];
+  if (!media.length && !buttons.length) {
+    return { map: fallback, mediaMode: "path", applied: false };
+  }
+
+  const map = {};
+  const used = new Set();
+  let mediaMode = "path";
+  for (const item of media) {
+    map.mediaPath = item.key;
+    mediaMode = item.mode === "full" ? "full" : "path";
+    used.add(item.key);
+  }
+  for (const item of buttons) {
+    if (item.mode === "suffix") map.inviteButtonPath = item.key;
+    else map.rsvpLink = item.key;
+    used.add(item.key);
+  }
+
+  let textIndex = 0;
+  for (const key of shape?.bodyKeys || []) {
+    if (used.has(key)) continue;
+    const field = CARD_VIEW_TEXT_FIELDS[textIndex];
+    textIndex += 1;
+    if (field) map[field] = key;
+  }
+
+  if (!map.guestName) return { map: fallback, mediaMode: "path", applied: false };
+  if (!map.mediaPath && fallback.mediaPath) map.mediaPath = fallback.mediaPath;
+  return { map, mediaMode, applied: true };
 }
 
 export async function fetchTwilioContentTemplate(contentSid) {
@@ -242,17 +342,26 @@ export async function fetchTwilioContentTemplate(contentSid) {
   }
 
   const content = await client.content.v1.contents(sid).fetch();
+  if (typeof content.types === "string") {
+    try {
+      content.types = JSON.parse(content.types);
+    } catch {
+      content.types = {};
+    }
+  }
   const variableKeys = extractContentVariableKeys(content);
   if (!variableKeys.length) {
     throw new Error(`Content template ${sid} has no variable definitions`);
   }
 
+  const shape = inspectTwilioContentShape(content.types || {});
   return {
     sid: content.sid,
     friendlyName: content.friendlyName || content.friendly_name || "unknown",
     variableKeys,
     defaultVariables: content.variables || {},
-    contentTypes: Object.keys(content.types || {})
+    contentTypes: Object.keys(content.types || {}),
+    shape
   };
 }
 
