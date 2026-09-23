@@ -462,6 +462,7 @@
   }
 
   .il-mobile-guests-toolbar .il-table-toolbar__primary > .il-contacts-import-btn,
+  .il-mobile-guests-toolbar .il-table-toolbar__primary > .il-wa-guest-import-btn,
   .il-mobile-guests-toolbar .il-table-toolbar__primary > .il-broadcast-cta,
   .il-mobile-guests-toolbar .il-actions-menu {
     display: none !important;
@@ -549,6 +550,7 @@
   }
 
   .il-manager-dashboard-embed .il-table-toolbar__primary > .il-contacts-import-btn,
+  .il-manager-dashboard-embed .il-table-toolbar__primary > .il-wa-guest-import-btn,
   .il-manager-dashboard-embed .il-table-toolbar__primary > .il-broadcast-cta,
   .il-manager-dashboard-embed .il-actions-menu {
     display: none !important;

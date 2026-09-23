@@ -309,6 +309,47 @@
   color: #fff;
 }
 
+.il-wa-guest-import-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid #128c7e;
+  background: linear-gradient(180deg, #25d366 0%, #128c7e 100%);
+  color: #fff;
+  font-weight: 800;
+  box-shadow: 0 8px 18px rgb(18 140 126 / 22%);
+}
+
+.il-wa-guest-import-btn:hover {
+  background: linear-gradient(180deg, #1ebe5d 0%, #0f7a6e 100%);
+  color: #fff;
+}
+
+.il-wa-guest-import-copy {
+  display: grid;
+  gap: 0.7rem;
+  margin-top: 0.35rem;
+  line-height: 1.55;
+}
+
+.il-wa-guest-import-copy p {
+  margin: 0;
+}
+
+.il-wa-guest-import-phone {
+  display: block;
+  text-align: center;
+  font-size: 1.85rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #128c7e;
+  text-decoration: none;
+}
+
+.il-wa-guest-import-phone:hover {
+  text-decoration: underline;
+}
+
 .il-add-guest-btn {
   display: inline-flex;
   align-items: center;

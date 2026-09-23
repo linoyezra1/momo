@@ -369,6 +369,7 @@ export default function ClientDashboardPage() {
   const actionsMenuRef = useRef(null);
   const [showBulkWhatsApp, setShowBulkWhatsApp] = useState(false);
   const [showContactsImport, setShowContactsImport] = useState(false);
+  const [showWhatsAppGuestImportHelp, setShowWhatsAppGuestImportHelp] = useState(false);
   const [contactsImportToast, setContactsImportToast] = useState("");
   const [contactsImportInitialRows, setContactsImportInitialRows] = useState(null);
   const [contactsImportInitialError, setContactsImportInitialError] = useState("");
@@ -1552,6 +1553,15 @@ export default function ClientDashboardPage() {
               </button>
 
               <button
+                className="us-btn il-wa-guest-import-btn"
+                type="button"
+                onClick={() => setShowWhatsAppGuestImportHelp(true)}
+              >
+                <WhatsAppIcon size={16} />
+                העלאת מוזמנים מהוואטסאפ
+              </button>
+
+              <button
                 className="us-btn il-broadcast-cta"
                 type="button"
                 onClick={openBulkWhatsApp}
@@ -2222,6 +2232,16 @@ export default function ClientDashboardPage() {
               type="button"
               onClick={() => {
                 setMobileActionsOpen(false);
+                setShowWhatsAppGuestImportHelp(true);
+              }}
+            >
+              <WhatsAppIcon size={16} />
+              העלאת מוזמנים מהוואטסאפ
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMobileActionsOpen(false);
                 openVcfPicker();
               }}
             >
@@ -2491,6 +2511,68 @@ export default function ClientDashboardPage() {
                 </button>
               </div>
             </form>
+          </div>
+        ) : null}
+
+        {showWhatsAppGuestImportHelp ? (
+          <div className="us-modal-backdrop" role="presentation">
+            <div
+              className="us-modal-card il-bulk-whatsapp-modal il-wa-guest-import-modal"
+              role="dialog"
+              aria-labelledby="wa-guest-import-title"
+            >
+              <h2 id="wa-guest-import-title" className="us-modal-title">
+                לעלות מוזמנים גם מהוואטסאפ!!
+              </h2>
+              <div className="il-wa-guest-import-copy">
+                <p>כן כן, פשוט וקל.</p>
+                <p>שלחו הודעה למספר:</p>
+                <a
+                  className="il-wa-guest-import-phone"
+                  href="https://wa.me/972553193433"
+                  target="_blank"
+                  rel="noreferrer"
+                  dir="ltr"
+                >
+                  0553193433
+                </a>
+                <p>
+                  הבוט ישאל אתכם לאיזה מספר טלפון לקשר את האירוע — וזהו. מתחילים לשלוח את אנשי
+                  הקשר לבוט של מומו בוואטסאפ, והוא כבר יעלה לכם את המוזמנים למערכת.
+                </p>
+                <p>
+                  <strong>בהצלחה!</strong>
+                </p>
+                <p>
+                  כל שאלה ניתן לפנות למנהל המערכת בוואטסאפ{" "}
+                  <a
+                    href="https://wa.me/972535314055"
+                    target="_blank"
+                    rel="noreferrer"
+                    dir="ltr"
+                  >
+                    0535314055
+                  </a>
+                </p>
+              </div>
+              <div className="us-toolbar mt-4">
+                <a
+                  className="us-btn us-btn--primary"
+                  href="https://wa.me/972553193433"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  פתיחת וואטסאפ
+                </a>
+                <button
+                  className="us-btn"
+                  type="button"
+                  onClick={() => setShowWhatsAppGuestImportHelp(false)}
+                >
+                  סגירה
+                </button>
+              </div>
+            </div>
           </div>
         ) : null}
 
