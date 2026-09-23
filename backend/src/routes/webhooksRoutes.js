@@ -4,7 +4,10 @@ import { handleGetAccessDetailsRequest } from "../services/whatsappAccessDetails
 import { handleIncomingWhatsAppContactShare } from "../services/whatsappContactImportService.js";
 import { handleWhatsAppSenderAuth } from "../services/whatsappSenderAuthService.js";
 import { handleIncomingWhatsAppRsvp } from "../services/whatsappRsvpService.js";
-import { recordWhatsAppDeliveryFailure } from "../services/whatsappDeliveryLogService.js";
+import {
+  recordWhatsAppDeliveryFailure,
+  recordWhatsAppDeliveryProgress
+} from "../services/whatsappDeliveryLogService.js";
 import { getClientBaseUrl } from "../utils/clientUrl.js";
 import { extractTwilioVcardMedia } from "../utils/vcardParse.js";
 
@@ -164,6 +167,12 @@ router.post("/twilio/message-status", async (req, res) => {
     } catch (error) {
       console.error("[Twilio status] Failed to store delivery failure:", error?.message || error);
       return res.status(500).send("Failed to store status");
+    }
+  } else if (messageStatus === "sent" || messageStatus === "delivered" || messageStatus === "read" || messageStatus === "queued") {
+    try {
+      await recordWhatsAppDeliveryProgress({ messageSid, messageStatus });
+    } catch (error) {
+      console.error("[Twilio status] Failed to store delivery progress:", error?.message || error);
     }
   }
 

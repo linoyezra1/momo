@@ -54,6 +54,10 @@ import {
 } from "../utils/eventPayload.js";
 import { deriveLegacyWhatsAppFlags, normalizeWhatsAppInviteTemplate } from "../utils/whatsappInviteTemplates.js";
 
+/** Admin supplier cost: successful outbound WhatsApp messages × this rate (ILS). */
+const SUCCESSFUL_MESSAGE_SUPPLIER_RATE = 0.13;
+const SUCCESSFUL_MESSAGE_STATUSES = ["queued", "sent", "delivered", "read"];
+
 const router = express.Router();
 
 router.post("/login", (req, res) => {
@@ -137,11 +141,21 @@ router.get("/clients", async (req, res) => {
     ).sort({
       createdAt: -1
     });
+    const messageAgg = await WhatsAppDeliveryLog.aggregate([
+      { $match: { status: { $in: SUCCESSFUL_MESSAGE_STATUSES } } },
+      { $group: { _id: "$userId", successfulMessages: { $sum: 1 } } }
+    ]);
+    const successfulByUser = new Map(
+      messageAgg.map((row) => [String(row._id), Number(row.successfulMessages) || 0])
+    );
     const clients = users.map((user) => {
       const links = buildClientLinks(user._id, req);
       const payment = normalizePaymentPayload(user.payment || {});
       const deal = serializeDeal(user.deal || {}, payment);
       const agentId = String(user.createdByAgentId || "").trim();
+      const successfulMessages = successfulByUser.get(String(user._id)) || 0;
+      const messageSupplierCost =
+        Math.round(successfulMessages * SUCCESSFUL_MESSAGE_SUPPLIER_RATE * 100) / 100;
       return {
         userId: user._id,
         username: user.username,
@@ -154,6 +168,8 @@ router.get("/clients", async (req, res) => {
         createdByAgentId: agentId,
         createdByAgentName: agentId ? agentNames[agentId] || agentId : "",
         createdAt: user.createdAt,
+        successfulMessages,
+        messageSupplierCost,
         ...links
       };
     });
@@ -183,9 +199,15 @@ router.get("/clients", async (req, res) => {
       byAgentMap[key].clientCount += 1;
     }
 
+    const messageSupplierCostTotal =
+      Math.round(clients.reduce((sum, client) => sum + (Number(client.messageSupplierCost) || 0), 0) * 100) /
+      100;
+
     return res.json({
       clients,
       totalRevenue,
+      messageSupplierCostTotal,
+      messageSupplierRate: SUCCESSFUL_MESSAGE_SUPPLIER_RATE,
       agentsSummary: Object.values(byAgentMap),
       agentDirectory: agentNames
     });

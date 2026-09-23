@@ -136,6 +136,32 @@ export async function recordWhatsAppDeliveryFailure({
   return log;
 }
 
+const DELIVERY_PROGRESS_RANK = {
+  queued: 1,
+  sent: 2,
+  delivered: 3,
+  read: 4
+};
+
+/** Advance an existing outbound log to sent / delivered / read. Failures are never overwritten. */
+export async function recordWhatsAppDeliveryProgress({ messageSid, messageStatus } = {}) {
+  const sid = String(messageSid || "").trim();
+  const status = String(messageStatus || "").trim().toLowerCase();
+  const nextRank = DELIVERY_PROGRESS_RANK[status];
+  if (!sid || !nextRank) return null;
+
+  const existing = await WhatsAppDeliveryLog.findOne({ messageSid: sid });
+  if (!existing) return null;
+  if (existing.status === "failed" || existing.status === "undelivered") return existing;
+
+  const currentRank = DELIVERY_PROGRESS_RANK[existing.status] || 0;
+  if (currentRank >= nextRank) return existing;
+
+  existing.status = status;
+  await existing.save();
+  return existing;
+}
+
 const syncCooldownUntil = new Map();
 
 export async function syncWhatsAppFailuresFromTwilio({ userId, force = false } = {}) {

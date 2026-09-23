@@ -158,6 +158,65 @@
   color: var(--us-espresso);
 }
 
+.us-admin-stat-note {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--us-muted);
+}
+
+.us-admin-clients-stack {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.us-admin-table-wrap {
+  overflow-x: auto;
+  margin-top: 0.75rem;
+}
+
+.us-admin-clients-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.us-admin-clients-table th,
+.us-admin-clients-table td {
+  padding: 0.7rem 0.55rem;
+  border-bottom: 1px solid var(--us-border);
+  text-align: right;
+  vertical-align: middle;
+}
+
+.us-admin-clients-table th {
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  color: var(--us-muted);
+  font-weight: 700;
+}
+
+.us-admin-clients-table tr.is-active td {
+  background: rgb(213 126 126 / 8%);
+}
+
+.us-admin-table-sub {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.78rem;
+  color: var(--us-muted);
+}
+
+.us-admin-table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
 .us-admin-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);

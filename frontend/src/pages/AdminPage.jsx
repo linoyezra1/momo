@@ -225,6 +225,14 @@ function formatCreatedAt(value) {
   });
 }
 
+function formatIls(value) {
+  const amount = Number(value) || 0;
+  return `₪${amount.toLocaleString("he-IL", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })}`;
+}
+
 export default function AdminPage() {
   const navigate = useNavigate();
   const [form, setForm] = useState(initialForm);
@@ -243,6 +251,7 @@ export default function AdminPage() {
   const [error, setError] = useState("");
   const [clientsError, setClientsError] = useState("");
   const [totalRevenue, setTotalRevenue] = useState(0);
+  const [messageSupplierCostTotal, setMessageSupplierCostTotal] = useState(0);
   const [agentsSummary, setAgentsSummary] = useState([]);
   const [dealDraft, setDealDraft] = useState(defaultDealDraft);
   const [dealSaving, setDealSaving] = useState(false);
@@ -351,10 +360,8 @@ ${publicEventUrl}`
       const response = await api.get("/admin/clients");
       setClients(response.data.clients || []);
       setTotalRevenue(Number(response.data.totalRevenue) || 0);
+      setMessageSupplierCostTotal(Number(response.data.messageSupplierCostTotal) || 0);
       setAgentsSummary(Array.isArray(response.data.agentsSummary) ? response.data.agentsSummary : []);
-      if (!selectedClientId && response.data.clients?.length) {
-        setSelectedClientId(response.data.clients[0].userId);
-      }
     } catch (loadError) {
       setClientsError(loadError.response?.data?.message || "טעינת לקוחות נכשלה");
     } finally {
@@ -967,6 +974,11 @@ ${publicEventUrl}`
             <h3>פניות חדשות</h3>
             <p>{leadsNewCount}</p>
           </div>
+          <div className="us-admin-stat-card">
+            <h3>עלות ספק הודעות</h3>
+            <p>{formatIls(messageSupplierCostTotal)}</p>
+            <span className="us-admin-stat-note">₪0.13 × הודעה שנשלחה בהצלחה</span>
+          </div>
         </div>
 
         {agentsSummary.length ? (
@@ -1189,9 +1201,9 @@ ${publicEventUrl}`
           </div>
         </section>
 
-        <section className="us-admin-layout">
+        <section className="us-admin-clients-stack">
           <div className="us-admin-card">
-            <h2 className="us-admin-card-title">לקוחות פעילים</h2>
+            <h2 className="us-admin-card-title">לקוחות</h2>
             <div className="us-admin-card-body">
               <label className="us-admin-client-search">
                 <span className="us-admin-sr-only">חיפוש לקוחות</span>
@@ -1210,47 +1222,103 @@ ${publicEventUrl}`
               {!loadingClients && clients.length && !filteredClients.length ? (
                 <p className="us-admin-empty">לא נמצאו לקוחות התואמים לחיפוש</p>
               ) : null}
-              <div className="us-admin-client-list">
-                {filteredClients.map((client) => (
-                  <div
-                    key={client.userId}
-                    className={`us-admin-client-row ${String(selectedClientId) === String(client.userId) ? "is-active" : ""}`}
-                  >
-                    <button className="us-admin-client-main" type="button" onClick={() => setSelectedClientId(client.userId)}>
-                      <strong>{buildClientLabel(client)}</strong>
-                      <span>{buildClientSubline(client)}</span>
-                    </button>
-                    {!isUsClient(client) ? (
-                      <button
-                        className="us-admin-btn us-admin-btn--xs"
-                        type="button"
-                        onClick={() => openEditWizard(client)}
-                        aria-label="עריכת לקוח"
-                      >
-                        <Pencil size={14} />
-                      </button>
-                    ) : null}
-                    <button
-                      className="us-admin-btn us-admin-btn--xs us-admin-btn--danger"
-                      type="button"
-                      onClick={(event) => deleteClient(client, event)}
-                      aria-label="מחיקת לקוח"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                ))}
-              </div>
+              {filteredClients.length ? (
+                <div className="us-admin-table-wrap">
+                  <table className="us-admin-clients-table">
+                    <thead>
+                      <tr>
+                        <th>לקוח</th>
+                        <th>תאריך אירוע</th>
+                        <th>טלפון</th>
+                        <th>הודעות מוצלחות</th>
+                        <th>עלות ספק</th>
+                        <th>פעולות</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredClients.map((client) => (
+                        <tr
+                          key={client.userId}
+                          className={
+                            String(selectedClientId) === String(client.userId) ? "is-active" : ""
+                          }
+                        >
+                          <td>
+                            <strong>{buildClientLabel(client)}</strong>
+                            <span className="us-admin-table-sub">{client.username}</span>
+                          </td>
+                          <td>{buildClientSubline(client)}</td>
+                          <td dir="ltr">{client.contactPhone || "—"}</td>
+                          <td>{Number(client.successfulMessages) || 0}</td>
+                          <td>{formatIls(client.messageSupplierCost)}</td>
+                          <td>
+                            <div className="us-admin-table-actions">
+                              <button
+                                className="us-admin-btn us-admin-btn--xs us-admin-btn--primary"
+                                type="button"
+                                onClick={() => {
+                                  setSelectedClientId(client.userId);
+                                  window.requestAnimationFrame(() => {
+                                    document
+                                      .getElementById("admin-client-details")
+                                      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                                  });
+                                }}
+                              >
+                                צפייה
+                              </button>
+                              {!isUsClient(client) ? (
+                                <button
+                                  className="us-admin-btn us-admin-btn--xs"
+                                  type="button"
+                                  onClick={() => openEditWizard(client)}
+                                  aria-label="עריכת לקוח"
+                                >
+                                  <Pencil size={14} />
+                                </button>
+                              ) : null}
+                              <button
+                                className="us-admin-btn us-admin-btn--xs us-admin-btn--danger"
+                                type="button"
+                                onClick={(event) => deleteClient(client, event)}
+                                aria-label="מחיקת לקוח"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : null}
             </div>
           </div>
 
-          <div className="us-admin-card">
-            <h2 className="us-admin-card-title">פרטי לקוח</h2>
+          {selectedClient ? (
+          <div className="us-admin-card" id="admin-client-details">
+            <div className="us-admin-toolbar" style={{ marginBottom: "0.75rem" }}>
+              <h2 className="us-admin-card-title" style={{ margin: 0 }}>
+                פרטי לקוח
+              </h2>
+              <button
+                className="us-admin-btn us-admin-btn--xs"
+                type="button"
+                onClick={() => setSelectedClientId("")}
+              >
+                סגירה
+              </button>
+            </div>
             <div className="us-admin-card-body">
-              {!selectedClient ? (
-                <p className="us-admin-empty">בחרו לקוח מהרשימה להצגת פרטים</p>
-              ) : (
                 <>
+                  <p className="us-admin-event-summary">
+                    <strong>הודעות מוצלחות:</strong> {Number(selectedClient.successfulMessages) || 0}
+                    {" · "}
+                    <strong>עלות ספק:</strong> {formatIls(selectedClient.messageSupplierCost)}
+                    {" "}
+                    <span className="us-admin-stat-note">(₪0.13 להודעה)</span>
+                  </p>
                   {buildEventDisplayText(selectedClient.event) ? (
                     <p className="us-admin-event-summary">
                       <strong>אירוע:</strong> {buildEventDisplayText(selectedClient.event)}
@@ -1756,9 +1824,9 @@ ${publicEventUrl}`
 
                   <AdminWhatsAppFailures userId={selectedClient.userId} />
                 </>
-              )}
             </div>
           </div>
+          ) : null}
         </section>
 
         {showCreateWizard ? (
