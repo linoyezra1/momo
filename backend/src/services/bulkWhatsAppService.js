@@ -16,6 +16,7 @@ import {
   toTwilioWhatsAppAddress
 } from "../utils/twilioWhatsApp.js";
 import {
+  buildInviteUrlButtonVariable,
   buildWazeNavigationLink,
   buildWazeQueryVariable,
   getTemplateFieldKeyMap,
@@ -277,9 +278,13 @@ async function sendToInvitee({
     const needsSpecialRequests = Boolean(fieldKeyMap?.specialRequestsLink);
     const needsWazeLink = Boolean(fieldKeyMap?.wazeLink);
     const needsWazeQuery = Boolean(fieldKeyMap?.wazeQuery);
+    const needsInviteButtonPath = Boolean(fieldKeyMap?.inviteButtonPath);
     const specialRequestsLink = needsSpecialRequests ? fields.rsvpLink : undefined;
     const wazeLink = needsWazeLink ? buildWazeNavigationLink(event) : undefined;
     const wazeQuery = needsWazeQuery ? buildWazeQueryVariable(event) : undefined;
+    const inviteButtonPath = needsInviteButtonPath
+      ? buildInviteUrlButtonVariable(fields.rsvpLink)
+      : undefined;
 
     if (needsSpecialRequests && !specialRequestsLink) {
       throw new Error("קישור לאלרגיות/הסעות חסר (עמוד ההזמנה)");
@@ -289,6 +294,9 @@ async function sendToInvitee({
     }
     if (needsWazeQuery && !wazeQuery) {
       throw new Error("לא ניתן לבנות ניווט Waze — חסר שם מתחם/כתובת לאירוע");
+    }
+    if (needsInviteButtonPath && !inviteButtonPath) {
+      throw new Error("לא ניתן לבנות כפתור ההפניה — חסר קישור לעמוד ההזמנה");
     }
 
     const contentVariables = buildTwilioContentVariables(
@@ -301,7 +309,8 @@ async function sendToInvitee({
         mediaPath: needsMedia ? resolveEventCoverMediaPath(event) : undefined,
         specialRequestsLink,
         wazeLink,
-        wazeQuery
+        wazeQuery,
+        inviteButtonPath
       },
       templateKeys,
       fieldKeyMap

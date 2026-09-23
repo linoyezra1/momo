@@ -28,7 +28,7 @@ import BottomSheet from "../components/ui/BottomSheet.jsx";
 import { buildWhatsAppSendUrl } from "../utils/whatsapp";
 import { resolveInviteCopyDefaults, isWhatsAppButtonsMode } from "../utils/whatsappInviteCopy";
 import { normalizeIsraeliPhone } from "../utils/phoneNormalize";
-import { formatFailedRowLabel, mergeFailedRows, parseExcelGuestRows } from "../utils/guestExcelImport";
+import { formatFailedRowLabel, matrixToGuestRows, mergeFailedRows, parseExcelGuestRows } from "../utils/guestExcelImport";
 import { getAuditLogLastReadAt } from "../utils/auditLogUnread.js";
 import { useEventWorkspace } from "../utils/useEventWorkspace.js";
 import { buildTelHref } from "../utils/vendors.js";
@@ -328,6 +328,7 @@ export default function ClientDashboardPage() {
   const [pendingNewGuests, setPendingNewGuests] = useState([]);
   const [pendingImportMeta, setPendingImportMeta] = useState({ totalCount: 0, failedRows: [], warningRows: [] });
   const [importSummary, setImportSummary] = useState(null);
+  const [importPreview, setImportPreview] = useState(null);
   const [importErrorModal, setImportErrorModal] = useState("");
   const [importSuccessToast, setImportSuccessToast] = useState("");
   const [guests, setGuests] = useState([]);
@@ -363,6 +364,7 @@ export default function ClientDashboardPage() {
   const [appliedSearch, setAppliedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState(CATEGORY_ALL_FILTER);
+  const [sideFilter, setSideFilter] = useState("all");
   const [reminderRoundFilter, setReminderRoundFilter] = useState("all");
   const [selectedGuestIds, setSelectedGuestIds] = useState(() => new Set());
   const [expandedGuestDetailIds, setExpandedGuestDetailIds] = useState(() => new Set());
@@ -400,6 +402,22 @@ export default function ClientDashboardPage() {
     [eventInfo?.guestCategories, guests]
   );
 
+  const sideOptions = useMemo(() => {
+    const seen = new Set();
+    const values = [];
+    guests.forEach((guest) => {
+      const side = String(guest.guestSide || "").trim();
+      if (!side) return;
+      const key = side.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      values.push(side);
+    });
+    return values.sort((a, b) => a.localeCompare(b, "he"));
+  }, [guests]);
+
+  const activeSideFilter = sideOptions.includes(sideFilter) ? sideFilter : "all";
+
   const hasUncategorizedGuests = useMemo(
     () => guests.some((guest) => !getGuestCategory(guest)),
     [guests]
@@ -431,6 +449,10 @@ export default function ClientDashboardPage() {
       list = list.filter((guest) => guest.status === statusFilter);
     }
 
+    if (activeSideFilter !== "all") {
+      list = list.filter((guest) => String(guest.guestSide || "").trim() === activeSideFilter);
+    }
+
     if (reminderRoundFilter.endsWith("+")) {
       const minimumRound = Number(reminderRoundFilter.slice(0, -1));
       list = list.filter((guest) => getReminderRound(guest) >= minimumRound);
@@ -448,7 +470,7 @@ export default function ClientDashboardPage() {
       const category = getGuestCategory(guest).toLowerCase();
       return fullName.includes(query) || phone.includes(query) || category.includes(query);
     });
-  }, [categoryScopedGuests, appliedSearch, statusFilter, reminderRoundFilter]);
+  }, [categoryScopedGuests, appliedSearch, statusFilter, reminderRoundFilter, activeSideFilter]);
 
   const loadWhatsappQuota = async () => {
     try {
@@ -574,11 +596,12 @@ export default function ClientDashboardPage() {
       importChecking ||
       importSubmitting ||
       Boolean(importErrorModal) ||
-      Boolean(importSummary);
+      Boolean(importSummary) ||
+      Boolean(importPreview);
     if (!modalOpen) return undefined;
     document.body.classList.add("momo-modal-open");
     return () => document.body.classList.remove("momo-modal-open");
-  }, [showModal, showBulkWhatsApp, deleteConfirm, importChecking, importSubmitting, importErrorModal, importSummary]);
+  }, [showModal, showBulkWhatsApp, deleteConfirm, importChecking, importSubmitting, importErrorModal, importSummary, importPreview]);
 
   const onManualChange = (event) => {
     const { name, value } = event.target;
@@ -966,7 +989,9 @@ export default function ClientDashboardPage() {
       updatedCount,
       totalCount: Number(data.totalCount || meta.totalCount || 0),
       failedRows: mergeFailedRows(meta.failedRows || [], data.failedRows || []),
-      warningRows: mergeFailedRows(meta.warningRows || [], data.warningRows || [])
+      warningRows: mergeFailedRows(meta.warningRows || [], data.warningRows || []),
+      previewRows: meta.previewRows || [],
+      format: meta.format || ""
     });
     setImportSuccessToast(
       addedCount > 0
@@ -1000,12 +1025,20 @@ export default function ClientDashboardPage() {
 
       setImportLoadingStep("בודק את הנתונים...");
       const firstSheetName = workbook.SheetNames[0];
-      const rows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheetName], { defval: "", raw: false });
-      const { totalCount, validGuests, failedRows, warningRows } = parseExcelGuestRows(rows);
+      const matrix = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheetName], {
+        header: 1,
+        defval: "",
+        raw: false
+      });
+      const { rows } = matrixToGuestRows(matrix);
+      const parsed = parseExcelGuestRows(rows);
+      const { format, totalCount, validGuests, failedRows, warningRows, previewRows } = parsed;
 
       if (!totalCount) {
         setImportErrorModal(
-          "לא נמצאו שורות תקינות. ודאו שיש עמודות: שם מלא, טלפון (אופציונלי), קטגוריה (אופציונלי), וכמות."
+          format === "meorasim"
+            ? "לא נמצאו מוזמנים עם שם ונייד בקובץ של מאורסים מאורסות."
+            : "לא נמצאו שורות תקינות. ודאו שיש עמודות: שם מלא, טלפון (אופציונלי), קטגוריה (אופציונלי), וכמות."
         );
         return;
       }
@@ -1015,21 +1048,47 @@ export default function ClientDashboardPage() {
           uploadedCount: 0,
           totalCount,
           failedRows,
-          warningRows
+          warningRows,
+          previewRows: [],
+          format
         });
         return;
       }
 
-      setImportLoadingStep("מעבד את הקובץ ובודק את הנתונים, אנא המתן...");
+      const payload = { format, totalCount, validGuests, failedRows, warningRows, previewRows };
+      if (format === "meorasim") {
+        setImportPreview(payload);
+        return;
+      }
+
+      await continueGuestImport(payload);
+    } catch (importErr) {
+      const serverMessage = importErr.response?.data?.message || importErr.response?.data?.error;
+      setImportErrorModal(
+        serverMessage || "אירעה שגיאה בעיבוד הקובץ. אנא ודא שהמבנה תקין ונסה שוב."
+      );
+      setImportError(serverMessage || "העלאת קובץ האקסל נכשלה. בדקו את הפורמט ונסו שוב.");
+    } finally {
+      setImportChecking(false);
+      setImportLoadingStep("");
+      event.target.value = "";
+    }
+  };
+
+  const continueGuestImport = async (payload) => {
+    const { validGuests, totalCount, failedRows, warningRows, previewRows, format } = payload || {};
+    setImportChecking(true);
+    setImportLoadingStep("מעבד את הקובץ ובודק את הנתונים, אנא המתן...");
+    try {
       const precheck = await api.post(`/client/${userId}/guests/import/precheck`, { guests: validGuests });
       const conflicts = precheck.data?.conflicts || [];
       const newGuests = precheck.data?.newGuests || [];
-      const precheckFailed = mergeFailedRows(failedRows, precheck.data?.failedRows || []);
-      const precheckWarnings = mergeFailedRows(warningRows, precheck.data?.warningRows || []);
       const importMeta = {
         totalCount: Number(precheck.data?.totalCount || totalCount),
-        failedRows: precheckFailed,
-        warningRows: precheckWarnings
+        failedRows: mergeFailedRows(failedRows, precheck.data?.failedRows || []),
+        warningRows: mergeFailedRows(warningRows, precheck.data?.warningRows || []),
+        previewRows: previewRows || [],
+        format: format || ""
       };
       setPendingNewGuests(newGuests);
       setPendingImportMeta(importMeta);
@@ -1055,8 +1114,14 @@ export default function ClientDashboardPage() {
     } finally {
       setImportChecking(false);
       setImportLoadingStep("");
-      event.target.value = "";
     }
+  };
+
+  const confirmMeorasimImport = async () => {
+    const payload = importPreview;
+    setImportPreview(null);
+    if (!payload?.validGuests?.length) return;
+    await continueGuestImport(payload);
   };
 
   const exportGuests = () => {
@@ -1759,6 +1824,29 @@ export default function ClientDashboardPage() {
               </select>
             </div>
 
+            {sideOptions.length ? (
+              <div className="il-guest-filter-group il-guest-filter-group--select">
+                <label className="il-guest-filter-label" htmlFor="side-filter">
+                  מהצד של
+                </label>
+                <select
+                  id="side-filter"
+                  className={`us-field-input il-category-filter-select${
+                    activeSideFilter !== "all" ? " is-active" : ""
+                  }`}
+                  value={activeSideFilter}
+                  onChange={(event) => setSideFilter(event.target.value)}
+                >
+                  <option value="all">הכל</option>
+                  {sideOptions.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
+
             <div className="il-guest-filter-group il-guest-filter-group--select">
               <label className="il-guest-filter-label" htmlFor="reminder-round-filter">
                 סבב שליחה
@@ -1828,7 +1916,8 @@ export default function ClientDashboardPage() {
                     {appliedSearch ||
                     statusFilter !== "all" ||
                     reminderRoundFilter !== "all" ||
-                    categoryFilter !== CATEGORY_ALL_FILTER
+                    categoryFilter !== CATEGORY_ALL_FILTER ||
+                    activeSideFilter !== "all"
                       ? "לא נמצאו תוצאות לסינון הנוכחי"
                       : "אין אורחים עדיין"}
                   </td>
@@ -2066,7 +2155,8 @@ export default function ClientDashboardPage() {
               {appliedSearch ||
               statusFilter !== "all" ||
               reminderRoundFilter !== "all" ||
-              categoryFilter !== CATEGORY_ALL_FILTER
+              categoryFilter !== CATEGORY_ALL_FILTER ||
+              activeSideFilter !== "all"
                 ? "לא נמצאו תוצאות לסינון הנוכחי"
                 : "אין אורחים עדיין"}
             </p>
@@ -2366,6 +2456,37 @@ export default function ClientDashboardPage() {
           </div>
         ) : null}
 
+        {importPreview ? (
+          <div className="us-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="meorasim-preview-title">
+            <div className="us-modal-card us-import-summary-card">
+              <h2 className="us-modal-title" id="meorasim-preview-title">
+                ייבוא מאורסים מאורסות
+              </h2>
+              <p className="us-import-summary-text">
+                זוהו {importPreview.validGuests?.length || 0} מוזמנים. כך ימופו השורות הראשונות:
+              </p>
+              <ul className="us-import-preview__list">
+                {(importPreview.previewRows || []).map((row) => (
+                  <li key={`preview-${row.rowNumber}-${row.phone}`}>
+                    {row.fullName} · {row.phone} · {row.attendeesCount} מגיעים
+                    {row.guestGroup ? ` · ${row.guestGroup}` : ""}
+                    {row.guestSide ? ` · ${row.guestSide}` : ""}
+                    {` · ${row.status}`}
+                  </li>
+                ))}
+              </ul>
+              <div className="us-toolbar mt-4">
+                <button className="us-btn us-btn--primary" type="button" onClick={confirmMeorasimImport}>
+                  ייבוא
+                </button>
+                <button className="us-btn" type="button" onClick={() => setImportPreview(null)}>
+                  ביטול
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         {importSummary ? (
           <div className="us-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="import-summary-title">
             <div className="us-modal-card us-import-summary-card">
@@ -2385,6 +2506,18 @@ export default function ClientDashboardPage() {
                 </strong>{" "}
                 מוזמנים.
               </p>
+              {importSummary.format === "meorasim" && importSummary.previewRows?.length ? (
+                <ul className="us-import-preview__list">
+                  {importSummary.previewRows.map((row) => (
+                    <li key={`saved-preview-${row.rowNumber}-${row.phone}`}>
+                      {row.fullName} · {row.phone} · {row.attendeesCount} מגיעים
+                      {row.guestGroup ? ` · ${row.guestGroup}` : ""}
+                      {row.guestSide ? ` · ${row.guestSide}` : ""}
+                      {` · ${row.status}`}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
               {importSummary.failedRows?.length ? (
                 <div className="us-import-failed">
                   <p className="us-import-failed__title">השורות הבאות לא עלו למערכת:</p>

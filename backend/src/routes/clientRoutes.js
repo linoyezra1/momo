@@ -58,9 +58,13 @@ function mapRowToGuest(row) {
     fullName: fields.fullName,
     phone: fields.phone,
     guestGroup: fields.guestGroup || "",
+    guestSide: fields.guestSide || "",
     attendeesCount: fields.attendeesCount,
     status: fields.status,
-    giftAmount: 0,
+    giftAmount: fields.giftAmount || 0,
+    email: fields.email || "",
+    notes: fields.notes || "",
+    invitationSent: fields.invitationSent || "",
     rowNumber: row?.rowNumber ?? row?.excelRowNumber ?? null
   };
 }
@@ -71,8 +75,12 @@ function toGuestDoc(userId, mapped) {
     fullName: mapped.fullName,
     phone: normalizePhone(mapped.phone),
     guestGroup: String(mapped.guestGroup || "").trim(),
+    guestSide: String(mapped.guestSide || "").trim(),
     attendeesCount: mapped.attendeesCount,
     giftAmount: Math.max(0, Number(mapped.giftAmount || 0)),
+    email: String(mapped.email || "").trim(),
+    notes: String(mapped.notes || "").trim(),
+    invitationSent: String(mapped.invitationSent || "").trim(),
     status: mapped.status,
     source: "excel",
     rowNumber: mapped.rowNumber ?? null
@@ -621,8 +629,15 @@ router.post("/:userId/guests/import/precheck", async (req, res) => {
           existing: guestSnapshot(existing),
           excel: {
             fullName: doc.fullName,
+            phone: doc.phone,
             attendeesCount: doc.attendeesCount,
             status: doc.status,
+            giftAmount: doc.giftAmount,
+            guestGroup: doc.guestGroup,
+            guestSide: doc.guestSide,
+            email: doc.email,
+            notes: doc.notes,
+            invitationSent: doc.invitationSent,
             rowNumber: guest.rowNumber
           }
         });
@@ -682,8 +697,12 @@ router.post("/:userId/guests/import", async (req, res) => {
           fullName: String(row.fullName).trim(),
           phone: normalized || (row.phone ? String(row.phone).replace(/\D/g, "") : ""),
           guestGroup: rawCategory,
+          guestSide: String(row.guestSide || "").trim(),
           attendeesCount: Math.max(1, Number(row.attendeesCount || 1)),
           giftAmount: Math.max(0, Number(row.giftAmount || 0)),
+          email: String(row.email || "").trim(),
+          notes: String(row.notes || "").trim(),
+          invitationSent: String(row.invitationSent || "").trim(),
           status: row.status || "לא ידוע",
           source: "excel"
         };
@@ -775,8 +794,13 @@ router.post("/:userId/guests/import", async (req, res) => {
           fullName: excelRow.fullName,
           phone: excelRow.phone || phone,
           guestGroup: excelRow.guestGroup || excelRow.category || "",
+          guestSide: excelRow.guestSide || "",
           attendeesCount: excelRow.attendeesCount,
           status: excelRow.status,
+          giftAmount: excelRow.giftAmount,
+          email: excelRow.email || "",
+          notes: excelRow.notes || "",
+          invitationSent: excelRow.invitationSent || "",
           rowNumber
         },
         rowNumber
@@ -804,6 +828,10 @@ router.post("/:userId/guests/import", async (req, res) => {
             giftAmount: Math.max(0, Number(doc.giftAmount || 0)),
             status: doc.status,
             guestGroup: String(doc.guestGroup || "").trim(),
+            guestSide: String(doc.guestSide || "").trim(),
+            email: String(doc.email || "").trim(),
+            notes: String(doc.notes || "").trim(),
+            invitationSent: String(doc.invitationSent || "").trim(),
             source: resolveSourceAfterExcelOverwrite(existing.source)
           }
         };
@@ -912,10 +940,7 @@ router.patch("/:userId/guests/:guestId", async (req, res) => {
       update.giftAmount = Math.max(0, Number(giftAmount));
     }
     if (typeof req.body.guestSide !== "undefined") {
-      const side = String(req.body.guestSide || "").trim();
-      if (["חתן", "כלה", "משותף", ""].includes(side)) {
-        update.guestSide = side;
-      }
+      update.guestSide = String(req.body.guestSide || "").trim().slice(0, 80);
     }
     if (typeof req.body.guestGroup !== "undefined") {
       update.guestGroup = String(req.body.guestGroup || "").trim();

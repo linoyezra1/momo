@@ -24,20 +24,70 @@ export function hasUsablePhoneDigits(phone) {
 export const NON_ISRAELI_PHONE_WARNING =
   "מספר הטלפון אינו ישראלי — עלה למערכת, אנא ודאו שאין טעות ושהמספר תקין";
 
+function cleanText(value) {
+  return String(value ?? "")
+    .replace(/\u00a0/g, " ")
+    .trim();
+}
+
+function headerValue(row, match) {
+  for (const [key, value] of Object.entries(row || {})) {
+    if (String(key).startsWith("__")) continue;
+    const header = cleanText(key).replace(/\s+/g, " ");
+    if (match(header)) return value;
+  }
+  return undefined;
+}
+
+function mapArrivalStatus(statusRaw) {
+  if (statusRaw === "יגיע" || statusRaw === "מגיע") return "מגיע";
+  if (statusRaw === "לא יגיע" || statusRaw === "לא מגיע") return "לא מגיע";
+  if (statusRaw === "מתלבט" || statusRaw === "אולי") return "אולי";
+  if (statusRaw === "הגיע לאירוע") return "הגיע לאירוע";
+  return "לא ידוע";
+}
+
+function mapInvitationSent(raw) {
+  const value = cleanText(raw);
+  if (value === "נשלחה") return "נשלחה";
+  if (value === "לא נשלחה") return "לא נשלחה";
+  return "";
+}
+
+function parseGiftAmount(raw) {
+  if (typeof raw === "number" && Number.isFinite(raw)) return Math.max(0, raw);
+  const digits = cleanText(raw).replace(/[^\d.]/g, "");
+  const amount = Number(digits);
+  return Number.isFinite(amount) && amount > 0 ? amount : 0;
+}
+
 export function extractGuestFieldsFromRow(row = {}) {
-  const fullName = String(row["שם מלא"] ?? row.fullName ?? row.name ?? "").trim();
-  const rawPhone = String(row["טלפון"] ?? row.phone ?? "").trim();
-  const phone = normalizePhone(row["טלפון"] ?? row.phone ?? "");
-  const guestGroup = String(
-    row["קטגוריה"] ??
-      row["צד"] ??
+  const fullName = cleanText(
+    headerValue(row, (key) => key === "שם המוזמן") ??
+      row["שם מלא"] ??
+      row.fullName ??
+      row.name ??
+      ""
+  );
+  const rawPhone = cleanText(
+    headerValue(row, (key) => key === "נייד") ?? row["טלפון"] ?? row.phone ?? ""
+  );
+  const phone = normalizePhone(rawPhone);
+  const sideValue = cleanText(
+    row.guestSide ?? headerValue(row, (key) => key.startsWith("מהצד של")) ?? ""
+  );
+  const guestGroup = cleanText(
+    headerValue(row, (key) => key === "שיוך לקבוצה") ??
+      row["קטגוריה"] ??
       row.Category ??
       row.category ??
       row.guestGroup ??
       row.guestCategory ??
+      (sideValue ? "" : row["צד"]) ??
       ""
-  ).trim();
+  );
   const amountRaw =
+    headerValue(row, (key) => key === "כמה יגיעו") ??
     row["כמות"] ??
     row["כמות מגיעים"] ??
     row["כמות אנשים"] ??
@@ -46,12 +96,34 @@ export function extractGuestFieldsFromRow(row = {}) {
     row.count ??
     row.attendeesCount;
   const attendeesCount = Math.max(1, parseAttendeesCount(amountRaw));
-  const statusRaw = String(row["סטטוס"] ?? row.status ?? row["סטטוס הגעה"] ?? "").trim();
-  let status = "לא ידוע";
-  if (statusRaw === "מגיע" || statusRaw === "לא מגיע" || statusRaw === "אולי") {
-    status = statusRaw;
-  }
-  return { fullName, rawPhone, phone, guestGroup, attendeesCount, status, giftAmount: 0 };
+  const statusRaw = cleanText(
+    headerValue(row, (key) => key === "סטטוס הגעה") ?? row["סטטוס"] ?? row.status ?? ""
+  );
+  const status = mapArrivalStatus(statusRaw);
+  const giftAmount = parseGiftAmount(
+    row.giftAmount ?? headerValue(row, (key) => key === "סכום מתנה משוער") ?? row["סכום מתנה"] ?? 0
+  );
+  const email = cleanText(
+    row.email ?? headerValue(row, (key) => key.toLowerCase() === "mail" || key === "אימייל" || key === "מייל") ?? ""
+  );
+  const notes = cleanText(row.notes ?? headerValue(row, (key) => key.startsWith("הערות")) ?? "");
+  const enteredBy = cleanText(headerValue(row, (key) => key.startsWith("מספר הטלפון של המשתמש")) ?? "");
+  const invitationSent = mapInvitationSent(
+    row.invitationSent ?? headerValue(row, (key) => key.startsWith("האם נשלחה הזמנה")) ?? ""
+  );
+  return {
+    fullName,
+    rawPhone,
+    phone,
+    guestGroup,
+    guestSide: sideValue,
+    attendeesCount,
+    status,
+    giftAmount,
+    email,
+    notes: [notes, enteredBy && !notes.includes(enteredBy) ? `הוזן ע״י: ${enteredBy}` : ""].filter(Boolean).join("\n"),
+    invitationSent
+  };
 }
 
 export function makeFailedRow(rowNumber, name, reason) {
@@ -98,9 +170,13 @@ export function validateImportGuestRow(row, rowNumber) {
         fullName: fields.fullName,
         phone: "",
         guestGroup: fields.guestGroup || "",
+        guestSide: fields.guestSide || "",
         attendeesCount: fields.attendeesCount,
         status: fields.status,
-        giftAmount: 0,
+        giftAmount: fields.giftAmount || 0,
+        email: fields.email || "",
+        notes: fields.notes || "",
+        invitationSent: fields.invitationSent || "",
         rowNumber: Number(rowNumber) || null
       }
     };
@@ -116,9 +192,13 @@ export function validateImportGuestRow(row, rowNumber) {
     fullName: fields.fullName,
     phone: fields.phone || String(rawPhone).replace(/\D/g, ""),
     guestGroup: fields.guestGroup || "",
+    guestSide: fields.guestSide || "",
     attendeesCount: fields.attendeesCount,
     status: fields.status,
-    giftAmount: 0,
+    giftAmount: fields.giftAmount || 0,
+    email: fields.email || "",
+    notes: fields.notes || "",
+    invitationSent: fields.invitationSent || "",
     rowNumber: Number(rowNumber) || null
   };
 

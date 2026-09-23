@@ -151,7 +151,9 @@ router.post("/twilio/message-status", async (req, res) => {
 
   console.log(
     `[Twilio status] ${messageSid || "unknown"} status=${messageStatus || "?"} ` +
-      `code=${req.body?.ErrorCode || "-"} to=${req.body?.To || "-"}`
+      `code=${req.body?.ErrorCode || "-"} ` +
+      `message=${req.body?.ErrorMessage || req.body?.ChannelStatusMessage || "-"} ` +
+      `to=${req.body?.To || "-"}`
   );
 
   if (messageStatus === "undelivered" || messageStatus === "failed") {

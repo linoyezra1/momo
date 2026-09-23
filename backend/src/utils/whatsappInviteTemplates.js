@@ -121,13 +121,16 @@ const TEMPLATE_FIELD_KEYS = {
     mediaPath: "5"
   },
   /**
-   * Single URL button uses {{4}} as the invite link; media {{6}}.
+   * Single URL button. Approved button URL is
+   * https://momoevent.up.railway.app/event/{{4}}
+   * so {{4}} must be only the event id (a full URL is rejected after accept).
+   * Body {{1}}–{{3}} + closing {{5}}, media {{6}}.
    */
   card_view_invite_button: {
     guestName: "1",
     customOpeningText: "2",
     eventDateTimeLocation: "3",
-    rsvpLink: "4",
+    inviteButtonPath: "4",
     closingSignOff: "5",
     mediaPath: "6"
   },
@@ -250,7 +253,26 @@ export function templateRequiresCoverMedia(templateId) {
 
 export function templateIncludesRsvpLink(templateId) {
   const map = getTemplateFieldKeyMap(templateId);
-  return Boolean(map.rsvpLink);
+  return Boolean(map.rsvpLink || map.inviteButtonPath);
+}
+
+/**
+ * Suffix for a WhatsApp URL button whose template is
+ * https://…/event/{{N}}. A full https URL in that variable is rejected (63013).
+ */
+export function buildInviteUrlButtonVariable(rsvpLink) {
+  const raw = String(rsvpLink || "").trim();
+  if (!raw) return "";
+  try {
+    const url = new URL(raw);
+    const parts = url.pathname.split("/").filter(Boolean);
+    const eventIndex = parts.lastIndexOf("event");
+    const id = eventIndex >= 0 ? parts[eventIndex + 1] : parts[parts.length - 1];
+    return String(id || "").trim();
+  } catch {
+    const parts = raw.split("/").filter(Boolean);
+    return parts[parts.length - 1] || "";
+  }
 }
 
 export function templateIncludesSpecialRequestsLink(templateId) {

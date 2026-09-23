@@ -69,6 +69,7 @@ export function sanitizeWhatsAppTemplateVariable(value, fallback = "-") {
     .replace(/[\n\r\t]+/g, " ")
     .replace(/\p{Extended_Pictographic}/gu, "")
     .replace(/!+$/u, "")
+    .replace(/["“”״]/g, "")
     .replace(/ {2,}/g, " ")
     .trim();
 
@@ -450,7 +451,8 @@ export function buildTwilioContentVariables(
     mediaPath,
     specialRequestsLink,
     wazeLink,
-    wazeQuery
+    wazeQuery,
+    inviteButtonPath
   },
   templateKeys = ["1", "2", "3", "4", "5"],
   fieldKeyMap = null
@@ -471,7 +473,8 @@ export function buildTwilioContentVariables(
     mediaPath,
     specialRequestsLink,
     wazeLink,
-    wazeQuery
+    wazeQuery,
+    inviteButtonPath
   };
 
   /** Default full mapping (legacy 1–6). */

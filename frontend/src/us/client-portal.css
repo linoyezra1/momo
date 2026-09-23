@@ -587,6 +587,24 @@
   margin-top: 0.35rem;
 }
 
+.us-import-preview__list {
+  margin: 0.75rem 0 0;
+  padding: 0.75rem 1rem;
+  max-height: min(40vh, 18rem);
+  overflow: auto;
+  list-style: disc;
+  list-style-position: inside;
+  border: 1px solid #e4e4e7;
+  border-radius: 0.55rem;
+  background: #fafafa;
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.us-import-preview__list li + li {
+  margin-top: 0.35rem;
+}
+
 .us-import-warnings {
   margin-top: 1rem;
 }

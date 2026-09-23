@@ -62,12 +62,13 @@ const guestSchema = new mongoose.Schema(
       enum: ["excel", "form", "manual", "excel_and_form", "CONTACTS_IMPORT", "contacts"],
       default: "manual"
     },
-    guestSide: {
-      type: String,
-      enum: ["חתן", "כלה", "משותף", ""],
-      default: ""
-    },
+    /** Raw side label, e.g. חתן/כלה or a name from מאורסים מאורסות ("שקד"). */
+    guestSide: { type: String, trim: true, default: "" },
     guestGroup: { type: String, trim: true, default: "" },
+    email: { type: String, trim: true, default: "" },
+    notes: { type: String, trim: true, default: "" },
+    /** "נשלחה" | "לא נשלחה" | "" */
+    invitationSent: { type: String, trim: true, default: "" },
     seatingTableId: { type: String, trim: true, default: "" },
     /** Set when a seated guest switches to לא מגיע */
     declinedWhileSeatedAt: { type: Date, default: null },
