@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Copy, Pencil, Trash2, X } from "lucide-react";
+import { Copy, LogIn, Pencil, Trash2, X } from "lucide-react";
 import api from "../api";
 import AdminWhatsAppFailures from "../components/AdminWhatsAppFailures.jsx";
 import { clearAdminToken } from "../utils/adminAuth";
+import { setImpersonationSession } from "../utils/impersonation";
 import { buildClientOnboardingMessage } from "../utils/clientOnboardingMessage";
 import { formatIsraeliDate } from "../utils/dateFormat";
 import { getCeremonyLabel, isCoupleEventType, isConferenceEventType } from "../utils/eventTypeWording";
@@ -250,6 +251,7 @@ export default function AdminPage() {
   const [loadingClients, setLoadingClients] = useState(false);
   const [error, setError] = useState("");
   const [clientsError, setClientsError] = useState("");
+  const [impersonatingUserId, setImpersonatingUserId] = useState("");
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [messageSupplierCostTotal, setMessageSupplierCostTotal] = useState(0);
   const [agentsSummary, setAgentsSummary] = useState([]);
@@ -834,6 +836,32 @@ ${publicEventUrl}`
     setShowCreateWizard(true);
   };
 
+  const loginAsClient = async (client) => {
+    setError("");
+    setImpersonatingUserId(client.userId);
+    try {
+      const response = await api.post("/admin/impersonate", { targetUserId: client.userId });
+      const token = response.data?.token;
+      const userId = response.data?.userId || client.userId;
+      const clientName = response.data?.clientName || buildClientLabel(client);
+      const redirectUrl = response.data?.redirectUrl || `/client/dashboard/${userId}`;
+      if (!token) {
+        throw new Error("missing token");
+      }
+      setImpersonationSession({ token, userId, clientName });
+      const hash = `impersonate=${encodeURIComponent(token)}&name=${encodeURIComponent(clientName)}`;
+      const url = `${window.location.origin}${redirectUrl}#${hash}`;
+      const opened = window.open(url, "_blank");
+      if (!opened) {
+        window.location.assign(url);
+      }
+    } catch (loginError) {
+      setError(loginError.response?.data?.message || "הכניסה כלקוח נכשלה");
+    } finally {
+      setImpersonatingUserId("");
+    }
+  };
+
   const deleteClient = async (client, clickEvent) => {
     clickEvent.stopPropagation();
     const confirmed = window.confirm("האם אתה בטוח שברצונך למחוק את הלקוח ואת כל נתוני האירוע?");
@@ -1253,6 +1281,16 @@ ${publicEventUrl}`
                           <td>{formatIls(client.messageSupplierCost)}</td>
                           <td>
                             <div className="us-admin-table-actions">
+                              <button
+                                className="us-admin-btn us-admin-btn--xs"
+                                type="button"
+                                disabled={String(impersonatingUserId) === String(client.userId)}
+                                onClick={() => loginAsClient(client)}
+                                aria-label={`כניסה כלקוח ${buildClientLabel(client)}`}
+                              >
+                                <LogIn size={14} />
+                                כניסה כלקוח
+                              </button>
                               <button
                                 className="us-admin-btn us-admin-btn--xs us-admin-btn--primary"
                                 type="button"

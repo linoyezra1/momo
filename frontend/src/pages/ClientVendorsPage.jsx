@@ -540,7 +540,7 @@ export default function ClientVendorsPage() {
 
       {showAssign ? (
         <div className="us-modal-backdrop" role="presentation">
-          <form className="us-modal-card" onSubmit={submitAssign} dir="rtl">
+          <form className="us-modal-card il-vendor-modal" onSubmit={submitAssign} dir="rtl">
             <h2 className="us-modal-title">הוספת ספק לאירוע</h2>
             {isCoupleView ? null : (
               <div className="us-admin-field">
@@ -743,7 +743,7 @@ export default function ClientVendorsPage() {
 
       {editing ? (
         <div className="us-modal-backdrop" role="presentation">
-          <form className="us-modal-card" onSubmit={saveEdit} dir="rtl">
+          <form className="us-modal-card il-vendor-modal" onSubmit={saveEdit} dir="rtl">
             <h2 className="us-modal-title">{isCoupleView ? "עריכת ספק" : "עריכת הצעת מחיר"}</h2>
             {isCoupleView ? (
               <div className="us-admin-field">

@@ -26,6 +26,66 @@ import {
   toTwilioWhatsAppAddress
 } from "../utils/twilioWhatsApp.js";
 
+function namesForReply(rows, limit = 6) {
+  const names = rows.map((row) => String(row.fullName || "").trim()).filter(Boolean);
+  const shown = names.slice(0, limit);
+  const extra = names.length - shown.length;
+  if (!shown.length) return "";
+  return ` (${shown.join(", ")}${extra > 0 ? ` ועוד ${extra}` : ""})`;
+}
+
+function reasonLine(count, text, rows) {
+  return `• ${count} — ${text}${namesForReply(rows)}`;
+}
+
+function buildContactImportReply({ receivedCount, imported, skipped, failed }) {
+  const added = imported.length;
+  const already = skipped.filter((row) => row.reason === "already_exists");
+  const duplicateInMessage = skipped.filter((row) => row.reason === "duplicate_in_payload");
+  const missing = failed.filter((row) => row.reason === "missing_fields");
+  const invalid = failed.filter((row) => row.reason === "invalid_phone");
+  const otherFailed = failed.filter(
+    (row) => row.reason !== "missing_fields" && row.reason !== "invalid_phone"
+  );
+  const notAdded = already.length + duplicateInMessage.length + failed.length;
+
+  if (receivedCount === 1 && added === 1 && notAdded === 0) {
+    return `מעולה! הוספנו את ${imported[0].fullName} לרשימת המוזמנים (סטטוס: לא ידוע, כמות: 1).`;
+  }
+
+  const lines = [`נקלטו ${receivedCount} כרטיסיות.`];
+  if (added === 1) {
+    lines.push(`הוספנו את ${imported[0].fullName} לרשימת המוזמנים.`);
+  } else if (added > 1) {
+    lines.push(`הוספנו ${added} מוזמנים לרשימה.`);
+  } else {
+    lines.push("לא הוספנו מוזמנים חדשים.");
+  }
+
+  if (notAdded > 0) {
+    lines.push(`לא הוספנו ${notAdded}:`);
+    if (already.length) {
+      lines.push(reasonLine(already.length, "המספר כבר קיים ברשימת המוזמנים", already));
+    }
+    if (duplicateInMessage.length) {
+      lines.push(
+        reasonLine(duplicateInMessage.length, "אותו מספר כבר הופיע באותה הודעה", duplicateInMessage)
+      );
+    }
+    if (missing.length) {
+      lines.push(reasonLine(missing.length, "חסר שם או מספר טלפון", missing));
+    }
+    if (invalid.length) {
+      lines.push(reasonLine(invalid.length, "מספר הטלפון לא תקין", invalid));
+    }
+    if (otherFailed.length) {
+      lines.push(reasonLine(otherFailed.length, "השמירה נכשלה", otherFailed));
+    }
+  }
+
+  return lines.join("\n");
+}
+
 function looksLikeVcard(text) {
   return /BEGIN:VCARD/i.test(String(text || ""));
 }
@@ -325,26 +385,12 @@ export async function handleIncomingWhatsAppContactShare(reqBody = {}, senderLin
     }
   }
 
-  let replyBody = "";
-  if (imported.length === 1) {
-    replyBody = `מעולה! הוספנו את ${imported[0].fullName} לרשימת המוזמנים (סטטוס: לא ידוע, כמות: 1).`;
-  } else if (imported.length > 1) {
-    const names = imported.map((row) => row.fullName).join(", ");
-    replyBody = `מעולה! הוספנו ${imported.length} מוזמנים לרשימה: ${names}.`;
-  } else if (skipped.length && skipped.every((row) => row.reason === "already_exists")) {
-    const name = skipped[0]?.fullName || "איש הקשר";
-    replyBody =
-      skipped.length === 1
-        ? `${name} כבר קיים/ה ברשימת המוזמנים — לא ביצענו כפילות.`
-        : `אנשי הקשר ששלחתם כבר קיימים ברשימה — לא נוספו כפילויות.`;
-  } else {
-    replyBody =
-      "קיבלנו את איש הקשר אבל לא הצלחנו להוסיף מוזמן חדש. בדקו שיש שם ומספר טלפון תקינים, או הוסיפו ידנית בדשבורד.";
-  }
-
-  if (imported.length && skipped.some((row) => row.reason === "already_exists")) {
-    replyBody += `\n(${skipped.filter((row) => row.reason === "already_exists").length} דולגו כי כבר קיימים)`;
-  }
+  const replyBody = buildContactImportReply({
+    receivedCount: parsedContacts.length,
+    imported,
+    skipped,
+    failed
+  });
 
   await sendReply({ toPhone: inboundPhoneRaw, body: replyBody, userId });
 

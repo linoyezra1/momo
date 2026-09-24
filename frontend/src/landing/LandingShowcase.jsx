@@ -1,14 +1,5 @@
 import { useEffect, useState } from "react";
-import {
-  Bell,
-  Building2,
-  Calendar,
-  Check,
-  CheckCheck,
-  MapPin,
-  UserRound,
-  Users
-} from "lucide-react";
+import { Bell, MapPin, Users } from "lucide-react";
 
 function PhoneFrame({ children, label }) {
   return (
@@ -24,103 +15,14 @@ function PhoneFrame({ children, label }) {
   );
 }
 
-function CompanyInvite() {
+function PhoneScreenshot({ src, alt }) {
   return (
-    <div className="flex h-[520px] flex-col bg-secondary/60">
-      <div className="flex items-center gap-3 bg-primary px-4 py-3 text-primary-foreground">
-        <span className="flex size-9 items-center justify-center rounded-full bg-accent text-accent-foreground">
-          <Building2 className="size-4" />
-        </span>
-        <div className="leading-tight">
-          <p className="text-sm font-semibold">מומו · אישורי הגעה</p>
-          <p className="text-xs opacity-70">חשבון עסקי</p>
-        </div>
-      </div>
-
-      <div className="flex flex-1 flex-col gap-3 overflow-hidden p-4">
-        <div className="max-w-[85%] rounded-2xl rounded-tr-sm bg-card p-3 shadow-sm">
-          <div className="mb-2 overflow-hidden rounded-xl border border-border">
-            <div className="bg-accent/12 px-3 py-4 text-center">
-              <p className="font-serif text-sm font-bold text-primary">דנה &amp; יואב מתחתנים!</p>
-              <p className="mt-1 text-xs text-muted-foreground">נשמח לחגוג יחד</p>
-            </div>
-          </div>
-          <p className="text-sm leading-relaxed text-foreground">
-            היי רותם, מוזמנים לחתונה שלנו. אפשר לאשר הגעה כאן למטה:
-          </p>
-          <div className="mt-1 flex justify-start gap-1 text-[10px] text-muted-foreground">
-            <span>20:14</span>
-            <CheckCheck className="size-3.5 text-accent" />
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-2">
-          <button type="button" className="rounded-xl bg-accent py-2.5 text-center text-sm font-semibold text-accent-foreground shadow-sm">
-            מגיע/ה בשמחה
-          </button>
-          <button type="button" className="rounded-xl border border-border bg-card py-2.5 text-center text-sm font-semibold text-primary">
-            לא נוכל להגיע
-          </button>
-          <button type="button" className="rounded-xl border border-border bg-card py-2.5 text-center text-sm font-semibold text-primary">
-            עדיין לא בטוח/ה
-          </button>
-        </div>
-
-        <p className="mt-1 text-center text-xs text-muted-foreground">
-          כפתורי אישור מהירים — לחיצה אחת וזהו
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function PersonalInvite() {
-  return (
-    <div className="flex h-[520px] flex-col bg-secondary/60">
-      <div className="flex items-center gap-3 bg-primary px-4 py-3 text-primary-foreground">
-        <span className="flex size-9 items-center justify-center rounded-full bg-card text-primary">
-          <UserRound className="size-4" />
-        </span>
-        <div className="leading-tight">
-          <p className="text-sm font-semibold">אתם · הוואטסאפ האישי</p>
-          <p className="text-xs opacity-70">מהמספר שלכם</p>
-        </div>
-      </div>
-
-      <div className="flex flex-1 flex-col gap-3 overflow-hidden p-4">
-        <div className="mx-auto rounded-full bg-card px-3 py-1 text-[11px] text-muted-foreground shadow-sm">
-          נשלח מהמספר האישי שלכם
-        </div>
-
-        <div className="ml-auto max-w-[85%] rounded-2xl rounded-tl-sm bg-accent/15 p-3 shadow-sm">
-          <p className="text-sm leading-relaxed text-foreground">
-            היי רותם! 🤍 אנחנו מתחתנים ורוצים אתכם איתנו. תכף שולחים את ההזמנה עם כל הפרטים
-            והלינק לאישור.
-          </p>
-          <div className="mt-1 flex justify-end gap-1 text-[10px] text-muted-foreground">
-            <span>19:02</span>
-            <CheckCheck className="size-3.5 text-accent" />
-          </div>
-        </div>
-
-        <div className="ml-auto max-w-[85%] rounded-2xl rounded-tl-sm bg-accent/15 p-3 shadow-sm">
-          <div className="overflow-hidden rounded-xl border border-border bg-card">
-            <div className="bg-accent/12 px-3 py-5 text-center">
-              <Calendar className="mx-auto mb-1 size-5 text-accent" />
-              <p className="font-serif text-sm font-bold text-primary">ההזמנה הדיגיטלית</p>
-              <p className="mt-1 text-xs text-muted-foreground">12.09 · אולם הגן · 19:30</p>
-            </div>
-            <div className="border-t border-border px-3 py-2 text-center text-xs font-semibold text-accent">
-              לחצו לאישור הגעה
-            </div>
-          </div>
-          <div className="mt-1 flex justify-end gap-1 text-[10px] text-muted-foreground">
-            <span>19:02</span>
-            <Check className="size-3.5" />
-          </div>
-        </div>
-      </div>
-    </div>
+    <img
+      src={encodeURI(src)}
+      alt={alt}
+      className="block h-auto w-full"
+      draggable="false"
+    />
   );
 }
 
@@ -279,7 +181,10 @@ export default function LandingShowcase() {
         <div className="mt-14 grid gap-10 md:grid-cols-3 md:gap-6">
           <div>
             <PhoneFrame label="שליחה מוואטסאפ החברה">
-              <CompanyInvite />
+              <PhoneScreenshot
+                src="/images/3 כפתורים (2).jpeg"
+                alt="הודעת וואטסאפ מהחברה עם שלושה כפתורי אישור הגעה"
+              />
             </PhoneFrame>
             <p className="mx-auto mt-4 max-w-[300px] text-center text-sm leading-relaxed text-muted-foreground">
               הודעה מהמספר של החברה עם כפתורי אישור מהירים — האורח לוחץ פעם אחת והתשובה נכנסת
@@ -289,7 +194,10 @@ export default function LandingShowcase() {
 
           <div>
             <PhoneFrame label="שליחה מהוואטסאפ האישי שלכם">
-              <PersonalInvite />
+              <PhoneScreenshot
+                src="/images/ווצאפ אישי.jpeg"
+                alt="הודעת וואטסאפ שנשלחת מהמספר האישי"
+              />
             </PhoneFrame>
             <p className="mx-auto mt-4 max-w-[300px] text-center text-sm leading-relaxed text-muted-foreground">
               אותה הזמנה, אבל מהמספר האישי שלכם — יותר חם ואישי, וזה בחינם לגמרי.

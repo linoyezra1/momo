@@ -426,6 +426,82 @@
 .il-vendor-modal {
   max-width: 36rem;
   width: min(36rem, 95vw);
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.il-vendor-modal .us-modal-title {
+  margin: 0;
+  font-family: var(--momo-font-sans, "Heebo", "Segoe UI", Tahoma, Arial, sans-serif);
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.il-vendor-modal .us-admin-field {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.35rem;
+  margin: 0;
+  min-width: 0;
+}
+
+.il-vendor-modal .us-admin-field-label {
+  display: block;
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.45;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--us-muted, #8a6f6b);
+}
+
+.il-vendor-modal .us-admin-field-input,
+.il-vendor-modal select.us-admin-field-input,
+.il-vendor-modal textarea.us-admin-field-input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--us-border, #e8e0d8);
+  border-radius: 0.45rem;
+  background: #fff;
+  padding: 0.55rem 0.7rem;
+  font: inherit;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: var(--us-espresso, #4a2e2b);
+}
+
+.il-vendor-modal .us-admin-field-input:focus {
+  outline: none;
+  border-color: var(--us-rose, #d57e7e);
+  box-shadow: 0 0 0 3px var(--us-focus-ring, rgb(213 126 126 / 28%));
+}
+
+.il-vendor-modal p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.il-vendor-modal .us-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.15rem;
+}
+
+.il-vendor-modal .us-btn {
+  letter-spacing: 0;
+  text-transform: none;
+  font-size: 0.9rem;
+  line-height: 1.3;
 }
 
 .il-vendor-modal__head {

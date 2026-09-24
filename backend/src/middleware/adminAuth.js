@@ -26,6 +26,50 @@ export function signAdminToken() {
   return `${body}.${signature}`;
 }
 
+export function signImpersonationToken({ targetUserId, originalAdminId = "admin", clientName = "" }) {
+  const secret = getAdminSecret();
+  if (!secret) {
+    throw new Error("ADMIN_SECRET is not configured");
+  }
+
+  const payload = {
+    role: "impersonation",
+    userId: String(targetUserId),
+    isImpersonated: true,
+    originalAdminId: String(originalAdminId || "admin"),
+    clientName: String(clientName || "").slice(0, 120),
+    exp: Date.now() + TOKEN_TTL_MS
+  };
+  const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  const signature = crypto.createHmac("sha256", secret).update(body).digest("base64url");
+  return `${body}.${signature}`;
+}
+
+export function verifyImpersonationToken(token) {
+  const secret = getAdminSecret();
+  if (!secret || !token) return null;
+
+  const [body, signature] = String(token).split(".");
+  if (!body || !signature) return null;
+
+  const expected = crypto.createHmac("sha256", secret).update(body).digest("base64url");
+  const sigBuffer = Buffer.from(signature);
+  const expectedBuffer = Buffer.from(expected);
+  if (sigBuffer.length !== expectedBuffer.length) return null;
+  if (!crypto.timingSafeEqual(sigBuffer, expectedBuffer)) return null;
+
+  try {
+    const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
+    if (!payload?.exp || Number(payload.exp) < Date.now()) return null;
+    if (payload.role !== "impersonation" || payload.isImpersonated !== true || !payload.userId) {
+      return null;
+    }
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
 export function verifyAdminToken(token) {
   const secret = getAdminSecret();
   if (!secret || !token) return null;

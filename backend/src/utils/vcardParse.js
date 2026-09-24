@@ -162,14 +162,7 @@ export function parseVcardContacts(rawText) {
     }
   }
 
-  // Deduplicate identical phone+name pairs within one payload
-  const seen = new Set();
-  return contacts.filter((contact) => {
-    const key = `${contact.fullName}::${contact.phone}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+  return contacts;
 }
 
 export function collectPropertyDebug(card) {

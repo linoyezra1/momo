@@ -87,6 +87,25 @@ const FEATURE_SECTIONS = [
     imageFirst: true
   },
   {
+    id: "feature-whatsapp-import",
+    icon: MessageCircle,
+    badge: "ייבוא מהוואטסאפ",
+    title: "ייבוא מוזמנים מהוואטסאפ",
+    text: "פשוט שולחים הודעה למספר של הבוט של מומו. הבוט ישאל אתכם לאיזה מספר לקשר את המוזמנים — וזהו.",
+    points: [
+      "שולחים לו את אנשי הקשר, והוא מעלה אותם למערכת",
+      "שולחים למשפחה הקרובה, כדי שיעזרו לכם לבנות את הרשימה",
+      "מתחילים בהודעה ל־055-3193433"
+    ],
+    video: "/videos/whatsapp-guest-import.mp4",
+    imageAlt: "סרטון הסבר על ייבוא מוזמנים מהוואטסאפ",
+    imageFirst: false,
+    action: {
+      href: "https://wa.me/972553193433",
+      label: "שליחה לבוט של מומו"
+    }
+  },
+  {
     id: "feature-vendors",
     icon: Wallet,
     badge: "ספקים ותקציב",
@@ -99,7 +118,7 @@ const FEATURE_SECTIONS = [
     ],
     image: "/images/venue.png",
     imageAlt: "ניהול ספקים ותקציב במומו",
-    imageFirst: false
+    imageFirst: true
   },
   {
     id: "feature-whatsapp",
@@ -114,7 +133,7 @@ const FEATURE_SECTIONS = [
     ],
     image: "/images/Please.png",
     imageAlt: "שליחת הזמנה בוואטסאפ",
-    imageFirst: true
+    imageFirst: false
   },
   {
     id: "feature-audit",
@@ -129,7 +148,7 @@ const FEATURE_SECTIONS = [
     ],
     image: "/images/demo-invitation.png",
     imageAlt: "לוג עדכונים בזמן אמת",
-    imageFirst: false
+    imageFirst: true
   }
 ];
 
@@ -232,6 +251,36 @@ const PLANS = [
     highlight: false
   }
 ];
+
+function FeatureVideo({ src, label }) {
+  const [ready, setReady] = useState(false);
+
+  return (
+    <div className="relative aspect-[4/5] bg-secondary md:aspect-[5/4]">
+      <video
+        className={`h-full w-full object-cover ${ready ? "" : "invisible"}`}
+        controls
+        playsInline
+        preload="metadata"
+        aria-label={label}
+        onLoadedData={() => setReady(true)}
+      >
+        <source src={src} type="video/mp4" />
+      </video>
+      {ready ? null : (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center">
+          <span className="flex size-16 items-center justify-center rounded-full bg-accent text-white">
+            <MessageCircle className="size-7" />
+          </span>
+          <p className="font-serif text-2xl font-bold text-primary">סרטון הסבר</p>
+          <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
+            כאן יופיע סרטון קצר שמראה איך שולחים אנשי קשר לבוט של מומו.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function FreeSignupButton({ className = "", children = "הרשמה בחינם", ...props }) {
   return (
@@ -442,14 +491,18 @@ export default function LandingPage() {
                   >
                     <div className="absolute -inset-4 -z-10 rounded-[2.5rem] bg-accent/10" />
                     <div className="overflow-hidden rounded-[2rem] border border-border bg-card shadow-sm">
-                      <img
-                        src={feature.image}
-                        alt={feature.imageAlt}
-                        className="h-full w-full object-cover"
-                        width={720}
-                        height={560}
-                        loading="lazy"
-                      />
+                      {feature.video ? (
+                        <FeatureVideo src={feature.video} label={feature.imageAlt} />
+                      ) : (
+                        <img
+                          src={feature.image}
+                          alt={feature.imageAlt}
+                          className="h-full w-full object-cover"
+                          width={720}
+                          height={560}
+                          loading="lazy"
+                        />
+                      )}
                     </div>
                   </div>
 
@@ -476,6 +529,16 @@ export default function LandingPage() {
                         </li>
                       ))}
                     </ul>
+                    {feature.action ? (
+                      <a
+                        href={feature.action.href}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-6 inline-flex items-center justify-center rounded-full bg-accent px-6 py-3 text-sm font-semibold text-white hover:bg-accent/90 hover:text-white"
+                      >
+                        {feature.action.label}
+                      </a>
+                    ) : null}
                   </div>
                 </div>
               </section>

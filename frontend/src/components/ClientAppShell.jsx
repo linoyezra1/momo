@@ -4,6 +4,11 @@ import { Armchair, Bell, Briefcase, LayoutGrid, Settings, Users } from "lucide-r
 import api from "../api";
 import BottomSheet from "./ui/BottomSheet.jsx";
 import { getAuditLogLastReadAt, markAuditLogAsRead } from "../utils/auditLogUnread.js";
+import {
+  captureImpersonationFromHash,
+  clearImpersonationSession,
+  getImpersonationSession
+} from "../utils/impersonation.js";
 import { getGuestsListLabel, isConferenceEventType } from "../utils/eventTypeWording.js";
 import { cn } from "../lib/utils.js";
 import "../il/client-mobile-shell.css";
@@ -19,6 +24,7 @@ export default function ClientAppShell({ children }) {
   const [moreOpen, setMoreOpen] = useState(false);
   const [unreadLogCount, setUnreadLogCount] = useState(0);
   const [eventType, setEventType] = useState("");
+  const [impersonation, setImpersonation] = useState(null);
 
   const basePath = `/client/dashboard/${userId}`;
   const auditPath = `${basePath}/audit-log`;
@@ -30,6 +36,32 @@ export default function ClientAppShell({ children }) {
   const isGuests = path === basePath;
   const isAudit = path.includes("/audit-log");
   const moreActive = moreOpen || path.includes("/seating") || path.includes("/vendors");
+
+  useEffect(() => {
+    const fromHash = captureImpersonationFromHash();
+    const session = fromHash || getImpersonationSession();
+    if (session && String(session.userId) === String(userId)) {
+      setImpersonation(session);
+      return;
+    }
+    setImpersonation(null);
+  }, [userId]);
+
+  function exitImpersonation() {
+    clearImpersonationSession();
+    setImpersonation(null);
+    if (window.opener && !window.opener.closed) {
+      try {
+        window.opener.focus();
+      } catch {
+        /* opener may be cross-origin after navigation */
+      }
+      window.close();
+    }
+    window.setTimeout(() => {
+      if (!window.closed) navigate("/admin");
+    }, 80);
+  }
 
   useEffect(() => {
     if (!userId) return undefined;
@@ -99,6 +131,16 @@ export default function ClientAppShell({ children }) {
 
   return (
     <div className="client-app-shell" dir="rtl" lang="he">
+      {impersonation ? (
+        <div className="client-impersonation-banner" role="status">
+          <p>
+            אתה צופה במערכת כעת בתור: <strong>{impersonation.clientName}</strong> (מצב אדמין)
+          </p>
+          <button type="button" onClick={exitImpersonation}>
+            חזרה למסך האדמין
+          </button>
+        </div>
+      ) : null}
       <div className="client-app-shell__frame">
         <div className="client-app-shell__content">{children}</div>
 

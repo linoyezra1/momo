@@ -27,6 +27,7 @@ import {
 import {
   requireAdmin,
   signAdminToken,
+  signImpersonationToken,
   validateAdminCredentials,
   verifyAdminToken
 } from "../middleware/adminAuth.js";
@@ -90,6 +91,59 @@ router.get("/session", (req, res) => {
 });
 
 router.use(requireAdmin);
+
+function clientDisplayName(user) {
+  const event = user?.event || {};
+  const couple = [event.groomName, event.brideName].filter(Boolean).join(" ו");
+  return (
+    couple ||
+    event.eventNames ||
+    event.conferenceBrandName ||
+    event.organizerName ||
+    event.batMitzvahName ||
+    event.parentName1 ||
+    user?.username ||
+    "לקוח"
+  );
+}
+
+router.post("/impersonate", async (req, res) => {
+  try {
+    const header = String(req.headers.authorization || "");
+    const adminToken = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
+    const adminPayload = verifyAdminToken(adminToken);
+    if (!adminPayload || adminPayload.role !== "admin") {
+      return res.status(403).json({ message: "רק מנהל מערכת יכול להיכנס כלקוח" });
+    }
+
+    const targetUserId = String(req.body?.targetUserId || req.body?.eventId || "").trim();
+    if (!/^[a-f\d]{24}$/i.test(targetUserId)) {
+      return res.status(400).json({ message: "יש לבחור לקוח" });
+    }
+
+    const user = await User.findById(targetUserId).select("username event");
+    if (!user) {
+      return res.status(404).json({ message: "הלקוח לא נמצא" });
+    }
+
+    const clientName = clientDisplayName(user);
+    const token = signImpersonationToken({
+      targetUserId: user._id,
+      originalAdminId: "admin",
+      clientName
+    });
+
+    return res.json({
+      token,
+      userId: String(user._id),
+      clientName,
+      isImpersonated: true,
+      redirectUrl: `/client/dashboard/${user._id}`
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "הכניסה כלקוח נכשלה" });
+  }
+});
 
 function applyDealToUser(user, rawDeal) {
   const deal = normalizeDealPayload(rawDeal, user.deal || {}, { allowCouponCode: true });
