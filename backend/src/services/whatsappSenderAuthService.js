@@ -20,10 +20,22 @@ export const MSG_WELCOME =
   "לאיזה חשבון לרשום את המוזמנים?\n" +
   "אנא השב/י עם מספר הטלפון של הכלה/החתן/בעלי האירוע.";
 
+const SIGNUP_WHATSAPP_PHONE = "0553193433";
+const SIGNUP_WHATSAPP_TEXT =
+  "שלום הגעתי מהבוט של מומו אני רוצה לפתוח משתמש למומו\nאילו פרטים צריך?";
+
+function buildSignupWhatsAppLink() {
+  const digits = SIGNUP_WHATSAPP_PHONE.replace(/\D/g, "");
+  const intl = digits.startsWith("0") ? `972${digits.slice(1)}` : digits;
+  return `https://wa.me/${intl}?text=${encodeURIComponent(SIGNUP_WHATSAPP_TEXT)}`;
+}
+
 function buildNotFoundMessage(phone) {
   const shown = String(phone || "").trim() || "שנשלח";
   return (
-    `לא מצאנו אירוע המשויך למספר שהזנת (${shown}). אנא נסה/י שוב עם המספר המדויק.`
+    `לא מצאנו אירוע המשויך למספר שהזנת (${shown}). אנא נסה/י שוב עם המספר המדויק.\n\n` +
+    "במידה ועדיין אין לכם חשבון במומו, מוזמנים לפתוח חשבון בחינם ולהתחיל לנהל את האירוע.\n" +
+    `לפתיחת חשבון לחצו כאן:\n${buildSignupWhatsAppLink()}`
   );
 }
 
