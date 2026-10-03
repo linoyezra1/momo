@@ -2662,12 +2662,12 @@ export default function ClientDashboardPage() {
                 <p>שלחו הודעה למספר:</p>
                 <a
                   className="il-wa-guest-import-phone"
-                  href="https://wa.me/972553193433"
+                  href="https://wa.me/972585915109"
                   target="_blank"
                   rel="noreferrer"
                   dir="ltr"
                 >
-                  0553193433
+                  0585915109
                 </a>
                 <p>
                   הבוט ישאל אתכם לאיזה מספר טלפון לקשר את האירוע — וזהו. מתחילים לשלוח את אנשי
@@ -2691,7 +2691,7 @@ export default function ClientDashboardPage() {
               <div className="us-toolbar mt-4">
                 <a
                   className="us-btn us-btn--primary"
-                  href="https://wa.me/972553193433"
+                  href="https://wa.me/972585915109"
                   target="_blank"
                   rel="noreferrer"
                 >
