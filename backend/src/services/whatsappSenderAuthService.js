@@ -34,6 +34,11 @@ function buildSuccessMessage(eventName) {
   );
 }
 
+const MSG_ACTIVE_READY =
+  "החשבון כבר מקושר ✅\n" +
+  "שלחו לכאן אנשי קשר (כרטיסיות Contact) ואעלה אותם לרשימת המוזמנים.\n" +
+  "להחלפת חשבון כתבו: החלף חשבון";
+
 const MSG_PENDING_NEED_PHONE =
   "קיבלנו את ההודעה 🙂\n" +
   "אנא שלח/י את מספר הטלפון המלא של הכלה/החתן/בעלי האירוע (לדוגמה: 05XXXXXXXX).";
@@ -352,9 +357,16 @@ export async function handleWhatsAppSenderAuth(reqBody = {}) {
         link
       };
     }
+    // Plain text / non-vCard media while already linked — guide the user (do not stay silent).
+    await sendReply({
+      toPhone: inboundPhoneRaw,
+      body: MSG_ACTIVE_READY,
+      userId: link.linkedUserId
+    });
+    console.log(`[WhatsApp auth] Sender ${canonical} active → ready hint sent`);
     return {
-      handled: false,
-      reason: "active_passthrough",
+      handled: true,
+      reason: "active_ready_hint",
       allowContactImport: false,
       link
     };

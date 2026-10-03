@@ -93,6 +93,10 @@ async function processInboundWhatsApp(req) {
     return handleIncomingWhatsAppContactShare(req.body, authResult.link);
   }
 
+  console.log(
+    `[Twilio WhatsApp] Unhandled inbound sid=${req.body.MessageSid || "unknown"} ` +
+      `authReason=${authResult?.reason || "-"} vcardMedia=${vcardCount}`
+  );
   return { handled: false, reason: "unhandled_inbound" };
 }
 
