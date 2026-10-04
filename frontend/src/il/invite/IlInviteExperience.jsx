@@ -11,7 +11,8 @@ import {
   getWelcomeText,
   getWeddingNames,
   getInviteParentsLine,
-  normalizeWebsiteUrl
+  normalizeWebsiteUrl,
+  buildEventWazeUrl
 } from "./ilInviteUtils.js";
 import { isCoupleEventType, isConferenceEventType } from "../../utils/eventTypeWording.js";
 import { getEventCoverSrc, getEventCoverSrcSet } from "../../utils/eventCover.js";
@@ -108,6 +109,8 @@ export default function IlInviteExperience({
   const transportationEnabled = event.transportationEnabled === true;
   const foodSensitivitiesEnabled = event.foodSensitivitiesEnabled === true;
   const transportationWhatsAppLink = String(event.transportationWhatsAppLink || "").trim();
+  const showWazeButton = event.showWazeButton === true;
+  const wazeUrl = showWazeButton ? buildEventWazeUrl(event) : "";
   const showRsvpExtras =
     form.status === "מגיע" || form.status === "אולי";
 
@@ -337,34 +340,47 @@ export default function IlInviteExperience({
                 </p>
 
                 {!rsvpStarted ? (
-                  <div className="il-invite-rsvp__actions">
-                    <button
-                      type="button"
-                      className="il-invite-rsvp__btn il-invite-rsvp__btn--yes"
-                      onClick={() => onChooseStatus("מגיע")}
-                      disabled={previewMode}
-                    >
-                      {isConference ? "כן, אני אגיע!" : "אגיע / אאשר הגעה"}
-                    </button>
-                    {!isConference ? (
+                  <>
+                    <div className="il-invite-rsvp__actions">
                       <button
                         type="button"
-                        className="il-invite-rsvp__btn il-invite-rsvp__btn--maybe"
-                        onClick={() => onChooseStatus("אולי")}
+                        className="il-invite-rsvp__btn il-invite-rsvp__btn--yes"
+                        onClick={() => onChooseStatus("מגיע")}
                         disabled={previewMode}
                       >
-                        אולי / עדיין לא יודע
+                        {isConference ? "כן, אני אגיע!" : "אגיע / אאשר הגעה"}
                       </button>
+                      {!isConference ? (
+                        <button
+                          type="button"
+                          className="il-invite-rsvp__btn il-invite-rsvp__btn--maybe"
+                          onClick={() => onChooseStatus("אולי")}
+                          disabled={previewMode}
+                        >
+                          אולי / עדיין לא יודע
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        className="il-invite-rsvp__btn il-invite-rsvp__btn--no"
+                        onClick={() => onChooseStatus("לא מגיע")}
+                        disabled={previewMode}
+                      >
+                        {isConference ? "לא אוכל להגיע" : "לא יכול/ה להגיע"}
+                      </button>
+                    </div>
+                    {wazeUrl ? (
+                      <a
+                        className="il-invite-rsvp__waze"
+                        href={wazeUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <MapPin size={16} strokeWidth={1.75} aria-hidden="true" />
+                        ניווט ב-Waze
+                      </a>
                     ) : null}
-                    <button
-                      type="button"
-                      className="il-invite-rsvp__btn il-invite-rsvp__btn--no"
-                      onClick={() => onChooseStatus("לא מגיע")}
-                      disabled={previewMode}
-                    >
-                      {isConference ? "לא אוכל להגיע" : "לא יכול/ה להגיע"}
-                    </button>
-                  </div>
+                  </>
                 ) : (
                   <form
                     className="il-invite-rsvp__form"

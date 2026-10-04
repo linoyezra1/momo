@@ -125,3 +125,14 @@ export function normalizeWebsiteUrl(url) {
   if (/^https?:\/\//i.test(raw)) return raw;
   return `https://${raw}`;
 }
+
+/** Deep link to Waze navigation for the event venue / address. */
+export function buildEventWazeUrl(event) {
+  const locationAddress = String(event?.locationAddress || "").trim();
+  const street = String(event?.streetAndNumber || "").trim();
+  const city = String(event?.city || "").trim();
+  const venue = String(event?.venueName || "").trim();
+  const query = locationAddress || [venue, street, city].filter(Boolean).join(" ").trim();
+  if (!query) return "";
+  return `https://waze.com/ul?q=${encodeURIComponent(query)}&navigate=yes`;
+}

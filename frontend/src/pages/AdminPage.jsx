@@ -138,6 +138,7 @@ const initialForm = {
   isPremiumWhatsappCardEnabled: false,
   transportationEnabled: false,
   transportationWhatsAppLink: "",
+  showWazeButton: false,
   foodSensitivitiesEnabled: false,
   cover: null,
   coverPreviewUrl: "",
@@ -763,6 +764,7 @@ ${publicEventUrl}`
           isPremiumWhatsappCardEnabled: Boolean(form.isPremiumWhatsappCardEnabled),
           transportationEnabled: Boolean(form.transportationEnabled),
           transportationWhatsAppLink: form.transportationEnabled ? form.transportationWhatsAppLink.trim() : "",
+          showWazeButton: Boolean(form.showWazeButton),
           foodSensitivitiesEnabled: Boolean(form.foodSensitivitiesEnabled),
           clearCover: form.clearCover === true && !form.pendingCoverFile
         }
@@ -920,6 +922,7 @@ ${publicEventUrl}`
       ),
       transportationEnabled: Boolean(client.event?.transportationEnabled),
       transportationWhatsAppLink: client.event?.transportationWhatsAppLink || "",
+      showWazeButton: Boolean(client.event?.showWazeButton),
       foodSensitivitiesEnabled: Boolean(client.event?.foodSensitivitiesEnabled),
       cover: client.event?.cover || null,
       coverPreviewUrl: getEventCoverSrc(client.event),
@@ -2251,6 +2254,17 @@ ${publicEventUrl}`
                   />
                 </div>
               ) : null}
+              <div className="us-admin-field us-admin-field--full">
+                <label className="us-admin-checkbox">
+                  <input
+                    type="checkbox"
+                    name="showWazeButton"
+                    checked={Boolean(form.showWazeButton)}
+                    onChange={onChange}
+                  />
+                  <span>הצג כפתור ניווט ב-Waze בהזמנה</span>
+                </label>
+              </div>
               <div className="us-admin-field us-admin-field--full">
                 <label className="us-admin-checkbox">
                   <input

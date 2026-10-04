@@ -264,6 +264,31 @@
   cursor: not-allowed;
 }
 
+.il-invite-rsvp__waze {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  width: min(100%, 22rem);
+  margin: 0.85rem auto 0;
+  padding: 0.85rem 1.25rem;
+  border-radius: 999px;
+  border: 1px solid #d4d4d4;
+  background: #ffffff;
+  color: #111111;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.il-invite-rsvp__waze:hover {
+  background: #fafafa;
+  border-color: #bdbdbd;
+  transform: translateY(-1px);
+}
+
 .il-invite-rsvp__form {
   display: flex;
   flex-direction: column;

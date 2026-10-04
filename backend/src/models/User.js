@@ -69,6 +69,8 @@ const eventSchema = new mongoose.Schema(
     /** RSVP: offer ride-sharing / transportation coordination */
     transportationEnabled: { type: Boolean, default: false },
     transportationWhatsAppLink: { type: String, trim: true, default: "" },
+    /** Digital invite: show Waze navigation button under RSVP actions */
+    showWazeButton: { type: Boolean, default: false },
     /** RSVP: ask guests about food allergies / sensitivities */
     foodSensitivitiesEnabled: { type: Boolean, default: false }
   },

@@ -50,6 +50,7 @@ export function normalizeEventPayload(rawEvent) {
       rawEvent?.transportationEnabled === true
         ? String(rawEvent?.transportationWhatsAppLink || "").trim()
         : "",
+    showWazeButton: rawEvent?.showWazeButton === true,
     foodSensitivitiesEnabled: rawEvent?.foodSensitivitiesEnabled === true,
     imageDataUrl: String(rawEvent?.imageDataUrl || "").trim(),
     cover: normalizeCoverFields(rawEvent?.cover),

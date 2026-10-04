@@ -535,6 +535,15 @@ export default function IlInvitationEditor({ userId, eventInfo, onClose, onSaved
             <label className="il-editor-toggle">
               <input
                 type="checkbox"
+                name="showWazeButton"
+                checked={Boolean(form.showWazeButton)}
+                onChange={onChange}
+              />
+              <span>הצג כפתור ניווט ב-Waze בהזמנה</span>
+            </label>
+            <label className="il-editor-toggle">
+              <input
+                type="checkbox"
                 name="foodSensitivitiesEnabled"
                 checked={Boolean(form.foodSensitivitiesEnabled)}
                 onChange={onChange}

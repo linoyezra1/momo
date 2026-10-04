@@ -39,6 +39,7 @@ export function normalizeIlEventUpdatePayload(body) {
     transportationEnabled: body?.transportationEnabled === true,
     transportationWhatsAppLink:
       body?.transportationEnabled === true ? cleanText(body?.transportationWhatsAppLink) : "",
+    showWazeButton: body?.showWazeButton === true,
     foodSensitivitiesEnabled: body?.foodSensitivitiesEnabled === true,
     imageDataUrl: cleanText(body?.imageDataUrl),
     cover: normalizeCoverFields(body?.cover),

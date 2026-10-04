@@ -39,6 +39,7 @@ export function eventInfoToForm(event) {
     welcomeText: source.welcomeText || getDefaultInviteWelcomeText(eventType),
     transportationEnabled: Boolean(source.transportationEnabled),
     transportationWhatsAppLink: source.transportationWhatsAppLink || "",
+    showWazeButton: Boolean(source.showWazeButton),
     foodSensitivitiesEnabled: Boolean(source.foodSensitivitiesEnabled),
     cover: source.cover || null,
     coverPreviewUrl: coverSrc,
@@ -73,6 +74,7 @@ export function formToEventUpdatePayload(form) {
     welcomeText: form.welcomeText,
     transportationEnabled: Boolean(form.transportationEnabled),
     transportationWhatsAppLink: form.transportationEnabled ? form.transportationWhatsAppLink : "",
+    showWazeButton: Boolean(form.showWazeButton),
     foodSensitivitiesEnabled: Boolean(form.foodSensitivitiesEnabled),
     clearCover: form.clearCover === true && !form.pendingCoverFile
   };
@@ -108,6 +110,7 @@ export function eventFormToPreviewPayload(form) {
     transportationWhatsAppLink: form.transportationEnabled
       ? cleanText(form.transportationWhatsAppLink)
       : "",
+    showWazeButton: Boolean(form.showWazeButton),
     foodSensitivitiesEnabled: Boolean(form.foodSensitivitiesEnabled),
     cover: form.cover || (previewSrc ? { url: previewSrc } : null),
     imageDataUrl: previewSrc.startsWith("data:image/") || previewSrc.startsWith("blob:") ? previewSrc : ""
