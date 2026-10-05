@@ -264,6 +264,8 @@ export default function AdminPage() {
   const [impersonatingUserId, setImpersonatingUserId] = useState("");
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [messageSupplierCostTotal, setMessageSupplierCostTotal] = useState(0);
+  const [billingSyncing, setBillingSyncing] = useState(false);
+  const [billingSyncNote, setBillingSyncNote] = useState("");
   const [agentsSummary, setAgentsSummary] = useState([]);
   const [dealDraft, setDealDraft] = useState(defaultDealDraft);
   const [dealSaving, setDealSaving] = useState(false);
@@ -378,6 +380,25 @@ ${publicEventUrl}`
       setClientsError(loadError.response?.data?.message || "טעינת לקוחות נכשלה");
     } finally {
       setLoadingClients(false);
+    }
+  };
+
+  const syncTwilioBilling = async () => {
+    setBillingSyncing(true);
+    setBillingSyncNote("");
+    try {
+      const response = await api.post("/admin/whatsapp-billing-sync", { force: true, days: 120 });
+      const sync = response.data?.sync || {};
+      setBillingSyncNote(
+        sync.skipped
+          ? response.data?.message || "הסנכרון דולג"
+          : `עודכנו ${sync.updated || 0} · נוצרו ${sync.created || 0} · הותאמו ${sync.matched || 0} מתוך ${sync.whatsappScanned || sync.scanned || 0}`
+      );
+      await loadClients();
+    } catch (syncError) {
+      setBillingSyncNote(syncError.response?.data?.message || "סנכרון עלויות Twilio נכשל");
+    } finally {
+      setBillingSyncing(false);
     }
   };
 
@@ -1018,6 +1039,20 @@ ${publicEventUrl}`
             <h3>עלות ספק הודעות</h3>
             <p>{formatUsd(messageSupplierCostTotal)}</p>
             <span className="us-admin-stat-note">סכום Price מ־Twilio (USD) להודעות שחויבו</span>
+            <button
+              className="us-admin-btn us-admin-btn--xs"
+              type="button"
+              style={{ marginTop: "0.65rem" }}
+              disabled={billingSyncing}
+              onClick={syncTwilioBilling}
+            >
+              {billingSyncing ? "מסנכרן מ־Twilio…" : "סנכרון עלויות מהיסטוריית Twilio"}
+            </button>
+            {billingSyncNote ? (
+              <span className="us-admin-stat-note" style={{ display: "block", marginTop: "0.35rem" }}>
+                {billingSyncNote}
+              </span>
+            ) : null}
           </div>
         </div>
 

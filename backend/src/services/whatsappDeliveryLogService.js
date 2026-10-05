@@ -383,6 +383,224 @@ export async function applyWhatsAppMessageStatus({
 }
 
 const syncCooldownUntil = new Map();
+const billingSyncCooldownUntil = new Map();
+
+/**
+ * Backfill / refresh WhatsAppDeliveryLog costs from Twilio Message history.
+ * Matches by guest phone, couple contactPhone, or existing messageSid.
+ * When userId is set — only that client; otherwise all clients.
+ */
+export async function syncWhatsAppBillingFromTwilio({
+  userId = null,
+  force = false,
+  days = 120,
+  limit = 3000
+} = {}) {
+  const scopeKey = userId ? `user:${userId}` : "all";
+  const now = Date.now();
+  if (!force && (billingSyncCooldownUntil.get(scopeKey) || 0) > now) {
+    return {
+      updated: 0,
+      created: 0,
+      scanned: 0,
+      matched: 0,
+      skipped: true,
+      reason: "cooldown"
+    };
+  }
+
+  const { getTwilioClient, isTwilioConfigured, toTwilioWhatsAppAddress } = await import(
+    "../utils/twilioWhatsApp.js"
+  );
+  if (!isTwilioConfigured()) {
+    return {
+      updated: 0,
+      created: 0,
+      scanned: 0,
+      matched: 0,
+      skipped: true,
+      reason: "twilio_not_configured"
+    };
+  }
+
+  const guestQuery = { phone: { $ne: "" } };
+  if (userId) guestQuery.userId = userId;
+  const guests = await Guest.find(guestQuery).select("fullName phone userId lastWhatsAppSentAt");
+
+  /** @type {Map<string, { userId: any, guest: any }>} */
+  const byTwilioAddress = new Map();
+  for (const guest of guests) {
+    const address = toTwilioWhatsAppAddress(guest.phone);
+    if (!address) continue;
+    const current = byTwilioAddress.get(address);
+    const guestStamp = new Date(guest.lastWhatsAppSentAt || 0).getTime();
+    const currentStamp = new Date(current?.guest?.lastWhatsAppSentAt || 0).getTime();
+    if (!current || guestStamp >= currentStamp) {
+      byTwilioAddress.set(address, { userId: guest.userId, guest });
+    }
+  }
+
+  const User = (await import("../models/User.js")).default;
+  const userQuery = userId ? { _id: userId } : { contactPhone: { $ne: "" } };
+  const users = await User.find(userQuery).select("_id contactPhone");
+  for (const user of users) {
+    const address = toTwilioWhatsAppAddress(user.contactPhone);
+    if (!address || byTwilioAddress.has(address)) continue;
+    byTwilioAddress.set(address, { userId: user._id, guest: null });
+  }
+
+  const client = getTwilioClient();
+  const lookbackDays = Math.min(Math.max(Number(days) || 120, 1), 365);
+  const dateSentAfter = new Date(Date.now() - lookbackDays * 24 * 60 * 60 * 1000);
+  const fetchLimit = Math.min(Math.max(Number(limit) || 3000, 100), 5000);
+  const messages = await client.messages.list({
+    dateSentAfter,
+    pageSize: 100,
+    limit: fetchLimit
+  });
+
+  const whatsappMessages = messages.filter((message) => {
+    const from = String(message.from || "").toLowerCase();
+    const to = String(message.to || "").toLowerCase();
+    return from.startsWith("whatsapp:") || to.startsWith("whatsapp:");
+  });
+
+  let updated = 0;
+  let created = 0;
+  let matched = 0;
+
+  for (const message of whatsappMessages) {
+    const sid = String(message.sid || "").trim();
+    if (!sid) continue;
+
+    const status = String(message.status || "").trim().toLowerCase();
+    const toAddr = String(message.to || "");
+    const fromAddr = String(message.from || "");
+    const directionRaw = String(message.direction || "").toLowerCase();
+
+    let resolved = byTwilioAddress.get(toAddr) || byTwilioAddress.get(fromAddr) || null;
+    let existing = await WhatsAppDeliveryLog.findOne({ messageSid: sid });
+
+    if (!resolved && existing?.userId) {
+      if (userId && String(existing.userId) !== String(userId)) continue;
+      resolved = { userId: existing.userId, guest: null };
+    }
+
+    if (!resolved?.userId) continue;
+    if (userId && String(resolved.userId) !== String(userId)) continue;
+
+    matched += 1;
+    const guest = resolved.guest;
+    const wasNew = !existing;
+
+    if (isFailedMessageStatus(status)) {
+      const saved = await recordWhatsAppDeliveryFailure({
+        messageSid: sid,
+        messageStatus: status,
+        errorCode: message.errorCode,
+        errorMessage: message.errorMessage,
+        to: toAddr,
+        from: fromAddr,
+        userId: resolved.userId,
+        guestId: guest?._id || existing?.guestId,
+        guestName: guest?.fullName || existing?.guestName,
+        sentAt: message.dateSent || message.dateCreated,
+        failedAt: message.dateUpdated || message.dateSent || message.dateCreated
+      });
+      if (saved) {
+        if (wasNew) created += 1;
+        else updated += 1;
+      }
+      continue;
+    }
+
+    const direction =
+      directionRaw.includes("inbound")
+        ? "inbound"
+        : directionRaw.includes("outbound")
+          ? "outbound"
+          : byTwilioAddress.has(fromAddr)
+            ? "inbound"
+            : "outbound";
+
+    const billable = isBillableMessageStatus(status) || status === "queued";
+    const twilioPrice = parseTwilioPrice(message.price);
+    const isBilled = isBillableMessageStatus(status);
+    const actualCost = isBilled
+      ? twilioPrice != null
+        ? twilioPrice
+        : direction === "inbound"
+          ? DEFAULT_INBOUND_COST_USD
+          : existing?.actualCost || existing?.costUsd || 0
+      : 0;
+
+    const guestPhone =
+      normalizePhone(guest?.phone || existing?.guestPhone || (direction === "inbound" ? fromAddr : toAddr)) ||
+      cleanPhone(direction === "inbound" ? fromAddr : toAddr);
+
+    const setPayload = {
+      messageSid: sid,
+      userId: resolved.userId,
+      eventId: resolved.userId,
+      guestId: guest?._id || existing?.guestId || null,
+      guestName: String(guest?.fullName || existing?.guestName || "").trim(),
+      guestPhone,
+      direction: existing?.direction || direction,
+      status: billable || isFailedMessageStatus(status) ? status : existing?.status || status,
+      isBilled,
+      priceUnit: String(message.priceUnit || "USD").trim().toUpperCase() || "USD",
+      sentAt: message.dateSent || message.dateCreated || existing?.sentAt || new Date()
+    };
+
+    if (isFailedMessageStatus(status)) {
+      setPayload.actualCost = 0;
+      setPayload.cost = 0;
+      setPayload.costUsd = 0;
+      setPayload.isBilled = false;
+    } else if (isBilled) {
+      setPayload.actualCost = actualCost;
+      setPayload.cost = actualCost;
+      setPayload.costUsd = actualCost;
+    } else if (twilioPrice != null) {
+      // Keep price if Twilio already priced a non-terminal status
+      setPayload.actualCost = twilioPrice;
+      setPayload.cost = twilioPrice;
+      setPayload.costUsd = twilioPrice;
+    }
+
+    if (message.errorCode) {
+      const translated = translateWhatsAppError({
+        errorCode: message.errorCode,
+        errorMessage: message.errorMessage
+      });
+      setPayload.errorCode = translated.errorCode;
+      setPayload.errorMessage = translated.errorMessage;
+      setPayload.errorMessageHe = translated.errorMessageHe;
+    }
+
+    const saved = await WhatsAppDeliveryLog.findOneAndUpdate(
+      { messageSid: sid },
+      { $set: setPayload },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    if (saved) {
+      if (wasNew) created += 1;
+      else updated += 1;
+    }
+  }
+
+  billingSyncCooldownUntil.set(scopeKey, Date.now() + 2 * 60 * 1000);
+  return {
+    updated,
+    created,
+    scanned: messages.length,
+    whatsappScanned: whatsappMessages.length,
+    matched,
+    skipped: false,
+    days: lookbackDays
+  };
+}
 
 export async function syncWhatsAppFailuresFromTwilio({ userId, force = false } = {}) {
   const key = String(userId || "");

@@ -3,7 +3,10 @@ import bcrypt from "bcryptjs";
 import User from "../models/User.js";
 import Guest from "../models/Guest.js";
 import WhatsAppDeliveryLog from "../models/WhatsAppDeliveryLog.js";
-import { syncWhatsAppFailuresFromTwilio } from "../services/whatsappDeliveryLogService.js";
+import {
+  syncWhatsAppBillingFromTwilio,
+  syncWhatsAppFailuresFromTwilio
+} from "../services/whatsappDeliveryLogService.js";
 import ActivationCode from "../models/ActivationCode.js";
 import Lead from "../models/Lead.js";
 import EventManager from "../models/EventManager.js";
@@ -532,6 +535,33 @@ router.post("/clients/:userId/send-credentials", async (req, res) => {
   } catch (error) {
     return res.status(500).json({
       message: error.message || "Failed to send credentials WhatsApp"
+    });
+  }
+});
+
+router.post("/whatsapp-billing-sync", async (req, res) => {
+  try {
+    const force = req.body?.force === true || String(req.query.force || "") === "1";
+    const days = Number(req.body?.days || req.query.days || 120);
+    const limit = Number(req.body?.limit || req.query.limit || 3000);
+    const userId = String(req.body?.userId || req.query.userId || "").trim() || null;
+
+    if (userId) {
+      const user = await User.findById(userId).select("_id");
+      if (!user) return res.status(404).json({ message: "Client not found" });
+    }
+
+    const sync = await syncWhatsAppBillingFromTwilio({ userId, force, days, limit });
+    return res.json({
+      message: sync.skipped
+        ? "סנכרון עלויות דולג (cooldown או Twilio לא מוגדר)"
+        : "סנכרון עלויות Twilio הושלם",
+      sync
+    });
+  } catch (error) {
+    console.error("[Twilio billing] sync failed:", error?.message || error);
+    return res.status(500).json({
+      message: error.message || "סנכרון עלויות Twilio נכשל"
     });
   }
 });
