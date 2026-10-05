@@ -183,10 +183,11 @@ export default function AdminWhatsAppBilling({ userId }) {
           כולל Meta + Twilio. זה סכימת מחירים בודדים, לא «כמות × תעריף קבוע».
         </p>
         <p>
-          <strong>עלות בשקלים (₪)</strong> — סה״כ $ × משתנה השרת <code>DOLAR</code> (שער הדולר).
+          <strong>עלות בשקלים (₪)</strong> — סה״כ $ × משתנה השרת <code>DOLAR</code>
+          (מספר קבוע או URL לשער, למשל Frankfurter).
           {summary?.dolarRate
             ? ` שער נוכחי: ${summary.dolarRate}`
-            : " אין ערך ל־DOLAR בשרת — הגדירו ב־Railway כדי לראות שקלים."}
+            : " אין שער זמין — בדקו ש־DOLAR מוגדר כמספר או כ־URL תקין."}
         </p>
       </div>
 

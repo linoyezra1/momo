@@ -255,11 +255,16 @@ router.get("/clients", async (req, res) => {
         successfulMessages: messageStats.successfulMessages,
         messageSupplierCost: messageStats.messageSupplierCost,
         messageSupplierCostUnit: "USD",
-        messageSupplierCostIls: usdToIls(messageStats.messageSupplierCost),
-        dolarRate: getDolarRate(),
+        messageSupplierCostIls: null,
+        dolarRate: null,
         ...links
       };
     });
+    const dolarRate = await getDolarRate();
+    for (const client of clients) {
+      client.dolarRate = dolarRate;
+      client.messageSupplierCostIls = usdToIls(client.messageSupplierCost, dolarRate);
+    }
     const totalRevenue = clients.reduce((sum, client) => {
       const fromPackage = Number(client.deal?.packagePrice);
       const fromDeal = Number(client.deal?.paymentAmount);
@@ -290,7 +295,6 @@ router.get("/clients", async (req, res) => {
       Math.round(
         clients.reduce((sum, client) => sum + (Number(client.messageSupplierCost) || 0), 0) * 10000
       ) / 10000;
-    const dolarRate = getDolarRate();
     const messageSupplierCostIlsTotal = usdToIls(messageSupplierCostTotal, dolarRate);
 
     return res.json({
@@ -639,7 +643,7 @@ router.get("/clients/:userId/whatsapp-billing-logs", async (req, res) => {
     totalTwilioUsd = Math.round(totalTwilioUsd * 10000) / 10000;
     const avgTwilioUsd =
       billedCount > 0 ? Math.round((totalTwilioUsd / billedCount) * 10000) / 10000 : 0;
-    const dolarRate = getDolarRate();
+    const dolarRate = await getDolarRate();
     const totalTwilioIls = usdToIls(totalTwilioUsd, dolarRate);
     const avgTwilioIls = usdToIls(avgTwilioUsd, dolarRate);
 
@@ -661,7 +665,7 @@ router.get("/clients/:userId/whatsapp-billing-logs", async (req, res) => {
         dolarRate,
         noteHe:
           "עלות Twilio בדולר = סכום Price מכל הודעה שחויבה (כולל Meta+Twilio). " +
-          "המרה לשקלים: סה״כ $ × DOLAR (שער הדולר מהשרת)."
+          "המרה לשקלים: סה״כ $ × DOLAR (מספר או URL של שער דולר, למשל Frankfurter)."
       },
       logs: mapped
     });
