@@ -86,7 +86,9 @@ function isYesRsvp({ payload, text }) {
       "כן אני אגיע!",
       "מאשר הגעה",
       "מאשרת הגעה",
-      "מאשר/ת הגעה"
+      "מאשר/ת הגעה",
+      "מגיעים 🎉",
+      "מגיעים"
     ]
   });
 }
@@ -96,8 +98,36 @@ function isNoRsvp({ payload, text }) {
     payload,
     text,
     expectedPayload: "rsvp_no",
-    expectedTexts: [RSVP_NO_TEXT, RSVP_NO_CONFERENCE_TEXT, "לצערי לא אוכל להגיע"]
+    expectedTexts: [
+      RSVP_NO_TEXT,
+      RSVP_NO_CONFERENCE_TEXT,
+      "לצערי לא אוכל להגיע",
+      "לא נוכל להגיע",
+      "לא אוכל להגיע"
+    ]
   });
+}
+
+function isWazeRequest({ payload, text }) {
+  return interactionMatches({
+    payload,
+    text,
+    expectedPayload: "WAZE_REQUEST",
+    expectedTexts: [
+      "ניווט לאירוע ב-Waze",
+      "ניווט ב-Waze 🚗",
+      "ניווט ב-Waze",
+      "ניווט לאירוע בWaze"
+    ]
+  });
+}
+
+function buildWazeReplyBody(event) {
+  const link = buildWazeNavigationLink(event);
+  if (!link) {
+    return "לא הצלחנו לבנות קישור ניווט כרגע — חסרה כתובת לאולם בפרטי האירוע.";
+  }
+  return `לנוחיותכם, מצורף קישור ניווט ישיר ב-Waze לאולם:\n${link}`;
 }
 
 async function findConversationGuest(from) {
@@ -276,6 +306,15 @@ export async function handleIncomingWhatsAppRsvp({
 
   const payload = normalizedInteractionValue(buttonPayload);
   const text = normalizedInteractionValue(buttonText || body);
+
+  // Waze QR only — send navigation link, never change RSVP status / conversation state.
+  if (isWazeRequest({ payload, text })) {
+    await sendSessionText({ guest, body: buildWazeReplyBody(context.event) });
+    console.log(
+      `[Twilio RSVP] WAZE_REQUEST for guest=${guest._id} user=${guest.userId} (status unchanged)`
+    );
+    return { handled: true, action: "waze_link_sent" };
+  }
 
   const resetRequested =
     payload === "trigger_rsvp_reset" ||

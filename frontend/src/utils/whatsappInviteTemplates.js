@@ -46,6 +46,13 @@ export const WHATSAPP_INVITE_TEMPLATE_OPTIONS = [
       "תבנית מותאמת למיכל — כרטיס, כפתורי RSVP (כן/לא) וכפתור ניווט Waze. דורשת תמונת כיסוי וכתובת/מתחם."
   },
   {
+    id: "michl_quick_reply_waze",
+    label: "תבנית מיכל (3 כפתורי מענה + וויז)",
+    badge: "כרטיס מיכל + 3 QR",
+    adminHint:
+      "תמונה + מלל + 3 כפתורי מענה (כן אני אגיע / לא אוכל להגיע / ניווט לאירוע ב-Waze). בלי כפתור URL. דורשת תמונת כיסוי."
+  },
+  {
     id: "2_card_buttons",
     label: "2 כפתורים + קישור ל-Waze",
     badge: "כרטיס + 2 כפתורים + Waze בטקסט",
@@ -60,6 +67,7 @@ const CARD_TEMPLATE_IDS = new Set([
   "card_view_invite_button",
   "card_buttons_special_requests",
   "michl_card_buttons",
+  "michl_quick_reply_waze",
   "2_card_buttons"
 ]);
 

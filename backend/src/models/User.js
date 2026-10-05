@@ -45,6 +45,7 @@ const eventSchema = new mongoose.Schema(
         "card_view_invite_button",
         "card_buttons_special_requests",
         "michl_card_buttons",
+        "michl_quick_reply_waze",
         "2_card_buttons"
       ],
       default: "standard"
@@ -102,6 +103,7 @@ const includedFeaturesSchema = new mongoose.Schema(
         "card_view_invite_button",
         "card_buttons_special_requests",
         "michl_card_buttons",
+        "michl_quick_reply_waze",
         "2_card_buttons"
       ],
       default: "standard"

@@ -11,11 +11,12 @@ export const WHATSAPP_INVITE_TEMPLATE_IDS = [
   "card_view_invite_button",
   "card_buttons_special_requests",
   "michl_card_buttons",
+  "michl_quick_reply_waze",
   "2_card_buttons"
 ];
 
 /**
- * @typedef {"standard"|"buttons_qr"|"card_direct_rsvp_buttons"|"card_buttons"|"card_view_invite_button"|"card_buttons_special_requests"|"michl_card_buttons"|"2_card_buttons"} WhatsAppInviteTemplateId
+ * @typedef {"standard"|"buttons_qr"|"card_direct_rsvp_buttons"|"card_buttons"|"card_view_invite_button"|"card_buttons_special_requests"|"michl_card_buttons"|"michl_quick_reply_waze"|"2_card_buttons"} WhatsAppInviteTemplateId
  */
 
 export const WHATSAPP_INVITE_TEMPLATE_OPTIONS = [
@@ -64,6 +65,13 @@ export const WHATSAPP_INVITE_TEMPLATE_OPTIONS = [
       "תבנית מותאמת למיכל — כרטיס, כפתורי RSVP (כן/לא) וכפתור ניווט Waze. דורשת תמונת כיסוי וכתובת/מתחם."
   },
   {
+    id: "michl_quick_reply_waze",
+    label: "תבנית מיכל (3 כפתורי מענה + וויז)",
+    badge: "כרטיס מיכל + 3 QR",
+    adminHint:
+      "תמונה + מלל + 3 כפתורי מענה (כן אני אגיע / לא אוכל להגיע / ניווט לאירוע ב-Waze). בלי כפתור URL — לחיצה על התמונה לא פותחת Waze. דורשת תמונת כיסוי."
+  },
+  {
     id: "2_card_buttons",
     label: "2 כפתורים + קישור ל-Waze",
     badge: "כרטיס + 2 כפתורים + Waze בטקסט",
@@ -88,6 +96,8 @@ export const CARD_BUTTONS_SPECIAL_REQUESTS_CONTENT_SID_DEFAULT =
   "HX7e74b8c361f4ada06b3211ab5868b2db";
 /** Michl card + RSVP QR + Waze URL button: michl_card_buttons */
 export const MICHL_CARD_BUTTONS_CONTENT_SID_DEFAULT = "HX045cca6026c633c1127a8cda0c9d55f8";
+/** Michl 3 QR (arrive / decline / Waze request) — Twilio michl_quick_reply_waze */
+export const MICHL_QUICK_REPLY_WAZE_CONTENT_SID_DEFAULT = "HX812785436da607224fe90185f7bcf144";
 /** 2 QR + Waze URL in body (no URL button): Twilio copy_2_card_buttons */
 export const TWO_CARD_BUTTONS_CONTENT_SID_DEFAULT = "HXe6e42257c3fba04996d47e9bf0c77d91";
 
@@ -171,6 +181,18 @@ const TEMPLATE_FIELD_KEYS = {
     closingSignOff: "4",
     mediaPath: "5",
     wazeQuery: "6"
+  },
+  /**
+   * michl_quick_reply_waze — Body {{1}}–{{4}} · Media {{5}} · NO Waze URL button.
+   * QR: rsvp_yes "כן, אני אגיע!" · rsvp_no "לא אוכל להגיע" · WAZE_REQUEST "ניווט לאירוע ב-Waze"
+   * Inbound WAZE_REQUEST replies with a free-text Waze link (does not change RSVP status).
+   */
+  michl_quick_reply_waze: {
+    guestName: "1",
+    customOpeningText: "2",
+    eventDateTimeLocation: "3",
+    closingSignOff: "4",
+    mediaPath: "5"
   },
   /**
    * 2_card_buttons → Twilio Content "copy_2_card_buttons"
@@ -257,6 +279,7 @@ export function isCardInviteTemplate(templateId) {
     templateId === "card_view_invite_button" ||
     templateId === "card_buttons_special_requests" ||
     templateId === "michl_card_buttons" ||
+    templateId === "michl_quick_reply_waze" ||
     templateId === "2_card_buttons"
   );
 }
@@ -437,6 +460,24 @@ export function resolveInviteTemplateRouting(event = {}) {
       contentSid: fromEnv?.contentSid || MICHL_CARD_BUTTONS_CONTENT_SID_DEFAULT,
       sidSource: fromEnv?.sidSource || "default:MICHL_CARD_BUTTONS_CONTENT_SID_DEFAULT",
       templateKeys,
+      requiresCoverMedia,
+      includesRsvpLink,
+      premiumButtonsEnabled: true,
+      premiumCardEnabled: true
+    };
+  }
+
+  if (templateId === "michl_quick_reply_waze" || templateId === "michal_3_buttons") {
+    const fromEnv = readEnvSid(
+      "TWILIO_MICHL_QUICK_REPLY_WAZE_CONTENT_SID",
+      "TWILIO_MICHAL_3_BUTTONS_CONTENT_SID"
+    );
+    const contentSid = fromEnv?.contentSid || MICHL_QUICK_REPLY_WAZE_CONTENT_SID_DEFAULT;
+    return {
+      templateId: "michl_quick_reply_waze",
+      contentSid,
+      sidSource: fromEnv?.sidSource || "default:MICHL_QUICK_REPLY_WAZE_CONTENT_SID_DEFAULT",
+      templateKeys: getTemplateVariableKeys("michl_quick_reply_waze"),
       requiresCoverMedia,
       includesRsvpLink,
       premiumButtonsEnabled: true,
