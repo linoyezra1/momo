@@ -265,6 +265,8 @@ export default function AdminPage() {
   const [impersonatingUserId, setImpersonatingUserId] = useState("");
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [messageSupplierCostTotal, setMessageSupplierCostTotal] = useState(0);
+  const [messageSupplierCostIlsTotal, setMessageSupplierCostIlsTotal] = useState(null);
+  const [dolarRate, setDolarRate] = useState(null);
   const [billingSyncing, setBillingSyncing] = useState(false);
   const [billingSyncNote, setBillingSyncNote] = useState("");
   const [agentsSummary, setAgentsSummary] = useState([]);
@@ -377,6 +379,16 @@ ${publicEventUrl}`
       setClients(response.data.clients || []);
       setTotalRevenue(Number(response.data.totalRevenue) || 0);
       setMessageSupplierCostTotal(Number(response.data.messageSupplierCostTotal) || 0);
+      setMessageSupplierCostIlsTotal(
+        response.data.messageSupplierCostIlsTotal == null
+          ? null
+          : Number(response.data.messageSupplierCostIlsTotal)
+      );
+      setDolarRate(
+        response.data.dolarRate == null || response.data.dolarRate === ""
+          ? null
+          : Number(response.data.dolarRate)
+      );
       setAgentsSummary(Array.isArray(response.data.agentsSummary) ? response.data.agentsSummary : []);
     } catch (loadError) {
       setClientsError(loadError.response?.data?.message || "טעינת לקוחות נכשלה");
@@ -624,10 +636,6 @@ ${publicEventUrl}`
           dealDraft.packagePrice === "" || dealDraft.packagePrice == null
             ? null
             : Math.max(0, Number(dealDraft.packagePrice)),
-        supplierCost:
-          dealDraft.supplierCost === "" || dealDraft.supplierCost == null
-            ? null
-            : Math.max(0, Number(dealDraft.supplierCost)),
         couponCode: dealDraft.couponCode.trim(),
         agentNotes: dealDraft.agentNotes.trim()
       };
@@ -1040,9 +1048,13 @@ ${publicEventUrl}`
             <p>{leadsNewCount}</p>
           </div>
           <div className="us-admin-stat-card">
-            <h3>עלות ספק הודעות</h3>
+            <h3>עלות הודעות Twilio</h3>
             <p>{formatUsd(messageSupplierCostTotal)}</p>
-            <span className="us-admin-stat-note">סכום Price מ־Twilio (USD) להודעות שחויבו</span>
+            <span className="us-admin-stat-note">
+              {messageSupplierCostIlsTotal != null
+                ? `${formatIls(messageSupplierCostIlsTotal)} · DOLAR=${dolarRate}`
+                : "הגדירו DOLAR בשרת להצגה ב־₪"}
+            </span>
             <button
               className="us-admin-btn us-admin-btn--xs"
               type="button"
@@ -1309,8 +1321,9 @@ ${publicEventUrl}`
                         <th>לקוח</th>
                         <th>תאריך אירוע</th>
                         <th>טלפון</th>
-                        <th>הודעות מוצלחות</th>
-                        <th>עלות ספק ($)</th>
+                        <th>הודעות שחויבו</th>
+                        <th>Twilio ($)</th>
+                        <th>בשקלים (₪)</th>
                         <th>פעולות</th>
                       </tr>
                     </thead>
@@ -1329,7 +1342,12 @@ ${publicEventUrl}`
                           <td>{buildClientSubline(client)}</td>
                           <td dir="ltr">{client.contactPhone || "—"}</td>
                           <td>{Number(client.successfulMessages) || 0}</td>
-                          <td>{formatUsd(client.messageSupplierCost)}</td>
+                          <td dir="ltr">{formatUsd(client.messageSupplierCost)}</td>
+                          <td dir="ltr">
+                            {client.messageSupplierCostIls != null
+                              ? formatIls(client.messageSupplierCostIls)
+                              : "—"}
+                          </td>
                           <td>
                             <div className="us-admin-table-actions">
                               <button
@@ -1420,17 +1438,21 @@ ${publicEventUrl}`
                   <strong>הודעות שחויבו:</strong> {Number(selectedClient.successfulMessages) || 0}
                   <span className="us-admin-stat-note"> (לוגי הודעות, לא מוזמנים)</span>
                   {" · "}
-                  <strong>Twilio בפועל:</strong> {formatUsd(selectedClient.messageSupplierCost)}
-                  {selectedClient.deal?.supplierCost != null && selectedClient.deal.supplierCost !== "" ? (
+                  <strong>Twilio:</strong> {formatUsd(selectedClient.messageSupplierCost)}
+                  {selectedClient.messageSupplierCostIls != null ? (
                     <>
                       {" · "}
-                      <strong>ספק בעסקה:</strong> {formatIls(selectedClient.deal.supplierCost)}
-                      <span className="us-admin-stat-note"> (קופונים×₪0.50)</span>
+                      <strong>בשקלים:</strong> {formatIls(selectedClient.messageSupplierCostIls)}
+                      {selectedClient.dolarRate != null ? (
+                        <span className="us-admin-stat-note"> ($×{selectedClient.dolarRate})</span>
+                      ) : null}
                     </>
-                  ) : null}
+                  ) : (
+                    <span className="us-admin-stat-note"> · הגדירו DOLAR בשרת ל־₪</span>
+                  )}
                 </p>
                 <p className="us-admin-field-hint" style={{ margin: "0.35rem 0 0" }}>
-                  פירוט מלא לכל הודעה — בטאב «עלויות». מחיר Twilio כולל כבר את Meta; אין פיצול נפרד.
+                  מחיר Twilio כולל Meta. פירוט לכל הודעה — בטאב «עלויות».
                 </p>
               </div>
             </div>
@@ -1834,21 +1856,6 @@ ${publicEventUrl}`
                           onChange={onDealFieldChange}
                         />
                       </div>
-                      <div className="us-admin-field">
-                        <label className="us-admin-field-label" htmlFor="deal-supplier-cost">
-                          עלות ספק (₪)
-                        </label>
-                        <input
-                          id="deal-supplier-cost"
-                          className="us-admin-field-input"
-                          name="supplierCost"
-                          type="number"
-                          min="0"
-                          step="1"
-                          value={dealDraft.supplierCost}
-                          onChange={onDealFieldChange}
-                        />
-                      </div>
                     </div>
 
                     <div className="us-admin-field">
@@ -1985,10 +1992,7 @@ ${publicEventUrl}`
                   id="client-tab-panel-costs"
                   aria-labelledby="client-tab-costs"
                 >
-                  <AdminWhatsAppBilling
-                    userId={selectedClient.userId}
-                    dealSupplierCostIls={selectedClient.deal?.supplierCost}
-                  />
+                  <AdminWhatsAppBilling userId={selectedClient.userId} />
                 </div>
               ) : null}
 

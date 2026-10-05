@@ -58,6 +58,7 @@ import {
 } from "../utils/eventPayload.js";
 import { deriveLegacyWhatsAppFlags, normalizeWhatsAppInviteTemplate } from "../utils/whatsappInviteTemplates.js";
 import { BILLABLE_MESSAGE_STATUSES } from "../utils/twilioMessageBilling.js";
+import { getDolarRate, usdToIls } from "../utils/dolarRate.js";
 
 const router = express.Router();
 
@@ -254,6 +255,8 @@ router.get("/clients", async (req, res) => {
         successfulMessages: messageStats.successfulMessages,
         messageSupplierCost: messageStats.messageSupplierCost,
         messageSupplierCostUnit: "USD",
+        messageSupplierCostIls: usdToIls(messageStats.messageSupplierCost),
+        dolarRate: getDolarRate(),
         ...links
       };
     });
@@ -287,12 +290,16 @@ router.get("/clients", async (req, res) => {
       Math.round(
         clients.reduce((sum, client) => sum + (Number(client.messageSupplierCost) || 0), 0) * 10000
       ) / 10000;
+    const dolarRate = getDolarRate();
+    const messageSupplierCostIlsTotal = usdToIls(messageSupplierCostTotal, dolarRate);
 
     return res.json({
       clients,
       totalRevenue,
       messageSupplierCostTotal,
       messageSupplierCostUnit: "USD",
+      messageSupplierCostIlsTotal,
+      dolarRate,
       agentsSummary: Object.values(byAgentMap),
       agentDirectory: agentNames
     });
@@ -570,7 +577,7 @@ router.post("/whatsapp-billing-sync", async (req, res) => {
 router.get("/clients/:userId/whatsapp-billing-logs", async (req, res) => {
   try {
     const { userId } = req.params;
-    const user = await User.findById(userId).select("_id deal");
+    const user = await User.findById(userId).select("_id");
     if (!user) return res.status(404).json({ message: "Client not found" });
 
     const forceSync = String(req.query.sync || "") === "force";
@@ -632,10 +639,9 @@ router.get("/clients/:userId/whatsapp-billing-logs", async (req, res) => {
     totalTwilioUsd = Math.round(totalTwilioUsd * 10000) / 10000;
     const avgTwilioUsd =
       billedCount > 0 ? Math.round((totalTwilioUsd / billedCount) * 10000) / 10000 : 0;
-    const dealSupplierCostIls =
-      user.deal?.supplierCost == null || user.deal?.supplierCost === ""
-        ? null
-        : Number(user.deal.supplierCost) || 0;
+    const dolarRate = getDolarRate();
+    const totalTwilioIls = usdToIls(totalTwilioUsd, dolarRate);
+    const avgTwilioIls = usdToIls(avgTwilioUsd, dolarRate);
 
     return res.json({
       sync,
@@ -650,12 +656,12 @@ router.get("/clients/:userId/whatsapp-billing-logs", async (req, res) => {
         outboundCount,
         totalTwilioUsd,
         avgTwilioUsd,
-        dealSupplierCostIls,
-        dealSupplierRateIls: 0.5,
+        totalTwilioIls,
+        avgTwilioIls,
+        dolarRate,
         noteHe:
-          "עלות Twilio בדולר = סכום Price מכל הודעה שחויבה (לא כמות×תעריף קבוע). " +
-          "המחיר מ־Twilio כולל כבר את עמלת Meta/WhatsApp — אין פיצול נפרד. " +
-          "עלות ספק בעסקה (₪) = סכום מכסות קופונים × ₪0.50, חישוב פנימי נפרד."
+          "עלות Twilio בדולר = סכום Price מכל הודעה שחויבה (כולל Meta+Twilio). " +
+          "המרה לשקלים: סה״כ $ × DOLAR (שער הדולר מהשרת)."
       },
       logs: mapped
     });

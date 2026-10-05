@@ -24,6 +24,7 @@ function formatUsd(value) {
 }
 
 function formatIls(value) {
+  if (value == null || value === "") return "—";
   const amount = Number(value) || 0;
   return `₪${amount.toLocaleString("he-IL", {
     minimumFractionDigits: 2,
@@ -48,7 +49,7 @@ function directionLabel(direction) {
   return direction === "inbound" ? "נכנסת" : "יוצאת";
 }
 
-export default function AdminWhatsAppBilling({ userId, dealSupplierCostIls = null }) {
+export default function AdminWhatsAppBilling({ userId }) {
   const [logs, setLogs] = useState([]);
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -118,19 +119,25 @@ export default function AdminWhatsAppBilling({ userId, dealSupplierCostIls = nul
 
   const exportLogs = () => {
     if (!filtered.length) return;
+    const rate = summary?.dolarRate;
     import("xlsx").then((XLSX) => {
-      const rows = filtered.map((log) => ({
-        "כיוון": directionLabel(log.direction),
-        "שם": log.guestName || "",
-        "טלפון": log.guestPhone || "",
-        "Message SID": log.messageSid || "",
-        "סטטוס": statusLabel(log.status),
-        "מחויב": log.isBilled ? "כן" : "לא",
-        "עלות USD": Number(log.actualCost) || 0,
-        "תאריך": formatStamp(log.sentAt || log.failedAt),
-        "שגיאה": log.errorCode || "",
-        "סיבה": log.errorMessageHe || ""
-      }));
+      const rows = filtered.map((log) => {
+        const usd = Number(log.actualCost) || 0;
+        return {
+          "כיוון": directionLabel(log.direction),
+          "שם": log.guestName || "",
+          "טלפון": log.guestPhone || "",
+          "Message SID": log.messageSid || "",
+          "סטטוס": statusLabel(log.status),
+          "מחויב": log.isBilled ? "כן" : "לא",
+          "עלות USD": usd,
+          "עלות ILS": rate ? Math.round(usd * rate * 100) / 100 : "",
+          "שער DOLAR": rate || "",
+          "תאריך": formatStamp(log.sentAt || log.failedAt),
+          "שגיאה": log.errorCode || "",
+          "סיבה": log.errorMessageHe || ""
+        };
+      });
       const worksheet = XLSX.utils.json_to_sheet(rows);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "עלויות");
@@ -138,11 +145,6 @@ export default function AdminWhatsAppBilling({ userId, dealSupplierCostIls = nul
       XLSX.writeFile(workbook, `whatsapp-billing-${stamp}.xlsx`);
     });
   };
-
-  const dealCost =
-    dealSupplierCostIls != null && dealSupplierCostIls !== ""
-      ? Number(dealSupplierCostIls)
-      : summary?.dealSupplierCostIls;
 
   return (
     <section className="us-admin-share-block us-admin-wa-billing" aria-label="עלויות הודעות Twilio">
@@ -177,14 +179,14 @@ export default function AdminWhatsAppBilling({ userId, dealSupplierCostIls = nul
 
       <div className="us-admin-billing-explain">
         <p>
-          <strong>עלות Twilio בפועל ($)</strong> — סכום שדה <code>Price</code> מכל הודעה שחויבה
-          (<code>sent</code> / <code>delivered</code> / <code>read</code> / Inbound). זה{" "}
-          <em>לא</em> «כמות הודעות × תעריף קבוע», אלא סכימת מחירים בודדים. המחיר מ־Twilio כבר כולל את
-          עמלת Meta/WhatsApp — אין פיצול נפרד «Twilio / Meta» מה־API.
+          <strong>עלות Twilio ($)</strong> — סכום שדה <code>Price</code> מכל הודעה שחויבה. המחיר כבר
+          כולל Meta + Twilio. זה סכימת מחירים בודדים, לא «כמות × תעריף קבוע».
         </p>
         <p>
-          <strong>עלות ספק בעסקה (₪)</strong> — חישוב פנימי נפרד: סכום מכסות הקופונים שהוקצו ללקוח ×
-          ₪0.50 להודעה. לא קשור ישירות ל־Price של Twilio.
+          <strong>עלות בשקלים (₪)</strong> — סה״כ $ × משתנה השרת <code>DOLAR</code> (שער הדולר).
+          {summary?.dolarRate
+            ? ` שער נוכחי: ${summary.dolarRate}`
+            : " אין ערך ל־DOLAR בשרת — הגדירו ב־Railway כדי לראות שקלים."}
         </p>
       </div>
 
@@ -212,14 +214,18 @@ export default function AdminWhatsAppBilling({ userId, dealSupplierCostIls = nul
             <small>עלות $0</small>
           </div>
           <div className="us-admin-billing-summary__card is-accent">
-            <span>סה״כ Twilio</span>
+            <span>סה״כ Twilio (Meta+Twilio)</span>
             <strong>{formatUsd(summary.totalTwilioUsd)}</strong>
-            <small>ממוצע להודעה שחויבה: {formatUsd(summary.avgTwilioUsd)}</small>
+            <small>ממוצע להודעה: {formatUsd(summary.avgTwilioUsd)}</small>
           </div>
-          <div className="us-admin-billing-summary__card">
-            <span>עלות ספק בעסקה</span>
-            <strong>{dealCost == null ? "—" : formatIls(dealCost)}</strong>
-            <small>קופונים × ₪0.50</small>
+          <div className="us-admin-billing-summary__card is-accent">
+            <span>סה״כ בשקלים</span>
+            <strong>{formatIls(summary.totalTwilioIls)}</strong>
+            <small>
+              {summary.dolarRate
+                ? `$ × DOLAR (${summary.dolarRate}) · ממוצע ${formatIls(summary.avgTwilioIls)}`
+                : "הגדירו DOLAR בשרת"}
+            </small>
           </div>
         </div>
       ) : null}
@@ -270,33 +276,40 @@ export default function AdminWhatsAppBilling({ userId, dealSupplierCostIls = nul
                 <th>סטטוס</th>
                 <th>מחויב</th>
                 <th>עלות ($)</th>
+                <th>עלות (₪)</th>
                 <th>Message SID</th>
                 <th>תאריך</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((log) => (
-                <tr key={log.id} className={log.isBilled ? "" : "is-unbilled"}>
-                  <td>{directionLabel(log.direction)}</td>
-                  <td>{log.guestName || "—"}</td>
-                  <td dir="ltr">{log.guestPhone || "—"}</td>
-                  <td>
-                    {statusLabel(log.status)}
-                    {log.errorCode ? (
-                      <div className="us-admin-stat-note">
-                        {log.errorCode}
-                        {log.errorMessageHe ? ` · ${log.errorMessageHe}` : ""}
-                      </div>
-                    ) : null}
-                  </td>
-                  <td>{log.isBilled ? "כן" : "לא"}</td>
-                  <td dir="ltr">{formatUsd(log.actualCost)}</td>
-                  <td className="us-admin-detail-value--mono" dir="ltr">
-                    {log.messageSid || "—"}
-                  </td>
-                  <td>{formatStamp(log.sentAt || log.failedAt)}</td>
-                </tr>
-              ))}
+              {filtered.map((log) => {
+                const usd = Number(log.actualCost) || 0;
+                const ils =
+                  summary?.dolarRate != null ? Math.round(usd * summary.dolarRate * 100) / 100 : null;
+                return (
+                  <tr key={log.id} className={log.isBilled ? "" : "is-unbilled"}>
+                    <td>{directionLabel(log.direction)}</td>
+                    <td>{log.guestName || "—"}</td>
+                    <td dir="ltr">{log.guestPhone || "—"}</td>
+                    <td>
+                      {statusLabel(log.status)}
+                      {log.errorCode ? (
+                        <div className="us-admin-stat-note">
+                          {log.errorCode}
+                          {log.errorMessageHe ? ` · ${log.errorMessageHe}` : ""}
+                        </div>
+                      ) : null}
+                    </td>
+                    <td>{log.isBilled ? "כן" : "לא"}</td>
+                    <td dir="ltr">{formatUsd(usd)}</td>
+                    <td dir="ltr">{formatIls(ils)}</td>
+                    <td className="us-admin-detail-value--mono" dir="ltr">
+                      {log.messageSid || "—"}
+                    </td>
+                    <td>{formatStamp(log.sentAt || log.failedAt)}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
