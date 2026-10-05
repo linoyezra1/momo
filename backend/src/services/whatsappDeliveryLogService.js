@@ -1,12 +1,28 @@
 import Guest from "../models/Guest.js";
 import WhatsAppDeliveryLog from "../models/WhatsAppDeliveryLog.js";
+import WhatsAppSenderLink from "../models/WhatsAppSenderLink.js";
 import { normalizePhone, phoneLookupVariants } from "../utils/guestPhone.js";
 import { translateWhatsAppError } from "../utils/whatsappDeliveryErrors.js";
+import {
+  DEFAULT_INBOUND_COST_USD,
+  isBillableMessageStatus,
+  isFailedMessageStatus,
+  parseTwilioPrice,
+  resolveActualCostUsd
+} from "../utils/twilioMessageBilling.js";
 
 function cleanPhone(phone) {
   return String(phone || "")
     .replace(/^whatsapp:/i, "")
     .trim();
+}
+
+function setCostFields(target, actualCostUsd, priceUnit = "USD") {
+  const amount = Math.max(0, Number(actualCostUsd) || 0);
+  target.actualCost = amount;
+  target.cost = amount;
+  target.costUsd = amount;
+  target.priceUnit = String(priceUnit || "USD").trim().toUpperCase() || "USD";
 }
 
 async function findGuestForDelivery({ guestId, userId, phone }) {
@@ -22,6 +38,25 @@ async function findGuestForDelivery({ guestId, userId, phone }) {
   if (userId) query.userId = userId;
 
   return Guest.findOne(query).sort({ lastWhatsAppSentAt: -1, updatedAt: -1 });
+}
+
+async function resolveUserIdForPhone(phone) {
+  const cleaned = cleanPhone(phone);
+  const variants = phoneLookupVariants(cleaned);
+  if (!variants.length) return null;
+
+  const guest = await Guest.findOne({ phone: { $in: variants } })
+    .sort({ lastWhatsAppSentAt: -1, updatedAt: -1 })
+    .select("userId");
+  if (guest?.userId) return guest.userId;
+
+  const link = await WhatsAppSenderLink.findOne({
+    senderPhone: { $in: variants },
+    status: "active",
+    linkedUserId: { $ne: null }
+  }).select("linkedUserId");
+
+  return link?.linkedUserId || null;
 }
 
 export async function recordWhatsAppOutbound({
@@ -43,10 +78,17 @@ export async function recordWhatsAppOutbound({
       $setOnInsert: {
         messageSid: sid,
         userId,
+        eventId: userId,
         guestId: guest?._id || guestId || null,
         guestName: String(guest?.fullName || guestName || "").trim(),
         guestPhone: normalizePhone(guest?.phone || guestPhone) || cleanPhone(guestPhone),
+        direction: "outbound",
         status: "queued",
+        actualCost: 0,
+        cost: 0,
+        costUsd: 0,
+        priceUnit: "USD",
+        isBilled: false,
         sentAt
       }
     },
@@ -64,6 +106,75 @@ export async function recordWhatsAppOutbound({
   return log;
 }
 
+/**
+ * Inbound WhatsApp is billed by Twilio. Attribute to guest event or active sender link.
+ * Price is often absent on the inbound webhook — use DEFAULT_INBOUND_COST_USD until known.
+ */
+export async function recordWhatsAppInbound({
+  messageSid,
+  from,
+  userId: hintedUserId = null,
+  guestId = null,
+  guestName = "",
+  price = null,
+  priceUnit = "USD"
+} = {}) {
+  const sid = String(messageSid || "").trim();
+  if (!sid) return null;
+
+  const phone = cleanPhone(from);
+  const guest =
+    (guestId ? await Guest.findById(guestId) : null) ||
+    (await findGuestForDelivery({ userId: hintedUserId, phone }));
+
+  const userId = hintedUserId || guest?.userId || (await resolveUserIdForPhone(phone));
+  if (!userId) {
+    console.warn(
+      `[Twilio billing] inbound ${sid} skipped — no client match (from=${from || "?"})`
+    );
+    return null;
+  }
+
+  const actualCost =
+    resolveActualCostUsd({ price, fallbackUsd: DEFAULT_INBOUND_COST_USD }) ??
+    DEFAULT_INBOUND_COST_USD;
+
+  const setFields = {
+    userId,
+    eventId: userId,
+    guestId: guest?._id || guestId || null,
+    guestName: String(guest?.fullName || guestName || "").trim(),
+    guestPhone: normalizePhone(guest?.phone || phone) || phone,
+    direction: "inbound",
+    status: "delivered",
+    isBilled: true,
+    sentAt: new Date()
+  };
+  setCostFields(setFields, actualCost, priceUnit);
+
+  return WhatsAppDeliveryLog.findOneAndUpdate(
+    { messageSid: sid },
+    {
+      $setOnInsert: {
+        messageSid: sid,
+        ...setFields
+      },
+      ...(parseTwilioPrice(price) != null
+        ? {
+            $set: {
+              actualCost: setFields.actualCost,
+              cost: setFields.cost,
+              costUsd: setFields.costUsd,
+              priceUnit: setFields.priceUnit,
+              isBilled: true
+            }
+          }
+        : {})
+    },
+    { upsert: true, new: true }
+  );
+}
+
 export async function recordWhatsAppDeliveryFailure({
   messageSid,
   messageStatus,
@@ -79,7 +190,7 @@ export async function recordWhatsAppDeliveryFailure({
 } = {}) {
   const sid = String(messageSid || "").trim();
   const status = String(messageStatus || "").trim().toLowerCase();
-  if (!sid || (status !== "undelivered" && status !== "failed")) return null;
+  if (!sid || !isFailedMessageStatus(status)) return null;
 
   const translated = translateWhatsAppError({ errorCode, errorMessage });
   const failedStamp = failedAt ? new Date(failedAt) : new Date();
@@ -97,7 +208,8 @@ export async function recordWhatsAppDeliveryFailure({
     });
   }
 
-  const userId = hintedUserId || existing?.userId || guest?.userId;
+  const userId =
+    hintedUserId || existing?.userId || guest?.userId || (await resolveUserIdForPhone(to || from));
   if (!userId) {
     console.warn(
       `[Twilio status] ${status} for ${sid} but no event match (to=${to || "?"} from=${from || "?"})`
@@ -111,11 +223,17 @@ export async function recordWhatsAppDeliveryFailure({
       $set: {
         messageSid: sid,
         userId,
+        eventId: userId,
         guestId: guest?._id || guestId || existing?.guestId || null,
         guestName: String(guest?.fullName || guestName || existing?.guestName || "").trim(),
         guestPhone:
           normalizePhone(guest?.phone || existing?.guestPhone || to) || cleanPhone(to),
+        direction: existing?.direction || "outbound",
         status,
+        actualCost: 0,
+        cost: 0,
+        costUsd: 0,
+        isBilled: false,
         errorCode: translated.errorCode,
         errorMessage: translated.errorMessage,
         errorMessageHe: translated.errorMessageHe,
@@ -143,23 +261,125 @@ const DELIVERY_PROGRESS_RANK = {
   read: 4
 };
 
-/** Advance an existing outbound log to sent / delivered / read. Failures are never overwritten. */
-export async function recordWhatsAppDeliveryProgress({ messageSid, messageStatus } = {}) {
+function applyBillingFields(log, { price, priceUnit } = {}) {
+  if (!log) return log;
+  if (isFailedMessageStatus(log.status)) {
+    setCostFields(log, 0, priceUnit);
+    log.isBilled = false;
+    return log;
+  }
+  if (!isBillableMessageStatus(log.status)) {
+    log.isBilled = false;
+    return log;
+  }
+
+  log.isBilled = true;
+  const twilioPrice = parseTwilioPrice(price);
+  if (twilioPrice != null) {
+    setCostFields(log, twilioPrice, priceUnit);
+  }
+  // If Price is missing, keep any previously stored actualCost (do not invent).
+  return log;
+}
+
+/** Advance an existing outbound log to sent / delivered / read and apply Twilio Price. */
+export async function recordWhatsAppDeliveryProgress({
+  messageSid,
+  messageStatus,
+  price,
+  priceUnit,
+  to,
+  from
+} = {}) {
   const sid = String(messageSid || "").trim();
   const status = String(messageStatus || "").trim().toLowerCase();
   const nextRank = DELIVERY_PROGRESS_RANK[status];
   if (!sid || !nextRank) return null;
 
-  const existing = await WhatsAppDeliveryLog.findOne({ messageSid: sid });
+  let existing = await WhatsAppDeliveryLog.findOne({ messageSid: sid });
+
+  // Late status callback before our outbound insert finished — try to attach to a client.
+  if (!existing && isBillableMessageStatus(status)) {
+    const userId = await resolveUserIdForPhone(to || from);
+    if (userId) {
+      existing = await WhatsAppDeliveryLog.findOneAndUpdate(
+        { messageSid: sid },
+        {
+          $setOnInsert: {
+            messageSid: sid,
+            userId,
+            eventId: userId,
+            guestPhone: cleanPhone(to || from),
+            direction: "outbound",
+            status: "queued",
+            actualCost: 0,
+            cost: 0,
+            costUsd: 0,
+            priceUnit: "USD",
+            isBilled: false,
+            sentAt: new Date()
+          }
+        },
+        { upsert: true, new: true }
+      );
+    }
+  }
+
   if (!existing) return null;
-  if (existing.status === "failed" || existing.status === "undelivered") return existing;
+  if (isFailedMessageStatus(existing.status)) return existing;
 
   const currentRank = DELIVERY_PROGRESS_RANK[existing.status] || 0;
-  if (currentRank >= nextRank) return existing;
+  if (currentRank < nextRank) {
+    existing.status = status;
+  }
 
-  existing.status = status;
+  if (!existing.eventId && existing.userId) {
+    existing.eventId = existing.userId;
+  }
+
+  applyBillingFields(existing, { price, priceUnit });
   await existing.save();
   return existing;
+}
+
+/**
+ * Unified status-callback handler: failed → zero cost; sent/delivered/read → bill with Price.
+ */
+export async function applyWhatsAppMessageStatus({
+  messageSid,
+  messageStatus,
+  price,
+  priceUnit,
+  errorCode,
+  errorMessage,
+  to,
+  from
+} = {}) {
+  const status = String(messageStatus || "").trim().toLowerCase();
+
+  if (isFailedMessageStatus(status)) {
+    return recordWhatsAppDeliveryFailure({
+      messageSid,
+      messageStatus: status,
+      errorCode,
+      errorMessage,
+      to,
+      from
+    });
+  }
+
+  if (DELIVERY_PROGRESS_RANK[status]) {
+    return recordWhatsAppDeliveryProgress({
+      messageSid,
+      messageStatus: status,
+      price,
+      priceUnit,
+      to,
+      from
+    });
+  }
+
+  return null;
 }
 
 const syncCooldownUntil = new Map();

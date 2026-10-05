@@ -235,6 +235,15 @@ function formatIls(value) {
   })}`;
 }
 
+/** Twilio message costs are USD (e.g. $0.0353). */
+function formatUsd(value) {
+  const amount = Number(value) || 0;
+  return `$${amount.toLocaleString("en-US", {
+    minimumFractionDigits: 4,
+    maximumFractionDigits: 4
+  })}`;
+}
+
 export default function AdminPage() {
   const navigate = useNavigate();
   const [form, setForm] = useState(initialForm);
@@ -1007,8 +1016,8 @@ ${publicEventUrl}`
           </div>
           <div className="us-admin-stat-card">
             <h3>עלות ספק הודעות</h3>
-            <p>{formatIls(messageSupplierCostTotal)}</p>
-            <span className="us-admin-stat-note">₪0.13 × הודעה שנשלחה בהצלחה</span>
+            <p>{formatUsd(messageSupplierCostTotal)}</p>
+            <span className="us-admin-stat-note">סכום Price מ־Twilio (USD) להודעות שחויבו</span>
           </div>
         </div>
 
@@ -1262,7 +1271,7 @@ ${publicEventUrl}`
                         <th>תאריך אירוע</th>
                         <th>טלפון</th>
                         <th>הודעות מוצלחות</th>
-                        <th>עלות ספק</th>
+                        <th>עלות ספק ($)</th>
                         <th>פעולות</th>
                       </tr>
                     </thead>
@@ -1281,7 +1290,7 @@ ${publicEventUrl}`
                           <td>{buildClientSubline(client)}</td>
                           <td dir="ltr">{client.contactPhone || "—"}</td>
                           <td>{Number(client.successfulMessages) || 0}</td>
-                          <td>{formatIls(client.messageSupplierCost)}</td>
+                          <td>{formatUsd(client.messageSupplierCost)}</td>
                           <td>
                             <div className="us-admin-table-actions">
                               <button
@@ -1356,9 +1365,9 @@ ${publicEventUrl}`
                   <p className="us-admin-event-summary">
                     <strong>הודעות מוצלחות:</strong> {Number(selectedClient.successfulMessages) || 0}
                     {" · "}
-                    <strong>עלות ספק:</strong> {formatIls(selectedClient.messageSupplierCost)}
+                    <strong>עלות ספק:</strong> {formatUsd(selectedClient.messageSupplierCost)}
                     {" "}
-                    <span className="us-admin-stat-note">(₪0.13 להודעה)</span>
+                    <span className="us-admin-stat-note">(Twilio USD)</span>
                   </p>
                   {buildEventDisplayText(selectedClient.event) ? (
                     <p className="us-admin-event-summary">

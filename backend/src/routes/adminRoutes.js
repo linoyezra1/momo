@@ -54,10 +54,7 @@ import {
   validateEvent
 } from "../utils/eventPayload.js";
 import { deriveLegacyWhatsAppFlags, normalizeWhatsAppInviteTemplate } from "../utils/whatsappInviteTemplates.js";
-
-/** Admin supplier cost: successful outbound WhatsApp messages × this rate (ILS). */
-const SUCCESSFUL_MESSAGE_SUPPLIER_RATE = 0.13;
-const SUCCESSFUL_MESSAGE_STATUSES = ["queued", "sent", "delivered", "read"];
+import { BILLABLE_MESSAGE_STATUSES } from "../utils/twilioMessageBilling.js";
 
 const router = express.Router();
 
@@ -195,21 +192,50 @@ router.get("/clients", async (req, res) => {
     ).sort({
       createdAt: -1
     });
+    // Sum Twilio actualCost (USD) for messages marked isBilled.
+    // Legacy rows without isBilled/actualCost are excluded from cost (avoid inventing prices).
     const messageAgg = await WhatsAppDeliveryLog.aggregate([
-      { $match: { status: { $in: SUCCESSFUL_MESSAGE_STATUSES } } },
-      { $group: { _id: "$userId", successfulMessages: { $sum: 1 } } }
+      {
+        $addFields: {
+          effectiveBilled: {
+            $cond: [
+              { $eq: [{ $type: "$isBilled" }, "missing"] },
+              { $in: ["$status", BILLABLE_MESSAGE_STATUSES] },
+              "$isBilled"
+            ]
+          },
+          effectiveCost: {
+            $ifNull: ["$actualCost", { $ifNull: ["$costUsd", { $ifNull: ["$cost", 0] }] }]
+          }
+        }
+      },
+      { $match: { effectiveBilled: true } },
+      {
+        $group: {
+          _id: "$userId",
+          successfulMessages: { $sum: 1 },
+          messageSupplierCost: { $sum: "$effectiveCost" }
+        }
+      }
     ]);
-    const successfulByUser = new Map(
-      messageAgg.map((row) => [String(row._id), Number(row.successfulMessages) || 0])
+    const messageByUser = new Map(
+      messageAgg.map((row) => [
+        String(row._id),
+        {
+          successfulMessages: Number(row.successfulMessages) || 0,
+          messageSupplierCost: Math.round((Number(row.messageSupplierCost) || 0) * 10000) / 10000
+        }
+      ])
     );
     const clients = users.map((user) => {
       const links = buildClientLinks(user._id, req);
       const payment = normalizePaymentPayload(user.payment || {});
       const deal = serializeDeal(user.deal || {}, payment);
       const agentId = String(user.createdByAgentId || "").trim();
-      const successfulMessages = successfulByUser.get(String(user._id)) || 0;
-      const messageSupplierCost =
-        Math.round(successfulMessages * SUCCESSFUL_MESSAGE_SUPPLIER_RATE * 100) / 100;
+      const messageStats = messageByUser.get(String(user._id)) || {
+        successfulMessages: 0,
+        messageSupplierCost: 0
+      };
       return {
         userId: user._id,
         username: user.username,
@@ -222,8 +248,9 @@ router.get("/clients", async (req, res) => {
         createdByAgentId: agentId,
         createdByAgentName: agentId ? agentNames[agentId] || agentId : "",
         createdAt: user.createdAt,
-        successfulMessages,
-        messageSupplierCost,
+        successfulMessages: messageStats.successfulMessages,
+        messageSupplierCost: messageStats.messageSupplierCost,
+        messageSupplierCostUnit: "USD",
         ...links
       };
     });
@@ -254,14 +281,15 @@ router.get("/clients", async (req, res) => {
     }
 
     const messageSupplierCostTotal =
-      Math.round(clients.reduce((sum, client) => sum + (Number(client.messageSupplierCost) || 0), 0) * 100) /
-      100;
+      Math.round(
+        clients.reduce((sum, client) => sum + (Number(client.messageSupplierCost) || 0), 0) * 10000
+      ) / 10000;
 
     return res.json({
       clients,
       totalRevenue,
       messageSupplierCostTotal,
-      messageSupplierRate: SUCCESSFUL_MESSAGE_SUPPLIER_RATE,
+      messageSupplierCostUnit: "USD",
       agentsSummary: Object.values(byAgentMap),
       agentDirectory: agentNames
     });

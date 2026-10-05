@@ -5,8 +5,8 @@ import { handleIncomingWhatsAppContactShare } from "../services/whatsappContactI
 import { handleWhatsAppSenderAuth } from "../services/whatsappSenderAuthService.js";
 import { handleIncomingWhatsAppRsvp } from "../services/whatsappRsvpService.js";
 import {
-  recordWhatsAppDeliveryFailure,
-  recordWhatsAppDeliveryProgress
+  applyWhatsAppMessageStatus,
+  recordWhatsAppInbound
 } from "../services/whatsappDeliveryLogService.js";
 import { getClientBaseUrl } from "../utils/clientUrl.js";
 import { extractTwilioVcardMedia } from "../utils/vcardParse.js";
@@ -69,6 +69,20 @@ async function processInboundWhatsApp(req) {
       `payload=${req.body.ButtonPayload || "-"} text=${req.body.ButtonText || req.body.Body || "-"} ` +
       `numMedia=${req.body.NumMedia || 0} vcardMedia=${vcardCount}`
   );
+
+  try {
+    await recordWhatsAppInbound({
+      messageSid: req.body.MessageSid,
+      from: req.body.From,
+      price: req.body.Price,
+      priceUnit: req.body.PriceUnit
+    });
+  } catch (billingError) {
+    console.error(
+      "[Twilio WhatsApp] Failed to record inbound billing:",
+      billingError?.message || billingError
+    );
+  }
 
   // 1) Couple Quick Reply → session credentials (before sender-auth onboarding)
   const accessResult = await handleGetAccessDetailsRequest(inbound);
@@ -144,7 +158,7 @@ function hasValidStatusCallbackSignature(req) {
   return twilio.validateRequest(authToken, signature, getStatusCallbackRequestUrl(req), req.body);
 }
 
-router.post("/twilio/message-status", async (req, res) => {
+async function twilioMessageStatusWebhook(req, res) {
   if (!hasValidStatusCallbackSignature(req)) {
     console.warn("[Twilio status] Rejected callback: invalid signature");
     return res.status(403).send("Invalid Twilio signature");
@@ -152,38 +166,39 @@ router.post("/twilio/message-status", async (req, res) => {
 
   const messageStatus = String(req.body?.MessageStatus || "").trim().toLowerCase();
   const messageSid = String(req.body?.MessageSid || "").trim();
+  const price = req.body?.Price;
+  const priceUnit = req.body?.PriceUnit;
 
   console.log(
     `[Twilio status] ${messageSid || "unknown"} status=${messageStatus || "?"} ` +
+      `price=${price ?? "-"} ${priceUnit || ""} ` +
       `code=${req.body?.ErrorCode || "-"} ` +
       `message=${req.body?.ErrorMessage || req.body?.ChannelStatusMessage || "-"} ` +
       `to=${req.body?.To || "-"} ` +
       `bodyKeys=${Object.keys(req.body || {}).join(",") || "-"}`
   );
 
-  if (messageStatus === "undelivered" || messageStatus === "failed") {
-    try {
-      await recordWhatsAppDeliveryFailure({
-        messageSid,
-        messageStatus,
-        errorCode: req.body?.ErrorCode,
-        errorMessage: req.body?.ErrorMessage,
-        to: req.body?.To,
-        from: req.body?.From
-      });
-    } catch (error) {
-      console.error("[Twilio status] Failed to store delivery failure:", error?.message || error);
-      return res.status(500).send("Failed to store status");
-    }
-  } else if (messageStatus === "sent" || messageStatus === "delivered" || messageStatus === "read" || messageStatus === "queued") {
-    try {
-      await recordWhatsAppDeliveryProgress({ messageSid, messageStatus });
-    } catch (error) {
-      console.error("[Twilio status] Failed to store delivery progress:", error?.message || error);
-    }
+  try {
+    await applyWhatsAppMessageStatus({
+      messageSid,
+      messageStatus,
+      price,
+      priceUnit,
+      errorCode: req.body?.ErrorCode,
+      errorMessage: req.body?.ErrorMessage,
+      to: req.body?.To,
+      from: req.body?.From
+    });
+  } catch (error) {
+    console.error("[Twilio status] Failed to store status:", error?.message || error);
+    return res.status(500).send("Failed to store status");
   }
 
   return res.status(200).send("ok");
-});
+}
+
+router.post("/twilio/message-status", twilioMessageStatusWebhook);
+/** Alias matching Twilio Console / docs naming */
+router.post("/twilio-status", twilioMessageStatusWebhook);
 
 export default router;

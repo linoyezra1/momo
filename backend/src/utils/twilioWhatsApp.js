@@ -647,10 +647,27 @@ export function getTwilioStatusCallbackUrl() {
   const explicit = String(process.env.TWILIO_STATUS_CALLBACK_URL || "").trim();
   if (explicit) return explicit;
   const base = String(process.env.BACKEND_URL || "").trim().replace(/\/+$/, "");
-  if (base) return `${base}/api/webhooks/twilio/message-status`;
+  if (base) return `${base}/api/webhooks/twilio-status`;
   const railway = String(process.env.RAILWAY_PUBLIC_DOMAIN || "").trim();
-  if (railway) return `https://${railway}/api/webhooks/twilio/message-status`;
+  if (railway) return `https://${railway}/api/webhooks/twilio-status`;
   return "";
+}
+
+/**
+ * Always attach statusCallback so Twilio posts Price / MessageStatus for billing.
+ * Prefers BACKEND_URL as required for accurate admin cost tracking.
+ */
+function attachStatusCallback(payload) {
+  const statusCallback = getTwilioStatusCallbackUrl();
+  if (!statusCallback) {
+    console.warn(
+      "[Twilio] statusCallback MISSING — set BACKEND_URL (e.g. https://momoevent.up.railway.app) " +
+        "so Twilio can POST /api/webhooks/twilio-status with Price"
+    );
+    return payload;
+  }
+  payload.statusCallback = statusCallback;
+  return payload;
 }
 
 function formatTwilioFailureReason(error) {
@@ -688,12 +705,6 @@ export async function sendTwilioWhatsAppMessage({
   try {
     const client = getTwilioClient();
     const messagingServiceSid = getTwilioMessagingServiceSid();
-    const statusCallback = getTwilioStatusCallbackUrl();
-    if (!statusCallback) {
-      console.warn(
-        "[Twilio] statusCallback skipped — set BACKEND_URL (e.g. https://momoevent.up.railway.app)"
-      );
-    }
     let result;
     if (contentSid) {
       let variablesJson =
@@ -723,16 +734,13 @@ export async function sendTwilioWhatsAppMessage({
       }
 
       // Strict whitelist — do not pass body/mediaUrl/from extras that confuse Content sends.
-      const messagePayload = {
+      const messagePayload = attachStatusCallback({
         to: String(to),
         contentSid: String(contentSid).trim(),
         messagingServiceSid
-      };
+      });
       if (variablesJson != null && variablesJson !== "") {
         messagePayload.contentVariables = variablesJson;
-      }
-      if (statusCallback) {
-        messagePayload.statusCallback = statusCallback;
       }
 
       const varsAfter = summarizeContentVariables(messagePayload.contentVariables);
@@ -744,6 +752,7 @@ export async function sendTwilioWhatsAppMessage({
           `forbiddenKeysPresent=[${forbiddenKeys.join(",") || "none"}] ` +
           `contentSid=${messagePayload.contentSid} ` +
           `messagingServiceSid=${messagingServiceSid} ` +
+          `statusCallback=${messagePayload.statusCallback || "(none)"} ` +
           `contentVariables keyCount=${varsAfter.keyCount} keys=[${varsAfter.keys.join(",")}] ` +
           `hasKeys2to5=${varsAfter.hasKeys2to5} raw=${varsAfter.raw} to=${displayPhone}`
       );
@@ -769,8 +778,7 @@ export async function sendTwilioWhatsAppMessage({
       console.log(
         `${diagTag} FREE_TEXT_PATH (no contentSid) bodyLen=${String(body || "").length} to=${displayPhone}`
       );
-      const freeTextPayload = { body, messagingServiceSid, to };
-      if (statusCallback) freeTextPayload.statusCallback = statusCallback;
+      const freeTextPayload = attachStatusCallback({ body, messagingServiceSid, to });
       result = await client.messages.create(freeTextPayload);
     }
 
@@ -786,6 +794,10 @@ export async function sendTwilioWhatsAppMessage({
       } catch (logError) {
         console.error("[Twilio] Failed to store outbound message ref:", logError?.message || logError);
       }
+    } else if (result?.sid && !userId) {
+      console.warn(
+        `[Twilio] outbound ${result.sid} sent without userId — billing cannot attribute to a client`
+      );
     }
 
     console.log(
