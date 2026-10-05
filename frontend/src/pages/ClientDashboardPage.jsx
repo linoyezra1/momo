@@ -2679,12 +2679,12 @@ export default function ClientDashboardPage() {
                 <p>
                   כל שאלה ניתן לפנות למנהל המערכת בוואטסאפ{" "}
                   <a
-                    href="https://wa.me/972535314055"
+                    href="https://wa.me/972553193433"
                     target="_blank"
                     rel="noreferrer"
                     dir="ltr"
                   >
-                    0535314055
+                    0553193433
                   </a>
                 </p>
               </div>
