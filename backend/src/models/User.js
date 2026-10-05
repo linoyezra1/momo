@@ -44,7 +44,8 @@ const eventSchema = new mongoose.Schema(
         "card_buttons",
         "card_view_invite_button",
         "card_buttons_special_requests",
-        "michl_card_buttons"
+        "michl_card_buttons",
+        "2_card_buttons"
       ],
       default: "standard"
     },
@@ -100,7 +101,8 @@ const includedFeaturesSchema = new mongoose.Schema(
         "card_buttons",
         "card_view_invite_button",
         "card_buttons_special_requests",
-        "michl_card_buttons"
+        "michl_card_buttons",
+        "2_card_buttons"
       ],
       default: "standard"
     },

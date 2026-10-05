@@ -10,11 +10,12 @@ export const WHATSAPP_INVITE_TEMPLATE_IDS = [
   "card_buttons",
   "card_view_invite_button",
   "card_buttons_special_requests",
-  "michl_card_buttons"
+  "michl_card_buttons",
+  "2_card_buttons"
 ];
 
 /**
- * @typedef {"standard"|"buttons_qr"|"card_direct_rsvp_buttons"|"card_buttons"|"card_view_invite_button"|"card_buttons_special_requests"|"michl_card_buttons"} WhatsAppInviteTemplateId
+ * @typedef {"standard"|"buttons_qr"|"card_direct_rsvp_buttons"|"card_buttons"|"card_view_invite_button"|"card_buttons_special_requests"|"michl_card_buttons"|"2_card_buttons"} WhatsAppInviteTemplateId
  */
 
 export const WHATSAPP_INVITE_TEMPLATE_OPTIONS = [
@@ -61,6 +62,13 @@ export const WHATSAPP_INVITE_TEMPLATE_OPTIONS = [
     badge: "כרטיס מיכל + Waze",
     adminHint:
       "תבנית מותאמת למיכל — כרטיס, כפתורי RSVP (כן/לא) וכפתור ניווט Waze. דורשת תמונת כיסוי וכתובת/מתחם."
+  },
+  {
+    id: "2_card_buttons",
+    label: "2 כפתורים + קישור ל-Waze",
+    badge: "כרטיס + 2 כפתורים + Waze בטקסט",
+    adminHint:
+      "תמונה + מלל, קישור Waze בגוף ההודעה (לא ככפתור URL), ו-2 כפתורי RSVP (אגיע / לא אגיע). דורשת תמונת כיסוי וכתובת/מתחם."
   }
 ];
 
@@ -80,6 +88,8 @@ export const CARD_BUTTONS_SPECIAL_REQUESTS_CONTENT_SID_DEFAULT =
   "HX7e74b8c361f4ada06b3211ab5868b2db";
 /** Michl card + RSVP QR + Waze URL button: michl_card_buttons */
 export const MICHL_CARD_BUTTONS_CONTENT_SID_DEFAULT = "HX045cca6026c633c1127a8cda0c9d55f8";
+/** 2 QR + Waze URL in body (no URL button): Twilio copy_2_card_buttons */
+export const TWO_CARD_BUTTONS_CONTENT_SID_DEFAULT = "HXe6e42257c3fba04996d47e9bf0c77d91";
 
 /**
  * Semantic fields → Twilio Content variable keys per template.
@@ -161,6 +171,21 @@ const TEMPLATE_FIELD_KEYS = {
     closingSignOff: "4",
     mediaPath: "5",
     wazeQuery: "6"
+  },
+  /**
+   * 2_card_buttons → Twilio Content "copy_2_card_buttons"
+   * (SID HXe6e42257c3fba04996d47e9bf0c77d91). 2 QR only; Waze URL in body text.
+   * Body: {{1}} name · {{2}} opening · {{3}} details ·
+   * static "לנוחיותכם, מצורף קישור ניווט ישיר ב-Waze לאולם:" + {{4}} Waze URL only ·
+   * {{5}} closing · Media header {{6}} · QR: arrive / not arrive
+   */
+  "2_card_buttons": {
+    guestName: "1",
+    customOpeningText: "2",
+    eventDateTimeLocation: "3",
+    wazeInviteLine: "4",
+    closingSignOff: "5",
+    mediaPath: "6"
   }
 };
 
@@ -231,7 +256,8 @@ export function isCardInviteTemplate(templateId) {
     templateId === "card_buttons" ||
     templateId === "card_view_invite_button" ||
     templateId === "card_buttons_special_requests" ||
-    templateId === "michl_card_buttons"
+    templateId === "michl_card_buttons" ||
+    templateId === "2_card_buttons"
   );
 }
 
@@ -283,7 +309,7 @@ export function templateIncludesSpecialRequestsLink(templateId) {
 
 export function templateIncludesWazeLink(templateId) {
   const map = getTemplateFieldKeyMap(templateId);
-  return Boolean(map.wazeLink || map.wazeQuery);
+  return Boolean(map.wazeLink || map.wazeQuery || map.wazeInviteLine);
 }
 
 /**
@@ -309,6 +335,14 @@ export function buildWazeNavigationLink(event = {}) {
   const encodedQuery = buildWazeQueryVariable(event);
   if (!encodedQuery) return "";
   return `https://waze.com/ul?q=${encodedQuery}&navigate=yes`;
+}
+
+/**
+ * Waze URL only for {{4}} in 2_card_buttons.
+ * The Hebrew intro line is static in the approved template body.
+ */
+export function buildWazeInviteBodyLine(event = {}) {
+  return buildWazeNavigationLink(event);
 }
 
 /**
@@ -402,6 +436,24 @@ export function resolveInviteTemplateRouting(event = {}) {
       templateId,
       contentSid: fromEnv?.contentSid || MICHL_CARD_BUTTONS_CONTENT_SID_DEFAULT,
       sidSource: fromEnv?.sidSource || "default:MICHL_CARD_BUTTONS_CONTENT_SID_DEFAULT",
+      templateKeys,
+      requiresCoverMedia,
+      includesRsvpLink,
+      premiumButtonsEnabled: true,
+      premiumCardEnabled: true
+    };
+  }
+
+  if (templateId === "2_card_buttons") {
+    const fromEnv = readEnvSid(
+      "TWILIO_2_CARD_BUTTONS_CONTENT_SID",
+      "TWILIO_COPY_2_CARD_BUTTONS_CONTENT_SID"
+    );
+    const contentSid = fromEnv?.contentSid || TWO_CARD_BUTTONS_CONTENT_SID_DEFAULT;
+    return {
+      templateId,
+      contentSid,
+      sidSource: fromEnv?.sidSource || "default:TWO_CARD_BUTTONS_CONTENT_SID_DEFAULT",
       templateKeys,
       requiresCoverMedia,
       includesRsvpLink,

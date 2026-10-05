@@ -16,6 +16,7 @@ import {
 } from "../utils/twilioWhatsApp.js";
 import {
   buildInviteUrlButtonVariable,
+  buildWazeInviteBodyLine,
   buildWazeNavigationLink,
   buildWazeQueryVariable,
   getTemplateFieldKeyMap,
@@ -134,6 +135,7 @@ function buildPremiumInviteVariables({ guest, event, userId, origin, templateId 
   const specialRequestsLink = fieldKeyMap.specialRequestsLink ? publicLink : undefined;
   const wazeLink = fieldKeyMap.wazeLink ? buildWazeNavigationLink(event) : undefined;
   const wazeQuery = fieldKeyMap.wazeQuery ? buildWazeQueryVariable(event) : undefined;
+  const wazeInviteLine = fieldKeyMap.wazeInviteLine ? buildWazeInviteBodyLine(event) : undefined;
   const inviteButtonPath = fieldKeyMap.inviteButtonPath
     ? buildInviteUrlButtonVariable(publicLink)
     : undefined;
@@ -153,6 +155,7 @@ function buildPremiumInviteVariables({ guest, event, userId, origin, templateId 
       specialRequestsLink,
       wazeLink,
       wazeQuery,
+      wazeInviteLine,
       inviteButtonPath
     },
     templateKeys,

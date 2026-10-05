@@ -18,6 +18,7 @@ import {
 } from "../utils/twilioWhatsApp.js";
 import {
   buildInviteUrlButtonVariable,
+  buildWazeInviteBodyLine,
   buildWazeNavigationLink,
   buildWazeQueryVariable,
   getTemplateFieldKeyMap,
@@ -280,10 +281,12 @@ async function sendToInvitee({
     const needsSpecialRequests = Boolean(fieldKeyMap?.specialRequestsLink);
     const needsWazeLink = Boolean(fieldKeyMap?.wazeLink);
     const needsWazeQuery = Boolean(fieldKeyMap?.wazeQuery);
+    const needsWazeInviteLine = Boolean(fieldKeyMap?.wazeInviteLine);
     const needsInviteButtonPath = Boolean(fieldKeyMap?.inviteButtonPath);
     const specialRequestsLink = needsSpecialRequests ? fields.rsvpLink : undefined;
     const wazeLink = needsWazeLink ? buildWazeNavigationLink(event) : undefined;
     const wazeQuery = needsWazeQuery ? buildWazeQueryVariable(event) : undefined;
+    const wazeInviteLine = needsWazeInviteLine ? buildWazeInviteBodyLine(event) : undefined;
     const inviteButtonPath = needsInviteButtonPath
       ? buildInviteUrlButtonVariable(fields.rsvpLink)
       : undefined;
@@ -296,6 +299,9 @@ async function sendToInvitee({
     }
     if (needsWazeQuery && !wazeQuery) {
       throw new Error("לא ניתן לבנות ניווט Waze — חסר שם מתחם/כתובת לאירוע");
+    }
+    if (needsWazeInviteLine && !wazeInviteLine) {
+      throw new Error("לא ניתן לבנות קישור Waze בגוף ההודעה — חסר כתובת/מיקום לאירוע");
     }
     if (needsInviteButtonPath && !inviteButtonPath) {
       throw new Error("לא ניתן לבנות כפתור ההפניה — חסר קישור לעמוד ההזמנה");
@@ -314,6 +320,7 @@ async function sendToInvitee({
         specialRequestsLink,
         wazeLink,
         wazeQuery,
+        wazeInviteLine,
         inviteButtonPath
       },
       templateKeys,
@@ -424,6 +431,17 @@ export async function sendBulkWhatsApp({
           success: false,
           message:
             "לתבנית וואטסאפ עם תמונה חובה להעלות תמונת כיסוי לאירוע לפני השליחה. העלו תמונה בהגדרות האירוע ונסו שוב."
+        }
+      };
+    }
+
+    if (!routing.conference && !String(routing.contentSid || "").startsWith("HX")) {
+      return {
+        status: 503,
+        body: {
+          success: false,
+          message:
+            "תבנית הוואטסאפ שנבחרה עדיין לא מוגדרת בשרת (חסר Content SID). פנו למנהל המערכת."
         }
       };
     }
