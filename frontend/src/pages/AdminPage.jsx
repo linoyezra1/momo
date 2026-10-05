@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Copy, LogIn, Pencil, Trash2, X } from "lucide-react";
 import api from "../api";
 import AdminWhatsAppFailures from "../components/AdminWhatsAppFailures.jsx";
+import AdminWhatsAppBilling from "../components/AdminWhatsAppBilling.jsx";
 import { clearAdminToken } from "../utils/adminAuth";
 import { setImpersonationSession } from "../utils/impersonation";
 import { buildClientOnboardingMessage } from "../utils/clientOnboardingMessage";
@@ -1414,19 +1415,24 @@ ${publicEventUrl}`
                   סגירה
                 </button>
               </div>
-              <p className="us-admin-event-summary us-admin-client-details__stats">
-                <strong>הודעות מוצלחות:</strong> {Number(selectedClient.successfulMessages) || 0}
-                {" · "}
-                <strong>עלות ספק:</strong> {formatUsd(selectedClient.messageSupplierCost)}
-                <span className="us-admin-stat-note"> Twilio</span>
-                {selectedClient.deal?.supplierCost != null && selectedClient.deal.supplierCost !== "" ? (
-                  <>
-                    {" · "}
-                    <strong>עלות ספק בעסקה:</strong>{" "}
-                    {formatIls(selectedClient.deal.supplierCost)}
-                  </>
-                ) : null}
-              </p>
+              <div className="us-admin-client-details__stats">
+                <p className="us-admin-event-summary" style={{ margin: 0 }}>
+                  <strong>הודעות שחויבו:</strong> {Number(selectedClient.successfulMessages) || 0}
+                  <span className="us-admin-stat-note"> (לוגי הודעות, לא מוזמנים)</span>
+                  {" · "}
+                  <strong>Twilio בפועל:</strong> {formatUsd(selectedClient.messageSupplierCost)}
+                  {selectedClient.deal?.supplierCost != null && selectedClient.deal.supplierCost !== "" ? (
+                    <>
+                      {" · "}
+                      <strong>ספק בעסקה:</strong> {formatIls(selectedClient.deal.supplierCost)}
+                      <span className="us-admin-stat-note"> (קופונים×₪0.50)</span>
+                    </>
+                  ) : null}
+                </p>
+                <p className="us-admin-field-hint" style={{ margin: "0.35rem 0 0" }}>
+                  פירוט מלא לכל הודעה — בטאב «עלויות». מחיר Twilio כולל כבר את Meta; אין פיצול נפרד.
+                </p>
+              </div>
             </div>
 
             <div className="us-admin-client-tabs" role="tablist" aria-label="ניווט כרטיסיית לקוח">
@@ -1434,6 +1440,7 @@ ${publicEventUrl}`
                 { id: "access", label: "פרטי לקוח וגישה" },
                 { id: "deal", label: "חבילה ועסקה" },
                 { id: "quota", label: "מכסות וקופונים" },
+                { id: "costs", label: "עלויות" },
                 { id: "failures", label: "דוח כשלים והודעות" }
               ].map((tab) => (
                 <button
@@ -1968,6 +1975,20 @@ ${publicEventUrl}`
                       </button>
                     </form>
                   </div>
+                </div>
+              ) : null}
+
+              {clientDetailsTab === "costs" ? (
+                <div
+                  className="us-admin-client-tab-panel"
+                  role="tabpanel"
+                  id="client-tab-panel-costs"
+                  aria-labelledby="client-tab-costs"
+                >
+                  <AdminWhatsAppBilling
+                    userId={selectedClient.userId}
+                    dealSupplierCostIls={selectedClient.deal?.supplierCost}
+                  />
                 </div>
               ) : null}
 

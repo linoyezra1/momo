@@ -566,6 +566,104 @@ router.post("/whatsapp-billing-sync", async (req, res) => {
   }
 });
 
+/** Full per-message Twilio cost log for one client (admin costs tab). */
+router.get("/clients/:userId/whatsapp-billing-logs", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await User.findById(userId).select("_id deal");
+    if (!user) return res.status(404).json({ message: "Client not found" });
+
+    const forceSync = String(req.query.sync || "") === "force";
+    let sync = null;
+    let syncError = "";
+    if (forceSync) {
+      try {
+        sync = await syncWhatsAppBillingFromTwilio({ userId, force: true, days: 120 });
+      } catch (error) {
+        syncError = error.message || "סנכרון עלויות Twilio נכשל";
+        console.error("[Twilio billing] client sync failed:", syncError);
+      }
+    }
+
+    const limit = Math.min(Math.max(Number(req.query.limit) || 2000, 50), 5000);
+    const logs = await WhatsAppDeliveryLog.find({ userId })
+      .sort({ sentAt: -1, createdAt: -1 })
+      .limit(limit)
+      .lean();
+
+    let billedCount = 0;
+    let billedWithPriceCount = 0;
+    let failedCount = 0;
+    let inboundCount = 0;
+    let outboundCount = 0;
+    let totalTwilioUsd = 0;
+
+    const mapped = logs.map((log) => {
+      const status = String(log.status || "");
+      const direction = String(log.direction || "outbound");
+      const actualCost = Number(log.actualCost ?? log.costUsd ?? log.cost) || 0;
+      const isBilled = Boolean(log.isBilled);
+      if (direction === "inbound") inboundCount += 1;
+      else outboundCount += 1;
+      if (status === "failed" || status === "undelivered") failedCount += 1;
+      if (isBilled) {
+        billedCount += 1;
+        totalTwilioUsd += actualCost;
+        if (actualCost > 0) billedWithPriceCount += 1;
+      }
+      return {
+        id: String(log._id),
+        messageSid: log.messageSid || "",
+        guestId: log.guestId ? String(log.guestId) : "",
+        guestName: log.guestName || "",
+        guestPhone: log.guestPhone || "",
+        direction,
+        status,
+        isBilled,
+        actualCost,
+        priceUnit: log.priceUnit || "USD",
+        errorCode: log.errorCode || "",
+        errorMessageHe: log.errorMessageHe || log.errorMessage || "",
+        sentAt: log.sentAt || log.createdAt || null,
+        failedAt: log.failedAt || null
+      };
+    });
+
+    totalTwilioUsd = Math.round(totalTwilioUsd * 10000) / 10000;
+    const avgTwilioUsd =
+      billedCount > 0 ? Math.round((totalTwilioUsd / billedCount) * 10000) / 10000 : 0;
+    const dealSupplierCostIls =
+      user.deal?.supplierCost == null || user.deal?.supplierCost === ""
+        ? null
+        : Number(user.deal.supplierCost) || 0;
+
+    return res.json({
+      sync,
+      syncError,
+      summary: {
+        totalLogs: mapped.length,
+        billedCount,
+        billedWithPriceCount,
+        billedWithoutPriceCount: Math.max(0, billedCount - billedWithPriceCount),
+        failedCount,
+        inboundCount,
+        outboundCount,
+        totalTwilioUsd,
+        avgTwilioUsd,
+        dealSupplierCostIls,
+        dealSupplierRateIls: 0.5,
+        noteHe:
+          "עלות Twilio בדולר = סכום Price מכל הודעה שחויבה (לא כמות×תעריף קבוע). " +
+          "המחיר מ־Twilio כולל כבר את עמלת Meta/WhatsApp — אין פיצול נפרד. " +
+          "עלות ספק בעסקה (₪) = סכום מכסות קופונים × ₪0.50, חישוב פנימי נפרד."
+      },
+      logs: mapped
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "טעינת לוגי עלויות נכשלה", error: error.message });
+  }
+});
+
 router.get("/clients/:userId/whatsapp-delivery-failures", async (req, res) => {
   try {
     const { userId } = req.params;

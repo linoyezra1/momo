@@ -1163,3 +1163,88 @@
   font-weight: 700;
   white-space: nowrap;
 }
+
+.us-admin-billing-explain {
+  margin: 0 0 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--us-border);
+  border-radius: 0.45rem;
+  background: var(--us-ivory);
+  font-size: 0.86rem;
+  line-height: 1.55;
+  color: var(--us-espresso);
+}
+
+.us-admin-billing-explain p {
+  margin: 0;
+}
+
+.us-admin-billing-explain p + p {
+  margin-top: 0.55rem;
+}
+
+.us-admin-billing-explain code {
+  font-size: 0.8em;
+}
+
+.us-admin-billing-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  gap: 0.65rem;
+  margin-bottom: 1rem;
+}
+
+.us-admin-billing-summary__card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--us-border);
+  border-radius: 0.4rem;
+  background: #fff;
+}
+
+.us-admin-billing-summary__card span {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--us-muted);
+  letter-spacing: 0.02em;
+}
+
+.us-admin-billing-summary__card strong {
+  font-size: 1.05rem;
+  color: var(--us-espresso);
+}
+
+.us-admin-billing-summary__card small {
+  font-size: 0.72rem;
+  color: var(--us-muted);
+  line-height: 1.35;
+}
+
+.us-admin-billing-summary__card.is-accent {
+  border-color: var(--us-espresso);
+  background: var(--us-ivory);
+}
+
+.us-admin-billing-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  align-items: stretch;
+  margin-bottom: 0.85rem;
+}
+
+.us-admin-billing-filters .us-admin-wa-failures__search {
+  flex: 1 1 14rem;
+}
+
+.us-admin-billing-filters__select {
+  flex: 0 0 auto;
+  min-width: 11rem;
+  width: auto;
+}
+
+.us-admin-wa-failures__table tr.is-unbilled td {
+  opacity: 0.72;
+}
