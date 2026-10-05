@@ -281,6 +281,7 @@ export default function AdminPage() {
   const [welcomeNotice, setWelcomeNotice] = useState("");
   const [credentialsSending, setCredentialsSending] = useState(false);
   const [credentialsNotice, setCredentialsNotice] = useState("");
+  const [clientDetailsTab, setClientDetailsTab] = useState("access");
   const [leads, setLeads] = useState([]);
   const [leadsLoading, setLeadsLoading] = useState(false);
   const [leadsError, setLeadsError] = useState("");
@@ -560,6 +561,8 @@ ${publicEventUrl}`
 
   useEffect(() => {
     loadClientQuota(selectedClientId);
+    setClientDetailsTab("access");
+    setCredentialsNotice("");
   }, [selectedClientId]);
 
   useEffect(() => {
@@ -1382,46 +1385,81 @@ ${publicEventUrl}`
           </div>
 
           {selectedClient ? (
-          <div className="us-admin-card" id="admin-client-details">
-            <div className="us-admin-toolbar" style={{ marginBottom: "0.75rem" }}>
-              <h2 className="us-admin-card-title" style={{ margin: 0 }}>
-                פרטי לקוח
-              </h2>
-              <button
-                className="us-admin-btn us-admin-btn--xs"
-                type="button"
-                onClick={() => setSelectedClientId("")}
-              >
-                סגירה
-              </button>
-            </div>
-            <div className="us-admin-card-body">
-                <>
-                  <p className="us-admin-event-summary">
-                    <strong>הודעות מוצלחות:</strong> {Number(selectedClient.successfulMessages) || 0}
-                    {" · "}
-                    <strong>עלות ספק:</strong> {formatUsd(selectedClient.messageSupplierCost)}
-                    {" "}
-                    <span className="us-admin-stat-note">(Twilio USD)</span>
+          <div className="us-admin-card us-admin-client-details" id="admin-client-details">
+            <div className="us-admin-client-details__header">
+              <div className="us-admin-client-details__header-top">
+                <div className="us-admin-client-details__title-wrap">
+                  <h2 className="us-admin-card-title" style={{ margin: 0 }}>
+                    {buildEventDisplayText(selectedClient.event) || selectedClient.username || "פרטי לקוח"}
+                  </h2>
+                  <p className="us-admin-client-details__meta">
+                    {selectedClient.event?.eventDate ? (
+                      <span>
+                        <strong>תאריך:</strong> {formatIsraeliDate(selectedClient.event.eventDate)}
+                      </span>
+                    ) : null}
+                    {selectedClient.event?.venueName ? (
+                      <span>
+                        <strong>מיקום:</strong> {selectedClient.event.venueName}
+                      </span>
+                    ) : null}
                   </p>
-                  {buildEventDisplayText(selectedClient.event) ? (
-                    <p className="us-admin-event-summary">
-                      <strong>אירוע:</strong> {buildEventDisplayText(selectedClient.event)}
-                      {selectedClient.event?.eventDate ? (
-                        <>
-                          {" "}
-                          · <strong>תאריך:</strong> {formatIsraeliDate(selectedClient.event.eventDate)}
-                        </>
-                      ) : null}
-                      {selectedClient.event?.venueName ? (
-                        <>
-                          {" "}
-                          · <strong>מיקום:</strong> {selectedClient.event.venueName}
-                        </>
-                      ) : null}
-                    </p>
-                  ) : null}
+                </div>
+                <button
+                  className="us-admin-btn us-admin-btn--xs us-admin-client-details__close"
+                  type="button"
+                  onClick={() => setSelectedClientId("")}
+                  aria-label="סגירת כרטיסיית לקוח"
+                >
+                  סגירה
+                </button>
+              </div>
+              <p className="us-admin-event-summary us-admin-client-details__stats">
+                <strong>הודעות מוצלחות:</strong> {Number(selectedClient.successfulMessages) || 0}
+                {" · "}
+                <strong>עלות ספק:</strong> {formatUsd(selectedClient.messageSupplierCost)}
+                <span className="us-admin-stat-note"> Twilio</span>
+                {selectedClient.deal?.supplierCost != null && selectedClient.deal.supplierCost !== "" ? (
+                  <>
+                    {" · "}
+                    <strong>עלות ספק בעסקה:</strong>{" "}
+                    {formatIls(selectedClient.deal.supplierCost)}
+                  </>
+                ) : null}
+              </p>
+            </div>
 
+            <div className="us-admin-client-tabs" role="tablist" aria-label="ניווט כרטיסיית לקוח">
+              {[
+                { id: "access", label: "פרטי לקוח וגישה" },
+                { id: "deal", label: "חבילה ועסקה" },
+                { id: "quota", label: "מכסות וקופונים" },
+                { id: "failures", label: "דוח כשלים והודעות" }
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  id={`client-tab-${tab.id}`}
+                  aria-selected={clientDetailsTab === tab.id}
+                  aria-controls={`client-tab-panel-${tab.id}`}
+                  className={`us-admin-client-tab${clientDetailsTab === tab.id ? " is-active" : ""}`}
+                  onClick={() => setClientDetailsTab(tab.id)}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="us-admin-card-body us-admin-client-details__body">
+              {clientDetailsTab === "access" ? (
+                <div
+                  className="us-admin-client-tab-panel"
+                  role="tabpanel"
+                  id="client-tab-panel-access"
+                  aria-labelledby="client-tab-access"
+                >
+                  <h3 className="us-admin-client-tab-panel__title">פרטי התקשרות</h3>
                   <div className="us-admin-detail-grid">
                     <div className="us-admin-detail-item">
                       <span className="us-admin-detail-label">נפתח ע״י סוכן</span>
@@ -1494,7 +1532,10 @@ ${publicEventUrl}`
                         ) : null}
                       </div>
                     </div>
+                  </div>
 
+                  <h3 className="us-admin-client-tab-panel__title">פרטי כניסה ואימות</h3>
+                  <div className="us-admin-detail-grid">
                     <div className="us-admin-detail-item">
                       <span className="us-admin-detail-label">שם משתמש</span>
                       <div className="us-admin-link-row">
@@ -1530,7 +1571,10 @@ ${publicEventUrl}`
                         ) : null}
                       </div>
                     </div>
+                  </div>
 
+                  <h3 className="us-admin-client-tab-panel__title">קישורים ישירים</h3>
+                  <div className="us-admin-detail-grid">
                     <div className="us-admin-detail-item us-admin-detail-item--wide">
                       <span className="us-admin-detail-label">קישור הזמנה</span>
                       <div className="us-admin-link-row">
@@ -1576,69 +1620,49 @@ ${publicEventUrl}`
                     />
                   ) : null}
 
-                  <div className="us-admin-payment-block us-admin-whatsapp-quota-block">
-                    <h3>מכסת וואטסאפ ללקוח (Twilio)</h3>
+                  <div className="us-admin-share-block">
+                    <p className="us-admin-share-title">שליחת הרשאות בוואטסאפ</p>
                     <p className="us-admin-field-hint">
-                      אפשר להקצות ללקוח כמה קופונים שונים במקביל (למשל קוד X עם 100 הודעות וקוד Y עם 50).
-                      כל הקצאה יוצרת קופון חדש — בלי לדרוס קופונים קיימים.
+                      שולח לזוג את תבנית Quick Reply לקבלת פרטי גישה (`get_login_credentials`).
+                      לאחר לחיצה על הכפתור בהודעה — יישלחו שם משתמש וקוד גישה אוטומטית.
                     </p>
-                    {clientQuotaLoading ? <p className="us-admin-empty">טוען מכסה…</p> : null}
-                    {clientQuotas.length ? (
-                      <ul className="us-admin-coupon-list">
-                        {clientQuotas.map((item) => (
-                          <li key={item.codeId || item.code} className={!item.isActive ? "is-inactive" : ""}>
-                            <strong>{item.code}</strong>
-                            {" · "}
-                            נותרו <strong>{item.remaining_credits}</strong> / {item.total_credits}
-                            {!item.isActive ? " · לא פעיל" : item.remaining_credits <= 0 ? " · מוצה" : " · פעיל"}
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="us-admin-field-hint">ללקוח זה עדיין אין קופונים.</p>
-                    )}
-                    {clientQuotaMessage ? <p className="us-admin-message">{clientQuotaMessage}</p> : null}
-                    {clientQuotaError ? (
-                      <p className="us-admin-message us-admin-message--error">{clientQuotaError}</p>
-                    ) : null}
-                    <form className="us-admin-payment-fields" onSubmit={assignClientQuota}>
-                      <div className="us-admin-field">
-                        <label className="us-admin-field-label" htmlFor="client-quota-code">
-                          שם קוד חדש (חובה שיהיה שונה מקופונים קיימים)
-                        </label>
-                        <input
-                          id="client-quota-code"
-                          className="us-admin-field-input"
-                          value={clientQuotaDraft.code}
-                          onChange={(event) =>
-                            setClientQuotaDraft((prev) => ({ ...prev, code: event.target.value.toUpperCase() }))
-                          }
-                          placeholder="למשל: MOMO-Y50"
-                        />
-                      </div>
-                      <div className="us-admin-field">
-                        <label className="us-admin-field-label" htmlFor="client-quota-credits">
-                          מכסת הודעות לקופון החדש
-                        </label>
-                        <input
-                          id="client-quota-credits"
-                          className="us-admin-field-input"
-                          type="number"
-                          min="1"
-                          value={clientQuotaDraft.total_credits}
-                          onChange={(event) =>
-                            setClientQuotaDraft((prev) => ({ ...prev, total_credits: event.target.value }))
-                          }
-                          placeholder="למשל: 50"
-                          required
-                        />
-                      </div>
-                      <button className="us-admin-btn us-admin-btn--primary" type="submit" disabled={clientQuotaLoading}>
-                        {clientQuotaLoading ? "שומר…" : clientQuotaSaved ? "קופון חדש נוסף" : "הוספת קופון נוסף ללקוח"}
-                      </button>
-                    </form>
+                    {credentialsNotice ? <p className="us-admin-message">{credentialsNotice}</p> : null}
+                    <button
+                      className="us-admin-btn us-admin-btn--primary"
+                      type="button"
+                      disabled={credentialsSending || !selectedClient.contactPhone}
+                      onClick={sendCredentialsWhatsApp}
+                      title={
+                        selectedClient.contactPhone
+                          ? "שליחת תבנית פרטי גישה בוואטסאפ"
+                          : "חסר מספר טלפון ללקוח"
+                      }
+                    >
+                      {credentialsSending ? "שולח…" : "שלח הרשאות"}
+                    </button>
                   </div>
 
+                  <div className="us-admin-share-block">
+                    <p className="us-admin-share-title">הודעה מוכנה ללקוח (להעתקה לוואטסאפ):</p>
+                    <textarea className="us-admin-share-textarea" value={clientMessageForSelected} readOnly />
+                    <button
+                      className="us-admin-btn us-admin-btn--primary"
+                      type="button"
+                      onClick={() => copyClientMessage(clientMessageForSelected)}
+                    >
+                      {clientMessageCopied ? "הודעה הועתקה" : "העתק הודעה ללקוח"}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
+              {clientDetailsTab === "deal" ? (
+                <div
+                  className="us-admin-client-tab-panel"
+                  role="tabpanel"
+                  id="client-tab-panel-deal"
+                  aria-labelledby="client-tab-deal"
+                >
                   <div className="us-admin-payment-block us-admin-deal-block">
                     <h3>פרטי עסקה ושיווק</h3>
                     <p className="us-admin-field-hint">
@@ -1872,43 +1896,91 @@ ${publicEventUrl}`
                       {dealSaving ? "שומר…" : dealSaved ? "נשמר" : "שמירת פרטי עסקה"}
                     </button>
                   </div>
+                </div>
+              ) : null}
 
-                  <div className="us-admin-share-block">
-                    <p className="us-admin-share-title">שליחת הרשאות בוואטסאפ</p>
+              {clientDetailsTab === "quota" ? (
+                <div
+                  className="us-admin-client-tab-panel"
+                  role="tabpanel"
+                  id="client-tab-panel-quota"
+                  aria-labelledby="client-tab-quota"
+                >
+                  <div className="us-admin-payment-block us-admin-whatsapp-quota-block">
+                    <h3>מכסת וואטסאפ ללקוח (Twilio)</h3>
                     <p className="us-admin-field-hint">
-                      שולח לזוג את תבנית Quick Reply לקבלת פרטי גישה (`get_login_credentials`).
-                      לאחר לחיצה על הכפתור בהודעה — יישלחו שם משתמש וקוד גישה אוטומטית.
+                      אפשר להקצות ללקוח כמה קופונים שונים במקביל (למשל קוד X עם 100 הודעות וקוד Y עם 50).
+                      כל הקצאה יוצרת קופון חדש — בלי לדרוס קופונים קיימים.
                     </p>
-                    {credentialsNotice ? <p className="us-admin-message">{credentialsNotice}</p> : null}
-                    <button
-                      className="us-admin-btn us-admin-btn--primary"
-                      type="button"
-                      disabled={credentialsSending || !selectedClient.contactPhone}
-                      onClick={sendCredentialsWhatsApp}
-                      title={
-                        selectedClient.contactPhone
-                          ? "שליחת תבנית פרטי גישה בוואטסאפ"
-                          : "חסר מספר טלפון ללקוח"
-                      }
-                    >
-                      {credentialsSending ? "שולח…" : "שלח הרשאות"}
-                    </button>
+                    {clientQuotaLoading ? <p className="us-admin-empty">טוען מכסה…</p> : null}
+                    {clientQuotas.length ? (
+                      <ul className="us-admin-coupon-list">
+                        {clientQuotas.map((item) => (
+                          <li key={item.codeId || item.code} className={!item.isActive ? "is-inactive" : ""}>
+                            <strong>{item.code}</strong>
+                            {" · "}
+                            נותרו <strong>{item.remaining_credits}</strong> / {item.total_credits}
+                            {!item.isActive ? " · לא פעיל" : item.remaining_credits <= 0 ? " · מוצה" : " · פעיל"}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="us-admin-field-hint">ללקוח זה עדיין אין קופונים.</p>
+                    )}
+                    {clientQuotaMessage ? <p className="us-admin-message">{clientQuotaMessage}</p> : null}
+                    {clientQuotaError ? (
+                      <p className="us-admin-message us-admin-message--error">{clientQuotaError}</p>
+                    ) : null}
+                    <form className="us-admin-payment-fields" onSubmit={assignClientQuota}>
+                      <div className="us-admin-field">
+                        <label className="us-admin-field-label" htmlFor="client-quota-code">
+                          שם קוד חדש (חובה שיהיה שונה מקופונים קיימים)
+                        </label>
+                        <input
+                          id="client-quota-code"
+                          className="us-admin-field-input"
+                          value={clientQuotaDraft.code}
+                          onChange={(event) =>
+                            setClientQuotaDraft((prev) => ({ ...prev, code: event.target.value.toUpperCase() }))
+                          }
+                          placeholder="למשל: MOMO-Y50"
+                        />
+                      </div>
+                      <div className="us-admin-field">
+                        <label className="us-admin-field-label" htmlFor="client-quota-credits">
+                          מכסת הודעות לקופון החדש
+                        </label>
+                        <input
+                          id="client-quota-credits"
+                          className="us-admin-field-input"
+                          type="number"
+                          min="1"
+                          value={clientQuotaDraft.total_credits}
+                          onChange={(event) =>
+                            setClientQuotaDraft((prev) => ({ ...prev, total_credits: event.target.value }))
+                          }
+                          placeholder="למשל: 50"
+                          required
+                        />
+                      </div>
+                      <button className="us-admin-btn us-admin-btn--primary" type="submit" disabled={clientQuotaLoading}>
+                        {clientQuotaLoading ? "שומר…" : clientQuotaSaved ? "קופון חדש נוסף" : "הוספת קופון נוסף ללקוח"}
+                      </button>
+                    </form>
                   </div>
+                </div>
+              ) : null}
 
-                  <div className="us-admin-share-block">
-                    <p className="us-admin-share-title">הודעה מוכנה ללקוח (להעתקה לוואטסאפ):</p>
-                    <textarea className="us-admin-share-textarea" value={clientMessageForSelected} readOnly />
-                    <button
-                      className="us-admin-btn us-admin-btn--primary"
-                      type="button"
-                      onClick={() => copyClientMessage(clientMessageForSelected)}
-                    >
-                      {clientMessageCopied ? "הודעה הועתקה" : "העתק הודעה ללקוח"}
-                    </button>
-                  </div>
-
+              {clientDetailsTab === "failures" ? (
+                <div
+                  className="us-admin-client-tab-panel"
+                  role="tabpanel"
+                  id="client-tab-panel-failures"
+                  aria-labelledby="client-tab-failures"
+                >
                   <AdminWhatsAppFailures userId={selectedClient.userId} />
-                </>
+                </div>
+              ) : null}
             </div>
           </div>
           ) : null}

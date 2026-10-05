@@ -372,6 +372,98 @@
   grid-column: 1 / -1;
 }
 
+.us-admin-client-details {
+  scroll-margin-top: 1rem;
+}
+
+.us-admin-client-details__header {
+  padding: 1rem 1.15rem 0.85rem;
+  border-bottom: 1px solid var(--us-border);
+  background: var(--us-ivory);
+}
+
+.us-admin-client-details__header-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.85rem;
+}
+
+.us-admin-client-details__title-wrap {
+  min-width: 0;
+  flex: 1;
+}
+
+.us-admin-client-details__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  margin: 0.35rem 0 0;
+  font-size: 0.88rem;
+  color: var(--us-muted);
+}
+
+.us-admin-client-details__stats {
+  margin: 0.75rem 0 0;
+}
+
+.us-admin-client-details__body {
+  padding-top: 1rem;
+}
+
+.us-admin-client-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0.55rem 0.75rem 0;
+  border-bottom: 1px solid var(--us-border);
+  background: #fff;
+}
+
+.us-admin-client-tab {
+  appearance: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--us-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  padding: 0.65rem 0.85rem;
+  margin-bottom: -1px;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.us-admin-client-tab:hover {
+  color: var(--us-espresso);
+  background: var(--us-ivory);
+}
+
+.us-admin-client-tab.is-active {
+  color: var(--us-espresso);
+  border-bottom-color: var(--us-espresso);
+}
+
+.us-admin-client-tab-panel__title {
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--us-espresso);
+}
+
+.us-admin-client-tab-panel .us-admin-payment-block,
+.us-admin-client-tab-panel .us-admin-share-block,
+.us-admin-client-tab-panel .us-admin-wa-failures {
+  margin-top: 0;
+}
+
+.us-admin-client-tab-panel .us-admin-detail-grid + .us-admin-client-tab-panel__title,
+.us-admin-client-tab-panel .us-admin-event-image + .us-admin-share-block,
+.us-admin-client-tab-panel .us-admin-share-block + .us-admin-share-block {
+  margin-top: 1.25rem;
+}
+
 .us-admin-detail-label {
   font-size: 0.68rem;
   font-weight: 700;
@@ -931,6 +1023,24 @@
   .us-admin-card-title,
   .us-admin-card-body {
     padding-inline: 0.8rem;
+  }
+
+  .us-admin-client-details__header {
+    padding-inline: 0.8rem;
+  }
+
+  .us-admin-client-tabs {
+    padding-inline: 0.35rem;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .us-admin-client-tab {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    font-size: 0.8rem;
+    padding-inline: 0.7rem;
   }
 
   .us-admin-client-row {
