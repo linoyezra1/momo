@@ -12,71 +12,87 @@ export const WHATSAPP_INVITE_TEMPLATE_IDS = [
   "card_buttons_special_requests",
   "michl_card_buttons",
   "michl_quick_reply_waze",
-  "2_card_buttons"
+  "remmber_day_and_waze",
+  "2_card_buttons",
+  "thank_you_after_event"
 ];
 
 /**
- * @typedef {"standard"|"buttons_qr"|"card_direct_rsvp_buttons"|"card_buttons"|"card_view_invite_button"|"card_buttons_special_requests"|"michl_card_buttons"|"michl_quick_reply_waze"|"2_card_buttons"} WhatsAppInviteTemplateId
+ * @typedef {"standard"|"buttons_qr"|"card_direct_rsvp_buttons"|"card_buttons"|"card_view_invite_button"|"card_buttons_special_requests"|"michl_card_buttons"|"michl_quick_reply_waze"|"remmber_day_and_waze"|"2_card_buttons"|"thank_you_after_event"} WhatsAppInviteTemplateId
  */
 
 export const WHATSAPP_INVITE_TEMPLATE_OPTIONS = [
   {
     id: "standard",
-    label: "מלל רגיל (ללא כרטיס)",
-    badge: null,
+    label: "מלל + קישור הזמנה",
+    badge: "מלל + קישור",
     adminHint: "תבנית טקסט מאושרת עם קישור להזמנה הדיגיטלית."
   },
   {
     id: "buttons_qr",
-    label: "כפתורים מהירים (ללא תמונה)",
+    label: "מלל + 3 כפתורים",
     badge: "מלל + 3 כפתורים",
     adminHint: "תבנית מלל + כפתורי RSVP (ללא תמונת כיסוי)."
   },
   {
     id: "card_direct_rsvp_buttons",
-    label: "כרטיס מלא",
-    badge: "כרטיס מלא (קישור + 3 כפתורים)",
+    label: "תמונה + מלל + קישור + 3 כפתורים",
+    badge: "תמונה + קישור + 3 כפתורים",
     adminHint: "תמונה + מלל עם קישור להזמנה דיגיטלית + 3 כפתורי RSVP."
   },
   {
     id: "card_buttons",
-    label: "כרטיס מהיר",
-    badge: "כרטיס מהיר (3 כפתורים בלבד)",
+    label: "תמונה + מלל + 3 כפתורים",
+    badge: "תמונה + 3 כפתורים",
     adminHint: "תמונה + מלל קצר ללא קישור חיצוני + 3 כפתורי RSVP ישירים."
   },
   {
     id: "card_view_invite_button",
-    label: "כרטיס הפניה",
-    badge: "כרטיס הפניה (כפתור קישור יחיד)",
+    label: "תמונה + מלל + כפתור אישור הזמנה (חבילה בסיסית 1.5 ש״ח)",
+    badge: "חבילה בסיסית 1.5₪",
     adminHint: "תמונה + מלל + כפתור URL יחיד לעמוד ההזמנה הדיגיטלית."
   },
   {
     id: "card_buttons_special_requests",
-    label: "תבנית תמונה ומלל + כפתורים + קישור לאלרגיות והסעות",
-    badge: "כרטיס + קישור אלרגיות/הסעות",
+    label: "תמונה + מלל + קישור + 3 כפתורים - הסבר אלרגיות/הסעות",
+    badge: "אלרגיות/הסעות",
     adminHint:
       "כרטיס עם תמונה, 3 כפתורי RSVP, וקישור להזמנה הדיגיטלית (אלרגיות/הסעות). בלי Waze. דורשת תמונת כיסוי."
   },
   {
     id: "michl_card_buttons",
-    label: "מיכל - תבנית ספיישל עם כפתורים",
-    badge: "כרטיס מיכל + Waze",
+    label: "תמונה + מלל + 2 כפתורים",
+    badge: "תמונה + 2 כפתורים",
     adminHint:
       "תבנית מותאמת למיכל — כרטיס, כפתורי RSVP (כן/לא) וכפתור ניווט Waze. דורשת תמונת כיסוי וכתובת/מתחם."
   },
   {
     id: "michl_quick_reply_waze",
-    label: "תבנית מיכל (3 כפתורי מענה + וויז)",
-    badge: "כרטיס מיכל + 3 QR",
+    label: "תמונה + מלל + 2 כפתורים + כפתור WAZE מנווט",
+    badge: "2 כפתורים + WAZE מנווט",
     adminHint:
       "תמונה + מלל + 3 כפתורי מענה (כן אני אגיע / לא אוכל להגיע / ניווט לאירוע ב-Waze). בלי כפתור URL — לחיצה על התמונה לא פותחת Waze. דורשת תמונת כיסוי."
   },
   {
+    id: "remmber_day_and_waze",
+    label: "תזכורת יום האירוע + Waze",
+    badge: "כרטיס + כפתור Waze בלבד",
+    adminHint:
+      "תמונה + מלל + כפתור מענה יחיד «ניווט לאירוע ב-Waze» (WAZE_REQUEST). בלי כפתורי RSVP ובלי קישור להזמנה. דורשת תמונת כיסוי."
+  },
+  {
     id: "2_card_buttons",
-    label: "2 כפתורים + קישור ל-Waze",
-    badge: "כרטיס + 2 כפתורים + Waze בטקסט",
+    label: "תמונה + מלל + 2 כפתורים + כפתור WAZE הודעה לבוט",
+    badge: "2 כפתורים + WAZE לבוט",
     adminHint:
       "תמונה + מלל, קישור Waze בגוף ההודעה (לא ככפתור URL), ו-2 כפתורי RSVP (אגיע / לא אגיע). דורשת תמונת כיסוי וכתובת/מתחם."
+  },
+  {
+    id: "thank_you_after_event",
+    label: "תודה שהגעתם",
+    badge: "הודעת תודה",
+    adminHint:
+      "תבנית מלל בלבד אחרי האירוע — תודה קבועה + משתנה אחד לחתימה/שמות ({{1}}). בלי תמונה ובלי כפתורים."
   }
 ];
 
@@ -98,8 +114,12 @@ export const CARD_BUTTONS_SPECIAL_REQUESTS_CONTENT_SID_DEFAULT =
 export const MICHL_CARD_BUTTONS_CONTENT_SID_DEFAULT = "HX045cca6026c633c1127a8cda0c9d55f8";
 /** Michl 3 QR (arrive / decline / Waze request) — Twilio michl_quick_reply_waze */
 export const MICHL_QUICK_REPLY_WAZE_CONTENT_SID_DEFAULT = "HX812785436da607224fe90185f7bcf144";
+/** Reminder card + single WAZE_REQUEST QR — Twilio remmber_day_and_waze */
+export const REMMBER_DAY_AND_WAZE_CONTENT_SID_DEFAULT = "HX32b5b53bf81d0fa8fef1c0f1bc1a8a0d";
 /** 2 QR + Waze URL in body (no URL button): Twilio copy_2_card_buttons */
 export const TWO_CARD_BUTTONS_CONTENT_SID_DEFAULT = "HXe6e42257c3fba04996d47e9bf0c77d91";
+/** After-event thank-you text (single {{1}}): thank_you_after_event */
+export const THANK_YOU_AFTER_EVENT_CONTENT_SID_DEFAULT = "HX711e9a970945f3123aca80e1bd73046f";
 
 /**
  * Semantic fields → Twilio Content variable keys per template.
@@ -195,6 +215,17 @@ const TEMPLATE_FIELD_KEYS = {
     mediaPath: "5"
   },
   /**
+   * remmber_day_and_waze — Body {{1}}–{{4}} · Media {{5}} · single QR WAZE_REQUEST only.
+   * No RSVP buttons, no invite URL in body.
+   */
+  remmber_day_and_waze: {
+    guestName: "1",
+    customOpeningText: "2",
+    eventDateTimeLocation: "3",
+    closingSignOff: "4",
+    mediaPath: "5"
+  },
+  /**
    * 2_card_buttons → Twilio Content "copy_2_card_buttons"
    * (SID HXe6e42257c3fba04996d47e9bf0c77d91). 2 QR only; Waze URL in body text.
    * Body: {{1}} name · {{2}} opening · {{3}} details ·
@@ -208,6 +239,12 @@ const TEMPLATE_FIELD_KEYS = {
     wazeInviteLine: "4",
     closingSignOff: "5",
     mediaPath: "6"
+  },
+  /**
+   * thank_you_after_event — Text body, single {{1}} (signature / names; may be blank in Twilio sample).
+   */
+  thank_you_after_event: {
+    closingSignOff: "1"
   }
 };
 
@@ -280,6 +317,7 @@ export function isCardInviteTemplate(templateId) {
     templateId === "card_buttons_special_requests" ||
     templateId === "michl_card_buttons" ||
     templateId === "michl_quick_reply_waze" ||
+    templateId === "remmber_day_and_waze" ||
     templateId === "2_card_buttons"
   );
 }
@@ -485,6 +523,21 @@ export function resolveInviteTemplateRouting(event = {}) {
     };
   }
 
+  if (templateId === "remmber_day_and_waze") {
+    const fromEnv = readEnvSid("TWILIO_REMMBER_DAY_AND_WAZE_CONTENT_SID");
+    const contentSid = fromEnv?.contentSid || REMMBER_DAY_AND_WAZE_CONTENT_SID_DEFAULT;
+    return {
+      templateId,
+      contentSid,
+      sidSource: fromEnv?.sidSource || "default:REMMBER_DAY_AND_WAZE_CONTENT_SID_DEFAULT",
+      templateKeys,
+      requiresCoverMedia,
+      includesRsvpLink,
+      premiumButtonsEnabled: true,
+      premiumCardEnabled: true
+    };
+  }
+
   if (templateId === "2_card_buttons") {
     const fromEnv = readEnvSid(
       "TWILIO_2_CARD_BUTTONS_CONTENT_SID",
@@ -500,6 +553,21 @@ export function resolveInviteTemplateRouting(event = {}) {
       includesRsvpLink,
       premiumButtonsEnabled: true,
       premiumCardEnabled: true
+    };
+  }
+
+  if (templateId === "thank_you_after_event") {
+    const fromEnv = readEnvSid("TWILIO_THANK_YOU_AFTER_EVENT_CONTENT_SID");
+    const contentSid = fromEnv?.contentSid || THANK_YOU_AFTER_EVENT_CONTENT_SID_DEFAULT;
+    return {
+      templateId,
+      contentSid,
+      sidSource: fromEnv?.sidSource || "default:THANK_YOU_AFTER_EVENT_CONTENT_SID_DEFAULT",
+      templateKeys,
+      requiresCoverMedia: false,
+      includesRsvpLink: false,
+      premiumButtonsEnabled: false,
+      premiumCardEnabled: false
     };
   }
 

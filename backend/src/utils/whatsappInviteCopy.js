@@ -19,6 +19,7 @@ export function isWhatsAppButtonsMode(event = {}) {
     template === "card_buttons_special_requests" ||
     template === "michl_card_buttons" ||
     template === "michl_quick_reply_waze" ||
+    template === "remmber_day_and_waze" ||
     template === "2_card_buttons"
   ) {
     return true;
@@ -42,6 +43,7 @@ export function isWhatsAppCardMode(event = {}) {
     template === "card_buttons_special_requests" ||
     template === "michl_card_buttons" ||
     template === "michl_quick_reply_waze" ||
+    template === "remmber_day_and_waze" ||
     template === "2_card_buttons"
   ) {
     return true;

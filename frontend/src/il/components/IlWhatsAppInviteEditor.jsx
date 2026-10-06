@@ -128,59 +128,80 @@ export default function IlWhatsAppInviteEditor({
         <div className="il-wa-bubble" role="group" aria-label="עריכת הודעת הזמנה בוואטסאפ">
           {shape.showMedia ? <div className="il-wa-media-placeholder" aria-hidden="true" /> : null}
 
-          <p className="il-wa-locked il-wa-emoji-row">✨ 🥂 ✨</p>
-          <p className="il-wa-locked">
-            שלום <span className="il-wa-token">[שם האורח]</span>,
-          </p>
-
-          {shape.showOpening ? (
-            <AutoGrowField
-              id="wa-welcome-paragraph"
-              value={welcome}
-              onChange={(next) => patch("welcomeParagraph", next)}
-              placeholder={DEFAULT_WELCOME_PLACEHOLDER}
-              aria-label="פסקת פתיחה"
-            />
-          ) : null}
-
-          {shape.showEventDetails ? (
-            <div className="il-wa-inline-row il-wa-details-row">
-              <span className="il-wa-locked">האירוע יתקיים ב</span>
+          {shape.showThankYouBody ? (
+            <>
+              <p className="il-wa-locked il-wa-emoji-row">✨ ❤️️ ✨</p>
+              <p className="il-wa-locked">
+                תודה שבאתם לחגוג איתנו והייתם חלק מהיום המאושר בחיינו
+              </p>
               <AutoGrowField
-                id="wa-event-details-paragraph"
-                value={eventDetails}
-                onChange={(next) => patch("eventDetailsParagraph", next)}
-                placeholder={DEFAULT_EVENT_DETAILS_PLACEHOLDER}
-                aria-label="פרטי מועד ומקום"
+                id="wa-closing-paragraph"
+                value={closing}
+                onChange={(next) => patch("closingParagraph", next)}
+                placeholder={DEFAULT_CLOSING_PLACEHOLDER}
+                aria-label="חתימה / שמות"
               />
-            </div>
-          ) : null}
-
-          {shape.showRsvpLink ? (
-            <>
-              <p className="il-wa-locked">{rsvpPrompt}</p>
-              <p className="il-wa-locked il-wa-link">{publicLink}</p>
+              <p className="il-wa-locked il-wa-emoji-row">✨ ❤️️ ✨</p>
             </>
-          ) : null}
-
-          {shape.showWazeInviteLine ? (
+          ) : (
             <>
-              <p className="il-wa-locked">לנוחיותכם, מצורף קישור ניווט ישיר ב-Waze לאולם:</p>
-              <p className="il-wa-locked il-wa-link">https://waze.com/ul?q=…</p>
+              <p className="il-wa-locked il-wa-emoji-row">✨ 🥂 ✨</p>
+              {shape.showGuestGreeting ? (
+                <p className="il-wa-locked">
+                  שלום <span className="il-wa-token">[שם האורח]</span>,
+                </p>
+              ) : null}
+
+              {shape.showOpening ? (
+                <AutoGrowField
+                  id="wa-welcome-paragraph"
+                  value={welcome}
+                  onChange={(next) => patch("welcomeParagraph", next)}
+                  placeholder={DEFAULT_WELCOME_PLACEHOLDER}
+                  aria-label="פסקת פתיחה"
+                />
+              ) : null}
+
+              {shape.showEventDetails ? (
+                <div className="il-wa-inline-row il-wa-details-row">
+                  <span className="il-wa-locked">האירוע יתקיים ב</span>
+                  <AutoGrowField
+                    id="wa-event-details-paragraph"
+                    value={eventDetails}
+                    onChange={(next) => patch("eventDetailsParagraph", next)}
+                    placeholder={DEFAULT_EVENT_DETAILS_PLACEHOLDER}
+                    aria-label="פרטי מועד ומקום"
+                  />
+                </div>
+              ) : null}
+
+              {shape.showRsvpLink ? (
+                <>
+                  <p className="il-wa-locked">{rsvpPrompt}</p>
+                  <p className="il-wa-locked il-wa-link">{publicLink}</p>
+                </>
+              ) : null}
+
+              {shape.showWazeInviteLine ? (
+                <>
+                  <p className="il-wa-locked">לנוחיותכם, מצורף קישור ניווט ישיר ב-Waze לאולם:</p>
+                  <p className="il-wa-locked il-wa-link">https://waze.com/ul?q=…</p>
+                </>
+              ) : null}
+
+              {shape.showClosing ? (
+                <AutoGrowField
+                  id="wa-closing-paragraph"
+                  value={closing}
+                  onChange={(next) => patch("closingParagraph", next)}
+                  placeholder={DEFAULT_CLOSING_PLACEHOLDER}
+                  aria-label="סיום וחתימה"
+                />
+              ) : null}
+
+              <p className="il-wa-locked il-wa-emoji-row">✨ 🎉 ✨</p>
             </>
-          ) : null}
-
-          {shape.showClosing ? (
-            <AutoGrowField
-              id="wa-closing-paragraph"
-              value={closing}
-              onChange={(next) => patch("closingParagraph", next)}
-              placeholder={DEFAULT_CLOSING_PLACEHOLDER}
-              aria-label="סיום וחתימה"
-            />
-          ) : null}
-
-          <p className="il-wa-locked il-wa-emoji-row">✨ 🎉 ✨</p>
+          )}
 
           {shape.buttons.length ? (
             <div className="il-wa-quick-replies" aria-hidden="true">

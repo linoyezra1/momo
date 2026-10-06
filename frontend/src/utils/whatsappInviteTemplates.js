@@ -3,61 +3,75 @@
 export const WHATSAPP_INVITE_TEMPLATE_OPTIONS = [
   {
     id: "standard",
-    label: "מלל רגיל (ללא כרטיס)",
-    badge: null,
+    label: "מלל + קישור הזמנה",
+    badge: "מלל + קישור",
     adminHint: "תבנית טקסט מאושרת עם קישור להזמנה הדיגיטלית."
   },
   {
     id: "buttons_qr",
-    label: "כפתורים מהירים (ללא תמונה)",
+    label: "מלל + 3 כפתורים",
     badge: "מלל + 3 כפתורים",
     adminHint: "תבנית מלל + כפתורי RSVP (ללא תמונת כיסוי)."
   },
   {
     id: "card_direct_rsvp_buttons",
-    label: "כרטיס מלא",
-    badge: "כרטיס מלא (קישור + 3 כפתורים)",
+    label: "תמונה + מלל + קישור + 3 כפתורים",
+    badge: "תמונה + קישור + 3 כפתורים",
     adminHint: "תמונה + מלל עם קישור להזמנה דיגיטלית + 3 כפתורי RSVP. דורשת תמונת כיסוי."
   },
   {
     id: "card_buttons",
-    label: "כרטיס מהיר",
-    badge: "כרטיס מהיר (3 כפתורים בלבד)",
+    label: "תמונה + מלל + 3 כפתורים",
+    badge: "תמונה + 3 כפתורים",
     adminHint: "תמונה + מלל קצר ללא קישור חיצוני + 3 כפתורי RSVP. דורשת תמונת כיסוי."
   },
   {
     id: "card_view_invite_button",
-    label: "כרטיס הפניה",
-    badge: "כרטיס הפניה (כפתור קישור יחיד)",
+    label: "תמונה + מלל + כפתור אישור הזמנה (חבילה בסיסית 1.5 ש״ח)",
+    badge: "חבילה בסיסית 1.5₪",
     adminHint: "תמונה + מלל + כפתור URL יחיד לעמוד ההזמנה. דורשת תמונת כיסוי."
   },
   {
     id: "card_buttons_special_requests",
-    label: "תבנית תמונה ומלל + כפתורים + קישור לאלרגיות והסעות",
-    badge: "כרטיס + קישור אלרגיות/הסעות",
+    label: "תמונה + מלל + קישור + 3 כפתורים - הסבר אלרגיות/הסעות",
+    badge: "אלרגיות/הסעות",
     adminHint:
       "כרטיס עם תמונה, 3 כפתורי RSVP, וקישור להזמנה הדיגיטלית (אלרגיות/הסעות). בלי Waze. דורשת תמונת כיסוי."
   },
   {
     id: "michl_card_buttons",
-    label: "מיכל - תבנית ספיישל עם כפתורים",
-    badge: "כרטיס מיכל + Waze",
+    label: "תמונה + מלל + 2 כפתורים",
+    badge: "תמונה + 2 כפתורים",
     adminHint:
       "תבנית מותאמת למיכל — כרטיס, כפתורי RSVP (כן/לא) וכפתור ניווט Waze. דורשת תמונת כיסוי וכתובת/מתחם."
   },
   {
     id: "michl_quick_reply_waze",
-    label: "תבנית מיכל (3 כפתורי מענה + וויז)",
-    badge: "כרטיס מיכל + 3 QR",
+    label: "תמונה + מלל + 2 כפתורים + כפתור WAZE מנווט",
+    badge: "2 כפתורים + WAZE מנווט",
     adminHint:
       "תמונה + מלל + 3 כפתורי מענה (כן אני אגיע / לא אוכל להגיע / ניווט לאירוע ב-Waze). בלי כפתור URL. דורשת תמונת כיסוי."
   },
   {
+    id: "remmber_day_and_waze",
+    label: "תזכורת יום האירוע + Waze",
+    badge: "כרטיס + כפתור Waze בלבד",
+    adminHint:
+      "תמונה + מלל + כפתור מענה יחיד «ניווט לאירוע ב-Waze» (WAZE_REQUEST). בלי כפתורי RSVP ובלי קישור להזמנה. דורשת תמונת כיסוי."
+  },
+  {
     id: "2_card_buttons",
-    label: "2 כפתורים + קישור ל-Waze",
-    badge: "כרטיס + 2 כפתורים + Waze בטקסט",
+    label: "תמונה + מלל + 2 כפתורים + כפתור WAZE הודעה לבוט",
+    badge: "2 כפתורים + WAZE לבוט",
     adminHint:
       "תמונה + מלל, קישור Waze בגוף ההודעה (לא ככפתור URL), ו-2 כפתורי RSVP (אגיע / לא אגיע). דורשת תמונת כיסוי וכתובת/מתחם."
+  },
+  {
+    id: "thank_you_after_event",
+    label: "תודה שהגעתם",
+    badge: "הודעת תודה",
+    adminHint:
+      "תבנית מלל בלבד אחרי האירוע — תודה קבועה + משתנה אחד לחתימה/שמות ({{1}}). בלי תמונה ובלי כפתורים."
   }
 ];
 
@@ -68,6 +82,7 @@ const CARD_TEMPLATE_IDS = new Set([
   "card_buttons_special_requests",
   "michl_card_buttons",
   "michl_quick_reply_waze",
+  "remmber_day_and_waze",
   "2_card_buttons"
 ]);
 
@@ -168,6 +183,13 @@ const TEMPLATE_FIELD_KEYS = {
     closingSignOff: "4",
     mediaPath: "5"
   },
+  remmber_day_and_waze: {
+    guestName: "1",
+    customOpeningText: "2",
+    eventDateTimeLocation: "3",
+    closingSignOff: "4",
+    mediaPath: "5"
+  },
   "2_card_buttons": {
     guestName: "1",
     customOpeningText: "2",
@@ -175,6 +197,9 @@ const TEMPLATE_FIELD_KEYS = {
     wazeInviteLine: "4",
     closingSignOff: "5",
     mediaPath: "6"
+  },
+  thank_you_after_event: {
+    closingSignOff: "1"
   }
 };
 
@@ -187,7 +212,9 @@ const TEMPLATE_PREVIEW_BUTTONS = {
   card_buttons_special_requests: ["כן אני אגיע", "לצערי לא אוכל", "עדיין לא יודע"],
   michl_card_buttons: ["כן, אני אגיע!", "לא אוכל להגיע", "ניווט ב-Waze"],
   michl_quick_reply_waze: ["כן, אני אגיע!", "לא אוכל להגיע", "ניווט לאירוע ב-Waze"],
-  "2_card_buttons": ["כן, אני אגיע!", "לא אוכל להגיע"]
+  remmber_day_and_waze: ["ניווט לאירוע ב-Waze"],
+  "2_card_buttons": ["כן, אני אגיע!", "לא אוכל להגיע"],
+  thank_you_after_event: []
 };
 
 export function getTemplateFieldKeyMap(templateId) {
@@ -216,6 +243,8 @@ export function getWhatsAppInvitePreviewShape(templateId) {
     showInviteUrlButton: Boolean(map.inviteButtonPath),
     showWazeInviteLine: Boolean(map.wazeInviteLine),
     showMedia: Boolean(map.mediaPath),
+    showGuestGreeting: Boolean(map.guestName),
+    showThankYouBody: id === "thank_you_after_event",
     buttons: TEMPLATE_PREVIEW_BUTTONS[id] || []
   };
 }

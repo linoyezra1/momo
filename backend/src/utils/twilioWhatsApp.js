@@ -569,11 +569,6 @@ export function buildTwilioContentVariables(
 ) {
   const keys = Array.isArray(templateKeys) && templateKeys.length ? templateKeys : ["1", "2", "3", "4", "5"];
 
-  // Hard guard: single-variable templates (conference) must never emit extra keys
-  if (keys.length === 1 && keys[0] === "1") {
-    return buildConferenceContentVariables(guestName);
-  }
-
   const semantic = {
     guestName,
     customOpeningText,
@@ -598,6 +593,12 @@ export function buildTwilioContentVariables(
     mediaPath: "6"
   };
   const map = fieldKeyMap && typeof fieldKeyMap === "object" ? fieldKeyMap : defaultMap;
+
+  // Hard guard: conference-style single {{1}}=guestName must never emit extra keys.
+  // Do NOT apply when {{1}} maps to another field (e.g. thank_you_after_event → closingSignOff).
+  if (keys.length === 1 && keys[0] === "1" && map.guestName === "1" && !map.closingSignOff) {
+    return buildConferenceContentVariables(guestName);
+  }
 
   const mappedValues = {};
   for (const [field, key] of Object.entries(map)) {

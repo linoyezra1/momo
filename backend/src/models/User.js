@@ -46,7 +46,9 @@ const eventSchema = new mongoose.Schema(
         "card_buttons_special_requests",
         "michl_card_buttons",
         "michl_quick_reply_waze",
-        "2_card_buttons"
+        "remmber_day_and_waze",
+        "2_card_buttons",
+        "thank_you_after_event"
       ],
       default: "standard"
     },
@@ -104,7 +106,9 @@ const includedFeaturesSchema = new mongoose.Schema(
         "card_buttons_special_requests",
         "michl_card_buttons",
         "michl_quick_reply_waze",
-        "2_card_buttons"
+        "remmber_day_and_waze",
+        "2_card_buttons",
+        "thank_you_after_event"
       ],
       default: "standard"
     },
