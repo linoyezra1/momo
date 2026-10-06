@@ -26,7 +26,7 @@ import WhatsAppIcon from "../components/WhatsAppIcon";
 import IconActionButton from "../components/IconActionButton.jsx";
 import BottomSheet from "../components/ui/BottomSheet.jsx";
 import { buildWhatsAppSendUrl } from "../utils/whatsapp";
-import { resolveInviteCopyDefaults, isWhatsAppButtonsMode } from "../utils/whatsappInviteCopy";
+import { resolveInviteCopyDefaults } from "../utils/whatsappInviteCopy";
 import { normalizeIsraeliPhone } from "../utils/phoneNormalize";
 import { formatFailedRowLabel, matrixToGuestRows, mergeFailedRows, parseExcelGuestRows } from "../utils/guestExcelImport";
 import { getAuditLogLastReadAt } from "../utils/auditLogUnread.js";
@@ -2783,7 +2783,7 @@ export default function ClientDashboardPage() {
                     origin={window.location.origin}
                     value={inviteCopy}
                     onChange={onInviteCopyChange}
-                    buttonsMode={isWhatsAppButtonsMode(eventInfo || {})}
+                    event={eventInfo || {}}
                     conferenceMode={isConferenceEventType(eventInfo?.eventType)}
                   />
                 </div>

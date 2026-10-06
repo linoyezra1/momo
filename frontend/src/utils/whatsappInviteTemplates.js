@@ -105,3 +105,130 @@ export function deriveWhatsAppFlagsFromTemplate(templateId) {
     isPremiumWhatsappCardEnabled: isCard
   };
 }
+
+/** Mirrors backend TEMPLATE_FIELD_KEYS — which body variables each Twilio template uses. */
+const TEMPLATE_FIELD_KEYS = {
+  standard: {
+    guestName: "1",
+    customOpeningText: "2",
+    eventDateTimeLocation: "3",
+    rsvpLink: "4",
+    closingSignOff: "5"
+  },
+  buttons_qr: {
+    guestName: "1",
+    customOpeningText: "2",
+    eventDateTimeLocation: "3",
+    rsvpLink: "4",
+    closingSignOff: "5"
+  },
+  card_direct_rsvp_buttons: {
+    guestName: "1",
+    customOpeningText: "2",
+    eventDateTimeLocation: "3",
+    rsvpLink: "4",
+    closingSignOff: "5",
+    mediaPath: "6"
+  },
+  card_buttons: {
+    guestName: "1",
+    customOpeningText: "2",
+    eventDateTimeLocation: "3",
+    closingSignOff: "4",
+    mediaPath: "5"
+  },
+  card_view_invite_button: {
+    guestName: "1",
+    customOpeningText: "2",
+    eventDateTimeLocation: "3",
+    closingSignOff: "4",
+    mediaPath: "5",
+    inviteButtonPath: "6"
+  },
+  card_buttons_special_requests: {
+    guestName: "1",
+    customOpeningText: "2",
+    eventDateTimeLocation: "3",
+    rsvpLink: "4",
+    closingSignOff: "5",
+    mediaPath: "6"
+  },
+  michl_card_buttons: {
+    guestName: "1",
+    customOpeningText: "2",
+    eventDateTimeLocation: "3",
+    closingSignOff: "4",
+    mediaPath: "5",
+    wazeQuery: "6"
+  },
+  michl_quick_reply_waze: {
+    guestName: "1",
+    customOpeningText: "2",
+    eventDateTimeLocation: "3",
+    closingSignOff: "4",
+    mediaPath: "5"
+  },
+  "2_card_buttons": {
+    guestName: "1",
+    customOpeningText: "2",
+    eventDateTimeLocation: "3",
+    wazeInviteLine: "4",
+    closingSignOff: "5",
+    mediaPath: "6"
+  }
+};
+
+const TEMPLATE_PREVIEW_BUTTONS = {
+  standard: [],
+  buttons_qr: ["כן אני אגיע", "לצערי לא אוכל", "עדיין לא יודע"],
+  card_direct_rsvp_buttons: ["כן אני אגיע", "לצערי לא אוכל", "עדיין לא יודע"],
+  card_buttons: ["כן אני אגיע", "לצערי לא אוכל", "עדיין לא יודע"],
+  card_view_invite_button: ["לאישור הגעה"],
+  card_buttons_special_requests: ["כן אני אגיע", "לצערי לא אוכל", "עדיין לא יודע"],
+  michl_card_buttons: ["כן, אני אגיע!", "לא אוכל להגיע", "ניווט ב-Waze"],
+  michl_quick_reply_waze: ["כן, אני אגיע!", "לא אוכל להגיע", "ניווט לאירוע ב-Waze"],
+  "2_card_buttons": ["כן, אני אגיע!", "לא אוכל להגיע"]
+};
+
+export function getTemplateFieldKeyMap(templateId) {
+  return TEMPLATE_FIELD_KEYS[templateId] || TEMPLATE_FIELD_KEYS.standard;
+}
+
+export function templateIncludesRsvpLink(templateId) {
+  const map = getTemplateFieldKeyMap(templateId);
+  return Boolean(map.rsvpLink);
+}
+
+/**
+ * Shape used by the WhatsApp bubble preview — mirrors what the recipient sees.
+ */
+export function getWhatsAppInvitePreviewShape(templateId) {
+  const id = WHATSAPP_INVITE_TEMPLATE_OPTIONS.some((option) => option.id === templateId)
+    ? templateId
+    : "standard";
+  const map = getTemplateFieldKeyMap(id);
+  return {
+    templateId: id,
+    showOpening: Boolean(map.customOpeningText),
+    showEventDetails: Boolean(map.eventDateTimeLocation),
+    showClosing: Boolean(map.closingSignOff),
+    showRsvpLink: Boolean(map.rsvpLink),
+    showInviteUrlButton: Boolean(map.inviteButtonPath),
+    showWazeInviteLine: Boolean(map.wazeInviteLine),
+    showMedia: Boolean(map.mediaPath),
+    buttons: TEMPLATE_PREVIEW_BUTTONS[id] || []
+  };
+}
+
+export function resolveEventWhatsAppInviteTemplateId(event = {}) {
+  return resolveWhatsAppInviteTemplateFromFlags({
+    whatsappInviteTemplate: event?.whatsappInviteTemplate,
+    dealWhatsappInviteTemplate: event?.includedFeatures?.whatsappInviteTemplate,
+    isPremiumWhatsappCardEnabled:
+      event?.isPremiumWhatsappCardEnabled === true ||
+      event?.includedFeatures?.isPremiumWhatsappCardEnabled === true,
+    isPremiumWhatsappButtonsEnabled:
+      event?.isPremiumWhatsappButtonsEnabled === true ||
+      event?.includedFeatures?.isPremiumWhatsappButtonsEnabled === true
+  });
+}

@@ -202,20 +202,17 @@ export function buildDefaultClosingParagraph(event = {}) {
   return "נתראה בשמחה";
 }
 
-/** Values for the bubble editor — empty/stale {{3}} falls back to full generated defaults. */
+/** Values for the bubble editor — non-empty saved copy is kept as-is (never auto-overwritten). */
 export function resolveInviteCopyDefaults(event = {}) {
   const storedWelcome = String(event?.welcomeParagraph ?? "").trim();
   const storedDetails = String(event?.eventDetailsParagraph ?? "").trim();
   const storedClosing = String(event?.closingParagraph ?? "").trim();
-  const generatedDetails = buildDefaultEventDetailsParagraph(event);
-
-  const resolvedDetails = isStoredEventDetailsStale(storedDetails, event)
-    ? generatedDetails
-    : storedDetails;
 
   return {
     welcomeParagraph: storedWelcome || getDefaultWelcomeParagraph(event?.eventType),
-    eventDetailsParagraph: toTemplateEventDetailsVariable(resolvedDetails),
+    eventDetailsParagraph: toTemplateEventDetailsVariable(
+      storedDetails || buildDefaultEventDetailsParagraph(event)
+    ),
     closingParagraph: storedClosing || buildDefaultClosingParagraph(event)
   };
 }

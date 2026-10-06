@@ -1,10 +1,14 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   DEFAULT_CLOSING_PLACEHOLDER,
   DEFAULT_EVENT_DETAILS_PLACEHOLDER,
   DEFAULT_WELCOME_PLACEHOLDER,
   getRsvpLinkPrompt
 } from "../../utils/whatsappInviteCopy.js";
+import {
+  getWhatsAppInvitePreviewShape,
+  resolveEventWhatsAppInviteTemplateId
+} from "../../utils/whatsappInviteTemplates.js";
 import "./il-whatsapp-invite-editor.css";
 
 function AutoGrowField({
@@ -46,22 +50,32 @@ function AutoGrowField({
 }
 
 /**
- * Inline WhatsApp-bubble invitation editor matching the approved Facebook template order.
+ * Inline WhatsApp-bubble invitation editor.
+ * Preview layout follows the client's Twilio Content template (variables + buttons).
  */
 export default function IlWhatsAppInviteEditor({
   eventId,
   origin,
   value,
   onChange,
-  buttonsMode = false,
+  event = null,
+  templateId: templateIdProp = "",
   conferenceMode = false
 }) {
   const welcome = value?.welcomeParagraph ?? "";
   const eventDetails = value?.eventDetailsParagraph ?? "";
   const closing = value?.closingParagraph ?? "";
-  const linkPrompt = getRsvpLinkPrompt(buttonsMode);
+
+  const templateId = useMemo(() => {
+    const explicit = String(templateIdProp || "").trim();
+    if (explicit) return explicit;
+    return resolveEventWhatsAppInviteTemplateId(event || {});
+  }, [templateIdProp, event]);
+
+  const shape = useMemo(() => getWhatsAppInvitePreviewShape(templateId), [templateId]);
 
   const publicLink = `${String(origin || "").replace(/\/$/, "")}/event/${eventId}`;
+  const rsvpPrompt = getRsvpLinkPrompt(true);
 
   const patch = (key, nextValue) => {
     onChange?.({
@@ -87,10 +101,7 @@ export default function IlWhatsAppInviteEditor({
             <p className="il-wa-locked">
               שלום <span className="il-wa-token">[שם המשתתף]</span>,
             </p>
-            <p className="il-wa-locked">
-              תוכן ההודעה והתמונה קבועים בתבנית המאושרת. נשלח רק שם המשתתף — בלי קישור להזמנה
-              ובלי עריכת טקסט מכאן.
-            </p>
+            <p className="il-wa-locked">תוכן ההודעה והתמונה קבועים בתבנית המאושרת.</p>
             <div className="il-wa-quick-replies" aria-hidden="true">
               <span>כן, אני אגיע!</span>
               <span>לא אוכל להגיע</span>
@@ -103,10 +114,6 @@ export default function IlWhatsAppInviteEditor({
             </div>
           </div>
         </div>
-        <p className="il-wa-hint">
-          תבנית כנס (barak_finance_conference_qr) — משתנה דינמי רק שם המשתתף
-          (&#123;&#123;1&#125;&#125;). אין קישור לדף ההזמנה בשליחה.
-        </p>
       </div>
     );
   }
@@ -119,50 +126,67 @@ export default function IlWhatsAppInviteEditor({
       </div>
       <div className="il-wa-chat">
         <div className="il-wa-bubble" role="group" aria-label="עריכת הודעת הזמנה בוואטסאפ">
+          {shape.showMedia ? <div className="il-wa-media-placeholder" aria-hidden="true" /> : null}
+
           <p className="il-wa-locked il-wa-emoji-row">✨ 🥂 ✨</p>
           <p className="il-wa-locked">
             שלום <span className="il-wa-token">[שם האורח]</span>,
           </p>
 
-          <AutoGrowField
-            id="wa-welcome-paragraph"
-            value={welcome}
-            onChange={(next) => patch("welcomeParagraph", next)}
-            placeholder={DEFAULT_WELCOME_PLACEHOLDER}
-            aria-label="פסקת פתיחה"
-          />
-
-          <div className="il-wa-inline-row il-wa-details-row">
-            <span className="il-wa-locked">האירוע יתקיים ב</span>
+          {shape.showOpening ? (
             <AutoGrowField
-              id="wa-event-details-paragraph"
-              value={eventDetails}
-              onChange={(next) => patch("eventDetailsParagraph", next)}
-              placeholder={DEFAULT_EVENT_DETAILS_PLACEHOLDER}
-              aria-label="פרטי מועד ומקום"
+              id="wa-welcome-paragraph"
+              value={welcome}
+              onChange={(next) => patch("welcomeParagraph", next)}
+              placeholder={DEFAULT_WELCOME_PLACEHOLDER}
+              aria-label="פסקת פתיחה"
             />
-          </div>
+          ) : null}
 
-          <p className="il-wa-locked" key={buttonsMode ? "buttons" : "standard"}>
-            {linkPrompt}
-          </p>
-          <p className="il-wa-locked il-wa-link">{publicLink}</p>
+          {shape.showEventDetails ? (
+            <div className="il-wa-inline-row il-wa-details-row">
+              <span className="il-wa-locked">האירוע יתקיים ב</span>
+              <AutoGrowField
+                id="wa-event-details-paragraph"
+                value={eventDetails}
+                onChange={(next) => patch("eventDetailsParagraph", next)}
+                placeholder={DEFAULT_EVENT_DETAILS_PLACEHOLDER}
+                aria-label="פרטי מועד ומקום"
+              />
+            </div>
+          ) : null}
 
-          <AutoGrowField
-            id="wa-closing-paragraph"
-            value={closing}
-            onChange={(next) => patch("closingParagraph", next)}
-            placeholder={DEFAULT_CLOSING_PLACEHOLDER}
-            aria-label="סיום וחתימה"
-          />
+          {shape.showRsvpLink ? (
+            <>
+              <p className="il-wa-locked">{rsvpPrompt}</p>
+              <p className="il-wa-locked il-wa-link">{publicLink}</p>
+            </>
+          ) : null}
+
+          {shape.showWazeInviteLine ? (
+            <>
+              <p className="il-wa-locked">לנוחיותכם, מצורף קישור ניווט ישיר ב-Waze לאולם:</p>
+              <p className="il-wa-locked il-wa-link">https://waze.com/ul?q=…</p>
+            </>
+          ) : null}
+
+          {shape.showClosing ? (
+            <AutoGrowField
+              id="wa-closing-paragraph"
+              value={closing}
+              onChange={(next) => patch("closingParagraph", next)}
+              placeholder={DEFAULT_CLOSING_PLACEHOLDER}
+              aria-label="סיום וחתימה"
+            />
+          ) : null}
 
           <p className="il-wa-locked il-wa-emoji-row">✨ 🎉 ✨</p>
 
-          {buttonsMode ? (
+          {shape.buttons.length ? (
             <div className="il-wa-quick-replies" aria-hidden="true">
-              <span>כן אני אגיע</span>
-              <span>לצערי לא אוכל</span>
-              <span>עדיין לא יודע</span>
+              {shape.buttons.map((label) => (
+                <span key={label}>{label}</span>
+              ))}
             </div>
           ) : null}
 
@@ -174,7 +198,6 @@ export default function IlWhatsAppInviteEditor({
           </div>
         </div>
       </div>
-      <p className="il-wa-hint">השדות הבהירים ניתנים לעריכה.</p>
     </div>
   );
 }

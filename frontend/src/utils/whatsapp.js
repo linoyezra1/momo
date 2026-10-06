@@ -4,9 +4,12 @@ import { normalizeIsraeliPhone } from "./phoneNormalize.js";
 import {
   resolveInviteCopyDefaults,
   getRsvpLinkPrompt,
-  isWhatsAppButtonsMode,
   toTemplateEventDetailsVariable
 } from "./whatsappInviteCopy.js";
+import {
+  resolveEventWhatsAppInviteTemplateId,
+  templateIncludesRsvpLink
+} from "./whatsappInviteTemplates.js";
 
 export function toInternationalWhatsAppPhone(phone) {
   const domestic = normalizeIsraeliPhone(phone);
@@ -139,7 +142,9 @@ export function buildGuestWhatsAppMessage({ event, eventId, origin, guestName })
   const { welcomeParagraph, eventDetailsParagraph, closingParagraph } =
     resolveInviteCopyDefaults(event);
   const name = String(guestName || "").trim() || "אורח/ת יקר/ה";
-  const rsvpPrompt = getRsvpLinkPrompt(isWhatsAppButtonsMode(event));
+  const templateId = resolveEventWhatsAppInviteTemplateId(event);
+  const includeRsvpLink = templateIncludesRsvpLink(templateId);
+  const rsvpPrompt = getRsvpLinkPrompt(true);
   const details = toTemplateEventDetailsVariable(eventDetailsParagraph);
   const kind = resolveEventKind(event);
 
@@ -169,9 +174,7 @@ export function buildGuestWhatsAppMessage({ event, eventId, origin, guestName })
     "",
     `האירוע יתקיים ב${details}`,
     "",
-    rsvpPrompt,
-    defaults.rsvpLink,
-    "",
+    ...(includeRsvpLink ? [rsvpPrompt, defaults.rsvpLink, ""] : []),
     closingParagraph,
     "✨ 🎉 ✨"
   ].join("\n");
@@ -185,7 +188,9 @@ export function buildWhatsAppMessageTemplate({ event, eventId, origin }) {
   });
   const { welcomeParagraph, eventDetailsParagraph, closingParagraph } =
     resolveInviteCopyDefaults(event);
-  const rsvpPrompt = getRsvpLinkPrompt(isWhatsAppButtonsMode(event));
+  const templateId = resolveEventWhatsAppInviteTemplateId(event);
+  const includeRsvpLink = templateIncludesRsvpLink(templateId);
+  const rsvpPrompt = getRsvpLinkPrompt(true);
   const details = toTemplateEventDetailsVariable(eventDetailsParagraph);
 
   return [
@@ -196,9 +201,7 @@ export function buildWhatsAppMessageTemplate({ event, eventId, origin }) {
     "",
     `האירוע יתקיים ב${details}`,
     "",
-    rsvpPrompt,
-    rsvpLink,
-    "",
+    ...(includeRsvpLink ? [rsvpPrompt, rsvpLink, ""] : []),
     closingParagraph,
     "✨ 🎉 ✨"
   ].join("\n");

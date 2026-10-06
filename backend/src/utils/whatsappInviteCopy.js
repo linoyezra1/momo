@@ -226,10 +226,8 @@ export function resolveWhatsAppInviteParagraphs(event = {}) {
   const welcomeParagraph =
     String(event?.welcomeParagraph || "").trim() || getDefaultWelcomeParagraph(event?.eventType);
   const storedDetails = String(event?.eventDetailsParagraph || "").trim();
-  const generatedDetails = buildDefaultEventDetailsParagraph(event);
-  const resolvedDetails = isStoredEventDetailsStale(storedDetails, event)
-    ? generatedDetails
-    : storedDetails;
+  // Prefer any non-empty saved copy exactly as edited — never rebuild over custom text.
+  const resolvedDetails = storedDetails || buildDefaultEventDetailsParagraph(event);
   const closingParagraph =
     String(event?.closingParagraph || "").trim() || buildDefaultClosingParagraph(event);
 
