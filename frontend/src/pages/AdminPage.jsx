@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Copy, LogIn, Pencil, Trash2, X } from "lucide-react";
+import { Check, Copy, LogIn, Pencil, Trash2, X } from "lucide-react";
 import api from "../api";
 import AdminWhatsAppFailures from "../components/AdminWhatsAppFailures.jsx";
 import AdminWhatsAppBilling from "../components/AdminWhatsAppBilling.jsx";
@@ -273,6 +273,7 @@ export default function AdminPage() {
   const [dealDraft, setDealDraft] = useState(defaultDealDraft);
   const [dealSaving, setDealSaving] = useState(false);
   const [dealSaved, setDealSaved] = useState(false);
+  const [dealSaveToast, setDealSaveToast] = useState("");
   const [copiedField, setCopiedField] = useState("");
   const [clientQuota, setClientQuota] = useState(null);
   const [clientQuotas, setClientQuotas] = useState([]);
@@ -613,6 +614,7 @@ ${publicEventUrl}`
   const saveDeal = async () => {
     if (!selectedClientId) return;
     setDealSaving(true);
+    setDealSaveToast("");
     setError("");
     try {
       const templateFlags = deriveWhatsAppFlagsFromTemplate(
@@ -660,7 +662,9 @@ ${publicEventUrl}`
       );
       setDealDraft(dealDraftFromClient({ ...selectedClient, ...savedClientPatch }));
       setDealSaved(true);
+      setDealSaveToast("פרטי העסקה נשמרו בהצלחה");
       window.setTimeout(() => setDealSaved(false), 2000);
+      window.setTimeout(() => setDealSaveToast(""), 3500);
       // Refresh list in background (don't let it wipe draft before patch is applied).
       loadClients();
     } catch (dealErr) {
@@ -682,7 +686,7 @@ ${publicEventUrl}`
     setError("");
     try {
       const response = await api.post(`/admin/clients/${selectedClientId}/send-credentials`);
-      setCredentialsNotice(response.data?.message || "תבנית פרטי הגישה נשלחה בוואטסאפ");
+      setCredentialsNotice(response.data?.message || "הודעת Welcome נשלחה בוואטסאפ");
       window.setTimeout(() => setCredentialsNotice(""), 4000);
     } catch (sendErr) {
       setError(sendErr.response?.data?.message || "שליחת הרשאות נכשלה");
@@ -1033,6 +1037,21 @@ ${publicEventUrl}`
 
         {error ? <p className="us-admin-message us-admin-message--error">{error}</p> : null}
         {!result && welcomeNotice ? <p className="us-admin-message">{welcomeNotice}</p> : null}
+
+        {dealSaveToast ? (
+          <div className="us-admin-toast-popup us-admin-toast-popup--success" role="status" aria-live="polite">
+            <Check size={18} aria-hidden="true" />
+            <span>{dealSaveToast}</span>
+            <button
+              type="button"
+              className="us-admin-toast-popup__close"
+              aria-label="סגירה"
+              onClick={() => setDealSaveToast("")}
+            >
+              <X size={16} />
+            </button>
+          </div>
+        ) : null}
 
         <div className="us-admin-stats">
           <div className="us-admin-stat-card">
@@ -1652,8 +1671,8 @@ ${publicEventUrl}`
                   <div className="us-admin-share-block">
                     <p className="us-admin-share-title">שליחת הרשאות בוואטסאפ</p>
                     <p className="us-admin-field-hint">
-                      שולח לזוג את תבנית Quick Reply לקבלת פרטי גישה (`get_login_credentials`).
-                      לאחר לחיצה על הכפתור בהודעה — יישלחו שם משתמש וקוד גישה אוטומטית.
+                      שולח ללקוח את תבנית Welcome (`momo_welcome_onboarding_v2`) — שם + קישור
+                      לדשבורד וכפתור &quot;להכניס מוזמנים&quot;. כדקה לאחר מכן נשלחת גם תבנית לקבלת פרטי גישה.
                     </p>
                     {credentialsNotice ? <p className="us-admin-message">{credentialsNotice}</p> : null}
                     <button
@@ -1663,7 +1682,7 @@ ${publicEventUrl}`
                       onClick={sendCredentialsWhatsApp}
                       title={
                         selectedClient.contactPhone
-                          ? "שליחת תבנית פרטי גישה בוואטסאפ"
+                          ? "שליחת הודעת Welcome בוואטסאפ"
                           : "חסר מספר טלפון ללקוח"
                       }
                     >

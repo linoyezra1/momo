@@ -8,9 +8,11 @@ import {
 /**
  * Couple onboarding WhatsApp (two templates in sequence):
  *
- * 1) copy_welcome_momoevent — CTA with URL buttons (Approved)
- *    SID: HXf6a85f46fa5f87c6cedd853627508797
- *    {{1}} couple name · {{2}} event id for /event/{{2}}
+ * 1) momo_welcome_onboarding_v2 — Quick Reply (Marketing)
+ *    SID: HXebe5ddfa6d93efa29c8e2396b4d29fdd
+ *    Env: TWILIO_COUPLE_ACCESS_CONTENT_SID
+ *    {{1}} client name · {{2}} dashboard login URL
+ *    Button: "להכניס מוזמנים" · payload ADD_GUESTS_REQUEST
  *
  * 2) copy_get_login_credentials — Quick Reply (Approved UTILITY)
  *    SID: HXaa49007744d72933b0d6db852e715ad6
@@ -19,7 +21,7 @@ import {
  *    → webhook sends free-text session credentials (whatsappAccessDetailsService)
  */
 
-const WELCOME_CONTENT_SID_DEFAULT = "HXf6a85f46fa5f87c6cedd853627508797";
+const WELCOME_CONTENT_SID_DEFAULT = "HXebe5ddfa6d93efa29c8e2396b4d29fdd";
 const LOGIN_CREDENTIALS_CONTENT_SID_DEFAULT = "HXaa49007744d72933b0d6db852e715ad6";
 const CREDENTIALS_QR_DELAY_MS_DEFAULT = 60_000;
 
@@ -47,38 +49,48 @@ export function getCredentialsQuickReplyDelayMs() {
   return CREDENTIALS_QR_DELAY_MS_DEFAULT;
 }
 
-/** Extract `/event/:id` path segment for CTA button variable {{2}}. */
+/** Extract `/event/:id` path segment (for invite URL button suffix when used by Twilio). */
 export function extractEventPathId(invitationUrl, userId) {
   if (userId) return String(userId).trim();
   const match = String(invitationUrl || "").match(/\/event\/([^/?#]+)/i);
   return String(match?.[1] || "").trim();
 }
 
-export function buildEventManagerWelcomeMessage({ brideName, dashboardUrl, invitationUrl }) {
+export function buildEventManagerWelcomeMessage({ brideName, dashboardUrl }) {
   const name = String(brideName || "").trim() || "שלום";
+  const dash = String(dashboardUrl || "").trim() || "https://momoevent.up.railway.app/client/login";
 
   return `שלום ${name},
 
 ברוכים הבאים ל- momoEVENT אישורי הגעה🎉
 
-המערכת שלכם מוכנה לשימוש.
-באמצעות המערכת תוכלו לנהל את אישורי ההגעה ולצפות בהזמנה הדיגיטלית.
+המערכת שלכם מוכנה.
+מה תוכלו לעשות במערכת?
+* ניהול והעלאת מוזמנים (מאנשי הקשר, אקסל, ידנית או ישירות דרך הבוט בוואטסאפ)
+* שליחת אישורי הגעה ומעקב בזמן אמת
+* סידורי הושבה חכמים ודיילת דיגיטלית ביום האירוע
+* ניהול תקציב, משימות ומעקב ספקים
 
-לבחירתכם, לחצו על הכפתורים למטה.
+ לכניסה למערכת לחצו כאן:
+${dash}
 
-כניסה למערכת:
-${dashboardUrl}
+אנחנו כאן לכל שאלה : 055-3193433 (זמינים עבורכם 24/6) ❤️
 
-צפייה בהזמנה:
-${invitationUrl}
-
-🔑 לקבלת פרטי הגישה — השיבו בהודעה: GET_CREDENTIALS`;
+להכניס מוזמנים — השיבו: ADD_GUESTS_REQUEST`;
 }
 
-export function buildCoupleAccessContentVariables({ brideName, eventPathId }) {
+/**
+ * Content variables for momo_welcome_onboarding_v2.
+ * {{1}} = client display name
+ * {{2}} = dashboard login URL
+ */
+export function buildCoupleAccessContentVariables({ brideName, dashboardUrl }) {
   return JSON.stringify({
     "1": sanitizeWhatsAppTemplateVariable(brideName, "שלום"),
-    "2": sanitizeWhatsAppTemplateVariable(eventPathId, "example")
+    "2": sanitizeWhatsAppTemplateVariable(
+      dashboardUrl,
+      "https://momoevent.up.railway.app/client/login"
+    )
   });
 }
 
@@ -86,7 +98,7 @@ async function sendWelcomeTemplate({
   to,
   contactPhone,
   brideName,
-  eventPathId,
+  dashboardUrl,
   userId,
   username,
   senderLabel
@@ -99,7 +111,10 @@ async function sendWelcomeTemplate({
   const result = await sendTwilioWhatsAppMessage({
     to,
     contentSid,
-    contentVariables: buildCoupleAccessContentVariables({ brideName, eventPathId }),
+    contentVariables: buildCoupleAccessContentVariables({
+      brideName,
+      dashboardUrl
+    }),
     userId,
     username,
     senderLabel: senderLabel || username,
@@ -275,7 +290,6 @@ export async function sendEventManagerWelcomeWhatsApp({
       .trim()
       .toLowerCase() === "true";
 
-  const eventPathId = extractEventPathId(invitationUrl, userId);
   const common = {
     to,
     contactPhone,
@@ -288,21 +302,20 @@ export async function sendEventManagerWelcomeWhatsApp({
     const welcome = await sendWelcomeTemplate({
       ...common,
       brideName,
-      eventPathId
+      dashboardUrl
     });
 
     if (!welcome.ok) {
       if (!allowFreeText) {
         console.error(
-          `ERROR: שליחת וואטסאפ נכשלה למספר ${contactPhone || "לא ידוע"} מאת משתמש ${senderLabel || username || userId || "לא ידוע"}. סיבה: חסר TWILIO_COUPLE_ACCESS_CONTENT_SID (תבנית welcome_momoevent)`
+          `ERROR: שליחת וואטסאפ נכשלה למספר ${contactPhone || "לא ידוע"} מאת משתמש ${senderLabel || username || userId || "לא ידוע"}. סיבה: חסר TWILIO_COUPLE_ACCESS_CONTENT_SID (תבנית momo_welcome_onboarding_v2)`
         );
         return { sent: false, reason: "template_not_configured" };
       }
 
       const body = buildEventManagerWelcomeMessage({
         brideName,
-        dashboardUrl,
-        invitationUrl
+        dashboardUrl
       });
       const result = await sendTwilioWhatsAppMessage({
         to,

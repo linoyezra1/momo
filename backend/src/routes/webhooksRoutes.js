@@ -1,6 +1,7 @@
 import express from "express";
 import twilio from "twilio";
 import { handleGetAccessDetailsRequest } from "../services/whatsappAccessDetailsService.js";
+import { handleAddGuestsRequest } from "../services/whatsappAddGuestsService.js";
 import { handleIncomingWhatsAppContactShare } from "../services/whatsappContactImportService.js";
 import { handleWhatsAppSenderAuth } from "../services/whatsappSenderAuthService.js";
 import { handleIncomingWhatsAppRsvp } from "../services/whatsappRsvpService.js";
@@ -90,19 +91,25 @@ async function processInboundWhatsApp(req) {
     return accessResult;
   }
 
-  // 2) Guest RSVP flow (known guest phone) — must not be captured by auth onboarding
+  // 2) Welcome Quick Reply → ADD_GUESTS_REQUEST (activate contact-import listen mode)
+  const addGuestsResult = await handleAddGuestsRequest(inbound);
+  if (addGuestsResult.handled) {
+    return addGuestsResult;
+  }
+
+  // 3) Guest RSVP flow (known guest phone) — must not be captured by auth onboarding
   const rsvpResult = await handleIncomingWhatsAppRsvp(inbound);
   if (rsvpResult?.handled) {
     return rsvpResult;
   }
 
-  // 3) Sender auth / event linking for contact-import onboarding
+  // 4) Sender auth / event linking for contact-import onboarding
   const authResult = await handleWhatsAppSenderAuth(req.body);
   if (authResult.handled) {
     return authResult;
   }
 
-  // 4) Authenticated sender + vCard → add guest to linked event
+  // 5) Authenticated sender + vCard → add guest to linked event
   if (vcardCount > 0 && authResult.allowContactImport) {
     return handleIncomingWhatsAppContactShare(req.body, authResult.link);
   }
@@ -117,9 +124,10 @@ async function processInboundWhatsApp(req) {
 /**
  * Inbound WhatsApp:
  * 1) Couple Quick Reply → session credentials (GET_CREDENTIALS)
- * 2) Guest RSVP button / reply flow
- * 3) Sender auth / link to couple event
- * 4) Contact vCard share → create guest
+ * 2) Welcome Quick Reply → ADD_GUESTS_REQUEST (listen for vCards)
+ * 3) Guest RSVP button / reply flow
+ * 4) Sender auth / link to couple event
+ * 5) Contact vCard share → create guest
  *
  * Responds 200 immediately, then processes asynchronously.
  */

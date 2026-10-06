@@ -37,7 +37,7 @@ import {
 import { serializeEventManagerAccount } from "../middleware/eventManagerAuth.js";
 import {
   getAdminWelcomeDisplayName,
-  sendLoginCredentialsQuickReply
+  sendEventManagerWelcomeWhatsApp
 } from "../services/eventManagerWelcomeWhatsApp.js";
 import {
   buildClientLinks,
@@ -497,12 +497,12 @@ router.patch("/clients/:userId/deal", async (req, res) => {
   }
 });
 
-/** Manual resend: get_login_credentials Quick Reply template (GET_CREDENTIALS). */
+/** Manual resend: rich welcome template ({{1}} name · {{2}} dashboard) + scheduled credentials QR. */
 router.post("/clients/:userId/send-credentials", async (req, res) => {
   try {
     const { userId } = req.params;
     const user = await User.findById(userId).select(
-      "username contactPhone event.brideName event.eventNames"
+      "username contactPhone event.brideName event.groomName event.eventNames event.eventType"
     );
     if (!user) {
       return res.status(404).json({ message: "Client not found" });
@@ -515,10 +515,20 @@ router.post("/clients/:userId/send-credentials", async (req, res) => {
       });
     }
 
-    const result = await sendLoginCredentialsQuickReply({
+    const links = buildClientLinks(user._id, req);
+    const brideName =
+      String(user.event?.brideName || "").trim() ||
+      String(user.event?.eventNames || "").trim() ||
+      String(user.username || "").trim() ||
+      "שלום";
+
+    const result = await sendEventManagerWelcomeWhatsApp({
       contactPhone: phone,
-      userId: user._id,
+      brideName,
       username: user.username,
+      dashboardUrl: links.clientDashboardLink,
+      invitationUrl: links.publicEventLink,
+      userId: user._id,
       senderLabel: `admin:${user.username}`
     });
 
@@ -526,8 +536,9 @@ router.post("/clients/:userId/send-credentials", async (req, res) => {
       const reasonMessages = {
         twilio_not_configured: "Twilio לא מוגדר בשרת",
         invalid_phone: "מספר הטלפון אינו תקין לשליחת וואטסאפ",
+        template_not_configured: "חסר SID לתבנית ה-Welcome (TWILIO_COUPLE_ACCESS_CONTENT_SID)",
         credentials_qr_template_missing: "חסר SID לתבנית get_login_credentials",
-        template_missing: "חסר SID לתבנית get_login_credentials",
+        template_missing: "חסר SID לתבנית Welcome",
         send_failed: result.error || "שליחת ההודעה נכשלה"
       };
       return res.status(400).json({
@@ -537,15 +548,17 @@ router.post("/clients/:userId/send-credentials", async (req, res) => {
     }
 
     return res.json({
-      message: "תבנית פרטי הגישה נשלחה בוואטסאפ",
+      message: "הודעת Welcome עם פרטי הגישה נשלחה בוואטסאפ",
       sent: true,
       sid: result.sid || "",
       contentSid: result.contentSid || "",
+      mode: result.mode || "",
+      credentialsQuickReply: result.credentialsQuickReply || null,
       phone
     });
   } catch (error) {
     return res.status(500).json({
-      message: error.message || "Failed to send credentials WhatsApp"
+      message: error.message || "Failed to send welcome WhatsApp"
     });
   }
 });
