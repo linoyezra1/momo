@@ -399,6 +399,32 @@ ${publicEventUrl}`
     [selectedPaymentEntries]
   );
 
+  const selectedDealTotal = useMemo(() => {
+    if (selectedPaymentEntries.length) {
+      return selectedPaymentEntries.reduce((sum, entry) => sum + (Number(entry.amount) || 0), 0);
+    }
+    const fromDeal = Number(selectedClient?.deal?.paymentAmount);
+    const fromPayment = Number(selectedClient?.payment?.amountPaid) || 0;
+    return Number.isFinite(fromDeal) && fromDeal > 0 ? fromDeal : fromPayment;
+  }, [selectedPaymentEntries, selectedClient]);
+
+  const selectedExpensesIls = useMemo(() => {
+    if (selectedClient?.messageSupplierCostIls != null) {
+      return Number(selectedClient.messageSupplierCostIls) || 0;
+    }
+    const usd = Number(selectedClient?.messageSupplierCost) || 0;
+    const rate = Number(selectedClient?.dolarRate);
+    if (usd > 0 && Number.isFinite(rate) && rate > 0) {
+      return Math.round(usd * rate);
+    }
+    return 0;
+  }, [selectedClient]);
+
+  const selectedNetProfitIls = useMemo(
+    () => selectedDealTotal - selectedExpensesIls,
+    [selectedDealTotal, selectedExpensesIls]
+  );
+
   const clientMessageForSelected = useMemo(() => {
     if (!selectedClient) return "";
     return buildClientOnboardingMessage({
@@ -791,14 +817,7 @@ ${publicEventUrl}`
             ? 0
             : Math.max(0, Number(dealDraft.paymentAmount)),
         paymentMethod: dealDraft.paymentMethod || "other",
-        adminNotes: dealDraft.adminNotes.trim(),
-        packageDescription: dealDraft.packageDescription.trim(),
-        packagePrice:
-          dealDraft.packagePrice === "" || dealDraft.packagePrice == null
-            ? null
-            : Math.max(0, Number(dealDraft.packagePrice)),
-        couponCode: dealDraft.couponCode.trim(),
-        agentNotes: dealDraft.agentNotes.trim()
+        adminNotes: dealDraft.adminNotes.trim()
       };
       const response = await api.patch(`/admin/clients/${selectedClientId}/deal`, payload);
       const savedClientPatch = {
@@ -1489,25 +1508,38 @@ ${publicEventUrl}`
                 </button>
               </div>
               <div className="us-admin-client-details__stats">
-                <p className="us-admin-event-summary" style={{ margin: 0 }}>
-                  <strong>הודעות שחויבו:</strong> {Number(selectedClient.successfulMessages) || 0}
-                  <span className="us-admin-stat-note"> (לוגי הודעות, לא מוזמנים)</span>
-                  {" · "}
-                  <strong>Twilio:</strong> {formatUsd(selectedClient.messageSupplierCost)}
-                  {selectedClient.messageSupplierCostIls != null ? (
-                    <>
-                      {" · "}
-                      <strong>בשקלים:</strong> {formatIls(selectedClient.messageSupplierCostIls)}
-                      {selectedClient.dolarRate != null ? (
-                        <span className="us-admin-stat-note"> ($×{selectedClient.dolarRate})</span>
-                      ) : null}
-                    </>
-                  ) : (
-                    <span className="us-admin-stat-note"> · הגדירו DOLAR בשרת ל־₪</span>
-                  )}
-                </p>
-                <p className="us-admin-field-hint" style={{ margin: "0.35rem 0 0" }}>
-                  מחיר Twilio כולל Meta. פירוט לכל הודעה — בטאב «עלויות».
+                <div className="us-admin-client-overview" aria-label="סקירת עסקה">
+                  <div className="us-admin-stat-card us-admin-stat-card--profit">
+                    <h3>רווח נקי</h3>
+                    <p>{formatIls(selectedNetProfitIls)}</p>
+                    <span className="us-admin-stat-note">סה״כ עסקה − הוצאות Twilio/Meta</span>
+                  </div>
+                  <div className="us-admin-stat-card">
+                    <h3>סה״כ העסקה</h3>
+                    <p>{formatIls(selectedDealTotal)}</p>
+                    <span className="us-admin-stat-note">
+                      שולם {formatIls(selectedPaidTotal)}
+                      {selectedDealTotal > selectedPaidTotal
+                        ? ` · יתרה ${formatIls(selectedDealTotal - selectedPaidTotal)}`
+                        : ""}
+                    </span>
+                  </div>
+                  <div className="us-admin-stat-card">
+                    <h3>סה״כ הוצאות</h3>
+                    <p>{formatIls(selectedExpensesIls)}</p>
+                    <span className="us-admin-stat-note">
+                      Twilio + Meta/Facebook
+                      {selectedClient.messageSupplierCost
+                        ? ` · ${formatUsd(selectedClient.messageSupplierCost)}`
+                        : ""}
+                      {Number(selectedClient.successfulMessages) > 0
+                        ? ` · ${selectedClient.successfulMessages} הודעות`
+                        : ""}
+                    </span>
+                  </div>
+                </div>
+                <p className="us-admin-field-hint" style={{ margin: "0.55rem 0 0" }}>
+                  הוצאות מתעדכנות מלוגי Twilio (כולל Meta). פירוט — בטאב «עלויות».
                 </p>
               </div>
             </div>
@@ -2044,66 +2076,6 @@ ${publicEventUrl}`
                       ) : (
                         <p className="us-admin-empty">עדיין אין תשלומים ללקוח — לחצו «הוספת תשלום»</p>
                       )}
-                    </div>
-
-                    <div className="us-admin-field">
-                      <label className="us-admin-field-label" htmlFor="deal-package-description">
-                        פירוט חבילה
-                      </label>
-                      <textarea
-                        id="deal-package-description"
-                        className="us-admin-field-input us-admin-deal-notes"
-                        name="packageDescription"
-                        rows={2}
-                        value={dealDraft.packageDescription}
-                        onChange={onDealFieldChange}
-                      />
-                    </div>
-
-                    <div className="us-admin-payment-fields">
-                      <div className="us-admin-field">
-                        <label className="us-admin-field-label" htmlFor="deal-package-price">
-                          מחיר חבילה (₪)
-                        </label>
-                        <input
-                          id="deal-package-price"
-                          className="us-admin-field-input"
-                          name="packagePrice"
-                          type="number"
-                          min="0"
-                          step="1"
-                          value={dealDraft.packagePrice}
-                          onChange={onDealFieldChange}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="us-admin-field">
-                      <label className="us-admin-field-label" htmlFor="deal-coupon-code">
-                        קוד קופון
-                      </label>
-                      <input
-                        id="deal-coupon-code"
-                        className="us-admin-field-input"
-                        name="couponCode"
-                        value={dealDraft.couponCode}
-                        onChange={onDealFieldChange}
-                        placeholder="לעריכת אדמין בלבד"
-                      />
-                    </div>
-
-                    <div className="us-admin-field">
-                      <label className="us-admin-field-label" htmlFor="deal-agent-notes">
-                        הערות סוכן
-                      </label>
-                      <textarea
-                        id="deal-agent-notes"
-                        className="us-admin-field-input us-admin-deal-notes"
-                        name="agentNotes"
-                        rows={2}
-                        value={dealDraft.agentNotes}
-                        onChange={onDealFieldChange}
-                      />
                     </div>
 
                     <div className="us-admin-field">

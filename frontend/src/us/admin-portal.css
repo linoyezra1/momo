@@ -561,6 +561,32 @@
   margin: 0.75rem 0 0;
 }
 
+.us-admin-client-overview {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+@media (max-width: 800px) {
+  .us-admin-client-overview {
+    grid-template-columns: 1fr;
+  }
+}
+
+.us-admin-stat-card--profit {
+  border-color: #b7e4c7;
+  background: linear-gradient(180deg, #f0fdf4 0%, #fffefb 100%);
+  box-shadow: 0 8px 24px rgb(22 101 52 / 10%);
+}
+
+.us-admin-stat-card--profit h3 {
+  color: #166534;
+}
+
+.us-admin-stat-card--profit p {
+  color: #15803d;
+}
+
 .us-admin-client-details__body {
   padding-top: 1rem;
 }
