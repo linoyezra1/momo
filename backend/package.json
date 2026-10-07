@@ -7,12 +7,15 @@
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "migrate:covers": "node scripts/migrateEventCovers.js",
-    "migrate:covers:dry-run": "node scripts/migrateEventCovers.js --dry-run"
+    "migrate:covers:dry-run": "node scripts/migrateEventCovers.js --dry-run",
+    "import:twilio-csv": "node src/scripts/importTwilioCsvLogs.js",
+    "import:twilio-csv:dry-run": "node src/scripts/importTwilioCsvLogs.js --dry-run"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "cloudinary": "^2.10.0",
     "cors": "^2.8.5",
+    "csv-parser": "^3.2.1",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "mongoose": "^8.4.1",
