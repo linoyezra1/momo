@@ -951,13 +951,18 @@ export default function ClientDashboardPage() {
     try {
       if (scheduleMode) {
         const scheduledDate = parseDateTimeLocalValue(broadcastScheduledAt);
+        // Always send full ISO UTC (…Z) so the server stores an unambiguous instant.
+        const scheduledAtIso = scheduledDate.toISOString();
         const response = await api.post("/admin/broadcasts/schedule", {
           eventId: userId,
           paymentCode: paymentCode.trim(),
           guestIds: [...selectedGuestIds],
-          scheduledAt: scheduledDate.toISOString()
+          scheduledAt: scheduledAtIso
         });
-        setBulkWhatsAppResult(response.data?.message || "התזמון נשמר בהצלחה");
+        setBulkWhatsAppResult(
+          response.data?.message ||
+            `התזמון נשמר בהצלחה (${new Date(scheduledAtIso).toLocaleString("he-IL")})`
+        );
         await loadScheduledBroadcasts();
         return;
       }

@@ -6,6 +6,83 @@ import { resolveWhatsAppInviteParagraphs } from "../utils/whatsappInviteCopy.js"
 import { mergeEventWhatsAppInviteSettings } from "../utils/whatsappInviteTemplates.js";
 import { sendBulkWhatsApp } from "./bulkWhatsAppService.js";
 
+/**
+ * Parse schedule input into a real UTC Date.
+ * Prefer full ISO (…Z / ±offset). datetime-local without TZ is treated as Asia/Jerusalem wall-clock.
+ */
+export function parseScheduledAtToUtc(value) {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return new Date(value.getTime());
+  }
+
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+
+  // Explicit UTC / offset ISO — trust native parser.
+  if (/[zZ]$|[+-]\d{2}:?\d{2}$/.test(raw)) {
+    const parsed = new Date(raw);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/);
+  if (match) {
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    const hour = Number(match[4]);
+    const minute = Number(match[5]);
+    const second = Number(match[6] || 0);
+    return israelWallClockToUtcDate(year, month, day, hour, minute, second);
+  }
+
+  const fallback = new Date(raw);
+  return Number.isNaN(fallback.getTime()) ? null : fallback;
+}
+
+/** Convert Asia/Jerusalem wall-clock components → UTC Date (handles DST). */
+function israelWallClockToUtcDate(year, month, day, hour, minute, second = 0) {
+  const utcGuess = Date.UTC(year, month - 1, day, hour, minute, second);
+  const asIsrael = formatPartsInTimeZone(utcGuess, "Asia/Jerusalem");
+  const wanted = { year, month, day, hour, minute, second };
+  const deltaMinutes =
+    (wanted.year - asIsrael.year) * 525600 +
+    (wanted.month - asIsrael.month) * 43200 +
+    (wanted.day - asIsrael.day) * 1440 +
+    (wanted.hour - asIsrael.hour) * 60 +
+    (wanted.minute - asIsrael.minute) +
+    (wanted.second - asIsrael.second) / 60;
+  const adjusted = utcGuess + deltaMinutes * 60_000;
+  // One more pass in case DST boundary shifted the offset.
+  const asIsrael2 = formatPartsInTimeZone(adjusted, "Asia/Jerusalem");
+  const delta2 =
+    (wanted.hour - asIsrael2.hour) * 60 +
+    (wanted.minute - asIsrael2.minute) +
+    (wanted.day - asIsrael2.day) * 1440;
+  return new Date(adjusted + delta2 * 60_000);
+}
+
+function formatPartsInTimeZone(ms, timeZone) {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23"
+  }).formatToParts(new Date(ms));
+  const get = (type) => Number(parts.find((p) => p.type === type)?.value || 0);
+  return {
+    year: get("year"),
+    month: get("month"),
+    day: get("day"),
+    hour: get("hour"),
+    minute: get("minute"),
+    second: get("second")
+  };
+}
+
 export function serializeScheduledBroadcast(doc) {
   if (!doc) return null;
   const raw = typeof doc.toObject === "function" ? doc.toObject() : doc;
@@ -70,13 +147,14 @@ export async function createScheduledBroadcast({
     throw err;
   }
 
-  const when = scheduledAt instanceof Date ? scheduledAt : new Date(scheduledAt);
-  if (!when || Number.isNaN(when.getTime())) {
+  const when = parseScheduledAtToUtc(scheduledAt);
+  if (!when) {
     const err = new Error("תאריך ושעת התזמון אינם תקינים");
     err.status = 400;
     throw err;
   }
-  if (when.getTime() <= Date.now() + 30_000) {
+  const nowMs = Date.now();
+  if (when.getTime() <= nowMs + 30_000) {
     const err = new Error("יש לבחור מועד שליחה לפחות 30 שניות מהרגע");
     err.status = 400;
     throw err;
@@ -131,6 +209,13 @@ export async function createScheduledBroadcast({
     status: "PENDING",
     createdByAdminId: String(createdByAdminId || "admin").trim() || "admin"
   });
+
+  console.log(
+    `[scheduledBroadcast] created id=${doc._id} event=${user._id} ` +
+      `status=PENDING scheduledAt=${when.toISOString()} now=${new Date(nowMs).toISOString()} ` +
+      `inMs=${when.getTime() - nowMs} recipients=${guests.length} ` +
+      `rawInput=${JSON.stringify(String(scheduledAt || ""))}`
+  );
 
   return serializeScheduledBroadcastForUi(doc);
 }
@@ -196,24 +281,58 @@ export async function cancelScheduledBroadcast({ scheduleId, impersonationUserId
  */
 export async function processDueScheduledBroadcasts({ origin } = {}) {
   const now = new Date();
-  const due = await ScheduledBroadcast.find({
+  const dueQuery = {
     status: "PENDING",
     scheduledAt: { $lte: now }
-  })
-    .sort({ scheduledAt: 1 })
-    .limit(20)
-    .exec();
+  };
+
+  const [pendingCount, due, nextPending] = await Promise.all([
+    ScheduledBroadcast.countDocuments({ status: "PENDING" }),
+    ScheduledBroadcast.find(dueQuery).sort({ scheduledAt: 1 }).limit(20).exec(),
+    ScheduledBroadcast.findOne({ status: "PENDING" })
+      .sort({ scheduledAt: 1 })
+      .select("_id scheduledAt status eventId")
+      .lean()
+      .exec()
+  ]);
+
+  const nextAt = nextPending?.scheduledAt
+    ? new Date(nextPending.scheduledAt).toISOString()
+    : "-";
+  const nextInMs = nextPending?.scheduledAt
+    ? new Date(nextPending.scheduledAt).getTime() - now.getTime()
+    : null;
+
+  console.log(
+    `[scheduledBroadcast] tick now=${now.toISOString()} ` +
+      `pending=${pendingCount} due=${due.length} ` +
+      `nextAt=${nextAt} nextInMs=${nextInMs ?? "-"} ` +
+      `query=${JSON.stringify({ status: "PENDING", scheduledAt: { $lte: now.toISOString() } })}`
+  );
+
+  if (due.length) {
+    console.log(
+      `[scheduledBroadcast] Processing ${due.length} pending task${due.length === 1 ? "" : "s"}…`
+    );
+  }
 
   const results = [];
   const baseOrigin = origin || getClientBaseUrl() || "https://momoevent.up.railway.app";
 
   for (const job of due) {
+    console.log(
+      `[scheduledBroadcast] claiming id=${job._id} event=${job.eventId} ` +
+        `scheduledAt=${job.scheduledAt ? new Date(job.scheduledAt).toISOString() : "-"}`
+    );
     const claimed = await ScheduledBroadcast.findOneAndUpdate(
       { _id: job._id, status: "PENDING" },
       { $set: { status: "PROCESSING" } },
       { new: true }
     );
-    if (!claimed) continue;
+    if (!claimed) {
+      console.warn(`[scheduledBroadcast] skip id=${job._id} — already claimed/cancelled`);
+      continue;
+    }
 
     try {
       const user = await User.findById(claimed.eventId).select(
