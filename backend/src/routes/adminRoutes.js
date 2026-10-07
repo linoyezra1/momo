@@ -49,7 +49,7 @@ import {
   createScheduledBroadcast,
   listScheduledBroadcastsForEvent
 } from "../services/scheduledBroadcastService.js";
-import { getAgentDisplayMap } from "../utils/agentAccounts.js";
+import { getAgentDisplayMap, listAgentAccounts } from "../utils/agentAccounts.js";
 import { recalculateUserSupplierCost } from "../utils/supplierCost.js";
 import {
   DEAL_PAYMENT_METHODS,
@@ -65,6 +65,17 @@ import {
 import { deriveLegacyWhatsAppFlags, normalizeWhatsAppInviteTemplate } from "../utils/whatsappInviteTemplates.js";
 import { BILLABLE_MESSAGE_STATUSES } from "../utils/twilioMessageBilling.js";
 import { getDolarRate, usdToIls } from "../utils/dolarRate.js";
+import { searchVenues, upsertVenueFromEventFields } from "../services/venueService.js";
+import {
+  listPaymentEntries,
+  monthKeyFromDate,
+  monthLabelHe,
+  normalizePaymentEntryInput,
+  resolveClientRevenue,
+  serializePaymentEntry,
+  sumPaidPaymentEntries,
+  syncDealPaymentTotalsFromEntries
+} from "../utils/clientPaymentEntries.js";
 
 const router = express.Router();
 
@@ -335,18 +346,10 @@ router.get("/clients", async (req, res) => {
       client.dolarRate = dolarRate;
       client.messageSupplierCostIls = usdToIls(client.messageSupplierCost, dolarRate);
     }
-    const totalRevenue = clients.reduce((sum, client) => {
-      const fromPackage = Number(client.deal?.packagePrice);
-      const fromDeal = Number(client.deal?.paymentAmount);
-      const fromPayment = Number(client.payment?.amountPaid) || 0;
-      const amount =
-        Number.isFinite(fromPackage) && fromPackage > 0
-          ? fromPackage
-          : Number.isFinite(fromDeal) && fromDeal > 0
-            ? fromDeal
-            : fromPayment;
-      return sum + amount;
-    }, 0);
+    const totalRevenue = clients.reduce(
+      (sum, client) => sum + resolveClientRevenue(client.deal, client.payment),
+      0
+    );
 
     const byAgentMap = {};
     for (const client of clients) {
@@ -484,6 +487,15 @@ router.patch("/clients/:userId", async (req, res) => {
     }
 
     await user.save();
+
+    if (event) {
+      await upsertVenueFromEventFields({
+        venueName: user.event?.venueName,
+        city: user.event?.city,
+        streetAndNumber: user.event?.streetAndNumber
+      }).catch(() => {});
+    }
+
     const links = buildClientLinks(user._id, req);
     const payment = normalizePaymentPayload(user.payment || {});
     return res.json({
@@ -541,7 +553,18 @@ router.patch("/clients/:userId/deal", async (req, res) => {
       return res.status(404).json({ message: "Client not found" });
     }
 
+    const existingEntries = Array.isArray(user.deal?.paymentEntries)
+      ? user.deal.paymentEntries
+      : [];
     const deal = applyDealToUser(user, req.body?.deal || req.body || {});
+    // Keep installment rows unless the request explicitly replaces them.
+    if (!Array.isArray(req.body?.deal?.paymentEntries) && !Array.isArray(req.body?.paymentEntries)) {
+      user.deal.paymentEntries = existingEntries;
+      user.markModified("deal");
+    }
+    if (Array.isArray(user.deal?.paymentEntries) && user.deal.paymentEntries.length) {
+      syncDealPaymentTotalsFromEntries(user);
+    }
     await user.save();
 
     // Re-read so response matches what mongoose actually persisted.
@@ -564,6 +587,102 @@ router.patch("/clients/:userId/deal", async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ message: error.message || "Failed to update deal" });
+  }
+});
+
+router.post("/clients/:userId/payment-entries", async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ message: "Client not found" });
+
+    const entry = normalizePaymentEntryInput(req.body || {});
+    if (!entry.quoteText && !(entry.amount > 0)) {
+      return res.status(400).json({ message: "יש למלא הצעת מחיר או סכום" });
+    }
+
+    if (!user.deal) user.deal = {};
+    if (!Array.isArray(user.deal.paymentEntries)) user.deal.paymentEntries = [];
+    user.deal.paymentEntries.push(entry);
+    user.markModified("deal");
+    syncDealPaymentTotalsFromEntries(user);
+    await user.save();
+
+    const payment = normalizePaymentPayload(user.payment || {});
+    return res.status(201).json({
+      message: "התשלום נוסף",
+      paymentEntry: serializePaymentEntry(
+        user.deal.paymentEntries[user.deal.paymentEntries.length - 1]
+      ),
+      paymentEntries: listPaymentEntries(user.deal),
+      paidTotal: sumPaidPaymentEntries(user.deal),
+      deal: serializeDeal(user.deal, payment, { allowCouponCode: true }),
+      payment
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "הוספת תשלום נכשלה" });
+  }
+});
+
+router.patch("/clients/:userId/payment-entries/:entryId", async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ message: "Client not found" });
+
+    const entryId = String(req.params.entryId || "").trim();
+    const entries = Array.isArray(user.deal?.paymentEntries) ? user.deal.paymentEntries : [];
+    const entry = entries.find((row) => String(row._id) === entryId);
+    if (!entry) return res.status(404).json({ message: "התשלום לא נמצא" });
+
+    const next = normalizePaymentEntryInput(req.body || {}, entry);
+    entry.quoteText = next.quoteText;
+    entry.amount = next.amount;
+    entry.isPaid = next.isPaid;
+    entry.paymentMethod = next.paymentMethod;
+    entry.paidAt = next.paidAt;
+    user.markModified("deal");
+    syncDealPaymentTotalsFromEntries(user);
+    await user.save();
+
+    const payment = normalizePaymentPayload(user.payment || {});
+    return res.json({
+      message: "התשלום עודכן",
+      paymentEntry: serializePaymentEntry(entry),
+      paymentEntries: listPaymentEntries(user.deal),
+      paidTotal: sumPaidPaymentEntries(user.deal),
+      deal: serializeDeal(user.deal, payment, { allowCouponCode: true }),
+      payment
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "עדכון תשלום נכשל" });
+  }
+});
+
+router.delete("/clients/:userId/payment-entries/:entryId", async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) return res.status(404).json({ message: "Client not found" });
+
+    const entryId = String(req.params.entryId || "").trim();
+    const entries = Array.isArray(user.deal?.paymentEntries) ? user.deal.paymentEntries : [];
+    const nextEntries = entries.filter((row) => String(row._id) !== entryId);
+    if (nextEntries.length === entries.length) {
+      return res.status(404).json({ message: "התשלום לא נמצא" });
+    }
+    user.deal.paymentEntries = nextEntries;
+    user.markModified("deal");
+    syncDealPaymentTotalsFromEntries(user);
+    await user.save();
+
+    const payment = normalizePaymentPayload(user.payment || {});
+    return res.json({
+      message: "התשלום נמחק",
+      paymentEntries: listPaymentEntries(user.deal),
+      paidTotal: sumPaidPaymentEntries(user.deal),
+      deal: serializeDeal(user.deal, payment, { allowCouponCode: true }),
+      payment
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "מחיקת תשלום נכשלה" });
   }
 });
 
@@ -1238,6 +1357,213 @@ router.patch("/event-managers/:id", async (req, res) => {
       message: "Failed to update event manager",
       error: error.message
     });
+  }
+});
+
+router.get("/venues", async (req, res) => {
+  try {
+    const venues = await searchVenues(req.query?.q, { limit: req.query?.limit });
+    return res.json({ venues });
+  } catch (error) {
+    return res.status(500).json({ message: "חיפוש אולמות נכשל", error: error.message });
+  }
+});
+
+router.get("/reports/whatsapp-failures", async (req, res) => {
+  try {
+    const userId = String(req.query?.userId || "").trim();
+    const force = String(req.query.sync || "") === "force";
+    const shouldSync = req.query.sync !== "0";
+
+    let sync = { imported: 0, scanned: 0, skipped: true };
+    let syncError = "";
+    if (shouldSync && userId) {
+      try {
+        sync = await syncWhatsAppFailuresFromTwilio({ userId, force });
+      } catch (error) {
+        syncError = error.message || "סנכרון היסטוריית Twilio נכשל";
+      }
+    }
+
+    const filter = { status: { $in: ["failed", "undelivered"] } };
+    if (userId) filter.userId = userId;
+
+    const logs = await WhatsAppDeliveryLog.find(filter)
+      .sort({ failedAt: -1, createdAt: -1 })
+      .limit(2500)
+      .lean();
+
+    const userIds = [...new Set(logs.map((log) => String(log.userId || "")).filter(Boolean))];
+    const users = await User.find({ _id: { $in: userIds } })
+      .select("username event.groomName event.brideName event.eventNames event.eventDate event.batMitzvahName event.conferenceBrandName event.organizerName event.parentName1")
+      .lean();
+    const userById = new Map(users.map((u) => [String(u._id), u]));
+
+    return res.json({
+      sync: {
+        imported: sync.imported || 0,
+        scanned: sync.scanned || 0,
+        matched: sync.matched || 0,
+        skipped: Boolean(sync.skipped),
+        reason: sync.reason || "",
+        error: syncError
+      },
+      logs: logs.map((log) => {
+        const user = userById.get(String(log.userId || ""));
+        return {
+          id: String(log._id),
+          userId: log.userId ? String(log.userId) : "",
+          guestId: log.guestId ? String(log.guestId) : "",
+          guestName: log.guestName || "",
+          guestPhone: log.guestPhone || "",
+          status: log.status,
+          errorCode: log.errorCode || "",
+          errorMessage: log.errorMessage || "",
+          errorMessageHe: log.errorMessageHe || "",
+          actualCost: Number(log.actualCost ?? log.costUsd ?? log.cost) || 0,
+          costUsd: Number(log.costUsd ?? log.actualCost ?? log.cost) || 0,
+          sentAt: log.sentAt || null,
+          failedAt: log.failedAt || null,
+          createdAt: log.createdAt || null,
+          clientLabel: user ? clientDisplayName(user) : "לקוח לא ידוע",
+          clientEventDate: user?.event?.eventDate || ""
+        };
+      })
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "טעינת דוח כשלים נכשלה", error: error.message });
+  }
+});
+
+router.get("/reports/profit", async (req, res) => {
+  try {
+    const users = await User.find({}, "username event deal payment createdByAgentId createdAt").lean();
+    const messageAgg = await WhatsAppDeliveryLog.aggregate([
+      {
+        $addFields: {
+          effectiveBilled: {
+            $cond: [
+              { $eq: [{ $type: "$isBilled" }, "missing"] },
+              { $in: ["$status", BILLABLE_MESSAGE_STATUSES] },
+              "$isBilled"
+            ]
+          },
+          effectiveCost: {
+            $ifNull: ["$actualCost", { $ifNull: ["$costUsd", { $ifNull: ["$cost", 0] }] }]
+          }
+        }
+      },
+      { $match: { effectiveBilled: true } },
+      {
+        $group: {
+          _id: "$userId",
+          messageSupplierCost: { $sum: "$effectiveCost" }
+        }
+      }
+    ]);
+    const costByUser = new Map(
+      messageAgg.map((row) => [String(row._id), Number(row.messageSupplierCost) || 0])
+    );
+    const dolarRate = await getDolarRate();
+
+    const bySourceMap = {};
+    const byMonthMap = {};
+    let revenueTotal = 0;
+    let supplierTotal = 0;
+    let twilioUsdTotal = 0;
+
+    for (const user of users) {
+      const deal = user.deal || {};
+      const payment = user.payment || {};
+      const revenue = resolveClientRevenue(deal, payment);
+      const supplierCost = Number(deal.supplierCost) || 0;
+      const twilioUsd = costByUser.get(String(user._id)) || 0;
+      const twilioIls = usdToIls(twilioUsd, dolarRate) || 0;
+      const source = String(deal.marketingSource || "").trim() || "לא צוין";
+
+      revenueTotal += revenue;
+      supplierTotal += supplierCost;
+      twilioUsdTotal += twilioUsd;
+
+      if (!bySourceMap[source]) {
+        bySourceMap[source] = {
+          source,
+          clientCount: 0,
+          revenue: 0,
+          supplierCost: 0,
+          twilioCostUsd: 0,
+          twilioCostIls: 0,
+          profit: 0
+        };
+      }
+      const bucket = bySourceMap[source];
+      bucket.clientCount += 1;
+      bucket.revenue += revenue;
+      bucket.supplierCost += supplierCost;
+      bucket.twilioCostUsd += twilioUsd;
+      bucket.twilioCostIls += twilioIls;
+      bucket.profit += revenue - supplierCost - twilioIls;
+
+      const entries = listPaymentEntries(deal).filter((entry) => entry.isPaid && entry.amount > 0);
+      if (entries.length) {
+        for (const entry of entries) {
+          const key = monthKeyFromDate(entry.paidAt || entry.createdAt);
+          if (!key) continue;
+          if (!byMonthMap[key]) {
+            byMonthMap[key] = { monthKey: key, label: monthLabelHe(key), revenue: 0, paymentCount: 0 };
+          }
+          byMonthMap[key].revenue += Number(entry.amount) || 0;
+          byMonthMap[key].paymentCount += 1;
+        }
+      } else if (revenue > 0) {
+        const key = monthKeyFromDate(user.createdAt || user.event?.eventDate);
+        if (key) {
+          if (!byMonthMap[key]) {
+            byMonthMap[key] = { monthKey: key, label: monthLabelHe(key), revenue: 0, paymentCount: 0 };
+          }
+          byMonthMap[key].revenue += revenue;
+          byMonthMap[key].paymentCount += 1;
+        }
+      }
+    }
+
+    const twilioIlsTotal = usdToIls(twilioUsdTotal, dolarRate) || 0;
+    const byMarketingSource = Object.values(bySourceMap).map((row) => ({
+      ...row,
+      revenue: Math.round(row.revenue),
+      supplierCost: Math.round(row.supplierCost),
+      twilioCostUsd: Math.round(row.twilioCostUsd * 10000) / 10000,
+      twilioCostIls: Math.round(row.twilioCostIls),
+      profit: Math.round(row.profit)
+    }));
+    const byMonth = Object.values(byMonthMap)
+      .map((row) => ({
+        ...row,
+        revenue: Math.round(row.revenue)
+      }))
+      .sort((a, b) => String(a.monthKey).localeCompare(String(b.monthKey)));
+
+    return res.json({
+      summary: {
+        revenueIls: Math.round(revenueTotal),
+        supplierCostIls: Math.round(supplierTotal),
+        twilioCostUsd: Math.round(twilioUsdTotal * 10000) / 10000,
+        twilioCostIls: Math.round(twilioIlsTotal),
+        profitIls: Math.round(revenueTotal - supplierTotal - twilioIlsTotal),
+        clientCount: users.length,
+        dolarRate
+      },
+      byMarketingSource,
+      byMonth,
+      agents: listAgentAccounts().map((agent) => ({
+        id: agent.id,
+        username: agent.username,
+        displayName: agent.displayName,
+        isMainAgent: agent.isMainAgent === true
+      }))
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "טעינת דוח רווח נכשלה", error: error.message });
   }
 });
 

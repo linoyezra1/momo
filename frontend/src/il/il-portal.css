@@ -1859,6 +1859,85 @@
   color: #ffffff;
 }
 
+.venue-autocomplete {
+  position: relative;
+}
+
+.venue-autocomplete__list {
+  position: absolute;
+  z-index: 30;
+  inset-inline: 0;
+  top: calc(100% + 0.25rem);
+  margin: 0;
+  padding: 0.35rem;
+  list-style: none;
+  border: 1px solid #e8e0d8;
+  border-radius: 0.5rem;
+  background: #fff;
+  box-shadow: 0 14px 28px rgb(74 46 43 / 12%);
+  max-height: 14rem;
+  overflow: auto;
+}
+
+.venue-autocomplete__option {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  border: 0;
+  background: transparent;
+  text-align: right;
+  padding: 0.55rem 0.65rem;
+  cursor: pointer;
+  border-radius: 0.35rem;
+  color: #4a2e2b;
+}
+
+.venue-autocomplete__option:hover {
+  background: rgb(213 126 126 / 11%);
+}
+
+.venue-autocomplete__option span {
+  font-size: 0.78rem;
+  color: #8a6f6b;
+}
+
+.venue-autocomplete__hint {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.75rem;
+  color: #8a6f6b;
+}
+
+.il-immediate-send-confirm-backdrop {
+  z-index: 70;
+}
+
+.il-immediate-send-confirm {
+  max-width: 26rem;
+  border-color: #e8b4b4;
+}
+
+.il-immediate-send-confirm__text {
+  margin: 0.75rem 0 0;
+  font-size: 1.05rem;
+  line-height: 1.55;
+  color: var(--us-espresso, #4a2e2b);
+}
+
+.il-immediate-send-confirm__now {
+  color: #9b1c1c;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.il-immediate-send-confirm__hint {
+  margin: 0.65rem 0 0;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: var(--us-muted, #8a6f6b);
+}
+
 .il-bulk-send-btn {
   background: #d4af37;
   border: 1px solid #b8962e;

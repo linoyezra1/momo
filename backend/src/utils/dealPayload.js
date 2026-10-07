@@ -2,6 +2,7 @@ import {
   deriveLegacyWhatsAppFlags,
   normalizeWhatsAppInviteTemplate
 } from "./whatsappInviteTemplates.js";
+import { listPaymentEntries } from "./clientPaymentEntries.js";
 
 const PACKAGE_TYPES = new Set(["custom", "digital", "vip_2_rounds", "vip_4_rounds"]);
 export const DEAL_PAYMENT_METHODS = new Set(["bit", "paybox", "bank_transfer", "cash", "other"]);
@@ -181,6 +182,13 @@ export function normalizeDealPayload(rawDeal = {}, existingDeal = {}, options = 
     couponCode = String(rawDeal.couponCode).trim();
   }
 
+  // Preserve installment rows; do not wipe when deal patch omits paymentEntries.
+  const paymentEntries = Array.isArray(rawDeal?.paymentEntries)
+    ? rawDeal.paymentEntries
+    : Array.isArray(existing.paymentEntries)
+      ? existing.paymentEntries
+      : [];
+
   return {
     packageType,
     includedFeatures,
@@ -190,6 +198,7 @@ export function normalizeDealPayload(rawDeal = {}, existingDeal = {}, options = 
         : String(existing.marketingSource || "").trim(),
     paymentAmount,
     paymentMethod,
+    paymentEntries,
     adminNotes:
       rawDeal?.adminNotes != null
         ? String(rawDeal.adminNotes).trim()
@@ -219,5 +228,6 @@ export function serializeDeal(deal, payment = {}, options = {}) {
       normalized.paymentMethod = legacy;
     }
   }
+  normalized.paymentEntries = listPaymentEntries(deal || normalized);
   return normalized;
 }

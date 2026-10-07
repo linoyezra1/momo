@@ -428,6 +428,7 @@ export default function ClientDashboardPage() {
   const [scheduledBroadcastsLoading, setScheduledBroadcastsLoading] = useState(false);
   const [cancellingScheduleId, setCancellingScheduleId] = useState("");
   const [bulkSkippedNoPhone, setBulkSkippedNoPhone] = useState([]);
+  const [showImmediateSendConfirm, setShowImmediateSendConfirm] = useState(false);
   const fileInputRef = useRef(null);
   const vcfInputRef = useRef(null);
   const inviteCopySaveTimerRef = useRef(null);
@@ -880,6 +881,7 @@ export default function ClientDashboardPage() {
     setBulkWhatsAppResult("");
     setBulkWhatsAppError("");
     setBulkSkippedNoPhone([]);
+    setShowImmediateSendConfirm(false);
     setBroadcastSendMode("now");
     setBroadcastScheduledAt(defaultBroadcastDateTimeLocal());
     if (eventInfo) {
@@ -898,6 +900,11 @@ export default function ClientDashboardPage() {
     }
   };
 
+  const closeBulkWhatsApp = () => {
+    setShowImmediateSendConfirm(false);
+    setShowBulkWhatsApp(false);
+  };
+
   const cancelScheduledBroadcast = async (scheduleId) => {
     const confirmed = window.confirm("לבטל את התזמון? השליחה לא תתבצע.");
     if (!confirmed) return;
@@ -914,21 +921,8 @@ export default function ClientDashboardPage() {
     }
   };
 
-  const sendBulkWhatsApp = async (event) => {
-    event.preventDefault();
-    if (!selectedCount) {
-      setBulkWhatsAppError("יש לבחור לפחות מוזמן אחד מהטבלה");
-      return;
-    }
+  const executeBulkWhatsAppSend = async () => {
     const scheduleMode = isAdminImpersonating && broadcastSendMode === "schedule";
-    if (!paymentCode.trim()) {
-      setBulkWhatsAppError(
-        scheduleMode
-          ? "חובה לבחור קופון לפני אישור התזמון — בחרו תאריך, שעה וקופון"
-          : "יש להזין קוד רכישה / לבחור קופון"
-      );
-      return;
-    }
 
     if (inviteCopySaveTimerRef.current) {
       clearTimeout(inviteCopySaveTimerRef.current);
@@ -952,6 +946,7 @@ export default function ClientDashboardPage() {
     setBulkWhatsAppResult("");
     setBulkWhatsAppError("");
     setBulkSkippedNoPhone([]);
+    setShowImmediateSendConfirm(false);
     try {
       if (scheduleMode) {
         const scheduledDate = parseDateTimeLocalValue(broadcastScheduledAt);
@@ -1009,6 +1004,32 @@ export default function ClientDashboardPage() {
     } finally {
       setBulkWhatsAppSending(false);
     }
+  };
+
+  const sendBulkWhatsApp = async (event) => {
+    event.preventDefault();
+    if (!selectedCount) {
+      setBulkWhatsAppError("יש לבחור לפחות מוזמן אחד מהטבלה");
+      return;
+    }
+    const scheduleMode = isAdminImpersonating && broadcastSendMode === "schedule";
+    if (!paymentCode.trim()) {
+      setBulkWhatsAppError(
+        scheduleMode
+          ? "חובה לבחור קופון לפני אישור התזמון — בחרו תאריך, שעה וקופון"
+          : "יש להזין קוד רכישה / לבחור קופון"
+      );
+      return;
+    }
+
+    // Admin impersonation + immediate: require explicit confirm (avoid accidental "now" vs schedule).
+    if (isAdminImpersonating && broadcastSendMode === "now") {
+      setBulkWhatsAppError("");
+      setShowImmediateSendConfirm(true);
+      return;
+    }
+
+    await executeBulkWhatsAppSend();
   };
 
   const getWhatsappLink = useCallback(
@@ -3115,11 +3136,53 @@ export default function ClientDashboardPage() {
                       ? `אישור תזמון ל-${selectedCount} מוזמנים (עם קופון)`
                       : `שליחה ל-${selectedCount} מוזמנים`}
                 </button>
-                <button className="us-btn" type="button" onClick={() => setShowBulkWhatsApp(false)}>
+                <button className="us-btn" type="button" onClick={closeBulkWhatsApp}>
                   סגירה
                 </button>
               </div>
             </form>
+          </div>
+        ) : null}
+
+        {showImmediateSendConfirm ? (
+          <div className="us-modal-backdrop il-immediate-send-confirm-backdrop" role="presentation">
+            <div
+              className="us-modal-card il-immediate-send-confirm"
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="immediate-send-confirm-title"
+              aria-describedby="immediate-send-confirm-desc"
+            >
+              <h2 id="immediate-send-confirm-title" className="us-modal-title">
+                אזהרה — שליחה מיידית
+              </h2>
+              <p id="immediate-send-confirm-desc" className="il-immediate-send-confirm__text">
+                האם אתה בטוח שברצונך לשלוח ל־
+                <strong>{selectedCount}</strong> רשומות{" "}
+                <strong className="il-immediate-send-confirm__now">מיידית</strong>?
+              </p>
+              <p className="il-immediate-send-confirm__hint">
+                אם התכוונת לתזמון — לחץ ביטול ובחר «תזמון שליחה לתאריך ושעה».
+              </p>
+              <div className="us-toolbar mt-4">
+                <button
+                  className="us-btn il-bulk-send-btn"
+                  type="button"
+                  disabled={bulkWhatsAppSending}
+                  onClick={executeBulkWhatsAppSend}
+                >
+                  {bulkWhatsAppSending ? "שולח…" : "שלח מיידית"}
+                </button>
+                <button
+                  className="us-btn"
+                  type="button"
+                  disabled={bulkWhatsAppSending}
+                  onClick={() => setShowImmediateSendConfirm(false)}
+                >
+                  ביטול
+                </button>
+              </div>
+            </div>
           </div>
         ) : null}
 

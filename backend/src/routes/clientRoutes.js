@@ -36,6 +36,7 @@ import {
 } from "../services/guestAuditService.js";
 import { resolveMaxPhoneRounds } from "../utils/phoneRounds.js";
 import { coupleCanManageVendors, coupleHasEventManager } from "../utils/coupleVendors.js";
+import { searchVenues, upsertVenueFromEventFields } from "../services/venueService.js";
 
 import {
   applyCouplePassword,
@@ -1196,12 +1197,31 @@ router.put("/:userId/event", async (req, res) => {
     };
     await user.save();
 
+    await upsertVenueFromEventFields({
+      venueName: user.event?.venueName,
+      city: user.event?.city,
+      streetAndNumber: user.event?.streetAndNumber
+    }).catch(() => {});
+
     return res.json({
       message: "פרטי ההזמנה עודכנו בהצלחה",
       event: user.event
     });
   } catch (error) {
     return res.status(error.status || 400).json({ message: error.message || "שמירת ההזמנה נכשלה" });
+  }
+});
+
+router.get("/:userId/venues", async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId).select("_id");
+    if (!user) {
+      return res.status(404).json({ message: "Client not found" });
+    }
+    const venues = await searchVenues(req.query?.q, { limit: req.query?.limit });
+    return res.json({ venues });
+  } catch (error) {
+    return res.status(500).json({ message: "חיפוש אולמות נכשל", error: error.message });
   }
 });
 

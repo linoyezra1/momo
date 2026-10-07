@@ -24,6 +24,7 @@ import {
   getAdminWelcomeDisplayName,
   sendEventManagerWelcomeWhatsApp
 } from "./eventManagerWelcomeWhatsApp.js";
+import { upsertVenueFromEventFields } from "./venueService.js";
 
 export function buildClientLinks(userId, req) {
   return {
@@ -148,6 +149,12 @@ export async function createCoupleClient({
     managedBy,
     createdByAgentId: String(createdByAgentId || "").trim()
   });
+
+  await upsertVenueFromEventFields({
+    venueName: normalizedEvent.venueName,
+    city: normalizedEvent.city,
+    streetAndNumber: normalizedEvent.streetAndNumber
+  }).catch(() => {});
 
   const links = buildClientLinks(user._id, req);
   const managerName =

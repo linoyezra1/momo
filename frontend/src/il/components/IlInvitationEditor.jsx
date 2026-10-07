@@ -11,6 +11,7 @@ import { getDefaultInviteWelcomeText, getCeremonyLabel, isCoupleEventType, isCon
 import { resolveCoverPreview, uploadEventCover } from "../../utils/eventCover.js";
 import IlInvitationPreview from "./IlInvitationPreview.jsx";
 import IlEditorField, { ilEditorInputClass, ilEditorSelectClass } from "./IlEditorField.jsx";
+import VenueAutocomplete from "../../components/VenueAutocomplete.jsx";
 import "../../us/client-portal.css";
 import "../il-portal.css";
 
@@ -424,13 +425,22 @@ export default function IlInvitationEditor({ userId, eventInfo, onClose, onSaved
             ) : (
               <>
             <IlEditorField label="שם המתחם" htmlFor="il-venueName">
-              <input
+              <VenueAutocomplete
                 id="il-venueName"
                 className={ilEditorInputClass}
                 name="venueName"
                 value={form.venueName}
                 onChange={onChange}
-                autoComplete="off"
+                searchPath={`/client/${userId}/venues`}
+                placeholder="הקלידו שם אולם…"
+                onVenueSelect={(venue) => {
+                  setForm((prev) => ({
+                    ...prev,
+                    venueName: venue?.name || prev.venueName,
+                    city: venue?.city || prev.city,
+                    streetAndNumber: venue?.streetAndNumber || prev.streetAndNumber
+                  }));
+                }}
               />
             </IlEditorField>
             <IlEditorField label="עיר" htmlFor="il-city">

@@ -125,6 +125,22 @@ const includedFeaturesSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const paymentEntrySchema = new mongoose.Schema(
+  {
+    quoteText: { type: String, trim: true, default: "" },
+    amount: { type: Number, min: 0, default: 0 },
+    isPaid: { type: Boolean, default: false },
+    paymentMethod: {
+      type: String,
+      enum: ["bit", "paybox", "bank_transfer", "cash", "other"],
+      default: "other"
+    },
+    paidAt: { type: Date, default: null },
+    createdAt: { type: Date, default: Date.now }
+  },
+  { _id: true }
+);
+
 const dealSchema = new mongoose.Schema(
   {
     packageType: {
@@ -143,6 +159,8 @@ const dealSchema = new mongoose.Schema(
       enum: ["bit", "paybox", "bank_transfer", "cash", "other"],
       default: "other"
     },
+    /** Partial / installment payments (quote text + paid flag + method + timestamp). */
+    paymentEntries: { type: [paymentEntrySchema], default: [] },
     adminNotes: { type: String, trim: true, default: "" },
     packageDescription: { type: String, trim: true, default: "" },
     packagePrice: { type: Number, min: 0, default: null },

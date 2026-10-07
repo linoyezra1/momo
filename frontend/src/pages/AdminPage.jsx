@@ -4,6 +4,9 @@ import { Check, Copy, LogIn, Pencil, Trash2, X } from "lucide-react";
 import api from "../api";
 import AdminWhatsAppFailures from "../components/AdminWhatsAppFailures.jsx";
 import AdminWhatsAppBilling from "../components/AdminWhatsAppBilling.jsx";
+import AdminGlobalFailuresReport from "../components/AdminGlobalFailuresReport.jsx";
+import AdminProfitReport from "../components/AdminProfitReport.jsx";
+import VenueAutocomplete from "../components/VenueAutocomplete.jsx";
 import { clearAdminToken } from "../utils/adminAuth";
 import { setImpersonationSession } from "../utils/impersonation";
 import { buildClientOnboardingMessage } from "../utils/clientOnboardingMessage";
@@ -16,6 +19,14 @@ import {
   WHATSAPP_INVITE_TEMPLATE_OPTIONS
 } from "../utils/whatsappInviteTemplates.js";
 import "../us/admin-portal.css";
+
+const ADMIN_NAV_ITEMS = [
+  { id: "clients", label: "לקוחות" },
+  { id: "agents", label: "סוכנים" },
+  { id: "managers", label: "מנהלי אירוע" },
+  { id: "failures", label: "דוחות כשלים" },
+  { id: "profit", label: "דוחות רווח" }
+];
 
 const PACKAGE_TYPE_OPTIONS = [
   { value: "custom", label: "התאמה אישית" },
@@ -302,6 +313,18 @@ export default function AdminPage() {
   });
   const [eventManagerSaving, setEventManagerSaving] = useState(false);
   const [eventManagerPasswordEdits, setEventManagerPasswordEdits] = useState({});
+  const [adminSection, setAdminSection] = useState("clients");
+  const [agentDirectory, setAgentDirectory] = useState({});
+  const [paymentEntryDraft, setPaymentEntryDraft] = useState({
+    quoteText: "",
+    amount: "",
+    isPaid: false,
+    paymentMethod: "bit",
+    paidAt: ""
+  });
+  const [paymentEntrySaving, setPaymentEntrySaving] = useState(false);
+  const [paymentEntryError, setPaymentEntryError] = useState("");
+  const [showPaymentEntryForm, setShowPaymentEntryForm] = useState(false);
   const publicEventUrl = toAppUrl(result?.publicEventLink);
   const clientDashboardUrl = toAppUrl(result?.clientDashboardLink);
   const eventDisplayText = buildEventDisplayText(createdEvent);
@@ -345,11 +368,35 @@ ${publicEventUrl}`
   const totalRevenueFromClients = useMemo(
     () =>
       clients.reduce((sum, client) => {
+        const entries = Array.isArray(client.deal?.paymentEntries) ? client.deal.paymentEntries : [];
+        if (entries.length) {
+          return (
+            sum +
+            entries
+              .filter((entry) => entry.isPaid)
+              .reduce((inner, entry) => inner + (Number(entry.amount) || 0), 0)
+          );
+        }
         const fromDeal = Number(client.deal?.paymentAmount);
         const fromPayment = Number(client.payment?.amountPaid) || 0;
         return sum + (Number.isFinite(fromDeal) && fromDeal > 0 ? fromDeal : fromPayment);
       }, 0),
     [clients]
+  );
+
+  const selectedPaymentEntries = useMemo(() => {
+    const entries = Array.isArray(selectedClient?.deal?.paymentEntries)
+      ? selectedClient.deal.paymentEntries
+      : [];
+    return entries;
+  }, [selectedClient]);
+
+  const selectedPaidTotal = useMemo(
+    () =>
+      selectedPaymentEntries
+        .filter((entry) => entry.isPaid)
+        .reduce((sum, entry) => sum + (Number(entry.amount) || 0), 0),
+    [selectedPaymentEntries]
   );
 
   const clientMessageForSelected = useMemo(() => {
@@ -391,6 +438,11 @@ ${publicEventUrl}`
           : Number(response.data.dolarRate)
       );
       setAgentsSummary(Array.isArray(response.data.agentsSummary) ? response.data.agentsSummary : []);
+      setAgentDirectory(
+        response.data.agentDirectory && typeof response.data.agentDirectory === "object"
+          ? response.data.agentDirectory
+          : {}
+      );
     } catch (loadError) {
       setClientsError(loadError.response?.data?.message || "טעינת לקוחות נכשלה");
     } finally {
@@ -582,12 +634,119 @@ ${publicEventUrl}`
   useEffect(() => {
     if (!selectedClient) {
       setDealDraft(defaultDealDraft());
+      setShowPaymentEntryForm(false);
+      setPaymentEntryError("");
       return;
     }
     setDealDraft(dealDraftFromClient(selectedClient));
     setDealSaved(false);
     setCredentialsNotice("");
+    setPaymentEntryError("");
   }, [selectedClient]);
+
+  const applyPaymentEntriesResponse = (responseData) => {
+    const nextDeal = responseData?.deal;
+    const nextPayment = responseData?.payment;
+    setClients((prev) =>
+      prev.map((client) =>
+        String(client.userId) === String(selectedClientId)
+          ? {
+              ...client,
+              deal: nextDeal || {
+                ...client.deal,
+                paymentEntries: responseData?.paymentEntries || client.deal?.paymentEntries,
+                paymentAmount:
+                  responseData?.paidTotal != null
+                    ? responseData.paidTotal
+                    : client.deal?.paymentAmount
+              },
+              payment: nextPayment || client.payment
+            }
+          : client
+      )
+    );
+    if (responseData?.totalRevenue != null) {
+      setTotalRevenue(Number(responseData.totalRevenue) || 0);
+    }
+  };
+
+  const resetPaymentEntryDraft = () => {
+    setPaymentEntryDraft({
+      quoteText: "",
+      amount: "",
+      isPaid: false,
+      paymentMethod: "bit",
+      paidAt: ""
+    });
+  };
+
+  const addPaymentEntry = async (event) => {
+    event.preventDefault();
+    if (!selectedClientId) return;
+    setPaymentEntrySaving(true);
+    setPaymentEntryError("");
+    try {
+      const response = await api.post(`/admin/clients/${selectedClientId}/payment-entries`, {
+        quoteText: paymentEntryDraft.quoteText.trim(),
+        amount:
+          paymentEntryDraft.amount === "" ? 0 : Math.max(0, Number(paymentEntryDraft.amount) || 0),
+        isPaid: paymentEntryDraft.isPaid === true,
+        paymentMethod: paymentEntryDraft.paymentMethod || "other",
+        paidAt: paymentEntryDraft.isPaid && paymentEntryDraft.paidAt ? paymentEntryDraft.paidAt : undefined
+      });
+      applyPaymentEntriesResponse(response.data);
+      resetPaymentEntryDraft();
+      setShowPaymentEntryForm(false);
+      await loadClients();
+    } catch (saveErr) {
+      setPaymentEntryError(saveErr.response?.data?.message || "הוספת תשלום נכשלה");
+    } finally {
+      setPaymentEntrySaving(false);
+    }
+  };
+
+  const togglePaymentEntryPaid = async (entry) => {
+    if (!selectedClientId || !entry?.id) return;
+    setPaymentEntrySaving(true);
+    setPaymentEntryError("");
+    try {
+      const nextPaid = !entry.isPaid;
+      const response = await api.patch(
+        `/admin/clients/${selectedClientId}/payment-entries/${entry.id}`,
+        {
+          quoteText: entry.quoteText,
+          amount: entry.amount,
+          isPaid: nextPaid,
+          paymentMethod: entry.paymentMethod || "other",
+          paidAt: nextPaid ? entry.paidAt || new Date().toISOString() : null
+        }
+      );
+      applyPaymentEntriesResponse(response.data);
+      await loadClients();
+    } catch (saveErr) {
+      setPaymentEntryError(saveErr.response?.data?.message || "עדכון תשלום נכשל");
+    } finally {
+      setPaymentEntrySaving(false);
+    }
+  };
+
+  const deletePaymentEntry = async (entry) => {
+    if (!selectedClientId || !entry?.id) return;
+    if (!window.confirm("למחוק את שורת התשלום?")) return;
+    setPaymentEntrySaving(true);
+    setPaymentEntryError("");
+    try {
+      const response = await api.delete(
+        `/admin/clients/${selectedClientId}/payment-entries/${entry.id}`
+      );
+      applyPaymentEntriesResponse(response.data);
+      await loadClients();
+    } catch (saveErr) {
+      setPaymentEntryError(saveErr.response?.data?.message || "מחיקת תשלום נכשלה");
+    } finally {
+      setPaymentEntrySaving(false);
+    }
+  };
 
   const onDealFieldChange = (event) => {
     const { name, value } = event.target;
@@ -1016,23 +1175,67 @@ ${publicEventUrl}`
     navigate("/admin/login", { replace: true });
   };
 
+  const applyVenueAutofill = (venue) => {
+    if (!venue) return;
+    setForm((prev) => ({
+      ...prev,
+      venueName: venue.name || prev.venueName,
+      city: venue.city || prev.city,
+      streetAndNumber: venue.streetAndNumber || prev.streetAndNumber
+    }));
+  };
+
   return (
     <div className="us-admin-portal us-admin-shell" dir="rtl">
+      <div className="us-admin-app">
+        <aside className="us-admin-sidenav" aria-label="תפריט ניהול">
+          <div className="us-admin-sidenav__brand">
+            <strong>momoEVENT</strong>
+            <span>מרכז ניהול</span>
+          </div>
+          <nav className="us-admin-sidenav__nav">
+            {ADMIN_NAV_ITEMS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className={`us-admin-sidenav__link${adminSection === item.id ? " is-active" : ""}`}
+                aria-current={adminSection === item.id ? "page" : undefined}
+                onClick={() => setAdminSection(item.id)}
+              >
+                {item.label}
+              </button>
+            ))}
+          </nav>
+          <button className="us-admin-btn us-admin-sidenav__logout" type="button" onClick={logoutAdmin}>
+            התנתקות
+          </button>
+        </aside>
+
+        <div className="us-admin-main">
       <div className="us-admin-container">
         <header className="us-admin-header">
-          <h1>מרכז ניהול אירועים</h1>
+          <h1>
+            {ADMIN_NAV_ITEMS.find((item) => item.id === adminSection)?.label || "מרכז ניהול אירועים"}
+          </h1>
           <p>
-            ניהול לקוחות, פרטי הזמנה וקישורים לדשבורד · פתיחת חשבונות מנהל אירוע להתחברות ב־/manager
+            {adminSection === "clients"
+              ? "דשבורד ראשי · ניהול לקוחות, הזמנות וקישורים"
+              : adminSection === "agents"
+                ? "סיכום לקוחות לפי סוכן וחשבונות סוכנים"
+                : adminSection === "managers"
+                  ? "פתיחה וניהול חשבונות מנהלי אירוע (/manager)"
+                  : adminSection === "failures"
+                    ? "כל כשלי הוואטסאפ במערכת, עם סינון לפי לקוח"
+                    : "רווח מול הפסד ומקורות שיווק"}
           </p>
         </header>
 
         <div className="us-admin-toolbar">
-          <button className="us-admin-btn us-admin-btn--primary" type="button" onClick={openCreateWizard}>
-            לקוח חדש
-          </button>
-          <button className="us-admin-btn" type="button" onClick={logoutAdmin}>
-            התנתקות
-          </button>
+          {adminSection === "clients" ? (
+            <button className="us-admin-btn us-admin-btn--primary" type="button" onClick={openCreateWizard}>
+              לקוח חדש
+            </button>
+          ) : null}
         </div>
 
         {error ? <p className="us-admin-message us-admin-message--error">{error}</p> : null}
@@ -1053,6 +1256,8 @@ ${publicEventUrl}`
           </div>
         ) : null}
 
+        {adminSection === "clients" ? (
+          <>
         <div className="us-admin-stats">
           <div className="us-admin-stat-card">
             <h3>סה״כ הכנסות</h3>
@@ -1090,175 +1295,6 @@ ${publicEventUrl}`
             ) : null}
           </div>
         </div>
-
-        {agentsSummary.length ? (
-          <section className="us-admin-card" style={{ marginBottom: "1.25rem" }}>
-            <h2 className="us-admin-card-title">לקוחות לפי סוכן</h2>
-            <div className="us-admin-card-body">
-              <div className="us-admin-stats" style={{ margin: 0 }}>
-                {agentsSummary.map((row) => (
-                  <div key={row.agentId || "none"} className="us-admin-stat-card">
-                    <h3>{row.agentName || row.agentId || "ללא סוכן"}</h3>
-                    <p>{row.clientCount}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
-        ) : null}
-
-        <section className="us-admin-card" style={{ marginBottom: "1.25rem" }}>
-          <div className="us-admin-toolbar" style={{ marginBottom: "0.75rem" }}>
-            <h2 className="us-admin-card-title" style={{ margin: 0 }}>
-              מנהלי אירוע
-            </h2>
-            <button
-              className="us-admin-btn"
-              type="button"
-              onClick={loadEventManagers}
-              disabled={eventManagersLoading}
-            >
-              {eventManagersLoading ? "מרענן…" : "רענון"}
-            </button>
-          </div>
-          <div className="us-admin-card-body">
-            {eventManagersError ? (
-              <p className="us-admin-message us-admin-message--error">{eventManagersError}</p>
-            ) : null}
-            {eventManagersNotice ? <p className="us-admin-message">{eventManagersNotice}</p> : null}
-            {eventManagersEnv?.configured ? (
-              <p className="us-admin-empty" style={{ marginBottom: "0.75rem" }}>
-                חשבון bootstrap מהשרת (env):{" "}
-                <strong dir="ltr">{eventManagersEnv.username}</strong>
-                {eventManagersEnv.displayName
-                  ? ` · ${eventManagersEnv.displayName}`
-                  : ""}{" "}
-                — הסיסמה נשמרת רק ב־EVENT_MANAGER_PASSWORD
-              </p>
-            ) : null}
-
-            <form
-              onSubmit={createEventManager}
-              className="us-admin-toolbar"
-              style={{ flexWrap: "wrap", gap: "0.5rem", marginBottom: "1rem", alignItems: "flex-end" }}
-            >
-              <label className="us-admin-field">
-                שם לתצוגה
-                <input
-                  className="us-admin-field-input"
-                  value={eventManagerForm.displayName}
-                  onChange={(e) =>
-                    setEventManagerForm((prev) => ({ ...prev, displayName: e.target.value }))
-                  }
-                  placeholder="הפקות אדיה"
-                />
-              </label>
-              <label className="us-admin-field">
-                שם משתמש
-                <input
-                  className="us-admin-field-input"
-                  dir="ltr"
-                  value={eventManagerForm.username}
-                  onChange={(e) =>
-                    setEventManagerForm((prev) => ({ ...prev, username: e.target.value }))
-                  }
-                  placeholder="manager2"
-                  required
-                  autoComplete="off"
-                />
-              </label>
-              <label className="us-admin-field">
-                סיסמה
-                <input
-                  className="us-admin-field-input"
-                  dir="ltr"
-                  type="text"
-                  value={eventManagerForm.password}
-                  onChange={(e) =>
-                    setEventManagerForm((prev) => ({ ...prev, password: e.target.value }))
-                  }
-                  placeholder="סיסמה להתחברות"
-                  required
-                  autoComplete="off"
-                />
-              </label>
-              <button
-                className="us-admin-btn us-admin-btn--primary"
-                type="submit"
-                disabled={eventManagerSaving}
-              >
-                {eventManagerSaving ? "יוצר…" : "פתיחת מנהל אירוע"}
-              </button>
-            </form>
-
-            {eventManagersLoading && !eventManagers.length ? (
-              <p className="us-admin-empty">טוען מנהלי אירוע…</p>
-            ) : null}
-            {!eventManagersLoading && !eventManagers.length ? (
-              <p className="us-admin-empty">אין עדיין מנהלי אירוע במערכת — אפשר לפתוח כאן</p>
-            ) : null}
-            {eventManagers.length ? (
-              <div className="us-admin-leads-list">
-                {eventManagers.map((manager) => (
-                  <article key={manager.id} className="us-admin-lead-card">
-                    <div className="us-admin-lead-head">
-                      <strong>{manager.displayName || manager.username}</strong>
-                      <span dir="ltr">{manager.username}</span>
-                    </div>
-                    <div className="us-admin-lead-meta">
-                      <span>סטטוס: {manager.active ? "פעיל" : "מושבת"}</span>
-                      <span dir="ltr">
-                        סיסמה נוכחית: {manager.loginPassword || "—"}
-                      </span>
-                    </div>
-                    <div className="us-admin-lead-actions" style={{ flexWrap: "wrap", gap: "0.5rem" }}>
-                      <label>
-                        סיסמה חדשה
-                        <input
-                          className="us-admin-field-input"
-                          dir="ltr"
-                          type="text"
-                          value={eventManagerPasswordEdits[manager.id] || ""}
-                          onChange={(e) =>
-                            setEventManagerPasswordEdits((prev) => ({
-                              ...prev,
-                              [manager.id]: e.target.value
-                            }))
-                          }
-                          placeholder="השאר ריק אם לא משנים"
-                          autoComplete="off"
-                        />
-                      </label>
-                      <button
-                        className="us-admin-btn us-admin-btn--xs"
-                        type="button"
-                        onClick={() => {
-                          const password = String(eventManagerPasswordEdits[manager.id] || "").trim();
-                          if (!password) {
-                            setEventManagersError("יש להזין סיסמה חדשה לפני שמירה");
-                            return;
-                          }
-                          updateEventManager(manager.id, { password });
-                        }}
-                      >
-                        עדכון סיסמה
-                      </button>
-                      <button
-                        className="us-admin-btn us-admin-btn--xs"
-                        type="button"
-                        onClick={() =>
-                          updateEventManager(manager.id, { active: !manager.active })
-                        }
-                      >
-                        {manager.active ? "השבתה" : "הפעלה"}
-                      </button>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            ) : null}
-          </div>
-        </section>
 
         <section className="us-admin-card" style={{ marginBottom: "1.25rem" }}>
           <div className="us-admin-toolbar" style={{ marginBottom: "0.75rem" }}>
@@ -1808,41 +1844,206 @@ ${publicEventUrl}`
                       />
                     </div>
 
-                    <div className="us-admin-payment-fields">
-                      <div className="us-admin-field">
-                        <label className="us-admin-field-label" htmlFor="deal-payment-amount">
-                          סכום ששולם (₪)
-                        </label>
-                        <input
-                          id="deal-payment-amount"
-                          className="us-admin-field-input"
-                          name="paymentAmount"
-                          type="number"
-                          min="0"
-                          step="1"
-                          placeholder="0"
-                          value={dealDraft.paymentAmount}
-                          onChange={onDealFieldChange}
-                        />
-                      </div>
-                      <div className="us-admin-field">
-                        <label className="us-admin-field-label" htmlFor="deal-payment-method">
-                          אמצעי תשלום
-                        </label>
-                        <select
-                          id="deal-payment-method"
-                          className="us-admin-field-input"
-                          name="paymentMethod"
-                          value={dealDraft.paymentMethod}
-                          onChange={onDealFieldChange}
+                    <div className="us-admin-payment-entries">
+                      <div className="us-admin-toolbar" style={{ marginBottom: "0.65rem" }}>
+                        <h3 className="us-admin-share-title" style={{ margin: 0, flex: 1 }}>
+                          תשלומים / הצעות מחיר
+                        </h3>
+                        <button
+                          className="us-admin-btn us-admin-btn--primary us-admin-btn--xs"
+                          type="button"
+                          onClick={() => {
+                            setShowPaymentEntryForm((prev) => !prev);
+                            setPaymentEntryError("");
+                          }}
                         >
-                          {DEAL_PAYMENT_METHOD_OPTIONS.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
+                          {showPaymentEntryForm ? "ביטול" : "הוספת תשלום"}
+                        </button>
                       </div>
+                      <p className="us-admin-field-hint" style={{ marginTop: 0 }}>
+                        כל שורה = הצעת מחיר (מלל חופשי). אם סומן כשולם — הסכום נכנס לקוביית ההכנסות
+                        ולדוח לפי חודש.
+                      </p>
+                      <p className="us-admin-event-summary" style={{ margin: "0 0 0.75rem" }}>
+                        <strong>סה״כ ששולם:</strong> ₪{selectedPaidTotal.toLocaleString("he-IL")}
+                      </p>
+                      {paymentEntryError ? (
+                        <p className="us-admin-message us-admin-message--error">{paymentEntryError}</p>
+                      ) : null}
+
+                      {showPaymentEntryForm ? (
+                        <form className="us-admin-payment-entry-form" onSubmit={addPaymentEntry}>
+                          <div className="us-admin-field">
+                            <label className="us-admin-field-label" htmlFor="payment-entry-quote">
+                              הצעת מחיר (מלל חופשי)
+                            </label>
+                            <textarea
+                              id="payment-entry-quote"
+                              className="us-admin-field-input us-admin-deal-notes"
+                              rows={2}
+                              value={paymentEntryDraft.quoteText}
+                              onChange={(e) =>
+                                setPaymentEntryDraft((prev) => ({
+                                  ...prev,
+                                  quoteText: e.target.value
+                                }))
+                              }
+                              placeholder="לדוגמה: סבב וואטסאפ נוסף / תוספת דיילת / יתרת חבילה VIP"
+                              required
+                            />
+                          </div>
+                          <div className="us-admin-payment-fields">
+                            <div className="us-admin-field">
+                              <label className="us-admin-field-label" htmlFor="payment-entry-amount">
+                                סכום (₪)
+                              </label>
+                              <input
+                                id="payment-entry-amount"
+                                className="us-admin-field-input"
+                                type="number"
+                                min="0"
+                                step="1"
+                                value={paymentEntryDraft.amount}
+                                onChange={(e) =>
+                                  setPaymentEntryDraft((prev) => ({
+                                    ...prev,
+                                    amount: e.target.value
+                                  }))
+                                }
+                                required
+                              />
+                            </div>
+                            <div className="us-admin-field">
+                              <label className="us-admin-field-label">
+                                <input
+                                  type="checkbox"
+                                  checked={paymentEntryDraft.isPaid}
+                                  onChange={(e) =>
+                                    setPaymentEntryDraft((prev) => ({
+                                      ...prev,
+                                      isPaid: e.target.checked
+                                    }))
+                                  }
+                                />{" "}
+                                שולם
+                              </label>
+                            </div>
+                          </div>
+                          {paymentEntryDraft.isPaid ? (
+                            <div className="us-admin-payment-fields">
+                              <div className="us-admin-field">
+                                <label className="us-admin-field-label" htmlFor="payment-entry-method">
+                                  איך שולם?
+                                </label>
+                                <select
+                                  id="payment-entry-method"
+                                  className="us-admin-field-input"
+                                  value={paymentEntryDraft.paymentMethod}
+                                  onChange={(e) =>
+                                    setPaymentEntryDraft((prev) => ({
+                                      ...prev,
+                                      paymentMethod: e.target.value
+                                    }))
+                                  }
+                                >
+                                  {DEAL_PAYMENT_METHOD_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                      {option.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div className="us-admin-field">
+                                <label className="us-admin-field-label" htmlFor="payment-entry-paid-at">
+                                  תאריך תשלום
+                                </label>
+                                <input
+                                  id="payment-entry-paid-at"
+                                  className="us-admin-field-input"
+                                  type="date"
+                                  value={paymentEntryDraft.paidAt}
+                                  onChange={(e) =>
+                                    setPaymentEntryDraft((prev) => ({
+                                      ...prev,
+                                      paidAt: e.target.value
+                                    }))
+                                  }
+                                />
+                              </div>
+                            </div>
+                          ) : null}
+                          <button
+                            className="us-admin-btn us-admin-btn--primary"
+                            type="submit"
+                            disabled={paymentEntrySaving}
+                          >
+                            {paymentEntrySaving ? "שומר…" : "שמירת תשלום"}
+                          </button>
+                        </form>
+                      ) : null}
+
+                      {selectedPaymentEntries.length ? (
+                        <div className="us-admin-table-wrap" style={{ marginTop: "0.85rem" }}>
+                          <table className="us-admin-clients-table">
+                            <thead>
+                              <tr>
+                                <th>הצעת מחיר</th>
+                                <th>סכום</th>
+                                <th>סטטוס</th>
+                                <th>אמצעי</th>
+                                <th>תאריך</th>
+                                <th>פעולות</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {selectedPaymentEntries.map((entry) => (
+                                <tr key={entry.id}>
+                                  <td>{entry.quoteText || "—"}</td>
+                                  <td>₪{Number(entry.amount || 0).toLocaleString("he-IL")}</td>
+                                  <td>{entry.isPaid ? "שולם" : "ממתין"}</td>
+                                  <td>
+                                    {entry.isPaid
+                                      ? entry.paymentMethodLabel ||
+                                        DEAL_PAYMENT_METHOD_OPTIONS.find(
+                                          (opt) => opt.value === entry.paymentMethod
+                                        )?.label ||
+                                        entry.paymentMethod ||
+                                        "—"
+                                      : "—"}
+                                  </td>
+                                  <td>
+                                    {entry.isPaid && entry.paidAt
+                                      ? formatIsraeliDate(String(entry.paidAt).slice(0, 10))
+                                      : "—"}
+                                  </td>
+                                  <td>
+                                    <div className="us-admin-table-actions">
+                                      <button
+                                        className="us-admin-btn us-admin-btn--xs"
+                                        type="button"
+                                        disabled={paymentEntrySaving}
+                                        onClick={() => togglePaymentEntryPaid(entry)}
+                                      >
+                                        {entry.isPaid ? "סמן לא שולם" : "סמן שולם"}
+                                      </button>
+                                      <button
+                                        className="us-admin-btn us-admin-btn--xs us-admin-btn--danger"
+                                        type="button"
+                                        disabled={paymentEntrySaving}
+                                        onClick={() => deletePaymentEntry(entry)}
+                                      >
+                                        <Trash2 size={14} />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <p className="us-admin-empty">עדיין אין תשלומים ללקוח — לחצו «הוספת תשלום»</p>
+                      )}
                     </div>
 
                     <div className="us-admin-field">
@@ -2029,6 +2230,201 @@ ${publicEventUrl}`
           </div>
           ) : null}
         </section>
+          </>
+        ) : null}
+
+        {adminSection === "agents" ? (
+          <section className="us-admin-card" style={{ marginBottom: "1.25rem" }}>
+            <h2 className="us-admin-card-title">סוכנים</h2>
+            <div className="us-admin-card-body">
+              <p className="us-admin-field-hint" style={{ marginTop: 0 }}>
+                חשבונות סוכנים מוגדרים בשרת (AGENTS_JSON). כאן מוצג סיכום לקוחות לפי סוכן.
+              </p>
+              {Object.keys(agentDirectory).length ? (
+                <div className="us-admin-stats" style={{ marginBottom: "1rem" }}>
+                  {Object.entries(agentDirectory).map(([id, name]) => (
+                    <div key={id} className="us-admin-stat-card">
+                      <h3>{name || id}</h3>
+                      <p className="us-admin-stat-note" dir="ltr">
+                        {id}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="us-admin-empty">לא הוגדרו סוכנים בשרת</p>
+              )}
+              {agentsSummary.length ? (
+                <>
+                  <h3 className="us-admin-share-title">לקוחות לפי סוכן</h3>
+                  <div className="us-admin-stats" style={{ margin: 0 }}>
+                    {agentsSummary.map((row) => (
+                      <div key={row.agentId || "none"} className="us-admin-stat-card">
+                        <h3>{row.agentName || row.agentId || "ללא סוכן"}</h3>
+                        <p>{row.clientCount}</p>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <p className="us-admin-empty">אין עדיין לקוחות המשויכים לסוכנים</p>
+              )}
+            </div>
+          </section>
+        ) : null}
+
+        {adminSection === "managers" ? (
+          <section className="us-admin-card" style={{ marginBottom: "1.25rem" }}>
+            <div className="us-admin-toolbar" style={{ marginBottom: "0.75rem" }}>
+              <h2 className="us-admin-card-title" style={{ margin: 0 }}>
+                מנהלי אירוע
+              </h2>
+              <button
+                className="us-admin-btn"
+                type="button"
+                onClick={loadEventManagers}
+                disabled={eventManagersLoading}
+              >
+                {eventManagersLoading ? "מרענן…" : "רענון"}
+              </button>
+            </div>
+            <div className="us-admin-card-body">
+              {eventManagersError ? (
+                <p className="us-admin-message us-admin-message--error">{eventManagersError}</p>
+              ) : null}
+              {eventManagersNotice ? <p className="us-admin-message">{eventManagersNotice}</p> : null}
+              {eventManagersEnv?.configured ? (
+                <p className="us-admin-empty" style={{ marginBottom: "0.75rem" }}>
+                  חשבון bootstrap מהשרת (env):{" "}
+                  <strong dir="ltr">{eventManagersEnv.username}</strong>
+                  {eventManagersEnv.displayName ? ` · ${eventManagersEnv.displayName}` : ""} — הסיסמה
+                  נשמרת רק ב־EVENT_MANAGER_PASSWORD
+                </p>
+              ) : null}
+
+              <form
+                onSubmit={createEventManager}
+                className="us-admin-toolbar"
+                style={{ flexWrap: "wrap", gap: "0.5rem", marginBottom: "1rem", alignItems: "flex-end" }}
+              >
+                <label className="us-admin-field">
+                  שם לתצוגה
+                  <input
+                    className="us-admin-field-input"
+                    value={eventManagerForm.displayName}
+                    onChange={(e) =>
+                      setEventManagerForm((prev) => ({ ...prev, displayName: e.target.value }))
+                    }
+                    placeholder="הפקות אדיה"
+                  />
+                </label>
+                <label className="us-admin-field">
+                  שם משתמש
+                  <input
+                    className="us-admin-field-input"
+                    dir="ltr"
+                    value={eventManagerForm.username}
+                    onChange={(e) =>
+                      setEventManagerForm((prev) => ({ ...prev, username: e.target.value }))
+                    }
+                    placeholder="manager2"
+                    required
+                    autoComplete="off"
+                  />
+                </label>
+                <label className="us-admin-field">
+                  סיסמה
+                  <input
+                    className="us-admin-field-input"
+                    dir="ltr"
+                    type="text"
+                    value={eventManagerForm.password}
+                    onChange={(e) =>
+                      setEventManagerForm((prev) => ({ ...prev, password: e.target.value }))
+                    }
+                    placeholder="סיסמה להתחברות"
+                    required
+                    autoComplete="off"
+                  />
+                </label>
+                <button
+                  className="us-admin-btn us-admin-btn--primary"
+                  type="submit"
+                  disabled={eventManagerSaving}
+                >
+                  {eventManagerSaving ? "יוצר…" : "פתיחת מנהל אירוע"}
+                </button>
+              </form>
+
+              {eventManagersLoading && !eventManagers.length ? (
+                <p className="us-admin-empty">טוען מנהלי אירוע…</p>
+              ) : null}
+              {!eventManagersLoading && !eventManagers.length ? (
+                <p className="us-admin-empty">אין עדיין מנהלי אירוע במערכת — אפשר לפתוח כאן</p>
+              ) : null}
+              {eventManagers.length ? (
+                <div className="us-admin-leads-list">
+                  {eventManagers.map((manager) => (
+                    <article key={manager.id} className="us-admin-lead-card">
+                      <div className="us-admin-lead-head">
+                        <strong>{manager.displayName || manager.username}</strong>
+                        <span dir="ltr">{manager.username}</span>
+                      </div>
+                      <div className="us-admin-lead-meta">
+                        <span>סטטוס: {manager.active ? "פעיל" : "מושבת"}</span>
+                        <span dir="ltr">סיסמה נוכחית: {manager.loginPassword || "—"}</span>
+                      </div>
+                      <div className="us-admin-lead-actions" style={{ flexWrap: "wrap", gap: "0.5rem" }}>
+                        <label>
+                          סיסמה חדשה
+                          <input
+                            className="us-admin-field-input"
+                            dir="ltr"
+                            type="text"
+                            value={eventManagerPasswordEdits[manager.id] || ""}
+                            onChange={(e) =>
+                              setEventManagerPasswordEdits((prev) => ({
+                                ...prev,
+                                [manager.id]: e.target.value
+                              }))
+                            }
+                            placeholder="השאר ריק אם לא משנים"
+                            autoComplete="off"
+                          />
+                        </label>
+                        <button
+                          className="us-admin-btn us-admin-btn--xs"
+                          type="button"
+                          onClick={() => {
+                            const password = String(eventManagerPasswordEdits[manager.id] || "").trim();
+                            if (!password) {
+                              setEventManagersError("יש להזין סיסמה חדשה לפני שמירה");
+                              return;
+                            }
+                            updateEventManager(manager.id, { password });
+                          }}
+                        >
+                          עדכון סיסמה
+                        </button>
+                        <button
+                          className="us-admin-btn us-admin-btn--xs"
+                          type="button"
+                          onClick={() => updateEventManager(manager.id, { active: !manager.active })}
+                        >
+                          {manager.active ? "השבתה" : "הפעלה"}
+                        </button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          </section>
+        ) : null}
+
+        {adminSection === "failures" ? <AdminGlobalFailuresReport clients={clients} /> : null}
+
+        {adminSection === "profit" ? <AdminProfitReport /> : null}
 
         {showCreateWizard ? (
           <div className="us-admin-modal-backdrop" role="presentation">
@@ -2286,12 +2682,15 @@ ${publicEventUrl}`
                 <label className="us-admin-field-label" htmlFor="venueName">
                   שם המתחם
                 </label>
-                <input
+                <VenueAutocomplete
                   id="venueName"
                   className="us-admin-field-input"
                   name="venueName"
                   value={form.venueName}
                   onChange={onChange}
+                  onVenueSelect={applyVenueAutofill}
+                  searchPath="/admin/venues"
+                  placeholder="הקלידו שם אולם…"
                 />
               </div>
               <div className="us-admin-field">
@@ -2582,6 +2981,8 @@ ${publicEventUrl}`
             </div>
           </div>
         ) : null}
+      </div>
+        </div>
       </div>
     </div>
   );
