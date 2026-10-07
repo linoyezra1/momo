@@ -1899,6 +1899,138 @@
   color: #333333;
 }
 
+.il-bulk-schedule-panel {
+  margin-top: 0.85rem;
+  padding: 0.85rem 0.9rem;
+  border: 1px solid #d8e3ef;
+  border-radius: 0.65rem;
+  background: #f8fafc;
+}
+
+.il-bulk-schedule-panel__title {
+  margin: 0 0 0.65rem;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.il-bulk-schedule-mode {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.il-bulk-schedule-mode__option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.88rem;
+  color: #1e293b;
+  cursor: pointer;
+}
+
+.il-bulk-schedule-when {
+  display: grid;
+  gap: 0.35rem;
+  margin-bottom: 0.85rem;
+  max-width: 18rem;
+}
+
+.il-bulk-schedule-list__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.il-bulk-schedule-list__head h3 {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+.il-bulk-schedule-empty {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.il-bulk-schedule-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  background: #fff;
+}
+
+.il-bulk-schedule-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.il-bulk-schedule-table th,
+.il-bulk-schedule-table td {
+  padding: 0.55rem 0.65rem;
+  border-bottom: 1px solid #eef2f7;
+  text-align: right;
+  vertical-align: top;
+}
+
+.il-bulk-schedule-table th {
+  background: #f1f5f9;
+  font-weight: 700;
+  color: #475569;
+}
+
+.il-bulk-schedule-preview {
+  max-width: 14rem;
+  overflow-wrap: anywhere;
+  color: #475569;
+}
+
+.il-bulk-schedule-status {
+  display: inline-block;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.il-bulk-schedule-status--pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.il-bulk-schedule-status--processing {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.il-bulk-schedule-status--completed {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.il-bulk-schedule-status--cancelled {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.il-bulk-schedule-status--failed {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.il-bulk-schedule-cancel {
+  font-size: 0.78rem;
+  padding: 0.3rem 0.55rem;
+}
+
 .il-status-btn {
   border: 1px solid var(--us-border);
   border-radius: 0.35rem;

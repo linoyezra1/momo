@@ -29,6 +29,7 @@ import {
 } from "../utils/phoneRounds.js";
 import {
   requireAdmin,
+  requireAdminOrEventImpersonation,
   signAdminToken,
   signImpersonationToken,
   validateAdminCredentials,
@@ -43,6 +44,11 @@ import {
   buildClientLinks,
   createCoupleClient
 } from "../services/createCoupleClient.js";
+import {
+  cancelScheduledBroadcast,
+  createScheduledBroadcast,
+  listScheduledBroadcastsForEvent
+} from "../services/scheduledBroadcastService.js";
 import { getAgentDisplayMap } from "../utils/agentAccounts.js";
 import { recalculateUserSupplierCost } from "../utils/supplierCost.js";
 import {
@@ -90,6 +96,70 @@ router.get("/session", (req, res) => {
   }
   return res.json({ authenticated: true });
 });
+
+/**
+ * Scheduled broadcast — admin Bearer OR impersonation Bearer for the event.
+ * Registered before requireAdmin so the impersonation client window can call these.
+ */
+router.post("/broadcasts/schedule", requireAdminOrEventImpersonation, async (req, res) => {
+  try {
+    const eventId = String(req.body?.eventId || "").trim();
+    const scheduled = await createScheduledBroadcast({
+      eventId,
+      guestIds: req.body?.guestIds,
+      paymentCode: req.body?.paymentCode || req.body?.couponCode,
+      scheduledAt: req.body?.scheduledAt,
+      createdByAdminId: req.createdByAdminId || "admin"
+    });
+    return res.status(201).json({
+      message: "התזמון נשמר בהצלחה",
+      schedule: scheduled
+    });
+  } catch (error) {
+    return res.status(error.status || 500).json({
+      message: error.message || "יצירת תזמון נכשלה"
+    });
+  }
+});
+
+router.get(
+  "/broadcasts/scheduled/:eventId",
+  requireAdminOrEventImpersonation,
+  async (req, res) => {
+    try {
+      const schedules = await listScheduledBroadcastsForEvent(req.params.eventId, {
+        includeTerminal: true
+      });
+      return res.json({ schedules });
+    } catch (error) {
+      return res.status(error.status || 500).json({
+        message: error.message || "טעינת תזמונים נכשלה"
+      });
+    }
+  }
+);
+
+router.post(
+  "/broadcasts/schedule/:scheduleId/cancel",
+  requireAdminOrEventImpersonation,
+  async (req, res) => {
+    try {
+      const cancelled = await cancelScheduledBroadcast({
+        scheduleId: req.params.scheduleId,
+        impersonationUserId:
+          req.authMode === "impersonation" ? req.impersonation?.userId : null
+      });
+      return res.json({
+        message: "התזמון בוטל",
+        schedule: cancelled
+      });
+    } catch (error) {
+      return res.status(error.status || 500).json({
+        message: error.message || "ביטול התזמון נכשל"
+      });
+    }
+  }
+);
 
 router.use(requireAdmin);
 

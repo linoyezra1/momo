@@ -10,6 +10,7 @@ import clientRoutes from "./routes/clientRoutes.js";
 import setupRoutes from "./routes/setupRoutes.js";
 import webhooksRoutes from "./routes/webhooksRoutes.js";
 import seatingRoutes, { startTableDispatchScheduler } from "./routes/seatingRoutes.js";
+import { startScheduledBroadcastScheduler } from "./services/scheduledBroadcastService.js";
 import seatingTemplateRoutes from "./routes/seatingTemplateRoutes.js";
 import agentRoutes from "./routes/agentRoutes.js";
 import eventManagerRoutes from "./routes/eventManagerRoutes.js";
@@ -127,6 +128,7 @@ async function startServer() {
       });
       console.log(`Server running on port ${port}`);
       startTableDispatchScheduler(30000);
+      startScheduledBroadcastScheduler(60_000);
     });
   } catch (error) {
     console.error("Server startup failed:", error.message);

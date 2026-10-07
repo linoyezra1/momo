@@ -2,10 +2,15 @@ import axios from "axios";
 import { clearAdminToken, getAdminToken } from "./utils/adminAuth.js";
 import { clearAgentToken, getAgentToken } from "./utils/agentAuth.js";
 import { clearEventManagerToken, getEventManagerToken } from "./utils/eventManagerAuth.js";
+import { getImpersonationSession } from "./utils/impersonation.js";
 
 const api = axios.create({
   baseURL: "/api"
 });
+
+function isAdminBroadcastsUrl(url) {
+  return String(url || "").startsWith("/admin/broadcasts");
+}
 
 api.interceptors.request.use((config) => {
   const url = String(config.url || "");
@@ -13,6 +18,11 @@ api.interceptors.request.use((config) => {
     const token = getAdminToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    } else if (isAdminBroadcastsUrl(url)) {
+      const impersonation = getImpersonationSession();
+      if (impersonation?.token) {
+        config.headers.Authorization = `Bearer ${impersonation.token}`;
+      }
     }
   }
   if (url.startsWith("/agent") && !url.startsWith("/agent/login")) {
@@ -44,6 +54,10 @@ api.interceptors.response.use(
   (error) => {
     const url = String(error.config?.url || "");
     if (error.response?.status === 401 && url.startsWith("/admin") && !url.startsWith("/admin/login")) {
+      // Impersonation window uses broadcast APIs without admin session — don't bounce to /admin/login.
+      if (isAdminBroadcastsUrl(url) && getImpersonationSession()) {
+        return Promise.reject(error);
+      }
       clearAdminToken();
       if (typeof window !== "undefined" && !window.location.pathname.startsWith("/admin/login")) {
         window.location.assign("/admin/login");

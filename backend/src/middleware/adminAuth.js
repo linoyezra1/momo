@@ -93,12 +93,57 @@ export function verifyAdminToken(token) {
   }
 }
 
-export function requireAdmin(req, res, next) {
+function extractBearerToken(req) {
   const authHeader = String(req.headers.authorization || "");
-  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+  return authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+}
+
+export function requireAdmin(req, res, next) {
+  const token = extractBearerToken(req);
   if (!verifyAdminToken(token)) {
     return res.status(401).json({ message: "נדרשת התחברות מנהל" });
   }
+  return next();
+}
+
+/**
+ * Admin Bearer OR impersonation Bearer for a specific event (Scheduled Broadcast).
+ * For cancel-by-id, event ownership is verified in the handler via req.impersonation.
+ */
+export function requireAdminOrEventImpersonation(req, res, next) {
+  const token = extractBearerToken(req);
+  const admin = verifyAdminToken(token);
+  if (admin) {
+    req.authMode = "admin";
+    req.createdByAdminId = "admin";
+    req.impersonation = null;
+    return next();
+  }
+
+  const impersonation = verifyImpersonationToken(token);
+  if (!impersonation) {
+    return res.status(401).json({ message: "נדרשת התחברות מנהל או צפייה במצב אדמין" });
+  }
+
+  const eventId = String(
+    req.params.eventId || req.body?.eventId || req.query?.eventId || ""
+  ).trim();
+
+  // Cancel route has scheduleId only — ownership checked in handler.
+  if (!eventId && req.params.scheduleId) {
+    req.authMode = "impersonation";
+    req.createdByAdminId = String(impersonation.originalAdminId || "admin");
+    req.impersonation = impersonation;
+    return next();
+  }
+
+  if (!eventId || String(impersonation.userId) !== eventId) {
+    return res.status(403).json({ message: "אין הרשאה לתזמן שליחה לאירוע זה" });
+  }
+
+  req.authMode = "impersonation";
+  req.createdByAdminId = String(impersonation.originalAdminId || "admin");
+  req.impersonation = impersonation;
   return next();
 }
 

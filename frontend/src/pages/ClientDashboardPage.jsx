@@ -37,6 +37,7 @@ import {
   buildWhatsAppCouponPurchaseUrl
 } from "../utils/tableDispatchPurchase.js";
 import { isCoupleEventType, isConferenceEventType } from "../utils/eventTypeWording.js";
+import { getImpersonationSession } from "../utils/impersonation.js";
 import IlInvitationEditor from "../il/components/IlInvitationEditor.jsx";
 import IlWhatsAppInviteEditor from "../il/components/IlWhatsAppInviteEditor.jsx";
 import IlMobileGuestCard from "../il/components/IlMobileGuestCard.jsx";
@@ -75,6 +76,38 @@ const STATUS_OPTIONS = [
   { value: "אולי", label: "אולי" },
   { value: "לא ידוע", label: "לא ידוע" }
 ];
+
+function defaultBroadcastDateTimeLocal() {
+  const date = new Date(Date.now() + 60 * 60 * 1000);
+  const pad = (value) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function parseDateTimeLocalValue(value) {
+  const match = String(value || "")
+    .trim()
+    .match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+  if (!match) return null;
+  const [, y, m, d, hh, mm] = match;
+  return new Date(Number(y), Number(m) - 1, Number(d), Number(hh), Number(mm), 0, 0);
+}
+
+function formatBroadcastScheduleStatus(status) {
+  switch (String(status || "").toUpperCase()) {
+    case "PENDING":
+      return "ממתין";
+    case "PROCESSING":
+      return "בתהליך";
+    case "COMPLETED":
+      return "הושלם";
+    case "CANCELLED":
+      return "בוטל";
+    case "FAILED":
+      return "נכשל";
+    default:
+      return status || "—";
+  }
+}
 
 const STATUS_FILTER_OPTIONS = [
   { value: "all", label: "הכל" },
@@ -389,6 +422,11 @@ export default function ClientDashboardPage() {
   const [bulkWhatsAppSending, setBulkWhatsAppSending] = useState(false);
   const [bulkWhatsAppResult, setBulkWhatsAppResult] = useState("");
   const [bulkWhatsAppError, setBulkWhatsAppError] = useState("");
+  const [broadcastSendMode, setBroadcastSendMode] = useState("now");
+  const [broadcastScheduledAt, setBroadcastScheduledAt] = useState(defaultBroadcastDateTimeLocal);
+  const [scheduledBroadcasts, setScheduledBroadcasts] = useState([]);
+  const [scheduledBroadcastsLoading, setScheduledBroadcastsLoading] = useState(false);
+  const [cancellingScheduleId, setCancellingScheduleId] = useState("");
   const [bulkSkippedNoPhone, setBulkSkippedNoPhone] = useState([]);
   const fileInputRef = useRef(null);
   const vcfInputRef = useRef(null);
@@ -735,6 +773,27 @@ export default function ClientDashboardPage() {
   );
 
   const selectedCount = selectedGuestIds.size;
+
+  const isAdminImpersonating = useMemo(() => {
+    const session = getImpersonationSession();
+    return Boolean(session && String(session.userId) === String(userId));
+  }, [userId, showBulkWhatsApp]);
+
+  const loadScheduledBroadcasts = useCallback(async () => {
+    if (!userId || !getImpersonationSession()) return;
+    setScheduledBroadcastsLoading(true);
+    try {
+      const response = await api.get(`/admin/broadcasts/scheduled/${userId}`);
+      setScheduledBroadcasts(Array.isArray(response.data?.schedules) ? response.data.schedules : []);
+    } catch (loadErr) {
+      console.warn(
+        "[scheduled-broadcast] list failed:",
+        loadErr.response?.data?.message || loadErr.message
+      );
+    } finally {
+      setScheduledBroadcastsLoading(false);
+    }
+  }, [userId]);
   const maxPhoneRounds = Number(eventInfo?.maxPhoneRounds || 0);
   const phoneServiceEnabled = maxPhoneRounds > 0;
   const guestTableColumnCount = phoneServiceEnabled ? 13 : 12;
@@ -821,6 +880,8 @@ export default function ClientDashboardPage() {
     setBulkWhatsAppResult("");
     setBulkWhatsAppError("");
     setBulkSkippedNoPhone([]);
+    setBroadcastSendMode("now");
+    setBroadcastScheduledAt(defaultBroadcastDateTimeLocal());
     if (eventInfo) {
       const next = hydrateInviteCopy(eventInfo);
       const previousDetails = String(eventInfo.eventDetailsParagraph ?? "").trim();
@@ -829,6 +890,28 @@ export default function ClientDashboardPage() {
       }
     }
     setShowBulkWhatsApp(true);
+    const session = getImpersonationSession();
+    if (session && String(session.userId) === String(userId)) {
+      loadScheduledBroadcasts();
+    } else {
+      setScheduledBroadcasts([]);
+    }
+  };
+
+  const cancelScheduledBroadcast = async (scheduleId) => {
+    const confirmed = window.confirm("לבטל את התזמון? השליחה לא תתבצע.");
+    if (!confirmed) return;
+    setCancellingScheduleId(String(scheduleId));
+    setBulkWhatsAppError("");
+    try {
+      await api.post(`/admin/broadcasts/schedule/${scheduleId}/cancel`);
+      await loadScheduledBroadcasts();
+      setBulkWhatsAppResult("התזמון בוטל");
+    } catch (cancelErr) {
+      setBulkWhatsAppError(cancelErr.response?.data?.message || "ביטול התזמון נכשל");
+    } finally {
+      setCancellingScheduleId("");
+    }
   };
 
   const sendBulkWhatsApp = async (event) => {
@@ -848,11 +931,37 @@ export default function ClientDashboardPage() {
     }
     await persistInviteCopy(inviteCopy);
 
+    const scheduleMode = isAdminImpersonating && broadcastSendMode === "schedule";
+    if (scheduleMode) {
+      const scheduledDate = parseDateTimeLocalValue(broadcastScheduledAt);
+      if (!scheduledDate) {
+        setBulkWhatsAppError("שעת התזמון אינה תקינה");
+        return;
+      }
+      if (scheduledDate.getTime() <= Date.now() + 30_000) {
+        setBulkWhatsAppError("יש לבחור מועד שליחה לפחות 30 שניות מהרגע");
+        return;
+      }
+    }
+
     setBulkWhatsAppSending(true);
     setBulkWhatsAppResult("");
     setBulkWhatsAppError("");
     setBulkSkippedNoPhone([]);
     try {
+      if (scheduleMode) {
+        const scheduledDate = parseDateTimeLocalValue(broadcastScheduledAt);
+        const response = await api.post("/admin/broadcasts/schedule", {
+          eventId: userId,
+          paymentCode: paymentCode.trim(),
+          guestIds: [...selectedGuestIds],
+          scheduledAt: scheduledDate.toISOString()
+        });
+        setBulkWhatsAppResult(response.data?.message || "התזמון נשמר בהצלחה");
+        await loadScheduledBroadcasts();
+        return;
+      }
+
       const response = await api.post(`/client/${userId}/whatsapp/bulk-send`, {
         paymentCode: paymentCode.trim(),
         guestIds: [...selectedGuestIds]
@@ -883,7 +992,10 @@ export default function ClientDashboardPage() {
       setBulkSkippedNoPhone(skipped);
       setBulkWhatsAppResult("");
       setBulkWhatsAppError(
-        bulkErr.response?.data?.message || "שליחת ההודעה נכשלה, נא לוודא שמספר המערכת מוגדר כראוי"
+        bulkErr.response?.data?.message ||
+          (scheduleMode
+            ? "שמירת התזמון נכשלה"
+            : "שליחת ההודעה נכשלה, נא לוודא שמספר המערכת מוגדר כראוי")
       );
     } finally {
       setBulkWhatsAppSending(false);
@@ -2791,9 +2903,130 @@ export default function ClientDashboardPage() {
                   נבחרו לשליחה: <strong>{selectedCount}</strong>{" "}
                   {isConferenceEventType(eventInfo?.eventType) ? "משתתפים" : "מוזמנים"}
                 </p>
+
+                {isAdminImpersonating ? (
+                  <div className="il-bulk-schedule-panel" role="group" aria-label="תזמון שליחה (מצב אדמין)">
+                    <p className="il-bulk-schedule-panel__title">תזמון שליחה (זמין במצב אדמין בלבד)</p>
+                    <div className="il-bulk-schedule-mode">
+                      <label className="il-bulk-schedule-mode__option">
+                        <input
+                          type="radio"
+                          name="broadcast-send-mode"
+                          value="now"
+                          checked={broadcastSendMode === "now"}
+                          onChange={() => setBroadcastSendMode("now")}
+                        />
+                        שליחה מיידית
+                      </label>
+                      <label className="il-bulk-schedule-mode__option">
+                        <input
+                          type="radio"
+                          name="broadcast-send-mode"
+                          value="schedule"
+                          checked={broadcastSendMode === "schedule"}
+                          onChange={() => setBroadcastSendMode("schedule")}
+                        />
+                        תזמון שליחה לתאריך ושעה
+                      </label>
+                    </div>
+                    {broadcastSendMode === "schedule" ? (
+                      <div className="il-bulk-schedule-when">
+                        <label className="us-field-label" htmlFor="bulk-broadcast-scheduled-at">
+                          מועד השליחה
+                        </label>
+                        <input
+                          id="bulk-broadcast-scheduled-at"
+                          className="us-admin-field-input"
+                          type="datetime-local"
+                          value={broadcastScheduledAt}
+                          onChange={(changeEvent) => setBroadcastScheduledAt(changeEvent.target.value)}
+                          required
+                        />
+                      </div>
+                    ) : null}
+
+                    <div className="il-bulk-schedule-list">
+                      <div className="il-bulk-schedule-list__head">
+                        <h3>תזמונים ממתינים לאירוע זה</h3>
+                        <button
+                          type="button"
+                          className="us-btn us-btn--ghost"
+                          onClick={loadScheduledBroadcasts}
+                          disabled={scheduledBroadcastsLoading}
+                        >
+                          {scheduledBroadcastsLoading ? "מרענן…" : "רענון"}
+                        </button>
+                      </div>
+                      {scheduledBroadcastsLoading && !scheduledBroadcasts.length ? (
+                        <p className="il-bulk-schedule-empty">טוען תזמונים…</p>
+                      ) : null}
+                      {!scheduledBroadcastsLoading && !scheduledBroadcasts.length ? (
+                        <p className="il-bulk-schedule-empty">אין תזמונים שמורים לאירוע זה</p>
+                      ) : null}
+                      {scheduledBroadcasts.length ? (
+                        <div className="il-bulk-schedule-table-wrap">
+                          <table className="il-bulk-schedule-table">
+                            <thead>
+                              <tr>
+                                <th>מועד</th>
+                                <th>נמענים</th>
+                                <th>תוכן</th>
+                                <th>סטטוס</th>
+                                <th>פעולה</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {scheduledBroadcasts.map((row) => (
+                                <tr key={row.id}>
+                                  <td>
+                                    {row.scheduledAt
+                                      ? new Date(row.scheduledAt).toLocaleString("he-IL")
+                                      : "—"}
+                                  </td>
+                                  <td>{row.recipientCount ?? row.recipientList?.length ?? 0}</td>
+                                  <td className="il-bulk-schedule-preview">
+                                    {row.messagePreview || row.templateId || "הודעת הזמנה"}
+                                  </td>
+                                  <td>
+                                    <span
+                                      className={`il-bulk-schedule-status il-bulk-schedule-status--${String(
+                                        row.status || ""
+                                      ).toLowerCase()}`}
+                                    >
+                                      {formatBroadcastScheduleStatus(row.status)}
+                                    </span>
+                                  </td>
+                                  <td>
+                                    {row.status === "PENDING" ? (
+                                      <button
+                                        type="button"
+                                        className="us-btn us-btn--ghost il-bulk-schedule-cancel"
+                                        disabled={cancellingScheduleId === row.id}
+                                        onClick={() => cancelScheduledBroadcast(row.id)}
+                                      >
+                                        {cancellingScheduleId === row.id ? "מבטל…" : "ביטול תזמון"}
+                                      </button>
+                                    ) : (
+                                      "—"
+                                    )}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
+
                 {bulkWhatsAppError ? (
                   <div className="il-bulk-whatsapp-alert" role="alert">
-                    <strong>שליחה נכשלה</strong>
+                    <strong>
+                      {isAdminImpersonating && broadcastSendMode === "schedule"
+                        ? "תזמון נכשל"
+                        : "שליחה נכשלה"}
+                    </strong>
                     <p>{bulkWhatsAppError}</p>
                   </div>
                 ) : null}
@@ -2814,8 +3047,18 @@ export default function ClientDashboardPage() {
                 ) : null}
               </div>
               <div className="us-toolbar mt-4">
-                <button className="us-btn il-bulk-send-btn" type="submit" disabled={bulkWhatsAppSending || !selectedCount}>
-                  {bulkWhatsAppSending ? "שולח…" : `שליחה ל-${selectedCount} מוזמנים`}
+                <button
+                  className="us-btn il-bulk-send-btn"
+                  type="submit"
+                  disabled={bulkWhatsAppSending || !selectedCount}
+                >
+                  {bulkWhatsAppSending
+                    ? isAdminImpersonating && broadcastSendMode === "schedule"
+                      ? "מתזמן…"
+                      : "שולח…"
+                    : isAdminImpersonating && broadcastSendMode === "schedule"
+                      ? `תזמון שליחה ל-${selectedCount} מוזמנים`
+                      : `שליחה ל-${selectedCount} מוזמנים`}
                 </button>
                 <button className="us-btn" type="button" onClick={() => setShowBulkWhatsApp(false)}>
                   סגירה
