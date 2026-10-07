@@ -2014,6 +2014,15 @@
   color: #475569;
 }
 
+.il-bulk-schedule-template {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #1e3a5f;
+  background: #e8eef7;
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.35rem;
+}
+
 .il-bulk-schedule-preview {
   max-width: 14rem;
   overflow-wrap: anywhere;

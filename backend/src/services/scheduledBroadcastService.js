@@ -3,7 +3,11 @@ import ScheduledBroadcast from "../models/ScheduledBroadcast.js";
 import User from "../models/User.js";
 import { getClientBaseUrl } from "../utils/clientUrl.js";
 import { resolveWhatsAppInviteParagraphs } from "../utils/whatsappInviteCopy.js";
-import { mergeEventWhatsAppInviteSettings } from "../utils/whatsappInviteTemplates.js";
+import {
+  deriveLegacyWhatsAppFlags,
+  isWhatsAppInviteTemplateId,
+  mergeEventWhatsAppInviteSettings
+} from "../utils/whatsappInviteTemplates.js";
 import { recalculateUserSupplierCost } from "../utils/supplierCost.js";
 import {
   findValidActivationCode,
@@ -11,6 +15,33 @@ import {
   reserveActivationCredits,
   sendBulkWhatsApp
 } from "./bulkWhatsAppService.js";
+
+/**
+ * Lock send payload to the template + copy snapshotted when the schedule was created.
+ * Changing the client's current template in admin must NOT rewrite pending jobs.
+ */
+function applyScheduledBroadcastTemplateLock(event, schedule) {
+  const locked = { ...(event || {}) };
+  const templateId = isWhatsAppInviteTemplateId(schedule?.templateId)
+    ? String(schedule.templateId).trim()
+    : locked.whatsappInviteTemplate || "standard";
+  const flags = deriveLegacyWhatsAppFlags(templateId);
+  locked.whatsappInviteTemplate = flags.whatsappInviteTemplate;
+  locked.isPremiumWhatsappButtonsEnabled = flags.isPremiumWhatsappButtonsEnabled;
+  locked.isPremiumWhatsappCardEnabled = flags.isPremiumWhatsappCardEnabled;
+
+  const payload = schedule?.messagePayload || {};
+  if (String(payload.welcomeParagraph || "").trim()) {
+    locked.welcomeParagraph = String(payload.welcomeParagraph).trim();
+  }
+  if (String(payload.eventDetailsParagraph || "").trim()) {
+    locked.eventDetailsParagraph = String(payload.eventDetailsParagraph).trim();
+  }
+  if (String(payload.closingParagraph || "").trim()) {
+    locked.closingParagraph = String(payload.closingParagraph).trim();
+  }
+  return locked;
+}
 
 /**
  * Parse schedule input into a real UTC Date.
@@ -458,9 +489,17 @@ export async function processDueScheduledBroadcasts({ origin } = {}) {
         continue;
       }
 
-      const event = mergeEventWhatsAppInviteSettings(
+      const liveEvent = mergeEventWhatsAppInviteSettings(
         user.event?.toObject ? user.event.toObject() : { ...(user.event || {}) },
         user.deal
+      );
+      // Freeze template + invite copy from schedule creation time (not current admin setting).
+      const event = applyScheduledBroadcastTemplateLock(liveEvent, claimed);
+      console.log(
+        `[scheduledBroadcast] send lock id=${claimed._id} ` +
+          `scheduledTemplate=${claimed.templateId || "-"} ` +
+          `liveTemplate=${liveEvent.whatsappInviteTemplate || "-"} ` +
+          `usingTemplate=${event.whatsappInviteTemplate || "-"}`
       );
 
       const result = await sendBulkWhatsApp({

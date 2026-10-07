@@ -3006,6 +3006,7 @@ export default function ClientDashboardPage() {
                               <tr>
                                 <th>מועד</th>
                                 <th>נמענים</th>
+                                <th>תבנית</th>
                                 <th>תוכן</th>
                                 <th>סטטוס</th>
                                 <th>פעולה</th>
@@ -3020,8 +3021,13 @@ export default function ClientDashboardPage() {
                                       : "—"}
                                   </td>
                                   <td>{row.recipientCount ?? row.recipientList?.length ?? 0}</td>
+                                  <td>
+                                    <code className="il-bulk-schedule-template">
+                                      {row.templateId || "standard"}
+                                    </code>
+                                  </td>
                                   <td className="il-bulk-schedule-preview">
-                                    {row.messagePreview || row.templateId || "הודעת הזמנה"}
+                                    {row.messagePreview || "הודעת הזמנה"}
                                   </td>
                                   <td>
                                     <span
