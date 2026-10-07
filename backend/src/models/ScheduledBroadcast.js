@@ -25,6 +25,8 @@ const scheduledBroadcastSchema = new mongoose.Schema(
       }
     ],
     recipientCount: { type: Number, default: 0 },
+    /** Guests with phone that were reserved on the coupon at schedule time. */
+    billableRecipientCount: { type: Number, default: 0 },
     scheduledAt: { type: Date, required: true, index: true },
     status: {
       type: String,
@@ -33,6 +35,14 @@ const scheduledBroadcastSchema = new mongoose.Schema(
       index: true
     },
     createdByAdminId: { type: String, trim: true, default: "admin" },
+    /** Coupon charged when the schedule was confirmed (before send). */
+    activationCodeId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ActivationCode",
+      default: null
+    },
+    creditsReserved: { type: Number, default: 0 },
+    creditsSettled: { type: Boolean, default: false },
     sentCount: { type: Number, default: 0 },
     lastError: { type: String, trim: true, default: "" },
     resultMessage: { type: String, trim: true, default: "" }

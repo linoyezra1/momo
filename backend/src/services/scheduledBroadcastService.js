@@ -4,7 +4,13 @@ import User from "../models/User.js";
 import { getClientBaseUrl } from "../utils/clientUrl.js";
 import { resolveWhatsAppInviteParagraphs } from "../utils/whatsappInviteCopy.js";
 import { mergeEventWhatsAppInviteSettings } from "../utils/whatsappInviteTemplates.js";
-import { sendBulkWhatsApp } from "./bulkWhatsAppService.js";
+import { recalculateUserSupplierCost } from "../utils/supplierCost.js";
+import {
+  findValidActivationCode,
+  releaseActivationCredits,
+  reserveActivationCredits,
+  sendBulkWhatsApp
+} from "./bulkWhatsAppService.js";
 
 /**
  * Parse schedule input into a real UTC Date.
@@ -98,15 +104,38 @@ export function serializeScheduledBroadcast(doc) {
     },
     recipientList: (raw.recipientList || []).map((id) => String(id)),
     recipientCount: Number(raw.recipientCount || raw.recipientList?.length || 0),
+    billableRecipientCount: Number(raw.billableRecipientCount || 0),
     scheduledAt: raw.scheduledAt ? new Date(raw.scheduledAt).toISOString() : null,
     status: raw.status || "PENDING",
     createdByAdminId: raw.createdByAdminId || "admin",
+    activationCodeId: raw.activationCodeId ? String(raw.activationCodeId) : null,
+    creditsReserved: Number(raw.creditsReserved || 0),
+    creditsSettled: Boolean(raw.creditsSettled),
     sentCount: Number(raw.sentCount || 0),
     lastError: raw.lastError || "",
     resultMessage: raw.resultMessage || "",
     createdAt: raw.createdAt ? new Date(raw.createdAt).toISOString() : null,
     updatedAt: raw.updatedAt ? new Date(raw.updatedAt).toISOString() : null
   };
+}
+
+async function settleUnusedReservedCredits(job, sentCount = 0) {
+  if (!job || job.creditsSettled) return;
+  const reserved = Number(job.creditsReserved || 0);
+  const codeId = job.activationCodeId;
+  if (!codeId || reserved <= 0) {
+    job.creditsSettled = true;
+    return;
+  }
+  const unused = Math.max(0, reserved - Math.max(0, Number(sentCount) || 0));
+  if (unused > 0) {
+    await releaseActivationCredits(codeId, unused);
+    console.log(
+      `[scheduledBroadcast] released unused credits id=${job._id} codeId=${codeId} ` +
+        `reserved=${reserved} sent=${sentCount} unused=${unused}`
+    );
+  }
+  job.creditsSettled = true;
 }
 
 function previewMessageText(messagePayload = {}, templateId = "") {
@@ -181,11 +210,60 @@ export async function createScheduledBroadcast({
     throw err;
   }
 
-  const guests = await Guest.find({ userId, _id: { $in: ids } }).select("_id");
+  const guests = await Guest.find({ userId, _id: { $in: ids } }).select("_id phone fullName");
   if (guests.length !== ids.length) {
     const err = new Error("חלק מהמוזמנים שנבחרו לא נמצאו ברשימה");
     err.status = 400;
     throw err;
+  }
+
+  const billableGuests = guests.filter((guest) => String(guest.phone || "").trim());
+  if (!billableGuests.length) {
+    const err = new Error("לא ניתן לתזמן — לכל המוזמנים שנבחרו חסר מספר טלפון");
+    err.status = 400;
+    throw err;
+  }
+
+  const { codeRecord, error: codeError } = await findValidActivationCode(code);
+  if (codeError === "missing_code") {
+    const err = new Error("יש להזין קוד רכישה");
+    err.status = 400;
+    throw err;
+  }
+  if (codeError === "invalid_code") {
+    const err = new Error("קוד לא תקין, אנא בדוק שוב.");
+    err.status = 404;
+    throw err;
+  }
+  if (codeError === "expired_code") {
+    const err = new Error("קוד הרכישה פג תוקף. פנו למנהל המערכת.");
+    err.status = 400;
+    throw err;
+  }
+
+  const billableCount = billableGuests.length;
+  const reservation = await reserveActivationCredits(codeRecord, billableCount);
+  if (!reservation.ok) {
+    const err = new Error(
+      reservation.message ||
+        `אין מספיק יתרה בקופון. נבחרו ${billableCount} מוזמנים לשליחה, אך במכסה אין מספיק הודעות.`
+    );
+    err.status = 400;
+    throw err;
+  }
+
+  const reservedRecord = reservation.codeRecord;
+  if (!reservedRecord.redeemedByUserId) {
+    try {
+      reservedRecord.redeemedByUserId = user._id;
+      await reservedRecord.save();
+      await recalculateUserSupplierCost(user._id);
+    } catch (saveError) {
+      console.error(
+        "[scheduledBroadcast] Failed to mark code redeemed:",
+        saveError?.message || saveError
+      );
+    }
   }
 
   const event = mergeEventWhatsAppInviteSettings(
@@ -194,26 +272,38 @@ export async function createScheduledBroadcast({
   );
   const paragraphs = resolveWhatsAppInviteParagraphs(event);
 
-  const doc = await ScheduledBroadcast.create({
-    eventId: user._id,
-    templateId: event.whatsappInviteTemplate || "standard",
-    messagePayload: {
-      welcomeParagraph: paragraphs.welcomeParagraph || "",
-      eventDetailsParagraph: paragraphs.eventDetailsParagraph || "",
-      closingParagraph: paragraphs.closingParagraph || "",
-      paymentCode: code
-    },
-    recipientList: guests.map((g) => g._id),
-    recipientCount: guests.length,
-    scheduledAt: when,
-    status: "PENDING",
-    createdByAdminId: String(createdByAdminId || "admin").trim() || "admin"
-  });
+  let doc;
+  try {
+    doc = await ScheduledBroadcast.create({
+      eventId: user._id,
+      templateId: event.whatsappInviteTemplate || "standard",
+      messagePayload: {
+        welcomeParagraph: paragraphs.welcomeParagraph || "",
+        eventDetailsParagraph: paragraphs.eventDetailsParagraph || "",
+        closingParagraph: paragraphs.closingParagraph || "",
+        paymentCode: code
+      },
+      recipientList: guests.map((g) => g._id),
+      recipientCount: guests.length,
+      billableRecipientCount: billableCount,
+      scheduledAt: when,
+      status: "PENDING",
+      createdByAdminId: String(createdByAdminId || "admin").trim() || "admin",
+      activationCodeId: reservedRecord._id,
+      creditsReserved: billableCount,
+      creditsSettled: false
+    });
+  } catch (createError) {
+    await releaseActivationCredits(reservedRecord._id, billableCount);
+    throw createError;
+  }
 
   console.log(
     `[scheduledBroadcast] created id=${doc._id} event=${user._id} ` +
       `status=PENDING scheduledAt=${when.toISOString()} now=${new Date(nowMs).toISOString()} ` +
-      `inMs=${when.getTime() - nowMs} recipients=${guests.length} ` +
+      `inMs=${when.getTime() - nowMs} recipients=${guests.length} billable=${billableCount} ` +
+      `creditsReserved=${billableCount} codeId=${reservedRecord._id} ` +
+      `remainingAfter=${reservedRecord.remaining_credits} ` +
       `rawInput=${JSON.stringify(String(scheduledAt || ""))}`
   );
 
@@ -271,8 +361,14 @@ export async function cancelScheduledBroadcast({ scheduleId, impersonationUserId
     throw err;
   }
 
+  // Refund coupon credits that were charged at schedule confirmation.
+  await settleUnusedReservedCredits(doc, 0);
   doc.status = "CANCELLED";
   await doc.save();
+  console.log(
+    `[scheduledBroadcast] cancelled id=${doc._id} event=${doc.eventId} ` +
+      `refundedCredits=${doc.creditsReserved || 0}`
+  );
   return serializeScheduledBroadcastForUi(doc);
 }
 
@@ -341,6 +437,7 @@ export async function processDueScheduledBroadcasts({ origin } = {}) {
       if (!user) {
         claimed.status = "FAILED";
         claimed.lastError = "הלקוח / האירוע לא נמצא";
+        await settleUnusedReservedCredits(claimed, 0);
         await claimed.save();
         results.push({ id: String(claimed._id), ok: false, reason: "user_not_found" });
         continue;
@@ -355,6 +452,7 @@ export async function processDueScheduledBroadcasts({ origin } = {}) {
       if (!guests.length) {
         claimed.status = "FAILED";
         claimed.lastError = "לא נמצאו מוזמנים לשליחה";
+        await settleUnusedReservedCredits(claimed, 0);
         await claimed.save();
         results.push({ id: String(claimed._id), ok: false, reason: "no_guests" });
         continue;
@@ -370,15 +468,27 @@ export async function processDueScheduledBroadcasts({ origin } = {}) {
         guests,
         event,
         userId: claimed.eventId,
-        origin: baseOrigin
+        origin: baseOrigin,
+        skipCreditReservation: Boolean(claimed.activationCodeId && claimed.creditsReserved > 0),
+        preReservedCodeId: claimed.activationCodeId || null
       });
 
       const body = result?.body || {};
       const ok = result?.status < 400 && body.success !== false;
+      const sentCount = Number(body.sentCount || 0);
       claimed.status = ok ? "COMPLETED" : "FAILED";
-      claimed.sentCount = Number(body.sentCount || 0);
+      claimed.sentCount = sentCount;
       claimed.resultMessage = String(body.message || "").trim();
       claimed.lastError = ok ? "" : String(body.message || "שליחה נכשלה").trim();
+
+      // If bulk ran the send loop it already refunded failures (creditsProcessed).
+      // Early exits (no cover / Twilio / etc.) leave pre-reserved credits — refund all.
+      if (body.creditsProcessed) {
+        claimed.creditsSettled = true;
+      } else {
+        await settleUnusedReservedCredits(claimed, 0);
+      }
+
       await claimed.save();
 
       results.push({
@@ -394,6 +504,7 @@ export async function processDueScheduledBroadcasts({ origin } = {}) {
     } catch (error) {
       claimed.status = "FAILED";
       claimed.lastError = error?.message || "שגיאה בעיבוד תזמון";
+      await settleUnusedReservedCredits(claimed, 0).catch(() => {});
       await claimed.save().catch(() => {});
       results.push({ id: String(claimed._id), ok: false, reason: "exception" });
       console.error(

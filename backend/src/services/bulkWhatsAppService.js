@@ -360,7 +360,10 @@ export async function sendBulkWhatsApp({
   guests,
   event,
   userId,
-  origin
+  origin,
+  /** Credits were already reserved (e.g. scheduled broadcast confirmation). */
+  skipCreditReservation = false,
+  preReservedCodeId = null
 }) {
   try {
     if (!isTwilioConfigured()) {
@@ -377,15 +380,30 @@ export async function sendBulkWhatsApp({
       return { status: 400, body: { success: false, message: "יש לבחור לפחות מוזמן אחד לשליחה" } };
     }
 
-    const { codeRecord, error: codeError } = await findValidCodeRecord(paymentCode);
-    if (codeError === "missing_code") {
-      return { status: 400, body: { success: false, message: "יש להזין קוד רכישה" } };
-    }
-    if (codeError === "invalid_code") {
-      return { status: 404, body: { success: false, message: "קוד לא תקין, אנא בדוק שוב." } };
-    }
-    if (codeError === "expired_code") {
-      return { status: 400, body: { success: false, message: "קוד הרכישה פג תוקף. פנו למנהל המערכת." } };
+    let codeRecord = null;
+    if (skipCreditReservation && preReservedCodeId) {
+      codeRecord = await ActivationCode.findById(preReservedCodeId);
+      if (!codeRecord) {
+        return {
+          status: 400,
+          body: {
+            success: false,
+            message: "קופון התזמון לא נמצא — לא ניתן לשלוח ללא מכסה שמורה"
+          }
+        };
+      }
+    } else {
+      const { codeRecord: found, error: codeError } = await findValidCodeRecord(paymentCode);
+      if (codeError === "missing_code") {
+        return { status: 400, body: { success: false, message: "יש להזין קוד רכישה" } };
+      }
+      if (codeError === "invalid_code") {
+        return { status: 404, body: { success: false, message: "קוד לא תקין, אנא בדוק שוב." } };
+      }
+      if (codeError === "expired_code") {
+        return { status: 400, body: { success: false, message: "קוד הרכישה פג תוקף. פנו למנהל המערכת." } };
+      }
+      codeRecord = found;
     }
 
     const namedGuests = guests
@@ -446,12 +464,19 @@ export async function sendBulkWhatsApp({
       };
     }
 
-    const reservation = await reserveCredits(codeRecord, requestedCount);
-    if (!reservation.ok) {
-      return { status: 400, body: { success: false, message: reservation.message } };
+    let reservedRecord = codeRecord;
+    if (!skipCreditReservation) {
+      const reservation = await reserveCredits(codeRecord, requestedCount);
+      if (!reservation.ok) {
+        return { status: 400, body: { success: false, message: reservation.message } };
+      }
+      reservedRecord = reservation.codeRecord;
+    } else {
+      console.log(
+        `[Twilio] skipCreditReservation=true codeId=${codeRecord._id} ` +
+          `requestedCount=${requestedCount} remaining=${codeRecord.remaining_credits}`
+      );
     }
-
-    const reservedRecord = reservation.codeRecord;
     const defaults = buildWhatsAppTemplateDefaults({
       event,
       eventId: userId,
@@ -567,7 +592,8 @@ export async function sendBulkWhatsApp({
           failedCount,
           skippedNoPhoneCount: skippedNoPhone.length,
           skippedNoPhone,
-          twilioCode: primaryError?.code || null
+          twilioCode: primaryError?.code || null,
+          creditsProcessed: true
         }
       };
     }
@@ -600,7 +626,8 @@ export async function sendBulkWhatsApp({
           failedCount,
           remaining,
           skippedNoPhoneCount: skippedNoPhone.length,
-          skippedNoPhone
+          skippedNoPhone,
+          creditsProcessed: true
         }
       };
     }
@@ -613,7 +640,8 @@ export async function sendBulkWhatsApp({
         sentCount,
         remaining,
         skippedNoPhoneCount: skippedNoPhone.length,
-        skippedNoPhone
+        skippedNoPhone,
+        creditsProcessed: true
       }
     };
   } catch (unexpectedError) {

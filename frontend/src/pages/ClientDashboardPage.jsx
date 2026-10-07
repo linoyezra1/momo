@@ -920,8 +920,13 @@ export default function ClientDashboardPage() {
       setBulkWhatsAppError("יש לבחור לפחות מוזמן אחד מהטבלה");
       return;
     }
+    const scheduleMode = isAdminImpersonating && broadcastSendMode === "schedule";
     if (!paymentCode.trim()) {
-      setBulkWhatsAppError("יש להזין קוד רכישה");
+      setBulkWhatsAppError(
+        scheduleMode
+          ? "חובה לבחור קופון לפני אישור התזמון — בחרו תאריך, שעה וקופון"
+          : "יש להזין קוד רכישה / לבחור קופון"
+      );
       return;
     }
 
@@ -931,7 +936,6 @@ export default function ClientDashboardPage() {
     }
     await persistInviteCopy(inviteCopy);
 
-    const scheduleMode = isAdminImpersonating && broadcastSendMode === "schedule";
     if (scheduleMode) {
       const scheduledDate = parseDateTimeLocalValue(broadcastScheduledAt);
       if (!scheduledDate) {
@@ -2866,18 +2870,20 @@ export default function ClientDashboardPage() {
                 </div>
               ) : null}
               <div className="mt-4 space-y-4">
-                <CouponCodeField
-                  userId={userId}
-                  value={paymentCode}
-                  onChange={setPaymentCode}
-                  coupons={whatsappQuotas}
-                  label="קוד רכישה"
-                  hint="הזינו את הקוד שקיבלתם מהמנהל או בחרו מקופון פעיל"
-                  placeholder="הזינו את הקוד שקיבלתם מהמנהל"
-                  id="bulk-payment-code"
-                  required
-                  autoSelectFirst
-                />
+                {!(isAdminImpersonating && broadcastSendMode === "schedule") ? (
+                  <CouponCodeField
+                    userId={userId}
+                    value={paymentCode}
+                    onChange={setPaymentCode}
+                    coupons={whatsappQuotas}
+                    label="קוד רכישה / קופון"
+                    hint="הזינו את הקוד שקיבלתם מהמנהל או בחרו מקופון פעיל"
+                    placeholder="הזינו את הקוד שקיבלתם מהמנהל"
+                    id="bulk-payment-code"
+                    required
+                    autoSelectFirst
+                  />
+                ) : null}
                 <div>
                   <div className="il-bulk-whatsapp-editor-head">
                     <label className="us-field-label" htmlFor="wa-welcome-paragraph">
@@ -2935,18 +2941,43 @@ export default function ClientDashboardPage() {
                       </label>
                     </div>
                     {broadcastSendMode === "schedule" ? (
-                      <div className="il-bulk-schedule-when">
-                        <label className="us-field-label" htmlFor="bulk-broadcast-scheduled-at">
-                          מועד השליחה
-                        </label>
-                        <input
-                          id="bulk-broadcast-scheduled-at"
-                          className="us-admin-field-input"
-                          type="datetime-local"
-                          value={broadcastScheduledAt}
-                          onChange={(changeEvent) => setBroadcastScheduledAt(changeEvent.target.value)}
-                          required
-                        />
+                      <div className="il-bulk-schedule-fields">
+                        <div className="il-bulk-schedule-when">
+                          <label className="us-field-label" htmlFor="bulk-broadcast-scheduled-at">
+                            מועד השליחה (תאריך ושעה)
+                          </label>
+                          <input
+                            id="bulk-broadcast-scheduled-at"
+                            className="us-admin-field-input"
+                            type="datetime-local"
+                            value={broadcastScheduledAt}
+                            onChange={(changeEvent) => setBroadcastScheduledAt(changeEvent.target.value)}
+                            required
+                          />
+                        </div>
+                        <div className="il-bulk-schedule-coupon">
+                          <p className="il-bulk-schedule-coupon__notice" role="note">
+                            חובה לבחור קופון לפני אישור התזמון. הקופון יחויב מיד באישור התזמון
+                            (לא רק בשעת השליחה).
+                          </p>
+                          <CouponCodeField
+                            userId={userId}
+                            value={paymentCode}
+                            onChange={setPaymentCode}
+                            coupons={whatsappQuotas}
+                            label="קופון לתזמון"
+                            hint="בחרו קופון פעיל עם יתרה מספקת למספר המוזמנים שנבחרו"
+                            placeholder="בחרו או הזינו קוד קופון"
+                            id="bulk-schedule-payment-code"
+                            required
+                            autoSelectFirst
+                          />
+                          {!String(paymentCode || "").trim() ? (
+                            <p className="il-bulk-schedule-coupon__missing" role="status">
+                              לא נבחר קופון — לא ניתן לאשר תזמון בלי קופון.
+                            </p>
+                          ) : null}
+                        </div>
                       </div>
                     ) : null}
 
@@ -3055,14 +3086,27 @@ export default function ClientDashboardPage() {
                 <button
                   className="us-btn il-bulk-send-btn"
                   type="submit"
-                  disabled={bulkWhatsAppSending || !selectedCount}
+                  disabled={
+                    bulkWhatsAppSending ||
+                    !selectedCount ||
+                    (isAdminImpersonating &&
+                      broadcastSendMode === "schedule" &&
+                      !String(paymentCode || "").trim())
+                  }
+                  title={
+                    isAdminImpersonating &&
+                    broadcastSendMode === "schedule" &&
+                    !String(paymentCode || "").trim()
+                      ? "יש לבחור קופון לפני אישור התזמון"
+                      : undefined
+                  }
                 >
                   {bulkWhatsAppSending
                     ? isAdminImpersonating && broadcastSendMode === "schedule"
                       ? "מתזמן…"
                       : "שולח…"
                     : isAdminImpersonating && broadcastSendMode === "schedule"
-                      ? `תזמון שליחה ל-${selectedCount} מוזמנים`
+                      ? `אישור תזמון ל-${selectedCount} מוזמנים (עם קופון)`
                       : `שליחה ל-${selectedCount} מוזמנים`}
                 </button>
                 <button className="us-btn" type="button" onClick={() => setShowBulkWhatsApp(false)}>
