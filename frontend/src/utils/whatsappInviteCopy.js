@@ -1,5 +1,10 @@
 ﻿import { formatIsraeliDate, formatIsraeliWeekdayLine } from "./dateFormat.js";
-import { getDefaultWelcomeParagraph, isCoupleEventType, isConferenceEventType } from "./eventTypeWording.js";
+import {
+  getCeremonyLabel,
+  getDefaultWelcomeParagraph,
+  isCoupleEventType,
+  isConferenceEventType
+} from "./eventTypeWording.js";
 
 export const DEFAULT_WELCOME_PLACEHOLDER = "הקלידו כאן פתיחה אישית...";
 export const DEFAULT_EVENT_DETAILS_PLACEHOLDER =
@@ -87,13 +92,44 @@ function buildVenueDetailsLine(event = {}) {
   if (venue) parts.push(`באולמי "${venue}"`);
   if (address) parts.push(`בכתובת ${address}`);
   if (isCouple) {
-    const reception = receptionTime || eventTime;
-    if (reception) parts.push(`קבלת הפנים בשעה ${reception}`);
+    if (receptionTime) parts.push(`קבלת הפנים בשעה ${receptionTime}`);
+    if (eventTime) parts.push(`${getCeremonyLabel(event?.eventType)} בשעה ${eventTime}`);
   } else if (eventTime) {
     parts.push(`בשעה ${eventTime}`);
   }
 
   return parts.join(" ").trim();
+}
+
+/** Line-broken event block for the per-guest WhatsApp icon only. */
+export function buildIconWhatsAppDetailLines(event = {}) {
+  const dateLine = buildEventDateLine(event);
+  const venue = String(event?.venueName || "").trim();
+  const street = String(event?.streetAndNumber || "").trim();
+  const city = String(event?.city || "").trim();
+  const locationAddress = String(event?.locationAddress || "").trim();
+  const eventTime = String(event?.eventTime || "").trim();
+  const receptionTime = String(event?.receptionTime || "").trim();
+  const address = locationAddress || [street, city].filter(Boolean).join(", ");
+  const isCouple = isCoupleEventType(event?.eventType);
+  const isConference = isConferenceEventType(event?.eventType);
+
+  const lines = [];
+  if (dateLine) lines.push(`האירוע יתקיים ב${dateLine}`);
+  if (isConference) {
+    if (address) lines.push(`בכתובת ${address}`);
+    if (eventTime) lines.push(`שעת התכנסות ${eventTime}`);
+    return lines;
+  }
+  if (venue) lines.push(`באולמי "${venue}"`);
+  if (address) lines.push(`בכתובת ${address}`);
+  if (isCouple) {
+    if (receptionTime) lines.push(`קבלת הפנים בשעה ${receptionTime}`);
+    if (eventTime) lines.push(`${getCeremonyLabel(event?.eventType)} בשעה ${eventTime}`);
+  } else if (eventTime) {
+    lines.push(`בשעה ${eventTime}`);
+  }
+  return lines;
 }
 
 /**

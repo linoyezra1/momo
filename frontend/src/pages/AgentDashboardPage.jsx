@@ -48,7 +48,6 @@ function formatMoney(value) {
 
 export default function AgentDashboardPage() {
   const [clients, setClients] = useState([]);
-  const [supplierCostGrandTotal, setSupplierCostGrandTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -62,7 +61,6 @@ export default function AgentDashboardPage() {
       .get("/agent/clients")
       .then((response) => {
         setClients(response.data?.clients || []);
-        setSupplierCostGrandTotal(Number(response.data?.supplierCostGrandTotal) || 0);
       })
       .catch((loadError) => setError(loadError.response?.data?.message || "טעינת לקוחות נכשלה"))
       .finally(() => setLoading(false));
@@ -80,8 +78,6 @@ export default function AgentDashboardPage() {
       }, 0),
     [clients]
   );
-  const netProfit = Math.round((totalRevenue - supplierCostGrandTotal) * 100) / 100;
-
   useEffect(() => {
     return () => {
       if (form.coverPreviewUrl?.startsWith("blob:")) {
@@ -241,21 +237,13 @@ export default function AgentDashboardPage() {
     <div className="agent-container agent-container--wide">
       <header className="agent-header">
         <h1>דשבורד עסקי</h1>
-        <p>ניהול לקוחות, חבילות ותשלום לספק לפי קופונים</p>
+        <p>ניהול לקוחות וחבילות</p>
       </header>
 
       <div className="agent-dash-summary">
         <div className="agent-dash-summary__card">
           <span>סה״כ הכנסות</span>
           <strong>{formatMoney(totalRevenue)}</strong>
-        </div>
-        <div className="agent-dash-summary__card">
-          <span>סה״כ לתשלום לספק</span>
-          <strong>{formatMoney(supplierCostGrandTotal)}</strong>
-        </div>
-        <div className="agent-dash-summary__card agent-dash-summary__card--profit">
-          <span>סה״כ רווח נקי</span>
-          <strong>{formatMoney(netProfit)}</strong>
         </div>
         <div className="agent-dash-summary__card">
           <span>לקוחות פעילים</span>
@@ -612,21 +600,15 @@ export default function AgentDashboardPage() {
                   <dt>פירוט חבילה</dt>
                   <dd>{client.packageDescription || "—"}</dd>
                 </div>
-                <div>
-                  <dt>סה״כ לספק</dt>
-                  <dd>{formatMoney(client.supplierCost)}</dd>
-                </div>
               </dl>
               {client.coupons?.length ? (
                 <div className="agent-coupon-list">
-                  <h4>קופונים ותשלום לספק</h4>
+                  <h4>קופונים</h4>
                   <ul>
                     {client.coupons.map((coupon) => (
                       <li key={coupon.codeId || coupon.code}>
                         <span className="agent-coupon-list__code">{coupon.code}</span>
-                        <span>
-                          {coupon.total_credits} הודעות · {formatMoney(coupon.supplierCost)} לספק
-                        </span>
+                        <span>{coupon.total_credits} הודעות</span>
                       </li>
                     ))}
                   </ul>

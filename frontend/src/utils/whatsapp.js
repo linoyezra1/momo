@@ -4,7 +4,8 @@ import { normalizeIsraeliPhone } from "./phoneNormalize.js";
 import {
   resolveInviteCopyDefaults,
   getRsvpLinkPrompt,
-  toTemplateEventDetailsVariable
+  toTemplateEventDetailsVariable,
+  buildIconWhatsAppDetailLines
 } from "./whatsappInviteCopy.js";
 import {
   resolveEventWhatsAppInviteTemplateId,
@@ -128,9 +129,37 @@ function stripEmojisFromText(text) {
     .trim();
 }
 
-/** Plain-text invite for manual wa.me / whatsapp:// links (no emojis). */
+const ICON_WEDDING_OPENING = "מתרגשים ושמחים להזמין אתכם לחתונה שלנו!";
+
+/**
+ * Manual WhatsApp icon (wa.me) — live venue/times, line breaks, and invite link.
+ * Wedding opening is fixed and does not use "משפחה וחברים יקרים…".
+ */
 export function buildDirectGuestWhatsAppMessage({ event, eventId, origin, guestName }) {
-  return stripEmojisFromText(buildGuestWhatsAppMessage({ event, eventId, origin, guestName }));
+  const publicLink = buildPublicEventLink({ eventId, origin });
+  const { welcomeParagraph, closingParagraph } = resolveInviteCopyDefaults(event);
+  const name = String(guestName || "").trim() || "אורח/ת יקר/ה";
+  const isWedding = String(event?.eventType || "").trim() === "חתונה";
+  const opening = isWedding ? ICON_WEDDING_OPENING : welcomeParagraph;
+  const detailLines = buildIconWhatsAppDetailLines(event);
+
+  return stripEmojisFromText(
+    [
+      `שלום ${name},`,
+      "",
+      opening,
+      "",
+      ...detailLines,
+      "",
+      "לאישור הגעה וצפייה בהזמנה:",
+      publicLink,
+      "",
+      closingParagraph
+    ]
+      .filter((line, index, arr) => line !== "" || arr[index - 1] !== "")
+      .join("\n")
+      .trim()
+  );
 }
 
 export function buildGuestWhatsAppMessage({ event, eventId, origin, guestName }) {

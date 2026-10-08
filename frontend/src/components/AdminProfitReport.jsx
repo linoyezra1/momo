@@ -92,7 +92,7 @@ export default function AdminProfitReport() {
       </div>
       <div className="us-admin-card-body">
         <p className="us-admin-field-hint" style={{ marginTop: 0 }}>
-          לוח מכוונים: הכנסות לפי חודשי תשלום, עלויות, ומקורות שיווק.
+          לוח מכוונים: הכנסות לפי חודשי תשלום, עלויות Twilio/Meta, ומקורות שיווק.
         </p>
         {error ? <p className="us-admin-message us-admin-message--error">{error}</p> : null}
 
@@ -100,10 +100,6 @@ export default function AdminProfitReport() {
           <div className="us-admin-stat-card">
             <h3>הכנסות</h3>
             <p>{formatIls(summary.revenueIls)}</p>
-          </div>
-          <div className="us-admin-stat-card">
-            <h3>עלות ספקים</h3>
-            <p>{formatIls(summary.supplierCostIls)}</p>
           </div>
           <div className="us-admin-stat-card">
             <h3>Twilio (₪)</h3>
@@ -165,7 +161,6 @@ export default function AdminProfitReport() {
                   <th>מקור</th>
                   <th>לקוחות</th>
                   <th>הכנסות</th>
-                  <th>עלות ספק</th>
                   <th>Twilio (₪)</th>
                   <th>רווח</th>
                 </tr>
@@ -176,7 +171,6 @@ export default function AdminProfitReport() {
                     <td>{row.source || "לא צוין"}</td>
                     <td>{row.clientCount}</td>
                     <td>{formatIls(row.revenue)}</td>
-                    <td>{formatIls(row.supplierCost)}</td>
                     <td>{formatIls(row.twilioCostIls)}</td>
                     <td>{formatIls(row.profit)}</td>
                   </tr>

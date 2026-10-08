@@ -10,7 +10,7 @@ import VenueAutocomplete from "../components/VenueAutocomplete.jsx";
 import { clearAdminToken } from "../utils/adminAuth";
 import { setImpersonationSession } from "../utils/impersonation";
 import { buildClientOnboardingMessage } from "../utils/clientOnboardingMessage";
-import { formatIsraeliDate } from "../utils/dateFormat";
+import { formatIsraeliDate, parseIsoDateParts } from "../utils/dateFormat";
 import { getCeremonyLabel, isCoupleEventType, isConferenceEventType } from "../utils/eventTypeWording";
 import { getEventCoverSrc, uploadEventCover } from "../utils/eventCover.js";
 import {
@@ -22,6 +22,7 @@ import "../us/admin-portal.css";
 
 const ADMIN_NAV_ITEMS = [
   { id: "clients", label: "לקוחות" },
+  { id: "archive", label: "ארכיון" },
   { id: "agents", label: "סוכנים" },
   { id: "managers", label: "מנהלי אירוע" },
   { id: "failures", label: "דוחות כשלים" },
@@ -79,7 +80,6 @@ function defaultDealDraft() {
     adminNotes: "",
     packageDescription: "",
     packagePrice: "",
-    supplierCost: "",
     couponCode: "",
     agentNotes: ""
   };
@@ -114,8 +114,6 @@ function dealDraftFromClient(client) {
     packageDescription: deal.packageDescription || "",
     packagePrice:
       deal.packagePrice === 0 || deal.packagePrice == null ? "" : String(deal.packagePrice),
-    supplierCost:
-      deal.supplierCost === 0 || deal.supplierCost == null ? "" : String(deal.supplierCost),
     couponCode: deal.couponCode || "",
     agentNotes: deal.agentNotes || ""
   };
@@ -231,6 +229,34 @@ function clientMatchesSearch(client, rawQuery) {
   return haystack.includes(query);
 }
 
+function todayIsoLocal() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+/** Event date strictly before today → archive. No date stays in active clients. */
+function isClientArchived(client, todayIso = todayIsoLocal()) {
+  const parts = parseIsoDateParts(client?.event?.eventDate);
+  if (!parts) return false;
+  const iso = `${parts.year}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`;
+  return iso < todayIso;
+}
+
+function clientMatchesEventDateRange(client, dateFrom, dateTo) {
+  const from = String(dateFrom || "").trim();
+  const to = String(dateTo || "").trim();
+  if (!from && !to) return true;
+  const parts = parseIsoDateParts(client?.event?.eventDate);
+  if (!parts) return false;
+  const iso = `${parts.year}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`;
+  if (from && iso < from) return false;
+  if (to && iso > to) return false;
+  return true;
+}
+
 function formatCreatedAt(value) {
   if (!value) return "—";
   return new Date(value).toLocaleString("he-IL", {
@@ -261,6 +287,8 @@ export default function AdminPage() {
   const [form, setForm] = useState(initialForm);
   const [clients, setClients] = useState([]);
   const [clientSearch, setClientSearch] = useState("");
+  const [clientEventDateFrom, setClientEventDateFrom] = useState("");
+  const [clientEventDateTo, setClientEventDateTo] = useState("");
   const [selectedClientId, setSelectedClientId] = useState("");
   const [showCreateWizard, setShowCreateWizard] = useState(false);
   const [wizardMode, setWizardMode] = useState("create");
@@ -332,10 +360,36 @@ export default function AdminPage() {
     () => clients.find((client) => String(client.userId) === String(selectedClientId)) || null,
     [clients, selectedClientId]
   );
-  const filteredClients = useMemo(
-    () => clients.filter((client) => clientMatchesSearch(client, clientSearch)),
-    [clients, clientSearch]
+  const todayIso = useMemo(() => todayIsoLocal(), []);
+
+  const activeClients = useMemo(
+    () => clients.filter((client) => !isClientArchived(client, todayIso)),
+    [clients, todayIso]
   );
+
+  const archivedClients = useMemo(
+    () => clients.filter((client) => isClientArchived(client, todayIso)),
+    [clients, todayIso]
+  );
+
+  const filteredClients = useMemo(
+    () =>
+      activeClients.filter(
+        (client) =>
+          clientMatchesSearch(client, clientSearch) &&
+          clientMatchesEventDateRange(client, clientEventDateFrom, clientEventDateTo)
+      ),
+    [activeClients, clientSearch, clientEventDateFrom, clientEventDateTo]
+  );
+
+  const filteredArchiveClients = useMemo(
+    () => archivedClients.filter((client) => clientMatchesSearch(client, clientSearch)),
+    [archivedClients, clientSearch]
+  );
+
+  const clientsTableRows = adminSection === "archive" ? filteredArchiveClients : filteredClients;
+  const clientsTableSourceCount =
+    adminSection === "archive" ? archivedClients.length : activeClients.length;
   const shareTimeLine = createdEvent
     ? isCoupleEventType(createdEvent.eventType)
       ? [
@@ -1219,9 +1273,17 @@ ${publicEventUrl}`
                 type="button"
                 className={`us-admin-sidenav__link${adminSection === item.id ? " is-active" : ""}`}
                 aria-current={adminSection === item.id ? "page" : undefined}
-                onClick={() => setAdminSection(item.id)}
+                onClick={() => {
+                  setAdminSection(item.id);
+                  if (item.id === "archive" || item.id === "clients") {
+                    setSelectedClientId("");
+                  }
+                }}
               >
                 {item.label}
+                {item.id === "archive" && archivedClients.length
+                  ? ` (${archivedClients.length})`
+                  : ""}
               </button>
             ))}
           </nav>
@@ -1238,14 +1300,16 @@ ${publicEventUrl}`
           </h1>
           <p>
             {adminSection === "clients"
-              ? "דשבורד ראשי · ניהול לקוחות, הזמנות וקישורים"
-              : adminSection === "agents"
-                ? "סיכום לקוחות לפי סוכן וחשבונות סוכנים"
-                : adminSection === "managers"
-                  ? "פתיחה וניהול חשבונות מנהלי אירוע (/manager)"
-                  : adminSection === "failures"
-                    ? "כל כשלי הוואטסאפ במערכת, עם סינון לפי לקוח"
-                    : "רווח מול הפסד ומקורות שיווק"}
+              ? "דשבורד ראשי · ניהול לקוחות פעילים, הזמנות וקישורים"
+              : adminSection === "archive"
+                ? "לקוחות שתאריך האירוע שלהם כבר עבר"
+                : adminSection === "agents"
+                  ? "סיכום לקוחות לפי סוכן וחשבונות סוכנים"
+                  : adminSection === "managers"
+                    ? "פתיחה וניהול חשבונות מנהלי אירוע (/manager)"
+                    : adminSection === "failures"
+                      ? "כל כשלי הוואטסאפ במערכת, עם סינון לפי לקוח"
+                      : "רווח מול הפסד ומקורות שיווק"}
           </p>
         </header>
 
@@ -1284,7 +1348,10 @@ ${publicEventUrl}`
           </div>
           <div className="us-admin-stat-card">
             <h3>לקוחות פעילים</h3>
-            <p>{clients.length}</p>
+            <p>{activeClients.length}</p>
+            {archivedClients.length ? (
+              <span className="us-admin-stat-note">{archivedClients.length} בארכיון</span>
+            ) : null}
           </div>
           <div className="us-admin-stat-card">
             <h3>פניות חדשות</h3>
@@ -1365,29 +1432,75 @@ ${publicEventUrl}`
             ) : null}
           </div>
         </section>
+          </>
+        ) : null}
 
+        {adminSection === "clients" || adminSection === "archive" ? (
+          <>
         <section className="us-admin-clients-stack">
           <div className="us-admin-card">
-            <h2 className="us-admin-card-title">לקוחות</h2>
+            <h2 className="us-admin-card-title">
+              {adminSection === "archive" ? "ארכיון לקוחות" : "לקוחות"}
+            </h2>
             <div className="us-admin-card-body">
-              <label className="us-admin-client-search">
-                <span className="us-admin-sr-only">חיפוש לקוחות</span>
-                <input
-                  type="search"
-                  className="us-admin-field-input"
-                  placeholder="חיפוש מהיר: שם, תאריך, טלפון, משתמש…"
-                  value={clientSearch}
-                  onChange={(event) => setClientSearch(event.target.value)}
-                  aria-label="חיפוש לקוחות"
-                />
-              </label>
+              <div className="us-admin-client-filters">
+                <label className="us-admin-client-search">
+                  <span className="us-admin-sr-only">חיפוש לקוחות</span>
+                  <input
+                    type="search"
+                    className="us-admin-field-input"
+                    placeholder="חיפוש מהיר: שם, תאריך, טלפון, משתמש…"
+                    value={clientSearch}
+                    onChange={(event) => setClientSearch(event.target.value)}
+                    aria-label="חיפוש לקוחות"
+                  />
+                </label>
+                {adminSection === "clients" ? (
+                  <div className="us-admin-client-date-filters" role="group" aria-label="סינון לפי תאריך חתונה">
+                    <label className="us-admin-field">
+                      מתאריך
+                      <input
+                        className="us-admin-field-input"
+                        type="date"
+                        value={clientEventDateFrom}
+                        onChange={(event) => setClientEventDateFrom(event.target.value)}
+                      />
+                    </label>
+                    <label className="us-admin-field">
+                      עד תאריך
+                      <input
+                        className="us-admin-field-input"
+                        type="date"
+                        value={clientEventDateTo}
+                        onChange={(event) => setClientEventDateTo(event.target.value)}
+                      />
+                    </label>
+                    {clientEventDateFrom || clientEventDateTo ? (
+                      <button
+                        className="us-admin-btn us-admin-btn--xs"
+                        type="button"
+                        onClick={() => {
+                          setClientEventDateFrom("");
+                          setClientEventDateTo("");
+                        }}
+                      >
+                        נקה תאריכים
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
               {loadingClients ? <p className="us-admin-empty">טוען רשימה…</p> : null}
               {clientsError ? <p className="us-admin-message us-admin-message--error">{clientsError}</p> : null}
-              {!loadingClients && !clients.length ? <p className="us-admin-empty">אין לקוחות להצגה</p> : null}
-              {!loadingClients && clients.length && !filteredClients.length ? (
-                <p className="us-admin-empty">לא נמצאו לקוחות התואמים לחיפוש</p>
+              {!loadingClients && !clientsTableSourceCount ? (
+                <p className="us-admin-empty">
+                  {adminSection === "archive" ? "אין לקוחות בארכיון" : "אין לקוחות להצגה"}
+                </p>
               ) : null}
-              {filteredClients.length ? (
+              {!loadingClients && clientsTableSourceCount && !clientsTableRows.length ? (
+                <p className="us-admin-empty">לא נמצאו לקוחות התואמים לסינון</p>
+              ) : null}
+              {clientsTableRows.length ? (
                 <div className="us-admin-table-wrap">
                   <table className="us-admin-clients-table">
                     <thead>
@@ -1402,7 +1515,7 @@ ${publicEventUrl}`
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredClients.map((client) => (
+                      {clientsTableRows.map((client) => (
                         <tr
                           key={client.userId}
                           className={

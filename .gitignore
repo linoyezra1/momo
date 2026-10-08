@@ -14,3 +14,8 @@ pnpm-debug.log*
 
 .DS_Store
 Thumbs.db
+
+# Local Twilio CSV exports / unmatched dumps (PII)
+backend/data/sms-log*.csv
+backend/data/sms-log-unmatched-*.json
+sms-log-*.csv

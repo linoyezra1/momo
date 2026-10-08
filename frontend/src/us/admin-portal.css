@@ -416,13 +416,31 @@
   overflow-y: auto;
 }
 
+.us-admin-client-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
 .us-admin-client-search {
   display: block;
-  margin-bottom: 0.75rem;
 }
 
 .us-admin-client-search .us-admin-field-input {
   width: 100%;
+}
+
+.us-admin-client-date-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  align-items: flex-end;
+}
+
+.us-admin-client-date-filters .us-admin-field {
+  margin: 0;
+  min-width: 10rem;
 }
 
 .us-admin-sr-only {
