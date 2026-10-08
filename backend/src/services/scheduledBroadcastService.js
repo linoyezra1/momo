@@ -8,7 +8,6 @@ import {
   isWhatsAppInviteTemplateId,
   mergeEventWhatsAppInviteSettings
 } from "../utils/whatsappInviteTemplates.js";
-import { recalculateUserSupplierCost } from "../utils/supplierCost.js";
 import {
   findValidActivationCode,
   releaseActivationCredits,
@@ -288,7 +287,6 @@ export async function createScheduledBroadcast({
     try {
       reservedRecord.redeemedByUserId = user._id;
       await reservedRecord.save();
-      await recalculateUserSupplierCost(user._id);
     } catch (saveError) {
       console.error(
         "[scheduledBroadcast] Failed to mark code redeemed:",

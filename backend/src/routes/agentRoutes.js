@@ -28,11 +28,7 @@ import {
   serializeDeal
 } from "../utils/dealPayload.js";
 import { normalizePaymentPayload } from "../utils/eventPayload.js";
-import {
-  listClientCouponsWithSupplierCost,
-  resolveSupplierCostPerMessage,
-  sumSupplierCostFromCoupons
-} from "../utils/supplierCost.js";
+import ActivationCode from "../models/ActivationCode.js";
 import { coverUpload } from "../middleware/coverUpload.js";
 import { isCoverStorageConfigured } from "../services/coverStorage.js";
 import { clearEventCover, uploadAndAttachCover } from "../utils/eventCover.js";
@@ -97,13 +93,31 @@ async function findAgentAccessibleUser(userId, agent, select) {
   return { user };
 }
 
+function mapAgentCoupon(item) {
+  return {
+    codeId: item._id,
+    code: item.code,
+    total_credits: Number(item.total_credits) || 0,
+    remaining_credits: Number(item.remaining_credits) || 0,
+    isActive: item.isActive !== false,
+    note: item.note || "",
+    createdAt: item.createdAt
+  };
+}
+
+async function listClientCoupons(userId) {
+  const allCoupons = await ActivationCode.find({ redeemedByUserId: userId })
+    .sort({ createdAt: -1 })
+    .select("code total_credits remaining_credits isActive note createdAt");
+  return allCoupons.map(mapAgentCoupon);
+}
+
 function serializeAgentClient(user, coupons = []) {
   const payment = normalizePaymentPayload(user.payment || {});
   const deal = serializeDeal(user.deal || {}, payment, {
     featuresMode: "agent",
     allowCouponCode: false
   });
-  const supplierCostTotal = sumSupplierCostFromCoupons(coupons);
   return {
     userId: user._id,
     username: user.username,
@@ -115,12 +129,10 @@ function serializeAgentClient(user, coupons = []) {
     event: user.event,
     deal: {
       ...deal,
-      couponCode: String(user.deal?.couponCode || "").trim(),
-      supplierCost: supplierCostTotal
+      couponCode: String(user.deal?.couponCode || "").trim()
     },
     packageDescription: deal.packageDescription || "",
     packagePrice: deal.packagePrice,
-    supplierCost: supplierCostTotal,
     agentNotes: deal.agentNotes || "",
     couponCode: String(user.deal?.couponCode || "").trim(),
     coupons,
@@ -175,7 +187,6 @@ router.get("/clients", async (req, res) => {
   try {
     const agent = req.agent;
     const filter = agent.isMainAgent ? {} : { createdByAgentId: agent.id };
-    const costPerMessage = resolveSupplierCostPerMessage(agent);
     const users = await User.find(
       filter,
       "username event createdAt payment deal loginPassword contactPhone createdByAgentId managedBy"
@@ -183,22 +194,15 @@ router.get("/clients", async (req, res) => {
 
     const clients = await Promise.all(
       users.map(async (user) => {
-        const coupons = await listClientCouponsWithSupplierCost(user._id, costPerMessage);
+        const coupons = await listClientCoupons(user._id);
         return serializeAgentClient(user, coupons);
       })
-    );
-
-    const supplierCostGrandTotal = clients.reduce(
-      (sum, client) => sum + (Number(client.supplierCost) || 0),
-      0
     );
 
     return res.json({
       clients,
       agent: req.agent,
-      scope: agent.isMainAgent ? "all" : "owned",
-      supplierCostPerMessage: costPerMessage,
-      supplierCostGrandTotal: Math.round(supplierCostGrandTotal * 100) / 100
+      scope: agent.isMainAgent ? "all" : "owned"
     });
   } catch (error) {
     return res.status(500).json({ message: "Failed to load clients", error: error.message });
@@ -245,9 +249,8 @@ router.patch("/clients/:userId", async (req, res) => {
     }
     const user = owned.user;
     const rawDeal = req.body?.deal && typeof req.body.deal === "object" ? { ...req.body.deal } : {};
-    // Agents cannot edit coupon or supplier cost (derived from coupons)
+    // Agents cannot edit coupon codes from the deal panel
     delete rawDeal.couponCode;
-    delete rawDeal.supplierCost;
 
     const deal = normalizeDealPayload(rawDeal, user.deal || {}, {
       featuresMode: "agent",

@@ -164,7 +164,6 @@ const dealSchema = new mongoose.Schema(
     adminNotes: { type: String, trim: true, default: "" },
     packageDescription: { type: String, trim: true, default: "" },
     packagePrice: { type: Number, min: 0, default: null },
-    supplierCost: { type: Number, min: 0, default: null },
     couponCode: { type: String, trim: true, default: "" },
     agentNotes: { type: String, trim: true, default: "" }
   },

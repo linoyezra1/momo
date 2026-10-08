@@ -33,8 +33,6 @@ import {
   toTemplateEventDetailsVariable
 } from "../utils/whatsappInviteCopy.js";
 import { getDefaultWelcomeParagraph, isConferenceEventType } from "../utils/eventTypeWording.js";
-import { recalculateUserSupplierCost } from "../utils/supplierCost.js";
-
 /**
  * Template SID routing for bulk invite send.
  * Conference ALWAYS wins; otherwise use event.whatsappInviteTemplate (with legacy boolean fallback).
@@ -602,7 +600,6 @@ export async function sendBulkWhatsApp({
       try {
         reservedRecord.redeemedByUserId = userId;
         await reservedRecord.save();
-        await recalculateUserSupplierCost(userId);
       } catch (saveError) {
         console.error("[Twilio] Failed to mark code as redeemed:", saveError?.message || saveError);
       }

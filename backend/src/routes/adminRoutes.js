@@ -50,7 +50,6 @@ import {
   listScheduledBroadcastsForEvent
 } from "../services/scheduledBroadcastService.js";
 import { getAgentDisplayMap, listAgentAccounts } from "../utils/agentAccounts.js";
-import { recalculateUserSupplierCost } from "../utils/supplierCost.js";
 import {
   DEAL_PAYMENT_METHODS,
   normalizeDealPayload,
@@ -962,10 +961,6 @@ router.post("/activation-codes", async (req, res) => {
       redeemedByUserId: userId || null
     });
 
-    if (userId) {
-      await recalculateUserSupplierCost(userId);
-    }
-
     return res.status(201).json({ message: "קוד רכישה נוצר בהצלחה", code: activationCode });
   } catch (error) {
     return res.status(500).json({ message: error.message || "Failed to create activation code" });
@@ -1065,8 +1060,6 @@ router.post("/clients/:userId/whatsapp-quota", async (req, res) => {
       redeemedByUserId: userId
     });
 
-    const supplier = await recalculateUserSupplierCost(userId);
-
     const allCoupons = await ActivationCode.find({ redeemedByUserId: userId })
       .sort({ createdAt: -1 })
       .select("code total_credits remaining_credits isActive note createdAt");
@@ -1078,16 +1071,14 @@ router.post("/clients/:userId/whatsapp-quota", async (req, res) => {
       remaining_credits: item.remaining_credits,
       isActive: item.isActive,
       note: item.note || "",
-      createdAt: item.createdAt,
-      supplierCost: Math.round((Number(item.total_credits) || 0) * 0.5 * 100) / 100
+      createdAt: item.createdAt
     });
 
     return res.status(201).json({
       message: `נוצר קופון חדש ${code} עם ${totalCredits} הודעות (בנוסף לקופונים הקיימים של הלקוח)`,
       quota: mapCoupon(codeRecord),
       quotas: allCoupons.filter((item) => item.isActive).map(mapCoupon),
-      history: allCoupons.map(mapCoupon),
-      supplierCostTotal: supplier?.total ?? null
+      history: allCoupons.map(mapCoupon)
     });
   } catch (error) {
     if (error?.code === 11000) {
@@ -1469,20 +1460,17 @@ router.get("/reports/profit", async (req, res) => {
     const bySourceMap = {};
     const byMonthMap = {};
     let revenueTotal = 0;
-    let supplierTotal = 0;
     let twilioUsdTotal = 0;
 
     for (const user of users) {
       const deal = user.deal || {};
       const payment = user.payment || {};
       const revenue = resolveClientRevenue(deal, payment);
-      const supplierCost = Number(deal.supplierCost) || 0;
       const twilioUsd = costByUser.get(String(user._id)) || 0;
       const twilioIls = usdToIls(twilioUsd, dolarRate) || 0;
       const source = String(deal.marketingSource || "").trim() || "לא צוין";
 
       revenueTotal += revenue;
-      supplierTotal += supplierCost;
       twilioUsdTotal += twilioUsd;
 
       if (!bySourceMap[source]) {
@@ -1490,7 +1478,6 @@ router.get("/reports/profit", async (req, res) => {
           source,
           clientCount: 0,
           revenue: 0,
-          supplierCost: 0,
           twilioCostUsd: 0,
           twilioCostIls: 0,
           profit: 0
@@ -1499,10 +1486,9 @@ router.get("/reports/profit", async (req, res) => {
       const bucket = bySourceMap[source];
       bucket.clientCount += 1;
       bucket.revenue += revenue;
-      bucket.supplierCost += supplierCost;
       bucket.twilioCostUsd += twilioUsd;
       bucket.twilioCostIls += twilioIls;
-      bucket.profit += revenue - supplierCost - twilioIls;
+      bucket.profit += revenue - twilioIls;
 
       const entries = listPaymentEntries(deal).filter((entry) => entry.isPaid && entry.amount > 0);
       if (entries.length) {
@@ -1531,7 +1517,6 @@ router.get("/reports/profit", async (req, res) => {
     const byMarketingSource = Object.values(bySourceMap).map((row) => ({
       ...row,
       revenue: Math.round(row.revenue),
-      supplierCost: Math.round(row.supplierCost),
       twilioCostUsd: Math.round(row.twilioCostUsd * 10000) / 10000,
       twilioCostIls: Math.round(row.twilioCostIls),
       profit: Math.round(row.profit)
@@ -1546,10 +1531,9 @@ router.get("/reports/profit", async (req, res) => {
     return res.json({
       summary: {
         revenueIls: Math.round(revenueTotal),
-        supplierCostIls: Math.round(supplierTotal),
         twilioCostUsd: Math.round(twilioUsdTotal * 10000) / 10000,
         twilioCostIls: Math.round(twilioIlsTotal),
-        profitIls: Math.round(revenueTotal - supplierTotal - twilioIlsTotal),
+        profitIls: Math.round(revenueTotal - twilioIlsTotal),
         clientCount: users.length,
         dolarRate
       },

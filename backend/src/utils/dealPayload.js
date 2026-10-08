@@ -172,10 +172,6 @@ export function normalizeDealPayload(rawDeal = {}, existingDeal = {}, options = 
     rawDeal?.packagePrice,
     existing.packagePrice ?? null
   );
-  const supplierCost = parseOptionalNonNegativeNumber(
-    rawDeal?.supplierCost,
-    existing.supplierCost ?? null
-  );
 
   let couponCode = String(existing.couponCode || "").trim();
   if (allowCouponCode && rawDeal?.couponCode != null) {
@@ -208,7 +204,6 @@ export function normalizeDealPayload(rawDeal = {}, existingDeal = {}, options = 
         ? String(rawDeal.packageDescription).trim()
         : String(existing.packageDescription || "").trim(),
     packagePrice,
-    supplierCost,
     couponCode,
     agentNotes:
       rawDeal?.agentNotes != null
