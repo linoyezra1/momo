@@ -378,6 +378,7 @@ export default function ClientDashboardPage() {
   const [showModal, setShowModal] = useState(false);
   const [manualGuest, setManualGuest] = useState(initialGuest);
   const [editingGuestId, setEditingGuestId] = useState("");
+  const [guestSaveToast, setGuestSaveToast] = useState("");
   const [editingValues, setEditingValues] = useState({
     fullName: "",
     phone: "",
@@ -1275,6 +1276,7 @@ export default function ClientDashboardPage() {
         "סטטוס הגעה": guest.status,
         "כמות מגיעים": guest.attendeesCount,
         "סכום מתנה": guest.giftAmount || 0,
+        "רגישות למזון": String(guest.foodSensitivities || "").trim(),
         "סבב שליחה": getReminderRound(guest),
         מקור: sourceLabel(guest.source)
       }));
@@ -1306,6 +1308,7 @@ export default function ClientDashboardPage() {
               : arrived
                 ? guest.attendeesCount ?? ""
                 : "",
+          "רגישות למזון": String(guest.foodSensitivities || "").trim(),
           הערות: String(guest.agentNotes || "").trim()
         };
       });
@@ -1360,6 +1363,8 @@ export default function ClientDashboardPage() {
         phone: normalizeIsraeliPhone(editingValues.phone)
       });
       setEditingGuestId("");
+      setGuestSaveToast("השינוי נשמר בהצלחה");
+      window.setTimeout(() => setGuestSaveToast(""), 3200);
       await loadGuests();
     } catch (saveErr) {
       setEditError(saveErr.response?.data?.message || "שמירת העריכה נכשלה");
@@ -2595,6 +2600,13 @@ export default function ClientDashboardPage() {
         {importSuccessToast ? (
           <div className="il-import-success-toast" role="status" aria-live="polite">
             {importSuccessToast}
+          </div>
+        ) : null}
+
+        {guestSaveToast ? (
+          <div className="il-guest-save-toast" role="status" aria-live="polite">
+            <Check size={18} aria-hidden="true" />
+            <span>{guestSaveToast}</span>
           </div>
         ) : null}
 

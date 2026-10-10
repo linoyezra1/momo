@@ -1820,6 +1820,26 @@
   line-height: 1.5;
 }
 
+.il-guest-save-toast {
+  position: fixed;
+  z-index: 120;
+  top: 1.25rem;
+  right: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: min(18rem, calc(100vw - 2rem));
+  max-width: calc(100vw - 2rem);
+  padding: 0.85rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid #6ee7b7;
+  background: #ecfdf5;
+  color: #065f46;
+  font-size: 0.95rem;
+  font-weight: 700;
+  box-shadow: 0 12px 32px rgb(15 23 42 / 14%);
+}
+
 .il-import-success-toast {
   position: fixed;
   inset-inline: 1rem;

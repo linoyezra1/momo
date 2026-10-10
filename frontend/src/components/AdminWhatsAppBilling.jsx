@@ -151,9 +151,6 @@ export default function AdminWhatsAppBilling({ userId }) {
       <div className="us-admin-wa-failures__head">
         <div>
           <p className="us-admin-share-title">עלויות הודעות (לוג Twilio)</p>
-          <p className="us-admin-field-hint">
-            כל שורה = הודעה אחת (יוצאת או נכנסת) כפי שנרשמה אצלנו מ־Twilio — לא מספר מוזמנים.
-          </p>
         </div>
         <div className="us-admin-wa-failures__actions">
           <button
@@ -175,20 +172,6 @@ export default function AdminWhatsAppBilling({ userId }) {
             ייצוא לאקסל
           </button>
         </div>
-      </div>
-
-      <div className="us-admin-billing-explain">
-        <p>
-          <strong>עלות Twilio ($)</strong> — סכום שדה <code>Price</code> מכל הודעה שחויבה. המחיר כבר
-          כולל Meta + Twilio. זה סכימת מחירים בודדים, לא «כמות × תעריף קבוע».
-        </p>
-        <p>
-          <strong>עלות בשקלים (₪)</strong> — סה״כ $ × משתנה השרת <code>DOLAR</code>
-          (מספר קבוע או URL לשער, למשל Frankfurter).
-          {summary?.dolarRate
-            ? ` שער נוכחי: ${summary.dolarRate}`
-            : " אין שער זמין — בדקו ש־DOLAR מוגדר כמספר או כ־URL תקין."}
-        </p>
       </div>
 
       {summary ? (

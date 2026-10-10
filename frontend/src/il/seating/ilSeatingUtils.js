@@ -70,6 +70,7 @@ export function buildSeatingExportRows(guests, tables) {
         טלפון: guest.phone,
         כמות: countGuestSeats(guest),
         שולחן: table ? formatTableDisplayLabel(table) : "צף",
+        "רגישות למזון": String(guest.foodSensitivities || "").trim(),
         סטטוס: guest.isSeated ? "הושב" : "ממתין לשיבוץ"
       };
     });

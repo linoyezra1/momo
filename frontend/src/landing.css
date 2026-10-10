@@ -33,15 +33,22 @@
   -webkit-font-smoothing: antialiased;
 }
 
-/* Brown / primary action buttons: always white label (never accent pink) */
+/* Solid action buttons: always white label.
+   Global `a { color: #ff1a5f }` is unlayered and otherwise hides text on pink buttons. */
 .landing-page a.bg-primary,
 .landing-page button.bg-primary,
-.landing-page .bg-primary {
+.landing-page .bg-primary,
+.landing-page a.bg-accent,
+.landing-page button.bg-accent,
+.landing-page .bg-accent {
   color: #ffffff;
 }
 
 .landing-page a.bg-primary:hover,
-.landing-page button.bg-primary:hover {
+.landing-page button.bg-primary:hover,
+.landing-page a.bg-accent:hover,
+.landing-page button.bg-accent:hover,
+.landing-page .bg-accent:hover {
   color: #ffffff;
 }
 
