@@ -14,7 +14,8 @@ async function connectDB() {
     process.exit(1);
   }
   await mongoose.connect(uri);
-  console.log("MongoDB connected successfully (video-worker)");
+  const { host, name } = mongoose.connection;
+  console.log(`MongoDB connected successfully (video-worker) db=${name} host=${host}`);
 }
 
 async function claimNextJob() {
@@ -26,8 +27,14 @@ async function claimNextJob() {
   return VideoJob.findOneAndUpdate(
     { status: "pending" },
     { status: "generating_anchor" },
-    { new: true, sort: { createdAt: 1 } }
+    { returnDocument: "after", sort: { createdAt: 1 } }
   );
+}
+
+async function logQueueSnapshot() {
+  const rows = await VideoJob.aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }]);
+  const summary = rows.map((row) => `${row._id || "unknown"}:${row.count}`).join(", ") || "none";
+  console.log(`[Queue] no pending video job in this database. statuses: ${summary}`);
 }
 
 async function markFailed(job, error) {
@@ -80,12 +87,20 @@ async function deliverJob(job) {
   }
 }
 
+let emptyPolls = 0;
+
 async function processQueue() {
   try {
     const job = await claimNextJob();
     if (job) {
+      emptyPolls = 0;
       console.log(`[Queue] Processing job for: ${job.groomName} & ${job.brideName} (${job.status})`);
       await deliverJob(job);
+    } else if (emptyPolls % 12 === 0) {
+      await logQueueSnapshot();
+      emptyPolls += 1;
+    } else {
+      emptyPolls += 1;
     }
   } catch (error) {
     console.error("[Queue Error]:", error?.message || error);
