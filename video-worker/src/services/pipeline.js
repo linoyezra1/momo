@@ -1,5 +1,28 @@
+const { createCharacterImage } = require("./fal");
 const { buildClipPlans } = require("./prompts");
 const { createClipTask, waitForTask } = require("./runway");
+
+/**
+ * Build the 3D character still once, then keep that URL for every Runway clip.
+ */
+async function ensureAnchor(job) {
+  if (String(job.anchorImageUrl || "").startsWith("http")) return job.anchorImageUrl;
+
+  job.status = "generating_anchor";
+  await job.save();
+  const anchorUrl = await createCharacterImage(job.selfieUrl, {
+    requestId: job.falRequestId,
+    onSubmitted: async (requestId) => {
+      job.falRequestId = requestId;
+      await job.save();
+      console.log(`[video] job ${job._id} fal character ${requestId}`);
+    }
+  });
+  job.anchorImageUrl = anchorUrl;
+  await job.save();
+  console.log(`[video] job ${job._id} 3D character ready`);
+  return anchorUrl;
+}
 
 /**
  * Render the four Runway clips when they are not stored yet.
@@ -14,6 +37,7 @@ async function ensureClips(job) {
   }
   if ((job.clipUrls || []).filter(Boolean).length >= 4) return job;
 
+  await ensureAnchor(job);
   const plans = buildClipPlans(job);
   job.prompts = plans.map((plan) => plan.promptText);
   job.status = "rendering_clips";

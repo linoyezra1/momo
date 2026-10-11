@@ -41,14 +41,19 @@ function fill(template, vars) {
   return template.replace(/\{\{([A-Z0-9_]+)\}\}/g, (_, key) => String(vars[key] || "").trim());
 }
 
+function coupleStill(job) {
+  return String(job.anchorImageUrl || job.selfieUrl || "").trim();
+}
+
 function buildClipPlans(job) {
+  const still = coupleStill(job);
   const vars = {
     GROOM_NAME: job.groomName,
     BRIDE_NAME: job.brideName,
     WEDDING_DATE: job.weddingDate,
     VENUE_NAME: job.venueName,
     INVITATION_IMAGE_URL: job.invitationUrl,
-    COUPLE_SELFIE_URL: job.selfieUrl,
+    COUPLE_SELFIE_URL: still,
     MEETING_CONTEXT: job.story?.meeting,
     HOBBY_1_DESC: job.story?.hobby1,
     HOBBY_2_DESC: job.story?.hobby2,
@@ -60,9 +65,7 @@ function buildClipPlans(job) {
     duration: spec.duration,
     promptText: fill(spec.template, vars),
     referenceUrls:
-      spec.key === "outro"
-        ? [job.selfieUrl, job.invitationUrl].filter(Boolean)
-        : [job.selfieUrl].filter(Boolean)
+      spec.key === "outro" ? [still, job.invitationUrl].filter(Boolean) : [still].filter(Boolean)
   }));
 }
 
