@@ -13,6 +13,8 @@ const videoJobSchema = new mongoose.Schema(
     weddingDate: { type: String, default: "" },
     venueName: { type: String, default: "" },
     selfieUrl: { type: String, default: "" },
+    anchorImageUrl: { type: String, default: "" },
+    falRequestId: { type: String, default: "" },
     invitationUrl: { type: String, default: "" },
     story: {
       meeting: { type: String, default: "" },
