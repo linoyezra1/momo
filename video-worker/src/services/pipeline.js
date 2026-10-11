@@ -1,6 +1,36 @@
 const { createCharacterImage } = require("./fal");
+const { enhanceStoryPrompts } = require("./promptEnhancer");
 const { buildClipPlans } = require("./prompts");
 const { createClipTask, waitForTask } = require("./runway");
+
+const HEBREW = /[\u0590-\u05FF]/;
+
+function cleanPrompts(prompts) {
+  const list = Array.isArray(prompts) ? prompts.map((item) => String(item || "").trim()) : [];
+  if (list.length === 4 && list.every((item) => item && !HEBREW.test(item) && /sound\s*:/i.test(item))) {
+    return list;
+  }
+  return null;
+}
+
+/**
+ * Story text stays in Hebrew on the job. Runway only receives the English prompts.
+ */
+async function ensureEnglishPrompts(job) {
+  const existing = cleanPrompts(job.prompts);
+  if (existing) return existing;
+
+  const prompts = await enhanceStoryPrompts(job.story || {});
+  job.prompts = prompts;
+  job.markModified("prompts");
+  if (Array.isArray(job.runwayTaskIds)) {
+    job.runwayTaskIds = job.runwayTaskIds.map((id, index) => (job.clipUrls?.[index] ? id : ""));
+    job.markModified("runwayTaskIds");
+  }
+  await job.save();
+  console.log(`[video] job ${job._id} english prompts ready`);
+  return prompts;
+}
 
 /**
  * Build the 3D character still once, then keep that URL for every Runway clip.
@@ -38,8 +68,13 @@ async function ensureClips(job) {
   if ((job.clipUrls || []).filter(Boolean).length >= 4) return job;
 
   await ensureAnchor(job);
-  const plans = buildClipPlans(job);
-  job.prompts = plans.map((plan) => plan.promptText);
+  const prompts = await ensureEnglishPrompts(job);
+  const plans = buildClipPlans(job).map((plan, index) => ({
+    ...plan,
+    promptText: prompts[index]
+  }));
+  job.prompts = prompts;
+  job.markModified("prompts");
   job.status = "rendering_clips";
   if (!Array.isArray(job.runwayTaskIds)) job.runwayTaskIds = [];
   if (!Array.isArray(job.clipUrls)) job.clipUrls = [];
