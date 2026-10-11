@@ -37,6 +37,10 @@ import {
   buildWhatsAppCouponPurchaseUrl
 } from "../utils/tableDispatchPurchase.js";
 import { isCoupleEventType, isConferenceEventType } from "../utils/eventTypeWording.js";
+
+const INTRO_ANIMATION_WHATSAPP_LINK = `https://wa.me/972585915109?text=${encodeURIComponent(
+  "אני רוצה ליצור סרטון אנימציה של ההיכרות שלנו לאישורי ההגעה לאורחים"
+)}`;
 import { getImpersonationSession } from "../utils/impersonation.js";
 import IlInvitationEditor from "../il/components/IlInvitationEditor.jsx";
 import IlWhatsAppInviteEditor from "../il/components/IlWhatsAppInviteEditor.jsx";
@@ -1773,6 +1777,16 @@ export default function ClientDashboardPage() {
                 העלאת מוזמנים מהוואטסאפ
               </button>
 
+              <a
+                className="us-btn il-intro-animation-btn"
+                href={INTRO_ANIMATION_WHATSAPP_LINK}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <WhatsAppIcon size={16} />
+                צור אנימציית היכרות ואישור הגעה
+              </a>
+
               <button
                 className="us-btn il-broadcast-cta"
                 type="button"
@@ -2475,6 +2489,15 @@ export default function ClientDashboardPage() {
               <WhatsAppIcon size={16} />
               העלאת מוזמנים מהוואטסאפ
             </button>
+            <a
+              href={INTRO_ANIMATION_WHATSAPP_LINK}
+              target="_blank"
+              rel="noreferrer"
+              onClick={() => setMobileActionsOpen(false)}
+            >
+              <WhatsAppIcon size={16} />
+              צור אנימציית היכרות ואישור הגעה
+            </a>
             <button
               type="button"
               onClick={() => {

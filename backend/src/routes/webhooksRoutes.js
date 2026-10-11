@@ -5,6 +5,7 @@ import { handleAddGuestsRequest } from "../services/whatsappAddGuestsService.js"
 import { handleIncomingWhatsAppContactShare } from "../services/whatsappContactImportService.js";
 import { handleWhatsAppSenderAuth } from "../services/whatsappSenderAuthService.js";
 import { handleIncomingWhatsAppRsvp } from "../services/whatsappRsvpService.js";
+import { handleIntroAnimationRequest } from "../services/whatsappIntroAnimationService.js";
 import {
   applyWhatsAppMessageStatus,
   recordWhatsAppInbound
@@ -103,13 +104,24 @@ async function processInboundWhatsApp(req) {
     return rsvpResult;
   }
 
-  // 4) Sender auth / event linking for contact-import onboarding
+  // 4) Intro-animation interview on 0585915109. Must run before contact import,
+  //    otherwise the selfie is saved as a guest vCard and the opening sentence
+  //    is treated as a phone-link reply.
+  const animationResult = await handleIntroAnimationRequest({
+    ...inbound,
+    twilioBody: req.body
+  });
+  if (animationResult?.handled) {
+    return animationResult;
+  }
+
+  // 5) Sender auth / event linking for contact-import onboarding
   const authResult = await handleWhatsAppSenderAuth(req.body);
   if (authResult.handled) {
     return authResult;
   }
 
-  // 5) Authenticated sender + vCard → add guest to linked event
+  // 6) Authenticated sender + vCard → add guest to linked event
   if (vcardCount > 0 && authResult.allowContactImport) {
     return handleIncomingWhatsAppContactShare(req.body, authResult.link);
   }

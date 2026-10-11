@@ -304,6 +304,13 @@
   margin-top: 1.25rem;
 }
 
+a.us-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  text-decoration: none;
+}
+
 .us-btn {
   border: 1px solid var(--us-border);
   border-radius: 0.4rem;
