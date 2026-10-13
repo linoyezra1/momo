@@ -38,6 +38,7 @@ import {
 } from "../utils/tableDispatchPurchase.js";
 import { isCoupleEventType, isConferenceEventType } from "../utils/eventTypeWording.js";
 
+const SHOW_INTRO_ANIMATION_BUTTON = false;
 const INTRO_ANIMATION_WHATSAPP_LINK = `https://wa.me/972585915109?text=${encodeURIComponent(
   "אני רוצה ליצור סרטון אנימציה של ההיכרות שלנו לאישורי ההגעה לאורחים"
 )}`;
@@ -1777,15 +1778,17 @@ export default function ClientDashboardPage() {
                 העלאת מוזמנים מהוואטסאפ
               </button>
 
-              <a
-                className="us-btn il-intro-animation-btn"
-                href={INTRO_ANIMATION_WHATSAPP_LINK}
-                target="_blank"
-                rel="noreferrer"
-              >
-                <WhatsAppIcon size={16} />
-                צור אנימציית היכרות ואישור הגעה
-              </a>
+              {SHOW_INTRO_ANIMATION_BUTTON ? (
+                <a
+                  className="us-btn il-intro-animation-btn"
+                  href={INTRO_ANIMATION_WHATSAPP_LINK}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <WhatsAppIcon size={16} />
+                  צור אנימציית היכרות ואישור הגעה
+                </a>
+              ) : null}
 
               <button
                 className="us-btn il-broadcast-cta"
@@ -2489,15 +2492,17 @@ export default function ClientDashboardPage() {
               <WhatsAppIcon size={16} />
               העלאת מוזמנים מהוואטסאפ
             </button>
-            <a
-              href={INTRO_ANIMATION_WHATSAPP_LINK}
-              target="_blank"
-              rel="noreferrer"
-              onClick={() => setMobileActionsOpen(false)}
-            >
-              <WhatsAppIcon size={16} />
-              צור אנימציית היכרות ואישור הגעה
-            </a>
+            {SHOW_INTRO_ANIMATION_BUTTON ? (
+              <a
+                href={INTRO_ANIMATION_WHATSAPP_LINK}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => setMobileActionsOpen(false)}
+              >
+                <WhatsAppIcon size={16} />
+                צור אנימציית היכרות ואישור הגעה
+              </a>
+            ) : null}
             <button
               type="button"
               onClick={() => {

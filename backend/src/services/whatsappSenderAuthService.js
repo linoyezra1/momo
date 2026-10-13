@@ -99,7 +99,7 @@ function senderPhoneLookupValues(senderPhone) {
   return [...new Set([canonical, ...phoneLookupVariants(canonical)].filter(Boolean))];
 }
 
-function isResetCommand(text) {
+export function isResetCommand(text) {
   const raw = String(text || "")
     .trim()
     .toLowerCase()

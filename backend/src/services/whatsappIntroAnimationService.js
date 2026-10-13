@@ -8,6 +8,7 @@ import { normalizePhone } from "../utils/guestPhone.js";
 import { uploadCoverBuffer } from "./coverStorage.js";
 import { sendTwilioWhatsAppMessage, toTwilioWhatsAppAddress } from "../utils/twilioWhatsApp.js";
 import { findUsersByWhatsAppPhone } from "./whatsappAccessDetailsService.js";
+import { isResetCommand } from "./whatsappSenderAuthService.js";
 
 export const INTRO_ANIMATION_TRIGGER =
   "אני רוצה ליצור סרטון אנימציה של ההיכרות שלנו לאישורי ההגעה לאורחים";
@@ -133,6 +134,13 @@ export async function handleIntroAnimationRequest({ from, body, twilioBody } = {
   const text = String(body || "").trim();
   const phone = normalizePhone(String(from || "").replace(/^whatsapp:/i, ""));
   if (!phone) return { handled: false, reason: "no_phone" };
+
+  // Account reset must win over an open interview, then the auth handler
+  // asks again which account to link.
+  if (isResetCommand(text)) {
+    await VideoJob.deleteMany({ phone, status: "collecting" });
+    return { handled: false, reason: "account_reset" };
+  }
 
   const openJob = await VideoJob.findOne({ phone, status: "collecting" }).sort({ createdAt: -1 });
   const triggered = isIntroAnimationTrigger(text);
