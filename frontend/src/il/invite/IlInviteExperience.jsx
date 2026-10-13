@@ -193,12 +193,9 @@ export default function IlInviteExperience({
         payload.foodSensitivities = String(form.foodSensitivities || "").trim();
       }
       await onSubmitRsvp(payload);
-      if (transportationEnabled && payload.needsTransportation) {
-        setTransportSuccess(
-          transportationWhatsAppLink
-            ? { type: "link", href: transportationWhatsAppLink }
-            : { type: "no-link" }
-        );
+      const attending = payload.status === "מגיע" || payload.status === "אולי";
+      if (transportationEnabled && transportationWhatsAppLink && attending) {
+        setTransportSuccess({ type: "link", href: transportationWhatsAppLink });
         setMessage("");
       } else {
         setMessage(isConference ? "תודה! הרישום נשמר בהצלחה" : "תודה! האישור נשמר בהצלחה");
@@ -311,25 +308,19 @@ export default function IlInviteExperience({
           )}
 
           <section className="il-invite-rsvp" id="il-rsvp">
-            {transportSuccess ? (
+            {transportSuccess?.type === "link" ? (
               <div className="il-invite-rsvp__success il-invite-rsvp__transport-success">
-                {transportSuccess.type === "link" ? (
-                  <>
-                    <p>
-                      תודה על העדכון! פתחנו קבוצת וואטסאפ לתיאום טרמפים, מוזמנים להצטרף:
-                    </p>
-                    <a
-                      className="il-invite-rsvp__transport-link"
-                      href={transportSuccess.href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      הצטרפות לקבוצת הטרמפים
-                    </a>
-                  </>
-                ) : (
-                  <p>תודה על העדכון! רשמנו לפנינו ונשתדל לדאוג לפתרון הסעה בהתאם.</p>
-                )}
+                <p>
+                  תודה על העדכון! פתחנו קבוצת וואטסאפ לתיאום טרמפים, מוזמנים להצטרף:
+                </p>
+                <a
+                  className="il-invite-rsvp__transport-link"
+                  href={transportSuccess.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  הצטרפות לקבוצת הטרמפים
+                </a>
               </div>
             ) : message ? (
               <p className="il-invite-rsvp__success">{message}</p>
@@ -348,7 +339,7 @@ export default function IlInviteExperience({
                         onClick={() => onChooseStatus("מגיע")}
                         disabled={previewMode}
                       >
-                        {isConference ? "כן, אני אגיע!" : "אגיע / אאשר הגעה"}
+                        {isConference ? "כן, אני אגיע!" : "כן אני אגיע!"}
                       </button>
                       {!isConference ? (
                         <button
@@ -357,7 +348,7 @@ export default function IlInviteExperience({
                           onClick={() => onChooseStatus("אולי")}
                           disabled={previewMode}
                         >
-                          אולי / עדיין לא יודע
+                          עדיין לא יודע
                         </button>
                       ) : null}
                       <button
@@ -366,7 +357,7 @@ export default function IlInviteExperience({
                         onClick={() => onChooseStatus("לא מגיע")}
                         disabled={previewMode}
                       >
-                        {isConference ? "לא אוכל להגיע" : "לא יכול/ה להגיע"}
+                        {isConference ? "לא אוכל להגיע" : "לצערי לא אוכל..."}
                       </button>
                     </div>
                     {wazeUrl ? (
@@ -393,10 +384,12 @@ export default function IlInviteExperience({
                         {form.status === "מגיע"
                           ? isConference
                             ? "כן, אני אגיע!"
-                            : "מגיע"
+                            : "כן אני אגיע!"
                           : form.status === "אולי"
-                            ? "אולי"
-                            : "לא מגיע"}
+                            ? "עדיין לא יודע"
+                            : isConference
+                              ? "לא אוכל להגיע"
+                              : "לצערי לא אוכל..."}
                       </strong>
                       {!previewMode ? (
                         <button
