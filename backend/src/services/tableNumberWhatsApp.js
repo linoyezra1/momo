@@ -32,6 +32,7 @@ import {
   toTwilioWhatsAppAddress
 } from "../utils/twilioWhatsApp.js";
 import { isCoupleEventType, isConferenceEventType } from "../utils/eventTypeWording.js";
+import { guestMessageName } from "../utils/guestMessageName.js";
 
 const TABLE_NUMBER_CONTENT_SID_DEFAULT = "HX405726f9479a1d07e2fe8fcbe77a6be4";
 
@@ -136,7 +137,11 @@ export async function sendTableNumberWhatsApp({ user, guest, tableLabel, table }
   }
 
   const event = user?.event || {};
-  const guestName = String(guest.fullName || "").trim() || "אורח/ת";
+  const storedName = String(guest.fullName || "").trim() || "אורח/ת";
+  const guestName = guestMessageName(storedName, {
+    firstNameOnly: event.guestFirstNameOnly === true,
+    fallback: "אורח/ת"
+  });
   const eventType = String(event.eventType || "אירוע").trim() || "אירוע";
   const hostsLabel = buildEventHostsLabel(event);
   const label = table
@@ -160,7 +165,7 @@ export async function sendTableNumberWhatsApp({ user, guest, tableLabel, table }
         userId: user?._id,
         recipientPhone: guest.phone,
         guestId: guest?._id,
-        guestName
+        guestName: storedName
       });
     } else if (allowFreeText) {
       await sendTwilioWhatsAppMessage({
@@ -174,7 +179,7 @@ export async function sendTableNumberWhatsApp({ user, guest, tableLabel, table }
         userId: user?._id,
         recipientPhone: guest.phone,
         guestId: guest?._id,
-        guestName
+        guestName: storedName
       });
     } else {
       return {

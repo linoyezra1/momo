@@ -52,6 +52,7 @@ export function normalizeEventPayload(rawEvent) {
         : "",
     showWazeButton: rawEvent?.showWazeButton === true,
     foodSensitivitiesEnabled: rawEvent?.foodSensitivitiesEnabled === true,
+    guestFirstNameOnly: rawEvent?.guestFirstNameOnly === true,
     imageDataUrl: String(rawEvent?.imageDataUrl || "").trim(),
     cover: normalizeCoverFields(rawEvent?.cover),
     clearCover: rawEvent?.clearCover === true,

@@ -322,7 +322,10 @@ router.patch("/clients/:userId", async (req, res) => {
         ...deriveLegacyWhatsAppFlags(resolveWhatsAppInviteTemplateId(previousEvent)),
         welcomeParagraph: previousEvent.welcomeParagraph || "",
         eventDetailsParagraph: previousEvent.eventDetailsParagraph || "",
-        closingParagraph: previousEvent.closingParagraph || ""
+        closingParagraph: previousEvent.closingParagraph || "",
+        guestFirstNameOnly: Object.prototype.hasOwnProperty.call(event, "guestFirstNameOnly")
+          ? event.guestFirstNameOnly === true
+          : previousEvent.guestFirstNameOnly === true
       };
     }
 

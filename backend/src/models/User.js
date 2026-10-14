@@ -76,7 +76,9 @@ const eventSchema = new mongoose.Schema(
     /** Digital invite: show Waze navigation button under RSVP actions */
     showWazeButton: { type: Boolean, default: false },
     /** RSVP: ask guests about food allergies / sensitivities */
-    foodSensitivitiesEnabled: { type: Boolean, default: false }
+    foodSensitivitiesEnabled: { type: Boolean, default: false },
+    /** Outgoing messages greet the guest by the first word of their name only. */
+    guestFirstNameOnly: { type: Boolean, default: false }
   },
   { _id: false }
 );

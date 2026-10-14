@@ -1193,7 +1193,8 @@ router.put("/:userId/event", async (req, res) => {
         ? String(withCover.transportationWhatsAppLink || "").trim()
         : "",
       showWazeButton: Boolean(withCover.showWazeButton),
-      foodSensitivitiesEnabled: Boolean(withCover.foodSensitivitiesEnabled)
+      foodSensitivitiesEnabled: Boolean(withCover.foodSensitivitiesEnabled),
+      guestFirstNameOnly: previous.guestFirstNameOnly === true
     };
     await user.save();
 

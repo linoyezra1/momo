@@ -33,6 +33,7 @@ import {
   toTemplateEventDetailsVariable
 } from "../utils/whatsappInviteCopy.js";
 import { getDefaultWelcomeParagraph, isConferenceEventType } from "../utils/eventTypeWording.js";
+import { guestMessageName } from "../utils/guestMessageName.js";
 /**
  * Template SID routing for bulk invite send.
  * Conference ALWAYS wins; otherwise use event.whatsappInviteTemplate (with legacy boolean fallback).
@@ -183,9 +184,12 @@ async function releaseCredits(codeId, count) {
   return releaseActivationCredits(codeId, count);
 }
 
-function resolveInviteeTemplateFields({ invitee, defaults, eventId, origin, paragraphs }) {
+function resolveInviteeTemplateFields({ invitee, defaults, eventId, origin, paragraphs, event }) {
   const rsvpLink = buildPublicEventLink({ eventId, origin }) || String(defaults?.rsvpLink || "").trim();
-  const guestName = String(invitee.name || "אורח/ת יקר/ה").trim();
+  const guestName = guestMessageName(invitee.name, {
+    firstNameOnly: event?.guestFirstNameOnly === true,
+    fallback: "אורח/ת יקר/ה"
+  });
 
   const customOpeningText =
     String(paragraphs?.welcomeParagraph || "").trim() ||
@@ -241,7 +245,10 @@ async function sendToInvitee({
 
   try {
     if (conferenceMode || isConferenceContentSid(contentSid)) {
-      const guestName = invitee.name || invitee.fullName || "משקיע/ה יקר/ה";
+      const guestName = guestMessageName(invitee.name || invitee.fullName, {
+        firstNameOnly: event?.guestFirstNameOnly === true,
+        fallback: "משקיע/ה יקר/ה"
+      });
       console.log(
         `[Twilio][diag-63028][invitee] path=sendConferenceInviteWhatsApp ` +
           `name=${guestName} phone=${invitee.phone} conferenceMode=${conferenceMode} ` +
@@ -267,7 +274,8 @@ async function sendToInvitee({
       defaults,
       eventId,
       origin,
-      paragraphs
+      paragraphs,
+      event
     });
 
     if (includesRsvpLink && !fields.rsvpLink) {

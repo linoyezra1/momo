@@ -32,6 +32,7 @@ import {
   toTemplateEventDetailsVariable
 } from "../utils/whatsappInviteCopy.js";
 import { isConferenceEventType } from "../utils/eventTypeWording.js";
+import { guestMessageName } from "../utils/guestMessageName.js";
 import {
   STATUS_HISTORY_LABELS,
   STATUS_HISTORY_SOURCES,
@@ -148,7 +149,12 @@ async function loadGuestEvent(guest) {
 
 function buildPremiumInviteVariables({ guest, event, userId, origin, templateId }) {
   if (isConferenceEventType(event?.eventType)) {
-    return buildConferenceContentVariables(guest.fullName || guest.name || "משקיע/ה יקר/ה");
+    return buildConferenceContentVariables(
+      guestMessageName(guest.fullName || guest.name, {
+        firstNameOnly: event?.guestFirstNameOnly === true,
+        fallback: "משקיע/ה יקר/ה"
+      })
+    );
   }
 
   const defaults = buildWhatsAppTemplateDefaults({ event, eventId: userId, origin });
@@ -172,7 +178,10 @@ function buildPremiumInviteVariables({ guest, event, userId, origin, templateId 
 
   return buildTwilioContentVariables(
     {
-      guestName: guest.fullName || "אורח/ת יקר/ה",
+      guestName: guestMessageName(guest.fullName, {
+        firstNameOnly: event?.guestFirstNameOnly === true,
+        fallback: "אורח/ת יקר/ה"
+      }),
       customOpeningText: paragraphs.welcomeParagraph || defaults.intro,
       eventDateTimeLocation: toTemplateEventDetailsVariable(
         paragraphs.eventDetailsParagraph || defaults.eventDetails
@@ -223,7 +232,10 @@ async function sendPremiumMainTemplate({ guest, event, origin }) {
     );
     return sendConferenceInviteWhatsApp({
       to: toTwilioWhatsAppAddress(guest.phone),
-      guestName: guest.fullName || guest.name || "משקיע/ה יקר/ה",
+      guestName: guestMessageName(guest.fullName || guest.name, {
+        firstNameOnly: event?.guestFirstNameOnly === true,
+        fallback: "משקיע/ה יקר/ה"
+      }),
       userId: guest.userId,
       recipientPhone: guest.phone,
       guestId: guest._id

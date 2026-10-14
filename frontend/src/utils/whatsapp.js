@@ -11,6 +11,7 @@ import {
   resolveEventWhatsAppInviteTemplateId,
   templateIncludesRsvpLink
 } from "./whatsappInviteTemplates.js";
+import { guestMessageName } from "./guestMessageName.js";
 
 export function toInternationalWhatsAppPhone(phone) {
   const domestic = normalizeIsraeliPhone(phone);
@@ -138,7 +139,10 @@ const ICON_WEDDING_OPENING = "מתרגשים ושמחים להזמין אתכם 
 export function buildDirectGuestWhatsAppMessage({ event, eventId, origin, guestName }) {
   const publicLink = buildPublicEventLink({ eventId, origin });
   const { welcomeParagraph, closingParagraph } = resolveInviteCopyDefaults(event);
-  const name = String(guestName || "").trim() || "אורח/ת יקר/ה";
+  const name = guestMessageName(guestName, {
+    firstNameOnly: event?.guestFirstNameOnly === true,
+    fallback: "אורח/ת יקר/ה"
+  });
   const isWedding = String(event?.eventType || "").trim() === "חתונה";
   const opening = isWedding ? ICON_WEDDING_OPENING : welcomeParagraph;
   const detailLines = buildIconWhatsAppDetailLines(event);
@@ -170,7 +174,10 @@ export function buildGuestWhatsAppMessage({ event, eventId, origin, guestName })
   });
   const { welcomeParagraph, eventDetailsParagraph, closingParagraph } =
     resolveInviteCopyDefaults(event);
-  const name = String(guestName || "").trim() || "אורח/ת יקר/ה";
+  const name = guestMessageName(guestName, {
+    firstNameOnly: event?.guestFirstNameOnly === true,
+    fallback: "אורח/ת יקר/ה"
+  });
   const templateId = resolveEventWhatsAppInviteTemplateId(event);
   const includeRsvpLink = templateIncludesRsvpLink(templateId);
   const rsvpPrompt = getRsvpLinkPrompt(true);

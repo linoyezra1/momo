@@ -150,6 +150,7 @@ const initialForm = {
   transportationWhatsAppLink: "",
   showWazeButton: false,
   foodSensitivitiesEnabled: false,
+  guestFirstNameOnly: false,
   cover: null,
   coverPreviewUrl: "",
   pendingCoverFile: null,
@@ -1044,6 +1045,7 @@ ${publicEventUrl}`
           transportationWhatsAppLink: form.transportationEnabled ? form.transportationWhatsAppLink.trim() : "",
           showWazeButton: Boolean(form.showWazeButton),
           foodSensitivitiesEnabled: Boolean(form.foodSensitivitiesEnabled),
+          guestFirstNameOnly: Boolean(form.guestFirstNameOnly),
           clearCover: form.clearCover === true && !form.pendingCoverFile
         }
       };
@@ -1202,6 +1204,7 @@ ${publicEventUrl}`
       transportationWhatsAppLink: client.event?.transportationWhatsAppLink || "",
       showWazeButton: Boolean(client.event?.showWazeButton),
       foodSensitivitiesEnabled: Boolean(client.event?.foodSensitivitiesEnabled),
+      guestFirstNameOnly: Boolean(client.event?.guestFirstNameOnly),
       cover: client.event?.cover || null,
       coverPreviewUrl: getEventCoverSrc(client.event),
       pendingCoverFile: null,
@@ -2918,6 +2921,17 @@ ${publicEventUrl}`
                     onChange={onChange}
                   />
                   <span>שאל לגבי רגישויות למזון / אלרגיות</span>
+                </label>
+              </div>
+              <div className="us-admin-field us-admin-field--full">
+                <label className="us-admin-checkbox">
+                  <input
+                    type="checkbox"
+                    name="guestFirstNameOnly"
+                    checked={Boolean(form.guestFirstNameOnly)}
+                    onChange={onChange}
+                  />
+                  <span>קח את המילה הראשונה בלבד עד הרווח</span>
                 </label>
               </div>
               <div className="us-admin-field">
