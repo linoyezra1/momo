@@ -1,10 +1,10 @@
-# אולם אוורסט — מיפוי ראשוני מסקיצה
+# אולם שלוש — מיפוי ראשוני מסקיצה
 
-מקור: `everest-floorplan.jpg`  
+מקור: `shalosh-floorplan.jpg`  
 סטטוס: הוגדר כהדמיה אינטראקטיבית ב־momo  
-התאמה: רק כש־`event.venueName` שווה בדיוק ל־«אוורסט»  
-רקע: `/venue-halls/everest.jpg`  
-preset: `frontend/src/il/seating/hallPresets/everest.js`
+התאמה: רק כש־`event.venueName` שווה בדיוק ל־«שלוש»  
+רקע: `/venue-halls/shalosh.jpg`  
+preset: `frontend/src/il/seating/hallPresets/shalosh.js`
 
 ## סיכום קיבולת
 - 18 שולחנות
@@ -44,5 +44,5 @@ preset: `frontend/src/il/seating/hallPresets/everest.js`
 ## הערות ליישום במערכת
 - גרירת מוזמנים: יעד ראשון = שולחן (לפי מספר 1–18)
 - שלב מתקדם: כיסא ספציפי בתוך כל שולחן
-- תמונת הרקע של ההדמיה: `everest-floorplan.jpg`
+- תמונת הרקע של ההדמיה: `shalosh-floorplan.jpg`
 - צבע כיסאות בסקיצה: לבנים באזור המלבני, שחורים באזור העגול — ויזואלי בלבד

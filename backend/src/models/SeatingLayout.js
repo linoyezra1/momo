@@ -44,7 +44,7 @@ const seatingLayoutSchema = new mongoose.Schema(
     },
     tables: { type: [seatingTableSchema], default: [] },
     venueElements: { type: [venueElementSchema], default: [] },
-    /** Optional hall simulation backdrop (e.g. /venue-halls/everest.jpg). */
+    /** Optional hall simulation backdrop (e.g. /venue-halls/shalosh.jpg). */
     backgroundImageUrl: { type: String, trim: true, default: "" },
     canvasWidth: { type: Number, default: 0 },
     canvasHeight: { type: Number, default: 0 },

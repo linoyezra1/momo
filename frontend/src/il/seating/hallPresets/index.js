@@ -1,4 +1,4 @@
-import { buildEverestLayout, EVEREST_HALL } from "./everest.js";
+import { buildShaloshLayout, SHALOSH_HALL } from "./shalosh.js";
 
 /**
  * Hall simulations in inventory.
@@ -6,8 +6,8 @@ import { buildEverestLayout, EVEREST_HALL } from "./everest.js";
  */
 const HALL_PRESETS = [
   {
-    ...EVEREST_HALL,
-    buildLayout: buildEverestLayout
+    ...SHALOSH_HALL,
+    buildLayout: buildShaloshLayout
   }
 ];
 
@@ -23,4 +23,4 @@ export function resolveHallPresetByVenueName(venueName) {
   return HALL_PRESETS.find((preset) => normalizeVenueName(preset.name) === normalized) || null;
 }
 
-export { EVEREST_HALL, buildEverestLayout };
+export { SHALOSH_HALL, buildShaloshLayout };

@@ -1,20 +1,20 @@
 /**
- * Interactive Everest hall simulation.
- * Background: /venue-halls/everest.jpg (1024×563).
+ * Interactive Shalosh ("שלוש") hall simulation.
+ * Background: /venue-halls/shalosh.jpg (1024×563).
  * Drop zones sit over the drawn tables so guests can be dragged onto them.
  */
 
-export const EVEREST_HALL = {
-  id: "everest",
-  name: "אוורסט",
-  backgroundImageUrl: "/venue-halls/everest.jpg",
+export const SHALOSH_HALL = {
+  id: "shalosh",
+  name: "שלוש",
+  backgroundImageUrl: "/venue-halls/shalosh.jpg",
   canvasWidth: 1024,
   canvasHeight: 563
 };
 
 function table({ label, shape, capacity, x, y, width, height }) {
   return {
-    tableId: `everest_tbl_${label}`,
+    tableId: `shalosh_tbl_${label}`,
     label: String(label),
     name: "",
     shape,
@@ -26,13 +26,13 @@ function table({ label, shape, capacity, x, y, width, height }) {
   };
 }
 
-/** Pixel positions calibrated to everest.jpg */
-export function buildEverestLayout() {
+/** Pixel positions calibrated to shalosh.jpg */
+export function buildShaloshLayout() {
   return {
-    backgroundImageUrl: EVEREST_HALL.backgroundImageUrl,
-    canvasWidth: EVEREST_HALL.canvasWidth,
-    canvasHeight: EVEREST_HALL.canvasHeight,
-    hallPresetId: EVEREST_HALL.id,
+    backgroundImageUrl: SHALOSH_HALL.backgroundImageUrl,
+    canvasWidth: SHALOSH_HALL.canvasWidth,
+    canvasHeight: SHALOSH_HALL.canvasHeight,
+    hallPresetId: SHALOSH_HALL.id,
     venueElements: [],
     tables: [
       // Top rectangular cluster (white chairs in sketch)
