@@ -8,6 +8,7 @@ import IlSeatingCanvas from "../il/seating/IlSeatingCanvas.jsx";
 import IlSeatingTableEditModal from "../il/seating/IlSeatingTableEditModal.jsx";
 import { TABLE_SHAPES, VENUE_ELEMENT_TYPES, getVenueElementDefaults } from "../il/seating/seatingConstants.js";
 import { buildSeatingExportRows, filterSeatingGuests, formatTableDisplayLabel, makeSeatingId } from "../il/seating/ilSeatingUtils.js";
+import { resolveHallPresetByVenueName } from "../il/seating/hallPresets/index.js";
 import { useSeatingDragAutoScroll } from "../il/seating/useSeatingDragAutoScroll.js";
 import { useSeatingTouchDrag } from "../il/seating/useSeatingTouchDrag.js";
 import { useEventWorkspace } from "../utils/useEventWorkspace.js";
@@ -55,6 +56,10 @@ export default function IlSeatingPage() {
   const [error, setError] = useState("");
   const [tables, setTables] = useState([]);
   const [venueElements, setVenueElements] = useState([]);
+  const [backgroundImageUrl, setBackgroundImageUrl] = useState("");
+  const [canvasWidth, setCanvasWidth] = useState(0);
+  const [canvasHeight, setCanvasHeight] = useState(0);
+  const [hallPresetId, setHallPresetId] = useState("");
   const [guests, setGuests] = useState([]);
   const [analytics, setAnalytics] = useState(null);
   const [warnings, setWarnings] = useState([]);
@@ -130,19 +135,83 @@ export default function IlSeatingPage() {
     };
   }, [analytics, guestsWithLabels, tables.length]);
 
+  const matchedHallPreset = useMemo(
+    () => resolveHallPresetByVenueName(eventInfo?.venueName),
+    [eventInfo?.venueName]
+  );
+  const isHallSimulation = Boolean(matchedHallPreset);
+
   const loadSeating = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
       const response = await api.get(`/client/${userId}/seating`);
-      setTables(response.data.layout?.tables || response.data.tables || []);
-      setVenueElements(response.data.layout?.venueElements || response.data.venueElements || []);
+      const event = response.data.event || null;
+      const preset = resolveHallPresetByVenueName(event?.venueName);
+      const loadedPresetId = response.data.layout?.hallPresetId || response.data.hallPresetId || "";
+      const loadedBackground =
+        response.data.layout?.backgroundImageUrl || response.data.backgroundImageUrl || "";
+
       setGuests(response.data.guests || []);
       setAnalytics(response.data.analytics || null);
       setWarnings((response.data.warnings || []).filter((item) => item.type === "overfill"));
       setCanSendTableWhatsApp(Boolean(response.data.features?.canSendTableWhatsApp));
       setTableDispatch(response.data.tableDispatch || null);
-      setEventInfo(response.data.event || null);
+      setEventInfo(event);
+
+      if (preset) {
+        setViewMode("canvas");
+        if (loadedPresetId === preset.id && loadedBackground) {
+          setTables(response.data.layout?.tables || response.data.tables || []);
+          setVenueElements(response.data.layout?.venueElements || response.data.venueElements || []);
+          setBackgroundImageUrl(loadedBackground);
+          setCanvasWidth(Number(response.data.layout?.canvasWidth || response.data.canvasWidth || 0));
+          setCanvasHeight(Number(response.data.layout?.canvasHeight || response.data.canvasHeight || 0));
+          setHallPresetId(loadedPresetId);
+        } else {
+          const layout = preset.buildLayout();
+          const seatedIds = (response.data.guests || [])
+            .filter((guest) => guest.seatingTableId)
+            .map((guest) => guest._id)
+            .filter(Boolean);
+          if (seatedIds.length) {
+            const cleared = await api.patch(`/client/${userId}/seating/assign`, {
+              unassignGuestIds: seatedIds
+            });
+            setGuests(cleared.data.guests || response.data.guests || []);
+            setAnalytics(cleared.data.analytics || response.data.analytics || null);
+            setWarnings(
+              (cleared.data.warnings || response.data.warnings || []).filter(
+                (item) => item.type === "overfill"
+              )
+            );
+          }
+          setTables(layout.tables);
+          setVenueElements(layout.venueElements);
+          setBackgroundImageUrl(layout.backgroundImageUrl);
+          setCanvasWidth(layout.canvasWidth);
+          setCanvasHeight(layout.canvasHeight);
+          setHallPresetId(layout.hallPresetId);
+          await api.put(`/client/${userId}/seating/layout`, layout);
+        }
+      } else {
+        setTables(response.data.layout?.tables || response.data.tables || []);
+        setVenueElements(response.data.layout?.venueElements || response.data.venueElements || []);
+        setBackgroundImageUrl("");
+        setCanvasWidth(0);
+        setCanvasHeight(0);
+        setHallPresetId("");
+        if (loadedPresetId || loadedBackground) {
+          await api.put(`/client/${userId}/seating/layout`, {
+            tables: response.data.layout?.tables || response.data.tables || [],
+            venueElements: response.data.layout?.venueElements || response.data.venueElements || [],
+            backgroundImageUrl: "",
+            canvasWidth: 0,
+            canvasHeight: 0,
+            hallPresetId: ""
+          });
+        }
+      }
     } catch (loadError) {
       setError(loadError.response?.data?.message || "טעינת מערכת ההושבה נכשלה");
     } finally {
@@ -164,13 +233,41 @@ export default function IlSeatingPage() {
     async (patch) => {
       const nextTables = patch.tables ?? tables;
       const nextVenueElements = patch.venueElements ?? venueElements;
+      const nextBackgroundImageUrl = isHallSimulation
+        ? patch.backgroundImageUrl !== undefined
+          ? patch.backgroundImageUrl
+          : backgroundImageUrl
+        : "";
+      const nextCanvasWidth = isHallSimulation
+        ? patch.canvasWidth !== undefined
+          ? patch.canvasWidth
+          : canvasWidth
+        : 0;
+      const nextCanvasHeight = isHallSimulation
+        ? patch.canvasHeight !== undefined
+          ? patch.canvasHeight
+          : canvasHeight
+        : 0;
+      const nextHallPresetId = isHallSimulation
+        ? patch.hallPresetId !== undefined
+          ? patch.hallPresetId
+          : hallPresetId
+        : "";
       setTables(nextTables);
       setVenueElements(nextVenueElements);
+      setBackgroundImageUrl(nextBackgroundImageUrl);
+      setCanvasWidth(nextCanvasWidth);
+      setCanvasHeight(nextCanvasHeight);
+      setHallPresetId(nextHallPresetId);
       setSaving(true);
       try {
         const response = await api.put(`/client/${userId}/seating/layout`, {
           tables: nextTables,
-          venueElements: nextVenueElements
+          venueElements: nextVenueElements,
+          backgroundImageUrl: nextBackgroundImageUrl,
+          canvasWidth: nextCanvasWidth,
+          canvasHeight: nextCanvasHeight,
+          hallPresetId: nextHallPresetId
         });
         setWarnings((response.data.warnings || []).filter((item) => item.type === "overfill"));
       } catch (saveError) {
@@ -179,7 +276,16 @@ export default function IlSeatingPage() {
         setSaving(false);
       }
     },
-    [tables, userId, venueElements]
+    [
+      backgroundImageUrl,
+      canvasHeight,
+      canvasWidth,
+      hallPresetId,
+      isHallSimulation,
+      tables,
+      userId,
+      venueElements
+    ]
   );
 
   async function assignGuests(guestIds, tableId) {
@@ -456,6 +562,11 @@ export default function IlSeatingPage() {
       {error ? <p className="us-error-message">{error}</p> : null}
       {toast ? <p className="il-seat-toast">{toast}</p> : null}
       {saving ? <p className="il-seat-saving">שומר פריסה…</p> : null}
+      {isHallSimulation ? (
+        <p className="il-seat-instruction-note" role="status">
+          האולם «{matchedHallPreset.name}» מזוהה במערכת — מוצגת הדמיית האולם. גררו מוזמנים לשולחנות.
+        </p>
+      ) : null}
       {tableDispatch?.status === "scheduled" && tableDispatch.scheduledAt ? (
         <p className="il-seat-schedule-note" role="status">
           שליחת מספרי שולחן מתוזמנת ל-
@@ -502,30 +613,38 @@ export default function IlSeatingPage() {
 
       <div className="il-seat-command-bar">
         <div className="il-seat-toolbox" aria-label="הוספת שולחנות ואלמנטים">
-          <div className="il-seat-toolbox__group">
-            <span>שולחנות</span>
-            {viewMode === "canvas" ? (
-              TABLE_SHAPES.filter((shape) => shape.value !== "head").map((shape) => (
-                <button key={shape.value} type="button" onClick={() => addTable(shape.value)}>
-                  {shape.label}
-                </button>
-              ))
-            ) : (
-              <button type="button" onClick={() => addTable("round")}>
-                הוסף שולחן
-              </button>
-            )}
-          </div>
-          {viewMode === "canvas" ? (
+          {isHallSimulation ? (
             <div className="il-seat-toolbox__group">
-              <span>אלמנטי אולם</span>
-              {VENUE_ELEMENT_TYPES.map((element) => (
-                <button key={element.value} type="button" onClick={() => addVenueElement(element.value)}>
-                  {element.label}
-                </button>
-              ))}
+              <span>הדמיית אולם {matchedHallPreset.name}</span>
             </div>
-          ) : null}
+          ) : (
+            <>
+              <div className="il-seat-toolbox__group">
+                <span>שולחנות</span>
+                {viewMode === "canvas" ? (
+                  TABLE_SHAPES.filter((shape) => shape.value !== "head").map((shape) => (
+                    <button key={shape.value} type="button" onClick={() => addTable(shape.value)}>
+                      {shape.label}
+                    </button>
+                  ))
+                ) : (
+                  <button type="button" onClick={() => addTable("round")}>
+                    הוסף שולחן
+                  </button>
+                )}
+              </div>
+              {viewMode === "canvas" ? (
+                <div className="il-seat-toolbox__group">
+                  <span>אלמנטי אולם</span>
+                  {VENUE_ELEMENT_TYPES.map((element) => (
+                    <button key={element.value} type="button" onClick={() => addVenueElement(element.value)}>
+                      {element.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </>
+          )}
           {viewMode === "canvas" ? (
             <button type="button" className="il-seat-toolbox__primary" onClick={toggleCanvasFullscreen}>
               {canvasFullscreen ? <Minimize2 size={15} aria-hidden="true" /> : <Maximize2 size={15} aria-hidden="true" />}
@@ -602,6 +721,10 @@ export default function IlSeatingPage() {
               canvasRef={canvasRef}
               readOnly={false}
               touchOverTableId={touchDrag?.overTableId || ""}
+              backgroundImageUrl={isHallSimulation ? backgroundImageUrl : ""}
+              canvasWidth={isHallSimulation ? canvasWidth : 0}
+              canvasHeight={isHallSimulation ? canvasHeight : 0}
+              hallPresetId={isHallSimulation ? hallPresetId : ""}
             />
           </div>
         )}

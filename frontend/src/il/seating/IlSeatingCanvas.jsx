@@ -52,9 +52,29 @@ export default function IlSeatingCanvas({
   onDropGuestsOnTable,
   canvasRef,
   readOnly = false,
-  touchOverTableId = ""
+  touchOverTableId = "",
+  backgroundImageUrl = "",
+  canvasWidth = 0,
+  canvasHeight = 0,
+  hallPresetId = ""
 }) {
   const warningByTable = new Map(warnings.map((warning) => [warning.tableId, warning]));
+  const hasHallBackground = Boolean(String(backgroundImageUrl || "").trim());
+  const canvasStyle = {
+    ...(hasHallBackground
+      ? {
+          backgroundImage: `url(${backgroundImageUrl})`,
+          backgroundSize: "100% 100%",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+          backgroundColor: "#1f2937"
+        }
+      : {}),
+    ...(Number(canvasWidth) > 0 ? { width: Number(canvasWidth), minWidth: Number(canvasWidth) } : {}),
+    ...(Number(canvasHeight) > 0
+      ? { height: Number(canvasHeight), minHeight: Number(canvasHeight) }
+      : {})
+  };
 
   function updateTable(tableId, patch) {
     if (readOnly) return;
@@ -87,8 +107,15 @@ export default function IlSeatingCanvas({
   }
 
   return (
-    <div className={`il-seat-canvas-wrap${readOnly ? " is-readonly" : ""}`}>
-      <div className="il-seat-canvas" dir="ltr" ref={canvasRef} id="il-seating-canvas-export">
+    <div className={`il-seat-canvas-wrap${readOnly ? " is-readonly" : ""}${hasHallBackground ? " is-hall-sim" : ""}`}>
+      <div
+        className={`il-seat-canvas${hasHallBackground ? " il-seat-canvas--hall" : ""}`}
+        dir="ltr"
+        ref={canvasRef}
+        id="il-seating-canvas-export"
+        data-hall-preset={hallPresetId || undefined}
+        style={canvasStyle}
+      >
         {venueElements.map((element) => {
           const rotation = normalizeRotation(element.rotation);
           return (
@@ -170,7 +197,10 @@ export default function IlSeatingCanvas({
           return (
             <Rnd
               key={table.tableId}
-              size={{ width: Math.max(table.width, 110), height: Math.max(table.height, 110) }}
+              size={{
+                width: hasHallBackground ? Math.max(table.width, 72) : Math.max(table.width, 110),
+                height: hasHallBackground ? Math.max(table.height, 56) : Math.max(table.height, 110)
+              }}
               position={{ x: table.x, y: table.y }}
               bounds="parent"
               disableDragging={readOnly}
@@ -184,11 +214,11 @@ export default function IlSeatingCanvas({
                   y: position.y
                 })
               }
-              className={tableClass(
+              className={`${tableClass(
                 table.shape,
                 isOver,
                 activeTableId === table.tableId || touchOverTableId === table.tableId
-              )}
+              )}${hasHallBackground ? " il-seat-table--hall-overlay" : ""}`}
               data-seating-drop-table-id={table.tableId}
               onClick={() => onSelectTable?.(table.tableId)}
               onDragOver={(event) => {
@@ -208,7 +238,7 @@ export default function IlSeatingCanvas({
                 }
               }}
             >
-              <ChairRing capacity={table.capacity} occupied={seats} />
+              {hasHallBackground ? null : <ChairRing capacity={table.capacity} occupied={seats} />}
               {!readOnly ? (
                 <button
                   type="button"

@@ -907,6 +907,30 @@ ${publicEventUrl}`
     }
   };
 
+  const toggleGuestFirstNameOnly = async (checked) => {
+    if (!selectedClientId) return;
+    setError("");
+    setClients((prev) =>
+      prev.map((client) =>
+        String(client.userId) === String(selectedClientId)
+          ? { ...client, event: { ...(client.event || {}), guestFirstNameOnly: checked } }
+          : client
+      )
+    );
+    try {
+      await api.patch(`/admin/clients/${selectedClientId}`, { guestFirstNameOnly: checked });
+    } catch (toggleError) {
+      setClients((prev) =>
+        prev.map((client) =>
+          String(client.userId) === String(selectedClientId)
+            ? { ...client, event: { ...(client.event || {}), guestFirstNameOnly: !checked } }
+            : client
+        )
+      );
+      setError(toggleError.response?.data?.message || "שמירת ההגדרה נכשלה");
+    }
+  };
+
   const sendCredentialsWhatsApp = async () => {
     if (!selectedClientId || !selectedClient) return;
     if (!String(selectedClient.contactPhone || "").trim()) {
@@ -1691,6 +1715,19 @@ ${publicEventUrl}`
                   id="client-tab-panel-access"
                   aria-labelledby="client-tab-access"
                 >
+                  <h3 className="us-admin-client-tab-panel__title">הגדרות הודעות לאירוע הזה</h3>
+                  <label className="us-admin-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(selectedClient.event?.guestFirstNameOnly)}
+                      onChange={(changeEvent) => toggleGuestFirstNameOnly(changeEvent.target.checked)}
+                    />
+                    <span>קח את המילה הראשונה בלבד עד הרווח</span>
+                  </label>
+                  <p className="us-admin-field-hint">
+                    לדוגמה, מוזמן בשם «אבי השכן מקומה 5» יקבל «שלום אבי». השם המלא נשאר ברשימת המוזמנים.
+                  </p>
+
                   <h3 className="us-admin-client-tab-panel__title">פרטי התקשרות</h3>
                   <div className="us-admin-detail-grid">
                     <div className="us-admin-detail-item">

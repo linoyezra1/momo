@@ -270,10 +270,18 @@ router.get("/:userId/seating", async (req, res) => {
     return res.json({
       layout: {
         tables: layout.tables,
-        venueElements: layout.venueElements || []
+        venueElements: layout.venueElements || [],
+        backgroundImageUrl: layout.backgroundImageUrl || "",
+        canvasWidth: layout.canvasWidth || 0,
+        canvasHeight: layout.canvasHeight || 0,
+        hallPresetId: layout.hallPresetId || ""
       },
       tables: layout.tables,
       venueElements: layout.venueElements || [],
+      backgroundImageUrl: layout.backgroundImageUrl || "",
+      canvasWidth: layout.canvasWidth || 0,
+      canvasHeight: layout.canvasHeight || 0,
+      hallPresetId: layout.hallPresetId || "",
       guests: seatingGuests,
       eligibleGuests: seatingGuests.filter((guest) => guest.isEligible),
       analytics,
@@ -296,19 +304,47 @@ router.put("/:userId/seating/layout", async (req, res) => {
 
     const tables = Array.isArray(req.body?.tables) ? req.body.tables : [];
     const venueElements = Array.isArray(req.body?.venueElements) ? req.body.venueElements : [];
+    const backgroundImageUrl =
+      req.body?.backgroundImageUrl == null
+        ? undefined
+        : String(req.body.backgroundImageUrl || "").trim();
+    const canvasWidth =
+      req.body?.canvasWidth == null ? undefined : Math.max(0, Number(req.body.canvasWidth) || 0);
+    const canvasHeight =
+      req.body?.canvasHeight == null ? undefined : Math.max(0, Number(req.body.canvasHeight) || 0);
+    const hallPresetId =
+      req.body?.hallPresetId == null ? undefined : String(req.body.hallPresetId || "").trim();
 
-    const layout = await SeatingLayout.findOneAndUpdate(
-      { userId },
-      { tables, venueElements },
-      { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true }
-    );
+    const update = { tables, venueElements };
+    if (backgroundImageUrl !== undefined) update.backgroundImageUrl = backgroundImageUrl;
+    if (canvasWidth !== undefined) update.canvasWidth = canvasWidth;
+    if (canvasHeight !== undefined) update.canvasHeight = canvasHeight;
+    if (hallPresetId !== undefined) update.hallPresetId = hallPresetId;
+
+    const layout = await SeatingLayout.findOneAndUpdate({ userId }, update, {
+      new: true,
+      upsert: true,
+      runValidators: true,
+      setDefaultsOnInsert: true
+    });
 
     const guests = await Guest.find({ userId });
     return res.json({
       message: "פריסת האולם נשמרה",
-      layout: { tables: layout.tables, venueElements: layout.venueElements },
+      layout: {
+        tables: layout.tables,
+        venueElements: layout.venueElements,
+        backgroundImageUrl: layout.backgroundImageUrl || "",
+        canvasWidth: layout.canvasWidth || 0,
+        canvasHeight: layout.canvasHeight || 0,
+        hallPresetId: layout.hallPresetId || ""
+      },
       tables: layout.tables,
       venueElements: layout.venueElements || [],
+      backgroundImageUrl: layout.backgroundImageUrl || "",
+      canvasWidth: layout.canvasWidth || 0,
+      canvasHeight: layout.canvasHeight || 0,
+      hallPresetId: layout.hallPresetId || "",
       warnings: buildSeatingWarnings(guests, layout.tables),
       analytics: buildSeatingAnalytics(guests, layout.tables)
     });

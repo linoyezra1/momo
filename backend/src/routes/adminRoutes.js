@@ -448,6 +448,10 @@ router.patch("/clients/:userId", async (req, res) => {
       user.contactPhone = normalizePhone(rawPhone) || rawPhone;
     }
 
+    if (typeof req.body?.guestFirstNameOnly === "boolean" && !event) {
+      user.set("event.guestFirstNameOnly", req.body.guestFirstNameOnly);
+    }
+
     if (event) {
       const previousEvent = user.event?.toObject
         ? user.event.toObject()
