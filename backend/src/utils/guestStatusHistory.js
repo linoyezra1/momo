@@ -10,7 +10,8 @@ export const STATUS_HISTORY_SOURCES = {
   EXCEL: "excel",
   COUPLE: "couple",
   HOSTESS: "hostess",
-  MANUAL: "manual"
+  MANUAL: "manual",
+  ADMIN: "admin"
 };
 
 export const STATUS_HISTORY_LABELS = {
@@ -20,7 +21,8 @@ export const STATUS_HISTORY_LABELS = {
   [STATUS_HISTORY_SOURCES.EXCEL]: "ייבוא אקסל",
   [STATUS_HISTORY_SOURCES.COUPLE]: "הזוג",
   [STATUS_HISTORY_SOURCES.HOSTESS]: "דיילת אירוע",
-  [STATUS_HISTORY_SOURCES.MANUAL]: "הזוג (הוספה ידנית)"
+  [STATUS_HISTORY_SOURCES.MANUAL]: "הזוג (הוספה ידנית)",
+  [STATUS_HISTORY_SOURCES.ADMIN]: "אדמין"
 };
 
 export function buildStatusHistoryEntry({

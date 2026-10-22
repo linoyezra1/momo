@@ -50,8 +50,25 @@ import {
   initialStatusHistoryEntry,
   statusHistoryPushEntry
 } from "../utils/guestStatusHistory.js";
+import { verifyImpersonationToken } from "../middleware/adminAuth.js";
 
 const router = express.Router();
+
+const GUEST_STATUS_VALUES = ["מגיע", "לא מגיע", "אולי", "לא ידוע", "הגיע לאירוע"];
+
+function extractBearerToken(req) {
+  const authHeader = String(req.headers.authorization || "");
+  return authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+}
+
+function requireEventImpersonationAdmin(req, res) {
+  const impersonation = verifyImpersonationToken(extractBearerToken(req));
+  if (!impersonation || String(impersonation.userId) !== String(req.params.userId)) {
+    res.status(403).json({ message: "שינוי סטטוס גורף זמין במצב אדמין בלבד" });
+    return null;
+  }
+  return impersonation;
+}
 
 function mapRowToGuest(row) {
   const fields = extractGuestFieldsFromRow(row);
@@ -1038,6 +1055,71 @@ router.post("/:userId/guests/bulk-delete", async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ message: "מחיקה מרובה נכשלה", error: error.message });
+  }
+});
+
+router.post("/:userId/guests/bulk-status", async (req, res) => {
+  try {
+    if (!requireEventImpersonationAdmin(req, res)) return;
+
+    const { userId } = req.params;
+    const guestIds = Array.isArray(req.body?.guestIds) ? req.body.guestIds.filter(Boolean) : [];
+    const status = String(req.body?.status || "").trim();
+
+    if (!guestIds.length) {
+      return res.status(400).json({ message: "יש לבחור לפחות מוזמן אחד" });
+    }
+    if (!GUEST_STATUS_VALUES.includes(status)) {
+      return res.status(400).json({ message: "סטטוס הגעה לא תקין" });
+    }
+
+    const guests = await Guest.find({ userId, _id: { $in: guestIds } });
+    if (!guests.length) {
+      return res.status(404).json({ message: "לא נמצאו מוזמנים לעדכון" });
+    }
+
+    let updatedCount = 0;
+    for (const guest of guests) {
+      const before = guest.toObject();
+      if (String(guest.status || "") === status) continue;
+
+      const historyEntry = statusHistoryPushEntry({
+        previousStatus: guest.status,
+        nextStatus: status,
+        updatedBy: STATUS_HISTORY_LABELS[STATUS_HISTORY_SOURCES.ADMIN],
+        source: STATUS_HISTORY_SOURCES.ADMIN,
+        note: "עדכון גורף במצב אדמין"
+      });
+
+      guest.status = status;
+      if (status === "לא מגיע" && guest.seatingTableId) {
+        guest.declinedWhileSeatedAt = new Date();
+      } else if (status !== "לא מגיע") {
+        guest.declinedWhileSeatedAt = null;
+      }
+      if (historyEntry) {
+        if (!Array.isArray(guest.statusHistory)) guest.statusHistory = [];
+        guest.statusHistory.push(historyEntry);
+      }
+      await guest.save();
+      updatedCount += 1;
+
+      await recordClientGuestUpdate({
+        userId,
+        before,
+        after: guest,
+        channel: "admin_bulk_status"
+      }).catch(() => {});
+    }
+
+    return res.json({
+      message: `עודכן סטטוס ל-${updatedCount} מוזמנים`,
+      updatedCount,
+      requestedCount: guestIds.length,
+      status
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "עדכון סטטוס גורף נכשל", error: error.message });
   }
 });
 

@@ -406,6 +406,8 @@ export default function ClientDashboardPage() {
   const [sideFilter, setSideFilter] = useState("all");
   const [reminderRoundFilter, setReminderRoundFilter] = useState("all");
   const [selectedGuestIds, setSelectedGuestIds] = useState(() => new Set());
+  const [bulkStatusValue, setBulkStatusValue] = useState("");
+  const [bulkStatusSaving, setBulkStatusSaving] = useState(false);
   const [expandedGuestDetailIds, setExpandedGuestDetailIds] = useState(() => new Set());
   const actionsMenuRef = useRef(null);
   const [showBulkWhatsApp, setShowBulkWhatsApp] = useState(false);
@@ -1391,6 +1393,32 @@ export default function ClientDashboardPage() {
       guestIds: [...selectedGuestIds],
       label: `${selectedCount} מוזמנים`
     });
+  };
+
+  const applyBulkStatus = async () => {
+    if (!isAdminImpersonating || !selectedCount || !bulkStatusValue) return;
+    const statusLabel =
+      STATUS_OPTIONS.find((option) => option.value === bulkStatusValue)?.label || bulkStatusValue;
+    const confirmed = window.confirm(
+      `לעדכן את סטטוס ההגעה ל«${statusLabel}» עבור ${selectedCount} מוזמנים מסומנים?`
+    );
+    if (!confirmed) return;
+
+    setBulkStatusSaving(true);
+    try {
+      const response = await api.post(`/client/${userId}/guests/bulk-status`, {
+        guestIds: [...selectedGuestIds],
+        status: bulkStatusValue
+      });
+      setGuestSaveToast(response.data?.message || `עודכן סטטוס ל-${selectedCount} מוזמנים`);
+      window.setTimeout(() => setGuestSaveToast(""), 3200);
+      setBulkStatusValue("");
+      await loadGuests();
+    } catch (bulkStatusErr) {
+      setImportError(bulkStatusErr.response?.data?.message || "עדכון סטטוס גורף נכשל");
+    } finally {
+      setBulkStatusSaving(false);
+    }
   };
 
   const closeDeleteConfirm = () => {
@@ -3232,6 +3260,37 @@ export default function ClientDashboardPage() {
               נבחרו <strong>{selectedCount}</strong> מוזמנים
             </p>
             <div className="il-bulk-action-bar-actions">
+              {isAdminImpersonating ? (
+                <div className="il-bulk-status-change" role="group" aria-label="שינוי סטטוס גורף">
+                  <label className="il-bulk-status-change__label" htmlFor="bulk-guest-status">
+                    שינוי סטטוס הגעה
+                  </label>
+                  <select
+                    id="bulk-guest-status"
+                    className="il-bulk-status-change__select"
+                    value={bulkStatusValue}
+                    onChange={(event) => setBulkStatusValue(event.target.value)}
+                    disabled={bulkStatusSaving}
+                  >
+                    <option value="">בחרו סטטוס…</option>
+                    {STATUS_OPTIONS.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    className="us-btn il-bulk-send-btn"
+                    type="button"
+                    onClick={applyBulkStatus}
+                    disabled={bulkStatusSaving || !bulkStatusValue}
+                  >
+                    {bulkStatusSaving
+                      ? "מעדכן…"
+                      : `עדכן סטטוס ל-${selectedCount} מסומנים`}
+                  </button>
+                </div>
+              ) : null}
               <button
                 className="us-btn il-bulk-send-btn"
                 type="button"

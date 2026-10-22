@@ -1538,6 +1538,34 @@
   margin-right: auto;
 }
 
+.il-bulk-status-change {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid #e5ddd6;
+  border-radius: 0.65rem;
+  background: #fff8f1;
+}
+
+.il-bulk-status-change__label {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #6b4a2f;
+}
+
+.il-bulk-status-change__select {
+  min-width: 9rem;
+  height: 2.2rem;
+  padding: 0 0.55rem;
+  border: 1px solid #e5ddd6;
+  border-radius: 0.5rem;
+  background: #fff;
+  font: inherit;
+  font-size: 0.88rem;
+}
+
 .il-bulk-action-bar-actions .us-btn {
   display: inline-flex;
   align-items: center;
