@@ -11,16 +11,23 @@ export default function IlSeatingTableDetail({
   if (!table) return null;
 
   const seats = getTableOccupancy(guests, table.tableId);
+  const capacity = Number(table.capacity) || 0;
+  const isOverCapacity = seats > capacity;
+  const overflowSeats = isOverCapacity ? seats - capacity : 0;
   const tableGuests = guests.filter((guest) => guest.seatingTableId === table.tableId);
   const label = formatTableDisplayLabel(table);
 
   return (
-    <aside className="il-seat-table-detail" dir="rtl" aria-live="polite">
+    <aside
+      className={`il-seat-table-detail${isOverCapacity ? " is-overfill" : ""}`}
+      dir="rtl"
+      aria-live="polite"
+    >
       <div className="il-seat-table-detail__head">
         <div>
           <h3>שולחן {label}</h3>
-          <p className="il-seat-table-detail__meta">
-            {seats}/{table.capacity} מושבים
+          <p className={`il-seat-table-detail__meta${isOverCapacity ? " is-overfill" : ""}`}>
+            {seats}/{capacity} מושבים
             {table.name ? ` · ${table.name}` : ""}
           </p>
         </div>
@@ -37,6 +44,12 @@ export default function IlSeatingTableDetail({
           ) : null}
         </div>
       </div>
+
+      {isOverCapacity ? (
+        <p className="il-seat-table-detail__overfill" role="status">
+          חריגה מהקיבולת — עוד {overflowSeats} מושבים מעל {capacity}
+        </p>
+      ) : null}
 
       {!tableGuests.length ? (
         <p className="il-seat-table-detail__empty">אין עדיין מוזמנים בשולחן זה</p>

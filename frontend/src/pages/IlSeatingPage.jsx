@@ -8,7 +8,7 @@ import IlSeatingCanvas from "../il/seating/IlSeatingCanvas.jsx";
 import IlSeatingTableDetail from "../il/seating/IlSeatingTableDetail.jsx";
 import IlSeatingTableEditModal from "../il/seating/IlSeatingTableEditModal.jsx";
 import { TABLE_SHAPES, VENUE_ELEMENT_TYPES, getVenueElementDefaults } from "../il/seating/seatingConstants.js";
-import { buildSeatingExportRows, filterSeatingGuests, formatTableDisplayLabel, makeSeatingId } from "../il/seating/ilSeatingUtils.js";
+import { buildSeatingExportRows, formatTableDisplayLabel, makeSeatingId } from "../il/seating/ilSeatingUtils.js";
 import { resolveHallPresetByVenueName } from "../il/seating/hallPresets/index.js";
 import { useSeatingDragAutoScroll } from "../il/seating/useSeatingDragAutoScroll.js";
 import { useSeatingTouchDrag } from "../il/seating/useSeatingTouchDrag.js";
@@ -65,7 +65,6 @@ export default function IlSeatingPage() {
   const [analytics, setAnalytics] = useState(null);
   const [warnings, setWarnings] = useState([]);
   const [filters, setFilters] = useState(initialFilters);
-  const [selectedGuestIds, setSelectedGuestIds] = useState(() => new Set());
   const [activeTableId, setActiveTableId] = useState("");
   const [dragOverTableId, setDragOverTableId] = useState("");
   const [editingTableId, setEditingTableId] = useState("");
@@ -85,10 +84,7 @@ export default function IlSeatingPage() {
   const { startDragAutoScroll } = useSeatingDragAutoScroll();
   const assignGuestsRef = useRef(null);
 
-  const resolveTouchGuestIds = useCallback(
-    (guestId) => (selectedGuestIds.has(guestId) ? [...selectedGuestIds] : [guestId]),
-    [selectedGuestIds]
-  );
+  const resolveTouchGuestIds = useCallback((guestId) => [guestId], []);
 
   const { touchDrag, onGuestPointerDown } = useSeatingTouchDrag({
     resolveGuestIds: resolveTouchGuestIds,
@@ -345,7 +341,6 @@ export default function IlSeatingPage() {
       setGuests(response.data.guests || []);
       setWarnings((response.data.warnings || []).filter((item) => item.type === "overfill"));
       setAnalytics(response.data.analytics || null);
-      setSelectedGuestIds(new Set());
       setActiveTableId(tableId);
       setDragOverTableId("");
       if (assignedGuests.length === 1) {
@@ -371,6 +366,10 @@ export default function IlSeatingPage() {
 
   async function unassignGuestIds(guestIds) {
     if (!guestIds.length) return;
+    const removedGuests = guestsWithLabels.filter((guest) => guestIds.includes(guest._id));
+    const tableLabel =
+      removedGuests.find((guest) => guest.tableLabel)?.tableLabel ||
+      (focusedTable ? formatTableDisplayLabel(focusedTable) : "");
     try {
       const response = await api.patch(`/client/${userId}/seating/assign`, {
         unassignGuestIds: guestIds
@@ -378,16 +377,28 @@ export default function IlSeatingPage() {
       setGuests(response.data.guests || []);
       setWarnings((response.data.warnings || []).filter((item) => item.type === "overfill"));
       setAnalytics(response.data.analytics || null);
-      setSelectedGuestIds(new Set());
-      setToast("האורחים הוסרו מהשולחן");
+      if (removedGuests.length === 1) {
+        const guestName = removedGuests[0].fullName || "האורח";
+        setToast(
+          tableLabel
+            ? `האורח ${guestName} הוסר משולחן ${tableLabel}`
+            : `האורח ${guestName} הוסר מהשולחן`
+        );
+      } else if (removedGuests.length > 1) {
+        const names = removedGuests.map((guest) => guest.fullName).filter(Boolean);
+        const shown = names.slice(0, 2).join(" ו");
+        const more = names.length > 2 ? ` ועוד ${names.length - 2}` : "";
+        setToast(
+          tableLabel
+            ? `האורחים ${shown}${more} הוסרו משולחן ${tableLabel}`
+            : `האורחים ${shown}${more} הוסרו מהשולחן`
+        );
+      } else {
+        setToast(tableLabel ? `האורח הוסר משולחן ${tableLabel}` : "האורח הוסר מהשולחן");
+      }
     } catch (unassignError) {
       setToast(unassignError.response?.data?.message || "הסרת שיבוץ נכשלה");
     }
-  }
-
-  async function unassignSelected() {
-    if (!selectedGuestIds.size) return;
-    await unassignGuestIds([...selectedGuestIds]);
   }
 
   function addTable(shape = "round") {
@@ -423,30 +434,9 @@ export default function IlSeatingPage() {
   }
 
   function onDragStart(event, guestId) {
-    const guestIds = selectedGuestIds.has(guestId) ? [...selectedGuestIds] : [guestId];
-    event.dataTransfer.setData("application/json", JSON.stringify({ guestIds }));
+    event.dataTransfer.setData("application/json", JSON.stringify({ guestIds: [guestId] }));
     event.dataTransfer.effectAllowed = "move";
     startDragAutoScroll(event);
-  }
-
-  function toggleGuest(guestId) {
-    setSelectedGuestIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(guestId)) next.delete(guestId);
-      else next.add(guestId);
-      return next;
-    });
-  }
-
-  function toggleAllFiltered() {
-    const filtered = filterSeatingGuests(guestsWithLabels, filters);
-    const allSelected = filtered.every((guest) => selectedGuestIds.has(guest._id));
-    setSelectedGuestIds((prev) => {
-      const next = new Set(prev);
-      if (allSelected) filtered.forEach((guest) => next.delete(guest._id));
-      else filtered.forEach((guest) => next.add(guest._id));
-      return next;
-    });
   }
 
   async function exportSeatingExcel() {
@@ -704,11 +694,6 @@ export default function IlSeatingPage() {
               <button type="button" onClick={exportSeatingExcel}>
                 ייצוא Excel
               </button>
-              {selectedGuestIds.size ? (
-                <button type="button" onClick={unassignSelected}>
-                  הסרת שיבוץ לנבחרים
-                </button>
-              ) : null}
             </div>
           ) : null}
         </div>
@@ -719,9 +704,6 @@ export default function IlSeatingPage() {
           guests={guestsWithLabels}
           filters={filters}
           onFiltersChange={setFilters}
-          selectedGuestIds={selectedGuestIds}
-          onToggleGuest={toggleGuest}
-          onToggleAll={toggleAllFiltered}
           onDragStart={onDragStart}
           onGuestPointerDown={onGuestPointerDown}
           compact

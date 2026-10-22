@@ -558,6 +558,28 @@
   color: #6b635c;
 }
 
+.il-seat-table-detail.is-overfill {
+  border-color: #fecaca;
+  box-shadow: 0 14px 36px rgb(185 28 28 / 12%);
+}
+
+.il-seat-table-detail__meta.is-overfill {
+  color: #b91c1c;
+  font-weight: 700;
+}
+
+.il-seat-table-detail__overfill {
+  margin: 0;
+  padding: 0.55rem 0.7rem;
+  border-radius: 0.65rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
 .il-seat-table-detail__list {
   list-style: none;
   margin: 0;
@@ -708,6 +730,12 @@
   border-radius: 0.4rem;
   font-family: inherit;
   font-size: 0.85rem;
+}
+
+.il-seat-guest-panel__count {
+  margin: 0 0 0.55rem;
+  font-size: 0.8rem;
+  color: #8a8178;
 }
 
 .il-seat-select-all {

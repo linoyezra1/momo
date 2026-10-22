@@ -4,15 +4,11 @@ export default function IlSeatingGuestPanel({
   guests,
   filters,
   onFiltersChange,
-  selectedGuestIds,
-  onToggleGuest,
-  onToggleAll,
   onDragStart,
   onGuestPointerDown,
   compact = false
 }) {
   const filtered = filterSeatingGuests(guests, { ...filters, seated: "floating" });
-  const allSelected = filtered.length > 0 && filtered.every((guest) => selectedGuestIds.has(guest._id));
 
   return (
     <aside className={`il-seat-guest-panel${compact ? " is-compact" : ""}`} dir="rtl">
@@ -31,10 +27,9 @@ export default function IlSeatingGuestPanel({
         />
       </div>
 
-      <label className="il-seat-select-all">
-        <input type="checkbox" checked={allSelected} onChange={onToggleAll} disabled={!filtered.length} />
-        בחירת כל הצפים ({filtered.length})
-      </label>
+      <p className="il-seat-guest-panel__count" aria-live="polite">
+        {filtered.length} ממתינים לשיבוץ
+      </p>
 
       <ul className="il-seat-guest-list">
         {!filtered.length ? (
@@ -47,20 +42,11 @@ export default function IlSeatingGuestPanel({
         {filtered.map((guest) => (
           <li
             key={guest._id}
-            className={`il-seat-guest-item is-floating${
-              selectedGuestIds.has(guest._id) ? " is-selected" : ""
-            }`}
+            className="il-seat-guest-item is-floating"
             draggable
             onDragStart={(event) => onDragStart(event, guest._id)}
             onPointerDown={(event) => onGuestPointerDown?.(event, guest._id)}
           >
-            <label className="il-seat-guest-item__check">
-              <input
-                type="checkbox"
-                checked={selectedGuestIds.has(guest._id)}
-                onChange={() => onToggleGuest(guest._id)}
-              />
-            </label>
             <div className="il-seat-guest-item__main">
               <strong>{guest.fullName}</strong>
               <span>{countGuestSeats(guest)} מושבים · ממתין לשיבוץ</span>
