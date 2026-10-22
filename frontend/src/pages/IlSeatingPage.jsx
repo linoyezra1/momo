@@ -5,6 +5,7 @@ import api from "../api";
 import IlSeatingGuestPanel from "../il/seating/IlSeatingGuestPanel.jsx";
 import IlSeatingSimpleGrid from "../il/seating/IlSeatingSimpleGrid.jsx";
 import IlSeatingCanvas from "../il/seating/IlSeatingCanvas.jsx";
+import IlSeatingTableDetail from "../il/seating/IlSeatingTableDetail.jsx";
 import IlSeatingTableEditModal from "../il/seating/IlSeatingTableEditModal.jsx";
 import { TABLE_SHAPES, VENUE_ELEMENT_TYPES, getVenueElementDefaults } from "../il/seating/seatingConstants.js";
 import { buildSeatingExportRows, filterSeatingGuests, formatTableDisplayLabel, makeSeatingId } from "../il/seating/ilSeatingUtils.js";
@@ -66,6 +67,8 @@ export default function IlSeatingPage() {
   const [filters, setFilters] = useState(initialFilters);
   const [selectedGuestIds, setSelectedGuestIds] = useState(() => new Set());
   const [activeTableId, setActiveTableId] = useState("");
+  const [hoverTableId, setHoverTableId] = useState("");
+  const [dragOverTableId, setDragOverTableId] = useState("");
   const [editingTableId, setEditingTableId] = useState("");
   const [toast, setToast] = useState("");
   const [saving, setSaving] = useState(false);
@@ -263,6 +266,16 @@ export default function IlSeatingPage() {
     return () => window.clearTimeout(timer);
   }, [toast]);
 
+  useEffect(() => {
+    const clearDragOver = () => setDragOverTableId("");
+    window.addEventListener("dragend", clearDragOver);
+    window.addEventListener("drop", clearDragOver);
+    return () => {
+      window.removeEventListener("dragend", clearDragOver);
+      window.removeEventListener("drop", clearDragOver);
+    };
+  }, []);
+
   const saveLayout = useCallback(
     async (patch) => {
       const nextTables = patch.tables ?? tables;
@@ -324,6 +337,9 @@ export default function IlSeatingPage() {
 
   async function assignGuests(guestIds, tableId) {
     if (!guestIds.length || !tableId) return;
+    const table = tables.find((item) => item.tableId === tableId);
+    const tableLabel = table ? formatTableDisplayLabel(table) : "?";
+    const assignedGuests = guestsWithLabels.filter((guest) => guestIds.includes(guest._id));
     try {
       const response = await api.patch(`/client/${userId}/seating/assign`, {
         assignments: guestIds.map((guestId) => ({ guestId, tableId }))
@@ -332,12 +348,29 @@ export default function IlSeatingPage() {
       setWarnings((response.data.warnings || []).filter((item) => item.type === "overfill"));
       setAnalytics(response.data.analytics || null);
       setSelectedGuestIds(new Set());
-      setToast(`שובצו ${guestIds.length} אורחים`);
+      setActiveTableId(tableId);
+      setDragOverTableId("");
+      if (assignedGuests.length === 1) {
+        setToast(`האורח ${assignedGuests[0].fullName} שובץ לשולחן ${tableLabel}`);
+      } else if (assignedGuests.length > 1) {
+        const names = assignedGuests.map((guest) => guest.fullName).filter(Boolean);
+        const shown = names.slice(0, 2).join(" ו");
+        const more = names.length > 2 ? ` ועוד ${names.length - 2}` : "";
+        setToast(`האורחים ${shown}${more} שובצו לשולחן ${tableLabel}`);
+      } else {
+        setToast(`שובץ לשולחן ${tableLabel}`);
+      }
     } catch (assignError) {
       setToast(assignError.response?.data?.message || "שיבוץ נכשל");
     }
   }
   assignGuestsRef.current = assignGuests;
+
+  const focusTableId = dragOverTableId || touchDrag?.overTableId || hoverTableId || activeTableId;
+  const focusedTable = useMemo(
+    () => tables.find((table) => table.tableId === focusTableId) || null,
+    [focusTableId, tables]
+  );
 
   async function unassignGuestIds(guestIds) {
     if (!guestIds.length) return;
@@ -599,11 +632,6 @@ export default function IlSeatingPage() {
       {error ? <p className="us-error-message">{error}</p> : null}
       {toast ? <p className="il-seat-toast">{toast}</p> : null}
       {saving ? <p className="il-seat-saving">שומר פריסה…</p> : null}
-      {isHallSimulation ? (
-        <p className="il-seat-instruction-note" role="status">
-          האולם «{matchedHallPreset.name}» מזוהה במערכת — מוצגת הדמיית האולם. גררו מוזמנים לשולחנות.
-        </p>
-      ) : null}
       {tableDispatch?.status === "scheduled" && tableDispatch.scheduledAt ? (
         <p className="il-seat-schedule-note" role="status">
           שליחת מספרי שולחן מתוזמנת ל-
@@ -719,7 +747,7 @@ export default function IlSeatingPage() {
         </div>
       </div>
 
-      <div className="il-seat-layout">
+      <div className={`il-seat-layout${viewMode === "canvas" ? " il-seat-layout--with-panel" : ""}`}>
         <IlSeatingGuestPanel
           guests={guestsWithLabels}
           filters={filters}
@@ -751,8 +779,11 @@ export default function IlSeatingPage() {
               guests={eligibleGuests}
               warnings={warnings}
               activeTableId={activeTableId}
+              highlightTableId={dragOverTableId || touchDrag?.overTableId || ""}
               onLayoutChange={saveLayout}
               onSelectTable={setActiveTableId}
+              onHoverTable={setHoverTableId}
+              onDragOverTable={setDragOverTableId}
               onEditTable={setEditingTableId}
               onDropGuestsOnTable={(tableId, guestIds) => assignGuests(guestIds, tableId)}
               canvasRef={canvasRef}
@@ -765,6 +796,15 @@ export default function IlSeatingPage() {
             />
           </div>
         )}
+
+        {viewMode === "canvas" ? (
+          <IlSeatingTableDetail
+            table={focusedTable}
+            guests={eligibleGuests}
+            onUnassignGuest={(guestId) => unassignGuestIds([guestId])}
+            onEditTable={setEditingTableId}
+          />
+        ) : null}
       </div>
 
       {touchDrag ? (

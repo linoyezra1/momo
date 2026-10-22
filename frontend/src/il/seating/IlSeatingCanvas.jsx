@@ -1,7 +1,7 @@
 import { Rnd } from "react-rnd";
 import { Pencil, RotateCcw, RotateCw, Trash2 } from "lucide-react";
 import IlVenueElementVisual from "./IlVenueElementVisual.jsx";
-import { countGuestSeats, formatTableDisplayLabel, getTableOccupancy } from "./ilSeatingUtils.js";
+import { formatTableDisplayLabel, getTableOccupancy } from "./ilSeatingUtils.js";
 
 function tableClass(shape, isOver, isDropTarget) {
   const parts = ["il-seat-table", `il-seat-table--${shape}`];
@@ -46,8 +46,11 @@ export default function IlSeatingCanvas({
   guests,
   warnings,
   activeTableId,
+  highlightTableId = "",
   onLayoutChange,
   onSelectTable,
+  onHoverTable,
+  onDragOverTable,
   onEditTable,
   onDropGuestsOnTable,
   canvasRef,
@@ -103,7 +106,10 @@ export default function IlSeatingCanvas({
   }
 
   return (
-    <div className={`il-seat-canvas-wrap${readOnly ? " is-readonly" : ""}${hasHallBackground ? " is-hall-sim" : ""}`}>
+    <div
+      className={`il-seat-canvas-wrap${readOnly ? " is-readonly" : ""}${hasHallBackground ? " is-hall-sim" : ""}`}
+      onMouseLeave={() => onHoverTable?.("")}
+    >
       <div
         className={`il-seat-canvas${hasHallBackground ? " il-seat-canvas--hall" : ""}`}
         dir="ltr"
@@ -187,8 +193,10 @@ export default function IlSeatingCanvas({
         {tables.map((table) => {
           const seats = getTableOccupancy(guests, table.tableId);
           const warning = warningByTable.get(table.tableId);
-          const isOver = seats > table.capacity;
-          const tableGuests = guests.filter((guest) => guest.seatingTableId === table.tableId);
+          const isOverCapacity = seats > table.capacity;
+          const isDropTarget =
+            highlightTableId === table.tableId || touchOverTableId === table.tableId;
+          const isActive = activeTableId === table.tableId && !isDropTarget;
 
           return (
             <Rnd
@@ -210,20 +218,34 @@ export default function IlSeatingCanvas({
                   y: position.y
                 })
               }
-              className={`${tableClass(
-                table.shape,
-                isOver,
-                activeTableId === table.tableId || touchOverTableId === table.tableId
-              )}${hasHallBackground ? " il-seat-table--hall-overlay" : ""}`}
+              className={`${tableClass(table.shape, isOverCapacity, isDropTarget)}${
+                isActive ? " il-seat-table--active" : ""
+              }${hasHallBackground ? " il-seat-table--hall-overlay" : ""}`}
               data-seating-drop-table-id={table.tableId}
               onClick={() => onSelectTable?.(table.tableId)}
+              onMouseEnter={() => onHoverTable?.(table.tableId)}
+              onMouseLeave={() => onHoverTable?.("")}
+              onDragEnter={(event) => {
+                if (readOnly) return;
+                event.preventDefault();
+                onDragOverTable?.(table.tableId);
+              }}
               onDragOver={(event) => {
                 if (readOnly) return;
                 event.preventDefault();
+                event.dataTransfer.dropEffect = "move";
+                onDragOverTable?.(table.tableId);
+              }}
+              onDragLeave={(event) => {
+                if (readOnly) return;
+                const next = event.relatedTarget;
+                if (next && event.currentTarget.contains(next)) return;
+                onDragOverTable?.("");
               }}
               onDrop={(event) => {
                 if (readOnly) return;
                 event.preventDefault();
+                onDragOverTable?.("");
                 const payload = event.dataTransfer.getData("application/json");
                 if (!payload) return;
                 try {
@@ -256,15 +278,6 @@ export default function IlSeatingCanvas({
                 <span>
                   {seats}/{table.capacity}
                 </span>
-                {tableGuests.length ? (
-                  <em className="il-seat-table__names">
-                    {tableGuests
-                      .slice(0, 2)
-                      .map((guest) => `${guest.fullName} (${countGuestSeats(guest)})`)
-                      .join(" · ")}
-                    {tableGuests.length > 2 ? ` +${tableGuests.length - 2}` : ""}
-                  </em>
-                ) : null}
                 {warning?.type === "overfill" ? (
                   <em className="il-seat-table__warn" title={warning.message}>
                     !

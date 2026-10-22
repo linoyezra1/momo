@@ -109,7 +109,37 @@
   line-height: 1.45;
 }
 
-.il-seat-toast,
+.il-seat-toast {
+  position: fixed;
+  top: 1.25rem;
+  left: 50%;
+  z-index: 80;
+  margin: 0;
+  padding: 0.75rem 1.15rem;
+  border-radius: 999px;
+  background: #1f2937;
+  color: #fff;
+  font-size: 0.92rem;
+  font-weight: 600;
+  box-shadow: 0 12px 32px rgb(15 23 42 / 28%);
+  transform: translateX(-50%);
+  animation: il-seat-toast-in 0.28s ease-out;
+  pointer-events: none;
+  max-width: min(92vw, 34rem);
+  text-align: center;
+}
+
+@keyframes il-seat-toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-0.55rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
 .il-seat-saving {
   margin: 0 0 0.75rem;
   padding: 0.55rem 0.8rem;
@@ -456,6 +486,104 @@
   grid-template-columns: minmax(240px, 300px) 1fr minmax(260px, 320px);
 }
 
+.il-seat-table-detail {
+  position: sticky;
+  top: 1rem;
+  background: #fff;
+  border: 1px solid #e8dfd8;
+  border-radius: 0.95rem;
+  padding: 1rem 1.05rem;
+  max-height: calc(100vh - 240px);
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  box-shadow: 0 10px 28px rgb(28 25 23 / 6%);
+}
+
+.il-seat-table-detail.is-empty {
+  color: #8a8178;
+  justify-content: center;
+  min-height: 11rem;
+}
+
+.il-seat-table-detail h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  color: #2f2a26;
+}
+
+.il-seat-table-detail__hint,
+.il-seat-table-detail__empty {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  color: #8a8178;
+}
+
+.il-seat-table-detail__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.il-seat-table-detail__meta {
+  margin: 0.2rem 0 0;
+  font-size: 0.82rem;
+  color: #6b635c;
+}
+
+.il-seat-table-detail__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.il-seat-table-detail__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  padding: 0.7rem 0.75rem;
+  border-radius: 0.75rem;
+  background: #faf8f6;
+  border: 1px solid #efe8e1;
+}
+
+.il-seat-table-detail__item strong {
+  display: block;
+  font-size: 0.92rem;
+  color: #2f2a26;
+}
+
+.il-seat-table-detail__item span {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.78rem;
+  color: #7a726b;
+}
+
+.il-seat-table-detail__remove {
+  border: 0;
+  background: transparent;
+  color: #b45309;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0.2rem 0.35rem;
+  flex-shrink: 0;
+}
+
+.il-seat-table-detail__remove:hover {
+  color: #92400e;
+  text-decoration: underline;
+}
+
 .il-seat-guest-panel {
   position: sticky;
   top: 1rem;
@@ -684,10 +812,15 @@
   color: #f3f4f6;
 }
 
-.il-seat-table--hall-overlay.il-seat-table--target,
+.il-seat-table--hall-overlay.il-seat-table--target {
+  background: rgba(34, 197, 94, 0.48) !important;
+  border-color: #bbf7d0 !important;
+  box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.55), 0 8px 20px rgb(0 0 0 / 28%);
+}
+
 .il-seat-table--hall-overlay.il-seat-table--over {
-  background: rgba(34, 197, 94, 0.35) !important;
-  border-color: #86efac !important;
+  background: rgba(239, 68, 68, 0.4) !important;
+  border-color: #fca5a5 !important;
 }
 
 .il-seat-table--hall-overlay .il-seat-table__edit {
@@ -926,7 +1059,15 @@
 }
 
 .il-seat-table--target {
-  box-shadow: 0 0 0 3px rgba(217, 70, 239, 0.35);
+  border-color: #16a34a;
+  background: rgba(34, 197, 94, 0.18);
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.4), 0 8px 18px rgb(22 163 74 / 18%);
+  z-index: 4;
+  transition: box-shadow 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.il-seat-table--active {
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35);
 }
 
 .il-seat-table__inner {
@@ -1094,7 +1235,8 @@
   }
 
   .il-seat-guest-panel,
-  .il-seat-table-panel {
+  .il-seat-table-panel,
+  .il-seat-table-detail {
     max-height: 320px;
   }
 }
@@ -1146,7 +1288,8 @@
     font-size: 16px;
   }
 
-  .il-seat-guest-panel {
+  .il-seat-guest-panel,
+  .il-seat-table-detail {
     position: static;
     max-height: none;
     z-index: auto;
