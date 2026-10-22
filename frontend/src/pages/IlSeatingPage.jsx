@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ChevronDown, CircleHelp, Maximize2, Minimize2, Send } from "lucide-react";
+import { ChevronDown, CircleHelp, Send } from "lucide-react";
 import api from "../api";
 import IlSeatingGuestPanel from "../il/seating/IlSeatingGuestPanel.jsx";
 import IlSeatingSimpleGrid from "../il/seating/IlSeatingSimpleGrid.jsx";
@@ -67,7 +67,6 @@ export default function IlSeatingPage() {
   const [filters, setFilters] = useState(initialFilters);
   const [selectedGuestIds, setSelectedGuestIds] = useState(() => new Set());
   const [activeTableId, setActiveTableId] = useState("");
-  const [hoverTableId, setHoverTableId] = useState("");
   const [dragOverTableId, setDragOverTableId] = useState("");
   const [editingTableId, setEditingTableId] = useState("");
   const [toast, setToast] = useState("");
@@ -83,7 +82,6 @@ export default function IlSeatingPage() {
   const [tableDispatch, setTableDispatch] = useState(null);
   const [eventInfo, setEventInfo] = useState(null);
   const [viewMode, setViewMode] = useState("simple");
-  const [canvasFullscreen, setCanvasFullscreen] = useState(false);
   const { startDragAutoScroll } = useSeatingDragAutoScroll();
   const assignGuestsRef = useRef(null);
 
@@ -366,10 +364,9 @@ export default function IlSeatingPage() {
   }
   assignGuestsRef.current = assignGuests;
 
-  const focusTableId = dragOverTableId || touchDrag?.overTableId || hoverTableId || activeTableId;
   const focusedTable = useMemo(
-    () => tables.find((table) => table.tableId === focusTableId) || null,
-    [focusTableId, tables]
+    () => tables.find((table) => table.tableId === activeTableId) || null,
+    [activeTableId, tables]
   );
 
   async function unassignGuestIds(guestIds) {
@@ -502,30 +499,6 @@ export default function IlSeatingPage() {
     setDispatchOpen(true);
     setActionsOpen(false);
   }
-
-  async function toggleCanvasFullscreen() {
-    const node = canvasRef.current?.closest?.(".il-seat-canvas-fullscreen-host") || canvasRef.current;
-    if (!node) return;
-    try {
-      if (!document.fullscreenElement) {
-        await node.requestFullscreen?.();
-        setCanvasFullscreen(true);
-      } else {
-        await document.exitFullscreen?.();
-        setCanvasFullscreen(false);
-      }
-    } catch {
-      setToast("לא ניתן להפעיל מסך מלא בדפדפן זה");
-    }
-  }
-
-  useEffect(() => {
-    const onFullscreenChange = () => {
-      setCanvasFullscreen(Boolean(document.fullscreenElement));
-    };
-    document.addEventListener("fullscreenchange", onFullscreenChange);
-    return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
-  }, []);
 
   async function submitTableDispatch(event) {
     event.preventDefault();
@@ -710,12 +683,6 @@ export default function IlSeatingPage() {
               ) : null}
             </>
           )}
-          {viewMode === "canvas" ? (
-            <button type="button" className="il-seat-toolbox__primary" onClick={toggleCanvasFullscreen}>
-              {canvasFullscreen ? <Minimize2 size={15} aria-hidden="true" /> : <Maximize2 size={15} aria-hidden="true" />}
-              {canvasFullscreen ? "יציאה ממסך מלא" : "מסך מלא"}
-            </button>
-          ) : null}
           <button type="button" className="il-seat-toolbox__primary" onClick={() => openDispatchModal()}>
             <Send size={15} aria-hidden="true" />
             שלח למוזמן מס׳ שולחן
@@ -747,7 +714,7 @@ export default function IlSeatingPage() {
         </div>
       </div>
 
-      <div className={`il-seat-layout${viewMode === "canvas" ? " il-seat-layout--with-panel" : ""}`}>
+      <div className="il-seat-layout">
         <IlSeatingGuestPanel
           guests={guestsWithLabels}
           filters={filters}
@@ -772,7 +739,7 @@ export default function IlSeatingPage() {
             touchOverTableId={touchDrag?.overTableId || ""}
           />
         ) : (
-          <div className="il-seat-canvas-fullscreen-host">
+          <div className="il-seat-canvas-stage">
             <IlSeatingCanvas
               tables={tables}
               venueElements={venueElements}
@@ -782,7 +749,6 @@ export default function IlSeatingPage() {
               highlightTableId={dragOverTableId || touchDrag?.overTableId || ""}
               onLayoutChange={saveLayout}
               onSelectTable={setActiveTableId}
-              onHoverTable={setHoverTableId}
               onDragOverTable={setDragOverTableId}
               onEditTable={setEditingTableId}
               onDropGuestsOnTable={(tableId, guestIds) => assignGuests(guestIds, tableId)}
@@ -794,17 +760,17 @@ export default function IlSeatingPage() {
               canvasHeight={isHallSimulation ? canvasHeight : 0}
               hallPresetId={isHallSimulation ? hallPresetId : ""}
             />
+            {focusedTable ? (
+              <IlSeatingTableDetail
+                table={focusedTable}
+                guests={eligibleGuests}
+                onClose={() => setActiveTableId("")}
+                onUnassignGuest={(guestId) => unassignGuestIds([guestId])}
+                onEditTable={setEditingTableId}
+              />
+            ) : null}
           </div>
         )}
-
-        {viewMode === "canvas" ? (
-          <IlSeatingTableDetail
-            table={focusedTable}
-            guests={eligibleGuests}
-            onUnassignGuest={(guestId) => unassignGuestIds([guestId])}
-            onEditTable={setEditingTableId}
-          />
-        ) : null}
       </div>
 
       {touchDrag ? (

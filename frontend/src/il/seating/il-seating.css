@@ -3,6 +3,7 @@
   min-height: 100dvh;
   padding: 1.25rem 1rem 2rem;
   background: #faf8f6;
+  overflow-x: clip;
 }
 
 .il-seat-page--white,
@@ -158,20 +159,6 @@
   text-decoration: underline;
   cursor: pointer;
   padding: 0;
-}
-
-.il-seat-canvas-fullscreen-host:fullscreen,
-.il-seat-canvas-fullscreen-host:-webkit-full-screen {
-  width: 100vw;
-  height: 100vh;
-  padding: 1rem;
-  background: #fff;
-  box-sizing: border-box;
-}
-
-.il-seat-canvas-fullscreen-host:fullscreen .il-seat-canvas-wrap,
-.il-seat-canvas-fullscreen-host:-webkit-full-screen .il-seat-canvas-wrap {
-  height: calc(100vh - 2rem);
 }
 
 .il-seat-kpi-bar {
@@ -477,43 +464,57 @@
 
 .il-seat-layout {
   display: grid;
-  grid-template-columns: minmax(260px, 320px) 1fr;
+  grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
   gap: 1rem;
   align-items: start;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
 }
 
-.il-seat-layout--with-panel {
-  grid-template-columns: minmax(240px, 300px) 1fr minmax(260px, 320px);
+.il-seat-canvas-stage {
+  position: relative;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .il-seat-table-detail {
-  position: sticky;
-  top: 1rem;
-  background: #fff;
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 12;
+  width: min(18.5rem, calc(100% - 1.5rem));
+  max-height: min(70vh, calc(100% - 1.5rem));
+  overflow: auto;
+  background: rgba(255, 255, 255, 0.97);
   border: 1px solid #e8dfd8;
   border-radius: 0.95rem;
-  padding: 1rem 1.05rem;
-  max-height: calc(100vh - 240px);
-  overflow: auto;
+  padding: 0.9rem 0.95rem;
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
-  box-shadow: 0 10px 28px rgb(28 25 23 / 6%);
+  gap: 0.75rem;
+  box-shadow: 0 14px 36px rgb(28 25 23 / 16%);
+  backdrop-filter: blur(6px);
+  animation: il-seat-detail-in 0.2s ease-out;
 }
 
-.il-seat-table-detail.is-empty {
-  color: #8a8178;
-  justify-content: center;
-  min-height: 11rem;
+@keyframes il-seat-detail-in {
+  from {
+    opacity: 0;
+    transform: translateX(-0.4rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .il-seat-table-detail h3 {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: 1.02rem;
   color: #2f2a26;
 }
 
-.il-seat-table-detail__hint,
 .il-seat-table-detail__empty {
   margin: 0;
   font-size: 0.86rem;
@@ -525,7 +526,30 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 0.65rem;
+  gap: 0.55rem;
+}
+
+.il-seat-table-detail__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.il-seat-table-detail__close {
+  width: 1.85rem;
+  height: 1.85rem;
+  border: 0;
+  border-radius: 0.45rem;
+  background: #f3f0ec;
+  color: #5b5550;
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.il-seat-table-detail__close:hover {
+  background: #e8e2db;
 }
 
 .il-seat-table-detail__meta {
@@ -568,20 +592,23 @@
 }
 
 .il-seat-table-detail__remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.7rem;
+  height: 1.7rem;
   border: 0;
+  border-radius: 0.45rem;
   background: transparent;
-  color: #b45309;
-  font: inherit;
-  font-size: 0.8rem;
-  font-weight: 700;
+  color: #9a3412;
   cursor: pointer;
-  padding: 0.2rem 0.35rem;
+  padding: 0;
   flex-shrink: 0;
 }
 
 .il-seat-table-detail__remove:hover {
-  color: #92400e;
-  text-decoration: underline;
+  background: #fef2f2;
+  color: #b91c1c;
 }
 
 .il-seat-guest-panel {
@@ -768,6 +795,8 @@
   border-radius: 0.65rem;
   padding: 0.5rem;
   overflow: auto;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .il-seat-canvas {
@@ -1229,14 +1258,12 @@
 }
 
 @media (max-width: 1100px) {
-  .il-seat-layout,
-  .il-seat-layout--with-panel {
+  .il-seat-layout {
     grid-template-columns: 1fr;
   }
 
   .il-seat-guest-panel,
-  .il-seat-table-panel,
-  .il-seat-table-detail {
+  .il-seat-table-panel {
     max-height: 320px;
   }
 }
@@ -1288,11 +1315,17 @@
     font-size: 16px;
   }
 
-  .il-seat-guest-panel,
-  .il-seat-table-detail {
+  .il-seat-guest-panel {
     position: static;
     max-height: none;
     z-index: auto;
+  }
+
+  .il-seat-table-detail {
+    width: min(17.5rem, calc(100% - 1rem));
+    top: 0.5rem;
+    left: 0.5rem;
+    max-height: min(55vh, 22rem);
   }
 
   .il-seat-table-panel {

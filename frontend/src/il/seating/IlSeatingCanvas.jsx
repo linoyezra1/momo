@@ -49,7 +49,6 @@ export default function IlSeatingCanvas({
   highlightTableId = "",
   onLayoutChange,
   onSelectTable,
-  onHoverTable,
   onDragOverTable,
   onEditTable,
   onDropGuestsOnTable,
@@ -106,10 +105,7 @@ export default function IlSeatingCanvas({
   }
 
   return (
-    <div
-      className={`il-seat-canvas-wrap${readOnly ? " is-readonly" : ""}${hasHallBackground ? " is-hall-sim" : ""}`}
-      onMouseLeave={() => onHoverTable?.("")}
-    >
+    <div className={`il-seat-canvas-wrap${readOnly ? " is-readonly" : ""}${hasHallBackground ? " is-hall-sim" : ""}`}>
       <div
         className={`il-seat-canvas${hasHallBackground ? " il-seat-canvas--hall" : ""}`}
         dir="ltr"
@@ -223,8 +219,6 @@ export default function IlSeatingCanvas({
               }${hasHallBackground ? " il-seat-table--hall-overlay" : ""}`}
               data-seating-drop-table-id={table.tableId}
               onClick={() => onSelectTable?.(table.tableId)}
-              onMouseEnter={() => onHoverTable?.(table.tableId)}
-              onMouseLeave={() => onHoverTable?.("")}
               onDragEnter={(event) => {
                 if (readOnly) return;
                 event.preventDefault();

@@ -1,19 +1,14 @@
+import { Trash2 } from "lucide-react";
 import { countGuestSeats, formatTableDisplayLabel, getTableOccupancy } from "./ilSeatingUtils.js";
 
 export default function IlSeatingTableDetail({
   table,
   guests,
+  onClose,
   onUnassignGuest,
   onEditTable
 }) {
-  if (!table) {
-    return (
-      <aside className="il-seat-table-detail is-empty" dir="rtl" aria-live="polite">
-        <h3>פירוט שולחן</h3>
-        <p className="il-seat-table-detail__hint">עמוד/י על שולחן בקנבס כדי לראות מי משובץ בו</p>
-      </aside>
-    );
-  }
+  if (!table) return null;
 
   const seats = getTableOccupancy(guests, table.tableId);
   const tableGuests = guests.filter((guest) => guest.seatingTableId === table.tableId);
@@ -29,11 +24,18 @@ export default function IlSeatingTableDetail({
             {table.name ? ` · ${table.name}` : ""}
           </p>
         </div>
-        {onEditTable ? (
-          <button type="button" className="us-btn" onClick={() => onEditTable(table.tableId)}>
-            עריכה
-          </button>
-        ) : null}
+        <div className="il-seat-table-detail__actions">
+          {onEditTable ? (
+            <button type="button" className="us-btn" onClick={() => onEditTable(table.tableId)}>
+              עריכה
+            </button>
+          ) : null}
+          {onClose ? (
+            <button type="button" className="il-seat-table-detail__close" onClick={onClose} aria-label="סגירה">
+              ×
+            </button>
+          ) : null}
+        </div>
       </div>
 
       {!tableGuests.length ? (
@@ -54,8 +56,10 @@ export default function IlSeatingTableDetail({
                   type="button"
                   className="il-seat-table-detail__remove"
                   onClick={() => onUnassignGuest(guest._id)}
+                  aria-label={`החזרת ${guest.fullName} לרשימת הממתינים`}
+                  title="החזרה לממתינים לשיבוץ"
                 >
-                  הסרה
+                  <Trash2 size={14} aria-hidden="true" />
                 </button>
               ) : null}
             </li>
