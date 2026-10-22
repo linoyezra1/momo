@@ -46,6 +46,13 @@ api.interceptors.request.use((config) => {
       config.headers.Authorization = `Bearer ${managerToken}`;
     }
   }
+  // Admin impersonation on the couple dashboard (e.g. bulk status) must send the session token.
+  if (url.startsWith("/client/") && !config.headers.Authorization) {
+    const impersonation = getImpersonationSession();
+    if (impersonation?.token) {
+      config.headers.Authorization = `Bearer ${impersonation.token}`;
+    }
+  }
   return config;
 });
 
