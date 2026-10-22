@@ -63,11 +63,7 @@ export default function IlSeatingCanvas({
   const canvasStyle = {
     ...(hasHallBackground
       ? {
-          backgroundImage: `url(${backgroundImageUrl})`,
-          backgroundSize: "100% 100%",
-          backgroundPosition: "center",
-          backgroundRepeat: "no-repeat",
-          backgroundColor: "#1f2937"
+          ["--il-hall-bg-image"]: `url("${String(backgroundImageUrl).replace(/"/g, "%22")}")`
         }
       : {}),
     ...(Number(canvasWidth) > 0 ? { width: Number(canvasWidth), minWidth: Number(canvasWidth) } : {}),

@@ -224,6 +224,40 @@ export default function IlSeatingPage() {
   }, [loadSeating]);
 
   useEffect(() => {
+    if (!matchedHallPreset) return;
+    if (viewMode !== "canvas") setViewMode("canvas");
+  }, [matchedHallPreset, viewMode]);
+
+  useEffect(() => {
+    if (loading || !matchedHallPreset) return;
+    if (hallPresetId === matchedHallPreset.id && backgroundImageUrl) return;
+    let cancelled = false;
+    (async () => {
+      const layout = matchedHallPreset.buildLayout();
+      if (cancelled) return;
+      setTables(layout.tables);
+      setVenueElements(layout.venueElements);
+      setBackgroundImageUrl(layout.backgroundImageUrl);
+      setCanvasWidth(layout.canvasWidth);
+      setCanvasHeight(layout.canvasHeight);
+      setHallPresetId(layout.hallPresetId);
+      setSaving(true);
+      try {
+        await api.put(`/client/${userId}/seating/layout`, layout);
+      } catch (saveError) {
+        if (!cancelled) {
+          setToast(saveError.response?.data?.message || "טעינת הדמיית האולם נכשלה");
+        }
+      } finally {
+        if (!cancelled) setSaving(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [backgroundImageUrl, hallPresetId, loading, matchedHallPreset, userId]);
+
+  useEffect(() => {
     if (!toast) return undefined;
     const timer = window.setTimeout(() => setToast(""), 2800);
     return () => window.clearTimeout(timer);
@@ -515,7 +549,10 @@ export default function IlSeatingPage() {
       <header className="il-seat-header">
         <div>
           <h1>מערכת הושבה — momoEVENT</h1>
-          <p>גררו אורחים לשולחנות · ניהול הושבה לאירוע</p>
+          <p>
+            {eventInfo?.venueName ? `מתחם: ${eventInfo.venueName} · ` : ""}
+            גררו אורחים לשולחנות · ניהול הושבה לאירוע
+          </p>
         </div>
         <div className="il-seat-header__actions">
           <div className="il-seat-view-toggle" role="group" aria-label="בחירת תצוגה">

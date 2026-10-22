@@ -654,8 +654,12 @@
   border-radius: 0.5rem;
 }
 
-.il-seat-canvas--hall {
-  background-image: none;
+.il-seat-canvas.il-seat-canvas--hall {
+  background-color: #1f2937;
+  background-image: var(--il-hall-bg-image, none);
+  background-size: 100% 100%;
+  background-position: center;
+  background-repeat: no-repeat;
   box-shadow: inset 0 0 0 1px rgb(0 0 0 / 8%);
 }
 

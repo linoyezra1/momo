@@ -4,10 +4,12 @@
  * Drop zones sit over the drawn tables so guests can be dragged onto them.
  */
 
+const hallAssetBase = String(import.meta.env.BASE_URL || "/").replace(/\/?$/, "/");
+
 export const SHALOSH_HALL = {
   id: "shalosh",
   name: "שלוש",
-  backgroundImageUrl: "/venue-halls/shalosh.jpg",
+  backgroundImageUrl: `${hallAssetBase}venue-halls/shalosh.jpg`,
   canvasWidth: 1024,
   canvasHeight: 563
 };
