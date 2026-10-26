@@ -667,6 +667,129 @@
   outline-offset: 2px;
 }
 
+.agent-quick-action.is-disabled {
+  opacity: 0.45;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
+.agent-wa-failures {
+  margin: 0 0 1.15rem;
+  padding: 1rem 1.05rem;
+  border: 1px solid var(--agent-border, #e5ddd4);
+  border-radius: 0.95rem;
+  background: #fff;
+  box-shadow: 0 8px 24px rgb(28 25 23 / 5%);
+}
+
+.agent-wa-failures__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.agent-wa-failures__head h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1.05rem;
+}
+
+.agent-wa-failures__head p {
+  margin: 0;
+  font-size: 0.84rem;
+  color: #6b635c;
+  line-height: 1.4;
+  max-width: 42rem;
+}
+
+.agent-wa-failures__head .agent-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.agent-wa-failures__search {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.75rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid #e8dfd8;
+  border-radius: 0.7rem;
+  background: #fbfaf8;
+}
+
+.agent-wa-failures__search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 0.9rem;
+  outline: none;
+}
+
+.agent-wa-failures__table-wrap {
+  overflow-x: auto;
+  border: 1px solid #efe8e1;
+  border-radius: 0.75rem;
+}
+
+.agent-wa-failures__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.agent-wa-failures__table th,
+.agent-wa-failures__table td {
+  padding: 0.65rem 0.7rem;
+  text-align: right;
+  border-bottom: 1px solid #f0ebe6;
+  vertical-align: middle;
+}
+
+.agent-wa-failures__table th {
+  background: #faf7f4;
+  font-weight: 700;
+  color: #4b453f;
+  white-space: nowrap;
+}
+
+.agent-wa-failures__table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.agent-wa-failures__status {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.agent-wa-failures__status.is-failed {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.agent-wa-failures__status.is-undelivered {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
+@media (max-width: 900px) {
+  .agent-wa-failures__table th:nth-child(3),
+  .agent-wa-failures__table td:nth-child(3),
+  .agent-wa-failures__table th:nth-child(4),
+  .agent-wa-failures__table td:nth-child(4) {
+    display: none;
+  }
+}
+
 .agent-table-check input {
   width: 1rem;
   height: 1rem;

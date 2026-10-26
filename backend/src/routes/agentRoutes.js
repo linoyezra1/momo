@@ -1,8 +1,10 @@
 import express from "express";
 import User from "../models/User.js";
 import Guest from "../models/Guest.js";
+import WhatsAppDeliveryLog from "../models/WhatsAppDeliveryLog.js";
 import { publishDashboardEvent } from "../services/dashboardEvents.js";
 import { listGuestAuditLogs, recordPhoneAttemptAudit } from "../services/guestAuditService.js";
+import { syncWhatsAppFailuresFromTwilio } from "../services/whatsappDeliveryLogService.js";
 import {
   requireAgent,
   signAgentToken,
@@ -319,6 +321,61 @@ router.get("/:userId/audit-logs", async (req, res) => {
     return res.json(result);
   } catch (error) {
     return res.status(500).json({ message: error.message || "Failed to load audit logs" });
+  }
+});
+
+router.get("/:userId/whatsapp-delivery-failures", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const owned = await findAgentAccessibleUser(userId, req.agent, "_id createdByAgentId");
+    if (owned.error) {
+      return res.status(owned.error.status).json({ message: owned.error.message });
+    }
+
+    const force = String(req.query.sync || "") === "force";
+    const shouldSync = req.query.sync !== "0";
+    let sync = { imported: 0, scanned: 0, skipped: true };
+    let syncError = "";
+    if (shouldSync) {
+      try {
+        sync = await syncWhatsAppFailuresFromTwilio({ userId, force });
+      } catch (error) {
+        syncError = error.message || "סנכרון היסטוריית Twilio נכשל";
+        console.error("[agent Twilio status] history sync failed:", syncError);
+      }
+    }
+
+    const logs = await WhatsAppDeliveryLog.find({
+      userId,
+      status: { $in: ["failed", "undelivered"] }
+    })
+      .sort({ failedAt: -1, createdAt: -1 })
+      .lean();
+
+    return res.json({
+      sync: {
+        imported: sync.imported || 0,
+        scanned: sync.scanned || 0,
+        matched: sync.matched || 0,
+        skipped: Boolean(sync.skipped),
+        reason: sync.reason || "",
+        error: syncError
+      },
+      logs: logs.map((log) => ({
+        id: String(log._id),
+        guestId: log.guestId ? String(log.guestId) : "",
+        guestName: log.guestName || "",
+        guestPhone: log.guestPhone || "",
+        status: log.status,
+        errorCode: log.errorCode || "",
+        errorMessage: log.errorMessage || "",
+        errorMessageHe: log.errorMessageHe || "",
+        sentAt: log.sentAt || null,
+        failedAt: log.failedAt || null
+      }))
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "טעינת דוח כשלים נכשלה", error: error.message });
   }
 });
 

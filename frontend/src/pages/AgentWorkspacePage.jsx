@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { CalendarDays, ChevronDown, Clock3, MapPin, Phone, Search, Users, X } from "lucide-react";
 import api from "../api";
 import AgentPhoneRsvpForm from "../components/AgentPhoneRsvpForm.jsx";
+import AgentWhatsAppFailures from "../components/AgentWhatsAppFailures.jsx";
 import GuestAuditLogTable from "../components/GuestAuditLogTable.jsx";
 import SmsIcon from "../components/SmsIcon.jsx";
 import WhatsAppIcon from "../components/WhatsAppIcon.jsx";
@@ -336,6 +337,10 @@ export default function AgentWorkspacePage() {
               ) : null}
             </div>
           </section>
+        ) : null}
+
+        {!loading && userId ? (
+          <AgentWhatsAppFailures userId={userId} event={eventInfo} />
         ) : null}
 
         {!loading ? (

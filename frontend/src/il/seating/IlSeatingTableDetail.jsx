@@ -13,7 +13,6 @@ export default function IlSeatingTableDetail({
   const seats = getTableOccupancy(guests, table.tableId);
   const capacity = Number(table.capacity) || 0;
   const isOverCapacity = seats > capacity;
-  const overflowSeats = isOverCapacity ? seats - capacity : 0;
   const tableGuests = guests.filter((guest) => guest.seatingTableId === table.tableId);
   const label = formatTableDisplayLabel(table);
 
@@ -47,7 +46,7 @@ export default function IlSeatingTableDetail({
 
       {isOverCapacity ? (
         <p className="il-seat-table-detail__overfill" role="status">
-          חריגה מהקיבולת — עוד {overflowSeats} מושבים מעל {capacity}
+          השולחן קצת צפוף: הושבתם כאן {seats} מוזמנים במקום {capacity}
         </p>
       ) : null}
 

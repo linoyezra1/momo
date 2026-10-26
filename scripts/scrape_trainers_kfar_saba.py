@@ -1,5 +1,5 @@
 """
-Google Maps scrape: מאמני כושר באור עקיבא, חריש, מנשה והישובים סביב.
+Google Maps scrape: מאמני כושר בבת ים.
 
 Install once:
   pip install playwright
@@ -20,49 +20,9 @@ from playwright.sync_api import sync_playwright
 
 SEARCHES = [
     {
-        "query": "מאמני כושר אור עקיבא",
-        "output": Path("trainers_or_akiva.csv"),
-        "geolocation": {"latitude": 32.507, "longitude": 34.921},
-    },
-    {
-        "query": "מאמני כושר חריש",
-        "output": Path("trainers_harish.csv"),
-        "geolocation": {"latitude": 32.460, "longitude": 35.043},
-    },
-    {
-        "query": "מאמני כושר מועצה אזורית מנשה",
-        "output": Path("trainers_menashe.csv"),
-        "geolocation": {"latitude": 32.470, "longitude": 35.010},
-    },
-    {
-        "query": "מאמני כושר אחיטוב",
-        "output": Path("trainers_ahituv.csv"),
-        "geolocation": {"latitude": 32.390, "longitude": 34.991},
-    },
-    {
-        "query": "מאמני כושר עין החורש",
-        "output": Path("trainers_ein_hahoresh.csv"),
-        "geolocation": {"latitude": 32.389, "longitude": 34.940},
-    },
-    {
-        "query": "מאמני כושר תלמי אלעזר",
-        "output": Path("trainers_talmei_elazar.csv"),
-        "geolocation": {"latitude": 32.447, "longitude": 34.975},
-    },
-    {
-        "query": "מאמני כושר שדה יצחק",
-        "output": Path("trainers_sde_yitzhak.csv"),
-        "geolocation": {"latitude": 32.405, "longitude": 34.991},
-    },
-    {
-        "query": "מאמני כושר בנימינה גבעת עדה",
-        "output": Path("trainers_binyamina.csv"),
-        "geolocation": {"latitude": 32.523, "longitude": 34.950},
-    },
-    {
-        "query": "מאמני כושר בית חנניה",
-        "output": Path("trainers_beit_hanania.csv"),
-        "geolocation": {"latitude": 32.534, "longitude": 34.929},
+        "query": "מאמני כושר בת ים",
+        "output": Path("trainers_bat_yam.csv"),
+        "geolocation": {"latitude": 32.017, "longitude": 34.750},
     },
 ]
 
@@ -119,13 +79,18 @@ def collect_place_links(page):
     return places
 
 
+def looks_like_phone(value):
+    digits = "".join(ch for ch in str(value or "") if ch.isdigit())
+    return 8 <= len(digits) <= 15
+
+
 def extract_phone(page):
     button = page.locator('button[data-item-id^="phone:tel:"]')
     if button.count():
         item_id = button.first.get_attribute("data-item-id") or ""
         raw = item_id.split("phone:tel:", 1)[-1]
         phone = unquote(raw).strip()
-        if phone:
+        if looks_like_phone(phone):
             return phone
 
     labeled = page.locator('button[aria-label*="טלפון"], button[aria-label*="Phone"]')
@@ -133,9 +98,27 @@ def extract_phone(page):
         aria = labeled.first.get_attribute("aria-label") or ""
         for separator in (":", "："):
             if separator in aria:
-                return aria.split(separator, 1)[-1].strip()
-        return aria.strip()
+                phone = aria.split(separator, 1)[-1].strip()
+                if looks_like_phone(phone):
+                    return phone
+        if looks_like_phone(aria):
+            return aria.strip()
     return ""
+
+
+def name_from_maps_url(url):
+    try:
+        marker = "/maps/place/"
+        if marker not in url:
+            return ""
+        slug = url.split(marker, 1)[1].split("/", 1)[0]
+        name = unquote(slug).replace("+", " ").strip()
+        name = name.replace("\u200f", "").replace("\u200e", "").strip(" ·|-")
+        if name in {"תוצאות", "Results", "Search results"}:
+            return ""
+        return name
+    except Exception:
+        return ""
 
 
 def extract_name(page, fallback):
@@ -143,11 +126,16 @@ def extract_name(page, fallback):
     try:
         heading.wait_for(state="visible", timeout=12000)
         name = heading.inner_text().strip()
-        if name:
+        if name and name not in {"תוצאות", "Results", "Search results"}:
             return name
     except PlaywrightTimeoutError:
         pass
-    return fallback
+    from_url = name_from_maps_url(page.url)
+    if from_url:
+        return from_url
+    if fallback and fallback not in {"תוצאות", "Results"}:
+        return fallback
+    return from_url or fallback or ""
 
 
 def css_attr_fragment(value):
