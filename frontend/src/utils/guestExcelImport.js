@@ -30,17 +30,23 @@ export function makeFailedRow(rowNumber, name, reason) {
   };
 }
 
-function normalizeHeader(value) {
+/** Strip BOM / bidi marks that Excel/Google Sheets often embed in Hebrew headers. */
+export function stripExcelNoise(value) {
   return String(value ?? "")
     .replace(/\u00a0/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+    .replace(/[\ufeff\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, "");
+}
+
+export function normalizeHeader(value) {
+  return stripExcelNoise(value).replace(/\s+/g, " ").trim();
+}
+
+export function normalizeGuestSide(value) {
+  return normalizeHeader(value);
 }
 
 function cellText(value) {
-  return String(value ?? "")
-    .replace(/\u00a0/g, " ")
-    .trim();
+  return stripExcelNoise(value).trim();
 }
 
 function pickCell(row, match) {
@@ -51,11 +57,29 @@ function pickCell(row, match) {
   return "";
 }
 
+/** מאורסים מאורסות column is exactly "מהצד של..." (dots or …). */
+export function isGuestSideHeader(header) {
+  const key = normalizeHeader(header);
+  if (!key) return false;
+  if (key === "צד" || key === "side") return true;
+  // Exact export header from מאורסים מאורסות, plus close variants.
+  if (
+    key === "מהצד של..." ||
+    key === "מהצד של…" ||
+    key.startsWith("מהצד של") ||
+    key.startsWith("מצד של") ||
+    key.startsWith("צד של")
+  ) {
+    return true;
+  }
+  return key.includes("מהצד של") || key.includes("מצד של");
+}
+
 /** מאורסים מאורסות: שם המוזמן + (מהצד של... או שיוך לקבוצה). */
 export function isMeorasimHeaderList(headers) {
   const list = (headers || []).map(normalizeHeader).filter(Boolean);
-  const hasName = list.some((header) => header === "שם המוזמן");
-  const hasSide = list.some((header) => header.startsWith("מהצד של"));
+  const hasName = list.some((header) => header === "שם המוזמן" || header === "שם מלא");
+  const hasSide = list.some((header) => isGuestSideHeader(header));
   const hasGroup = list.some((header) => header === "שיוך לקבוצה");
   return hasName && (hasSide || hasGroup);
 }
@@ -122,7 +146,7 @@ function mapMeorasimRow(row) {
     fullName,
     phone,
     guestGroup: pickCell(row, (key) => key === "שיוך לקבוצה"),
-    guestSide: pickCell(row, (key) => key.startsWith("מהצד של")),
+    guestSide: normalizeGuestSide(pickCell(row, (key) => isGuestSideHeader(key))),
     attendeesCount,
     status: mapArrivalStatus(pickCell(row, (key) => key === "סטטוס הגעה" || key === "סטטוס")),
     giftAmount: parseGiftAmount(pickCell(row, (key) => key === "סכום מתנה משוער")),
@@ -184,6 +208,9 @@ export function parseExcelGuestRows(rows) {
     const rawPhone = String(rawPhoneValue ?? "").trim();
     const phone = normalizeIsraeliPhone(rawPhoneValue);
     const guestGroup = extractCategoryFromRow(row);
+    const guestSide = normalizeGuestSide(
+      row.guestSide ?? pickCell(row, (key) => isGuestSideHeader(key))
+    );
     const amountRaw =
       row["כמות"] ??
       row["כמות מגיעים"] ??
@@ -193,7 +220,7 @@ export function parseExcelGuestRows(rows) {
       row.count ??
       row.attendeesCount;
     const hasAmount = String(amountRaw ?? "").trim() !== "";
-    const hasAnyContent = Boolean(fullName || rawPhone || hasAmount);
+    const hasAnyContent = Boolean(fullName || rawPhone || hasAmount || guestSide);
 
     if (!hasAnyContent) return;
 
@@ -209,6 +236,7 @@ export function parseExcelGuestRows(rows) {
         fullName,
         phone: "",
         guestGroup,
+        guestSide,
         attendeesCount: Math.max(1, parseAttendeesCount(amountRaw)),
         status: "לא ידוע",
         rowNumber
@@ -243,6 +271,7 @@ export function parseExcelGuestRows(rows) {
       fullName,
       phone: storedPhone,
       guestGroup,
+      guestSide,
       attendeesCount: Math.max(1, parseAttendeesCount(amountRaw)),
       status: "לא ידוע",
       rowNumber

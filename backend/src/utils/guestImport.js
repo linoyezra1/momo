@@ -24,16 +24,45 @@ export function hasUsablePhoneDigits(phone) {
 export const NON_ISRAELI_PHONE_WARNING =
   "מספר הטלפון אינו ישראלי — עלה למערכת, אנא ודאו שאין טעות ושהמספר תקין";
 
-function cleanText(value) {
+function stripExcelNoise(value) {
   return String(value ?? "")
     .replace(/\u00a0/g, " ")
-    .trim();
+    .replace(/[\ufeff\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, "");
+}
+
+function cleanText(value) {
+  return stripExcelNoise(value).trim();
+}
+
+function normalizeHeader(value) {
+  return cleanText(value).replace(/\s+/g, " ");
+}
+
+export function normalizeGuestSide(value) {
+  return normalizeHeader(value);
+}
+
+/** מאורסים מאורסות column is exactly "מהצד של..." (dots or …). */
+function isGuestSideHeader(header) {
+  const key = normalizeHeader(header);
+  if (!key) return false;
+  if (key === "צד" || key === "side") return true;
+  if (
+    key === "מהצד של..." ||
+    key === "מהצד של…" ||
+    key.startsWith("מהצד של") ||
+    key.startsWith("מצד של") ||
+    key.startsWith("צד של")
+  ) {
+    return true;
+  }
+  return key.includes("מהצד של") || key.includes("מצד של");
 }
 
 function headerValue(row, match) {
   for (const [key, value] of Object.entries(row || {})) {
     if (String(key).startsWith("__")) continue;
-    const header = cleanText(key).replace(/\s+/g, " ");
+    const header = normalizeHeader(key);
     if (match(header)) return value;
   }
   return undefined;
@@ -73,8 +102,8 @@ export function extractGuestFieldsFromRow(row = {}) {
     headerValue(row, (key) => key === "נייד") ?? row["טלפון"] ?? row.phone ?? ""
   );
   const phone = normalizePhone(rawPhone);
-  const sideValue = cleanText(
-    row.guestSide ?? headerValue(row, (key) => key.startsWith("מהצד של")) ?? ""
+  const sideValue = normalizeGuestSide(
+    row.guestSide ?? headerValue(row, (key) => isGuestSideHeader(key)) ?? ""
   );
   const guestGroup = cleanText(
     headerValue(row, (key) => key === "שיוך לקבוצה") ??
@@ -83,7 +112,6 @@ export function extractGuestFieldsFromRow(row = {}) {
       row.category ??
       row.guestGroup ??
       row.guestCategory ??
-      (sideValue ? "" : row["צד"]) ??
       ""
   );
   const amountRaw =

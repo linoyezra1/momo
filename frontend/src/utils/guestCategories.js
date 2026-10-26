@@ -14,7 +14,7 @@ export function getGuestCategory(guestOrValue) {
 export function extractCategoryFromRow(row = {}) {
   return String(
     row["קטגוריה"] ??
-      row["צד"] ??
+      row["שיוך לקבוצה"] ??
       row.Category ??
       row.category ??
       row.guestGroup ??

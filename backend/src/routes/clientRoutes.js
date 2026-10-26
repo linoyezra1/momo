@@ -10,6 +10,7 @@ import {
   makeFailedRow,
   makeWarningRow,
   NON_ISRAELI_PHONE_WARNING,
+  normalizeGuestSide,
   processImportGuestBatch,
   registerEventGuestCategories,
   validateImportGuestRow
@@ -93,7 +94,7 @@ function toGuestDoc(userId, mapped) {
     fullName: mapped.fullName,
     phone: normalizePhone(mapped.phone),
     guestGroup: String(mapped.guestGroup || "").trim(),
-    guestSide: String(mapped.guestSide || "").trim(),
+    guestSide: normalizeGuestSide(mapped.guestSide),
     attendeesCount: mapped.attendeesCount,
     giftAmount: Math.max(0, Number(mapped.giftAmount || 0)),
     email: String(mapped.email || "").trim(),
@@ -715,7 +716,7 @@ router.post("/:userId/guests/import", async (req, res) => {
           fullName: String(row.fullName).trim(),
           phone: normalized || (row.phone ? String(row.phone).replace(/\D/g, "") : ""),
           guestGroup: rawCategory,
-          guestSide: String(row.guestSide || "").trim(),
+          guestSide: normalizeGuestSide(row.guestSide),
           attendeesCount: Math.max(1, Number(row.attendeesCount || 1)),
           giftAmount: Math.max(0, Number(row.giftAmount || 0)),
           email: String(row.email || "").trim(),
@@ -846,7 +847,7 @@ router.post("/:userId/guests/import", async (req, res) => {
             giftAmount: Math.max(0, Number(doc.giftAmount || 0)),
             status: doc.status,
             guestGroup: String(doc.guestGroup || "").trim(),
-            guestSide: String(doc.guestSide || "").trim(),
+            guestSide: normalizeGuestSide(doc.guestSide),
             email: String(doc.email || "").trim(),
             notes: String(doc.notes || "").trim(),
             invitationSent: String(doc.invitationSent || "").trim(),
@@ -958,7 +959,7 @@ router.patch("/:userId/guests/:guestId", async (req, res) => {
       update.giftAmount = Math.max(0, Number(giftAmount));
     }
     if (typeof req.body.guestSide !== "undefined") {
-      update.guestSide = String(req.body.guestSide || "").trim().slice(0, 80);
+      update.guestSide = normalizeGuestSide(req.body.guestSide).slice(0, 80);
     }
     if (typeof req.body.guestGroup !== "undefined") {
       update.guestGroup = String(req.body.guestGroup || "").trim();

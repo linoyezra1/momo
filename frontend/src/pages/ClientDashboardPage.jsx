@@ -28,7 +28,13 @@ import BottomSheet from "../components/ui/BottomSheet.jsx";
 import { buildWhatsAppSendUrl } from "../utils/whatsapp";
 import { resolveInviteCopyDefaults } from "../utils/whatsappInviteCopy";
 import { normalizeIsraeliPhone } from "../utils/phoneNormalize";
-import { formatFailedRowLabel, matrixToGuestRows, mergeFailedRows, parseExcelGuestRows } from "../utils/guestExcelImport";
+import {
+  formatFailedRowLabel,
+  matrixToGuestRows,
+  mergeFailedRows,
+  normalizeGuestSide,
+  parseExcelGuestRows
+} from "../utils/guestExcelImport";
 import { getAuditLogLastReadAt } from "../utils/auditLogUnread.js";
 import { useEventWorkspace } from "../utils/useEventWorkspace.js";
 import { buildTelHref } from "../utils/vendors.js";
@@ -453,7 +459,7 @@ export default function ClientDashboardPage() {
     const seen = new Set();
     const values = [];
     guests.forEach((guest) => {
-      const side = String(guest.guestSide || "").trim();
+      const side = normalizeGuestSide(guest.guestSide);
       if (!side) return;
       const key = side.toLowerCase();
       if (seen.has(key)) return;
@@ -497,7 +503,9 @@ export default function ClientDashboardPage() {
     }
 
     if (activeSideFilter !== "all") {
-      list = list.filter((guest) => String(guest.guestSide || "").trim() === activeSideFilter);
+      list = list.filter(
+        (guest) => normalizeGuestSide(guest.guestSide).toLowerCase() === activeSideFilter.toLowerCase()
+      );
     }
 
     if (reminderRoundFilter.endsWith("+")) {
