@@ -13,7 +13,6 @@ import {
 } from "lucide-react";
 import api from "../api";
 import TableDispatchFeatureLockedNotice from "../components/TableDispatchFeatureLockedNotice.jsx";
-import CouponCodeField from "../components/CouponCodeField.jsx";
 import "../us/client-portal.css";
 import "../il/il-portal.css";
 import "../il/hostess.css";
@@ -65,9 +64,6 @@ export default function HostessPage() {
   const [seatGuest, setSeatGuest] = useState(null);
   const [selectedTableId, setSelectedTableId] = useState("");
   const [seatSuccess, setSeatSuccess] = useState(null);
-  const [couponGuest, setCouponGuest] = useState(null);
-  const [couponCode, setCouponCode] = useState("");
-  const [couponError, setCouponError] = useState("");
   const [addGuestOpen, setAddGuestOpen] = useState(false);
   const [addGuestForm, setAddGuestForm] = useState(emptyAddGuestForm);
   const [addGuestError, setAddGuestError] = useState("");
@@ -224,9 +220,7 @@ export default function HostessPage() {
       showToast("יש לשבץ את המוזמן לשולחן לפני שליחת מספר שולחן", { tone: "error" });
       return;
     }
-    setCouponError("");
-    setCouponCode("");
-    setCouponGuest(guest);
+    sendTableWhatsApp(guest);
   };
 
   const openAddGuestModal = () => {
@@ -279,24 +273,16 @@ export default function HostessPage() {
     }
   };
 
-  const sendTableWhatsApp = async (guest, code) => {
+  const sendTableWhatsApp = async (guest) => {
     setBusyGuestId(guest._id);
-    setCouponError("");
     try {
-      const { data } = await api.post(`/hostess/${eventId}/guests/${guest._id}/send-table-whatsapp`, {
-        paymentCode: code,
-        couponCode: code
-      });
-      setCouponGuest(null);
-      setCouponCode("");
-      showToast(data.message || "נשלח בהצלחה! ✓", { tone: "success", durationMs: 4000 });
+      const { data } = await api.post(`/hostess/${eventId}/guests/${guest._id}/send-table-whatsapp`);
+      showToast(data.message || "בוצעה שליחה", { tone: "success", durationMs: 4000 });
     } catch (sendError) {
       if (sendError.response?.data?.code === "feature_disabled") {
-        setCouponGuest(null);
         setCanSendTableWhatsApp(false);
-      } else {
-        setCouponError(sendError.response?.data?.message || "שליחת WhatsApp נכשלה");
       }
+      showToast(sendError.response?.data?.message || "שליחת WhatsApp נכשלה", { tone: "error" });
     } finally {
       setBusyGuestId("");
     }
@@ -806,64 +792,6 @@ export default function HostessPage() {
         </div>
       ) : null}
 
-      {couponGuest && canSendTableWhatsApp ? (
-        <div className="us-modal-backdrop" role="presentation" onClick={() => setCouponGuest(null)}>
-          <form
-            className="us-modal-card il-hostess-modal il-hostess-modal--coupon"
-            role="dialog"
-            aria-modal="true"
-            onClick={(event) => event.stopPropagation()}
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (!couponCode.trim()) {
-                setCouponError("יש להזין קוד קופון לרכישה זו");
-                return;
-              }
-              sendTableWhatsApp(couponGuest, couponCode.trim());
-            }}
-          >
-            <h2>שליחת מספר שולחן</h2>
-            <p className="il-coupon-modal-intro">יש להזין קוד קופון פעיל לשליחת ההודעה.</p>
-            <div className="il-coupon-modal-fields">
-              <CouponCodeField
-                userId={eventId}
-                value={couponCode}
-                onChange={(next) => {
-                  setCouponError("");
-                  setCouponCode(next);
-                }}
-                label="קוד קופון"
-                hint="בחרו קופון שמור או הזינו קוד ידנית"
-                placeholder="לדוגמה: MOMO123"
-                id="hostess-table-coupon"
-                required
-              />
-            </div>
-            {couponError ? (
-              <p className="il-hostess-status-line il-hostess-status-line--error">
-                {couponError}
-              </p>
-            ) : null}
-            <div className="us-modal-actions">
-              <button
-                className="il-hostess-btn il-hostess-btn--primary"
-                type="submit"
-                disabled={busyGuestId === couponGuest._id}
-              >
-                שליחה
-              </button>
-              <button
-                className="il-hostess-btn il-hostess-btn--outline"
-                type="button"
-                onClick={() => setCouponGuest(null)}
-              >
-                ביטול
-              </button>
-            </div>
-          </form>
-        </div>
-      ) : null}
-
       {addGuestOpen ? (
         <div className="us-modal-backdrop" role="presentation" onClick={closeAddGuestModal}>
           <form
@@ -917,22 +845,46 @@ export default function HostessPage() {
               />
             </label>
 
-            <label className="il-hostess-field">
-              כמות מגיעים
-              <input
-                type="number"
-                min="1"
-                max="20"
-                value={addGuestForm.attendeesCount}
-                onChange={(event) =>
-                  setAddGuestForm((prev) => ({
-                    ...prev,
-                    attendeesCount: Math.max(1, Number(event.target.value) || 1)
-                  }))
-                }
-                required
-              />
-            </label>
+            <div className="il-hostess-field">
+              <span id="add-guest-attendees-label">כמה מגיעים</span>
+              <div
+                className="il-hostess-count-stepper"
+                role="group"
+                aria-labelledby="add-guest-attendees-label"
+              >
+                <button
+                  type="button"
+                  className="il-hostess-count-stepper__btn"
+                  aria-label="הקטנת כמות מגיעים"
+                  onClick={() =>
+                    setAddGuestForm((prev) => ({
+                      ...prev,
+                      attendeesCount: Math.max(1, Number(prev.attendeesCount) - 1)
+                    }))
+                  }
+                  disabled={addingGuest || Number(addGuestForm.attendeesCount) <= 1}
+                >
+                  −
+                </button>
+                <span className="il-hostess-count-stepper__value" aria-live="polite">
+                  {Math.max(1, Number(addGuestForm.attendeesCount) || 1)}
+                </span>
+                <button
+                  type="button"
+                  className="il-hostess-count-stepper__btn"
+                  aria-label="הגדלת כמות מגיעים"
+                  onClick={() =>
+                    setAddGuestForm((prev) => ({
+                      ...prev,
+                      attendeesCount: Math.min(20, Math.max(1, Number(prev.attendeesCount) || 1) + 1)
+                    }))
+                  }
+                  disabled={addingGuest || Number(addGuestForm.attendeesCount) >= 20}
+                >
+                  +
+                </button>
+              </div>
+            </div>
 
             {addGuestError ? (
               <p className="il-hostess-status-line il-hostess-status-line--error" style={{ marginTop: "0.75rem" }}>

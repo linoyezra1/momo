@@ -3,12 +3,7 @@ import User from "../models/User.js";
 import Guest from "../models/Guest.js";
 import SeatingLayout from "../models/SeatingLayout.js";
 import { isTwilioConfigured } from "../utils/twilioWhatsApp.js";
-import {
-  findValidActivationCode,
-  mapTwilioErrorMessage,
-  releaseActivationCredits,
-  reserveActivationCredits
-} from "../services/bulkWhatsAppService.js";
+import { mapTwilioErrorMessage } from "../services/bulkWhatsAppService.js";
 import {
   canSendTableWhatsApp,
   formatTableDisplayLabel,
@@ -417,7 +412,6 @@ router.post("/:eventId/guests/:guestId/assign-table", async (req, res) => {
 router.post("/:eventId/guests/:guestId/send-table-whatsapp", async (req, res) => {
   try {
     const { eventId, guestId } = req.params;
-    const paymentCode = String(req.body?.paymentCode || req.body?.couponCode || "").trim();
     const user = await User.findById(eventId);
     if (!user) return res.status(404).json({ message: "האירוע לא נמצא" });
 
@@ -433,14 +427,6 @@ router.post("/:eventId/guests/:guestId/send-table-whatsapp", async (req, res) =>
       return res.status(503).json({ message: "שירות שליחת הודעות לא מוגדר בשרת" });
     }
 
-    const { codeRecord, error: codeError } = await findValidActivationCode(paymentCode);
-    if (codeError === "missing_code") {
-      return res.status(400).json({ message: "יש להזין קוד קופון לרכישה זו" });
-    }
-    if (codeError === "invalid_code" || codeError === "expired_code") {
-      return res.status(400).json({ message: "קוד הקופון אינו תקין או שפג תוקפו" });
-    }
-
     const guest = await Guest.findOne({ _id: guestId, userId: eventId });
     if (!guest) return res.status(404).json({ message: "המוזמן לא נמצא" });
     if (!normalizePhone(guest.phone)) {
@@ -448,11 +434,6 @@ router.post("/:eventId/guests/:guestId/send-table-whatsapp", async (req, res) =>
     }
     if (!guest.seatingTableId) {
       return res.status(400).json({ message: "המוזמן עדיין לא משובץ לשולחן" });
-    }
-
-    const reserved = await reserveActivationCredits(codeRecord, 1);
-    if (!reserved.ok) {
-      return res.status(400).json({ success: false, message: reserved.message });
     }
 
     const layout = await SeatingLayout.findOne({ userId: eventId });
@@ -468,7 +449,6 @@ router.post("/:eventId/guests/:guestId/send-table-whatsapp", async (req, res) =>
     });
 
     if (!result.ok) {
-      await releaseActivationCredits(reserved.codeRecord._id, 1);
       await recordHostessAudit({
         userId: eventId,
         action: "HOSTESS_TABLE_WHATSAPP",
@@ -487,15 +467,6 @@ router.post("/:eventId/guests/:guestId/send-table-whatsapp", async (req, res) =>
         success: false,
         message: result.message || mapTwilioErrorMessage(result.error)
       });
-    }
-
-    if (!reserved.codeRecord.redeemedByUserId) {
-      try {
-        reserved.codeRecord.redeemedByUserId = user._id;
-        await reserved.codeRecord.save();
-      } catch {
-        /* non-fatal */
-      }
     }
 
     const sentLabel = result.tableLabel || tableLabel;
@@ -518,7 +489,7 @@ router.post("/:eventId/guests/:guestId/send-table-whatsapp", async (req, res) =>
     return res.json({
       success: true,
       tableLabel: sentLabel,
-      message: "נשלח בהצלחה! ✓"
+      message: `בוצעה שליחה — מספר שולחן ${sentLabel} נשלח בוואטסאפ`
     });
   } catch (error) {
     return res.status(500).json({

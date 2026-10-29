@@ -1,5 +1,5 @@
 """
-Google Maps scrape: מאמני כושר בבת ים.
+Google Maps scrape: מאמני כושר במודיעין.
 
 Install once:
   pip install playwright
@@ -20,9 +20,9 @@ from playwright.sync_api import sync_playwright
 
 SEARCHES = [
     {
-        "query": "מאמני כושר בת ים",
-        "output": Path("trainers_bat_yam.csv"),
-        "geolocation": {"latitude": 32.017, "longitude": 34.750},
+        "query": "מאמני כושר מודיעין",
+        "output": Path("trainers_modiin.csv"),
+        "geolocation": {"latitude": 31.890, "longitude": 35.010},
     },
 ]
 
