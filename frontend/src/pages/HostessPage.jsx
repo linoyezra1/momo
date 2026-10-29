@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import {
   Armchair,
   Check,
   CircleCheck,
+  LayoutGrid,
   MapPin,
   Plus,
   Search,
@@ -343,15 +344,25 @@ export default function HostessPage() {
                 <p className="il-hostess-eyebrow">שלום, דיילת</p>
                 <h1>קבלת פנים · {eventLabel || "דיילת דיגיטלית"}</h1>
               </div>
-              <div
-                className="il-hostess-arrived-count"
-                aria-label={`${arrivedCount} הגיעו מתוך ${arrivedRecordsCount} הזמנות`}
-              >
-                <span className="il-hostess-arrived-count__num">{arrivedCount}</span>
-                <span className="il-hostess-arrived-count__label">הגיעו</span>
-                <span className="il-hostess-arrived-count__sub">
-                  מתוך {arrivedRecordsCount} הזמנות
-                </span>
+              <div className="il-hostess-header__aside">
+                <Link
+                  className="il-hostess-seating-link"
+                  to={`/hostess/${eventId}/seating`}
+                  title="מפת הושבה"
+                >
+                  <LayoutGrid size={15} aria-hidden="true" />
+                  מפת הושבה
+                </Link>
+                <div
+                  className="il-hostess-arrived-count"
+                  aria-label={`${arrivedCount} הגיעו מתוך ${arrivedRecordsCount} הזמנות`}
+                >
+                  <span className="il-hostess-arrived-count__num">{arrivedCount}</span>
+                  <span className="il-hostess-arrived-count__label">הגיעו</span>
+                  <span className="il-hostess-arrived-count__sub">
+                    מתוך {arrivedRecordsCount} הזמנות
+                  </span>
+                </div>
               </div>
             </div>
 

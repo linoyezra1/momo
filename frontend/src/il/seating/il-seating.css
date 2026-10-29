@@ -600,6 +600,32 @@
   border: 1px solid #efe8e1;
 }
 
+.il-seat-table-detail__item.is-arrived {
+  background: #ecfdf5;
+  border-color: #86efac;
+}
+
+.il-seat-table-detail__item.is-arrived strong {
+  color: #166534;
+}
+
+.il-seat-table-detail__item.is-arrived span {
+  color: #15803d;
+}
+
+.il-seat-table-detail__item.is-pending {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.il-seat-table-detail__item.is-pending strong {
+  color: #4b5563;
+}
+
+.il-seat-table-detail__item.is-pending span {
+  color: #6b7280;
+}
+
 .il-seat-table-detail__item strong {
   display: block;
   font-size: 0.92rem;

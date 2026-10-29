@@ -24,6 +24,7 @@ const ClientVendorsPage = lazy(() => import("./pages/ClientVendorsPage.jsx"));
 const ManagerBudgetPage = lazy(() => import("./pages/ManagerBudgetPage.jsx"));
 const IlSeatingPage = lazy(() => import("./pages/IlSeatingPage.jsx"));
 const HostessPage = lazy(() => import("./pages/HostessPage.jsx"));
+const HostessSeatingPage = lazy(() => import("./pages/HostessSeatingPage.jsx"));
 const EventManagerVendorsPage = lazy(() => import("./pages/EventManagerVendorsPage.jsx"));
 const ClientAppShell = lazy(() => import("./components/ClientAppShell.jsx"));
 
@@ -226,6 +227,14 @@ export default function App() {
         element={
           <LazyRoute>
             <HostessPage />
+          </LazyRoute>
+        }
+      />
+      <Route
+        path="/hostess/:eventId/seating"
+        element={
+          <LazyRoute>
+            <HostessSeatingPage />
           </LazyRoute>
         }
       />

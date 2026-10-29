@@ -124,6 +124,53 @@ router.get("/:eventId", async (req, res) => {
   }
 });
 
+/** Full seating layout for hostess read-only map view. */
+router.get("/:eventId/seating", async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const user = await User.findById(eventId).select("event deal");
+    if (!user) return res.status(404).json({ message: "האירוע לא נמצא" });
+
+    const layout = await SeatingLayout.findOne({ userId: eventId });
+    const tables = layout?.tables || [];
+    const tableById = new Map(tables.map((table) => [table.tableId, table]));
+    const guests = await Guest.find({ userId: eventId }).sort({ fullName: 1 });
+    const seatingGuests = guests.map((guest) => {
+      const base = guestForSeating(guest);
+      const table = tableById.get(guest.seatingTableId);
+      return {
+        ...base,
+        tableLabel: table ? formatTableDisplayLabel(table) : guest.seatingTableId ? "?" : ""
+      };
+    });
+
+    return res.json({
+      eventId: String(user._id),
+      eventLabel: buildEventLabel(user.event),
+      event: user.event || null,
+      layout: {
+        tables,
+        venueElements: layout?.venueElements || [],
+        backgroundImageUrl: layout?.backgroundImageUrl || "",
+        canvasWidth: layout?.canvasWidth || 0,
+        canvasHeight: layout?.canvasHeight || 0,
+        hallPresetId: layout?.hallPresetId || ""
+      },
+      tables,
+      venueElements: layout?.venueElements || [],
+      backgroundImageUrl: layout?.backgroundImageUrl || "",
+      canvasWidth: layout?.canvasWidth || 0,
+      canvasHeight: layout?.canvasHeight || 0,
+      hallPresetId: layout?.hallPresetId || "",
+      guests: seatingGuests,
+      warnings: buildSeatingWarnings(guests, tables),
+      analytics: buildSeatingAnalytics(guests, tables)
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message || "טעינת מפת הושבה לדיילת נכשלה" });
+  }
+});
+
 router.post("/:eventId/guests", async (req, res) => {
   try {
     const { eventId } = req.params;
