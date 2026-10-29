@@ -37,6 +37,46 @@ function defaultCheckInCount(guest) {
   return 1;
 }
 
+function expectedAttendeesCount(guest) {
+  const confirmed = Number(guest?.attendeesCount ?? guest?.guestCount ?? guest?.arrivingCount);
+  if (Number.isFinite(confirmed) && confirmed > 0) return Math.max(1, Math.round(confirmed));
+  return 1;
+}
+
+function actualArrivedDisplayCount(guest) {
+  const actual = Number(guest?.actualArrivedCount);
+  if (Number.isFinite(actual) && actual >= 0) return Math.round(actual);
+  return null;
+}
+
+/** Hostess count chip: arrived → "2/4", otherwise expected only. */
+function GuestCountTag({ guest }) {
+  const expected = expectedAttendeesCount(guest);
+  const actual = actualArrivedDisplayCount(guest);
+  const arrived = isGuestArrived(guest);
+
+  if (arrived && actual != null) {
+    return (
+      <span className="il-hostess-tag il-hostess-tag--count" title="הגיעו בפועל / היו אמורים להגיע">
+        <Users size={12} aria-hidden="true" />
+        <span className="il-hostess-count-ratio">
+          <strong className="il-hostess-count-ratio__actual">{actual}</strong>
+          <span className="il-hostess-count-ratio__sep">/</span>
+          <span className="il-hostess-count-ratio__expected">{expected}</span>
+        </span>
+      </span>
+    );
+  }
+
+  return (
+    <span className="il-hostess-tag il-hostess-tag--count" title="כמות מאושרת מראש">
+      <Users size={12} aria-hidden="true" />
+      <span className="il-hostess-count-ratio__expected">{expected}</span>
+      <span className="il-hostess-count-ratio__label">מאושר</span>
+    </span>
+  );
+}
+
 function guestHasPhone(guest) {
   return Boolean(String(guest?.phone || "").trim());
 }
@@ -163,8 +203,7 @@ export default function HostessPage() {
               status: "הגיע לאירוע",
               hostessArrivedAt: new Date().toISOString(),
               arrivalMarkedBy: "HOSTESS",
-              actualArrivedCount: count,
-              attendeesCount: count
+              actualArrivedCount: count
             }
           : item
       )
@@ -183,7 +222,8 @@ export default function HostessPage() {
                 status: data.status || data.guest?.status || "הגיע לאירוע",
                 arrivalMarkedBy: data.markedBy || "HOSTESS",
                 actualArrivedCount: data.actualArrivedCount ?? data.guest?.actualArrivedCount ?? count,
-                attendeesCount: data.guest?.attendeesCount ?? count
+                attendeesCount:
+                  data.guest?.attendeesCount ?? item.attendeesCount ?? expectedAttendeesCount(guest)
               }
             : item
         )
@@ -299,6 +339,13 @@ export default function HostessPage() {
     setSelectedTableId("");
   };
 
+  const selectedSeatTable = useMemo(
+    () => tables.find((table) => table.tableId === selectedTableId) || null,
+    [selectedTableId, tables]
+  );
+  const selectedSeatIsFull =
+    Boolean(selectedSeatTable) && Number(selectedSeatTable.remaining) < seatNeeded;
+
   const confirmSeatAtTable = async () => {
     if (!seatGuest || !selectedTableId) return;
     setBusyGuestId(seatGuest._id);
@@ -325,8 +372,16 @@ export default function HostessPage() {
         guestId: seatGuest._id,
         fullName: seatGuest.fullName,
         tableLabel: data.tableLabel || selectedTableId,
-        phone: seatGuest.phone || ""
+        phone: seatGuest.phone || "",
+        overCapacity: Boolean(data.overCapacity),
+        overfillWarning: data.overfillWarning || ""
       });
+      if (data.overCapacity) {
+        showToast(data.overfillWarning || "השולחן מלא — השיבוץ בוצע בכל זאת", {
+          tone: "error",
+          durationMs: 4500
+        });
+      }
     } catch (assignError) {
       showToast(assignError.response?.data?.message || "שיבוץ לשולחן נכשל", { tone: "error" });
     } finally {
@@ -439,11 +494,7 @@ export default function HostessPage() {
                       <span className={`il-hostess-tag ${statusTagClass(guest.status)}`}>
                         {guest.status || "לא ידוע"}
                       </span>
-                      <span className="il-hostess-tag il-hostess-tag--count">
-                        <Users size={12} aria-hidden="true" />
-                        {guest.actualArrivedCount || guest.attendeesCount || 1}
-                        {guest.actualArrivedCount ? " הגיעו" : " מאושר"}
-                      </span>
+                      <GuestCountTag guest={guest} />
                     </div>
                   </div>
                   <div className="il-hostess-card__actions">
@@ -523,10 +574,15 @@ export default function HostessPage() {
                 <h2>אישור כניסה - כמה הגיעו בפועל?</h2>
                 <p>
                   מוזמן: <strong>{checkInGuest.fullName}</strong>
-                  {!isGuestArrived(checkInGuest) && Number(checkInGuest.attendeesCount) > 0 ? (
+                  {" "}
+                  · מאושר מראש:{" "}
+                  <span className="il-hostess-count-ratio__expected">
+                    {expectedAttendeesCount(checkInGuest)}
+                  </span>
+                  {isGuestArrived(checkInGuest) && actualArrivedDisplayCount(checkInGuest) != null ? (
                     <>
                       {" "}
-                      · מאושר מראש: <strong>{checkInGuest.attendeesCount}</strong>
+                      · בפועל קודם: <strong>{actualArrivedDisplayCount(checkInGuest)}</strong>
                     </>
                   ) : null}
                 </p>
@@ -688,7 +744,8 @@ export default function HostessPage() {
               <div>
                 <h2>בחירת שולחן</h2>
                 <p>
-                  הושבת <strong>{seatGuest.fullName}</strong> בשולחן פנוי
+                  הושבת <strong>{seatGuest.fullName}</strong>
+                  {seatNeeded > 1 ? ` (${seatNeeded} מקומות)` : ""} בשולחן
                 </p>
               </div>
               <button
@@ -714,8 +771,10 @@ export default function HostessPage() {
                     <button
                       key={table.tableId}
                       type="button"
-                      className={`il-hostess-table-cell${selected ? " is-selected" : ""}`}
-                      disabled={full || busyGuestId === seatGuest._id}
+                      className={`il-hostess-table-cell${selected ? " is-selected" : ""}${
+                        full ? " is-full" : ""
+                      }`}
+                      disabled={busyGuestId === seatGuest._id}
                       aria-pressed={selected}
                       onClick={() => setSelectedTableId(table.tableId)}
                     >
@@ -730,19 +789,27 @@ export default function HostessPage() {
               </div>
             )}
 
-            <p className="il-hostess-table-hint">
-              <MapPin size={14} aria-hidden="true" />
-              בחרו שולחן ואז לחצו אישור לשיבוץ
-            </p>
+            {selectedSeatIsFull ? (
+              <p className="il-hostess-table-overfill-warn" role="alert">
+                השולחן מלא — אפשר לשבץ בכל זאת, אך ייווצר עומס מעבר לקיבולת
+              </p>
+            ) : (
+              <p className="il-hostess-table-hint">
+                <MapPin size={14} aria-hidden="true" />
+                בחרו שולחן ואז לחצו אישור לשיבוץ
+              </p>
+            )}
 
             <div className="us-modal-actions">
               <button
-                className="il-hostess-btn il-hostess-btn--primary"
+                className={`il-hostess-btn ${
+                  selectedSeatIsFull ? "il-hostess-btn--warn" : "il-hostess-btn--primary"
+                }`}
                 type="button"
                 disabled={!selectedTableId || busyGuestId === seatGuest._id}
                 onClick={confirmSeatAtTable}
               >
-                אישור שיבוץ
+                {selectedSeatIsFull ? "שיבוץ לשולחן מלא" : "אישור שיבוץ"}
               </button>
               <button className="il-hostess-btn il-hostess-btn--outline" type="button" onClick={closeSeatModal}>
                 ביטול
@@ -764,6 +831,11 @@ export default function HostessPage() {
             <p>
               {seatSuccess.fullName} שובץ/ה לשולחן <strong>{seatSuccess.tableLabel}</strong>
             </p>
+            {seatSuccess.overCapacity ? (
+              <p className="il-hostess-table-overfill-warn" role="status">
+                {seatSuccess.overfillWarning || "שים לב: השולחן מלא / מעל הקיבולת"}
+              </p>
+            ) : null}
             <div className="us-modal-actions">
               {canSendTableWhatsApp && guestHasPhone(guests.find((item) => item._id === seatSuccess.guestId) || seatSuccess) ? (
                 <button

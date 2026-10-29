@@ -308,7 +308,7 @@ router.post("/:eventId/guests/:guestId/arrive", async (req, res) => {
     existing.hostessArrivedAt = arrivedAt;
     existing.arrivalMarkedBy = HOSTESS_MARKED_BY;
     existing.actualArrivedCount = actualArrivedCount;
-    existing.attendeesCount = actualArrivedCount;
+    // Keep original RSVP/list attendeesCount — hostess actual is stored separately.
     if (existing.declinedWhileSeatedAt) {
       existing.declinedWhileSeatedAt = undefined;
     }
@@ -404,11 +404,8 @@ router.post("/:eventId/guests/:guestId/assign-table", async (req, res) => {
       .reduce((sum, item) => sum + countGuestSeats(item), 0);
     const needed = countGuestSeats(guest);
     const capacity = Math.max(0, Number(table.capacity) || 0);
-    if (occupied + needed > capacity) {
-      return res.status(400).json({
-        message: `אין מספיק מקומות פנויים בשולחן ${table.label || tableId}`
-      });
-    }
+    const overCapacity = occupied + needed > capacity;
+    const overflowSeats = overCapacity ? occupied + needed - capacity : 0;
 
     guest.seatingTableId = tableId;
     if (guest.declinedWhileSeatedAt) guest.declinedWhileSeatedAt = undefined;
@@ -418,19 +415,27 @@ router.post("/:eventId/guests/:guestId/assign-table", async (req, res) => {
     const tables = layout?.tables || [];
 
     const tableLabel = formatTableDisplayLabel(table, tableId);
+    const overfillWarning = overCapacity
+      ? `שימו לב: השולחן מלא — הושבתם מעבר לקיבולת (${occupied + needed}/${capacity}, עוד ${overflowSeats})`
+      : "";
 
     await recordHostessAudit({
       userId: eventId,
       action: "HOSTESS_ASSIGN_TABLE",
       status: "ok",
       phone: guest.phone,
-      description: `${guest.fullName} שובץ/ה לשולחן ${tableLabel} על ידי דיילת`,
+      description: `${guest.fullName} שובץ/ה לשולחן ${tableLabel} על ידי דיילת${
+        overCapacity ? " · חריגה מקיבולת" : ""
+      }`,
       metadata: {
         guestId: String(guest._id),
         guestName: guest.fullName,
         tableId,
         tableLabel,
-        markedBy: HOSTESS_MARKED_BY
+        markedBy: HOSTESS_MARKED_BY,
+        overCapacity,
+        capacity,
+        occupiedAfter: occupied + needed
       }
     });
 
@@ -446,10 +451,14 @@ router.post("/:eventId/guests/:guestId/assign-table", async (req, res) => {
         tableLabel
       },
       tableLabel,
+      overCapacity,
+      overfillWarning,
       tables: buildTablesWithAvailability(tables, refreshed),
       warnings: buildSeatingWarnings(refreshed, tables),
       analytics: buildSeatingAnalytics(refreshed, tables),
-      message: `שובץ/ה לשולחן ${tableLabel}`
+      message: overCapacity
+        ? `שובץ/ה לשולחן ${tableLabel}. ${overfillWarning}`
+        : `שובץ/ה לשולחן ${tableLabel}`
     });
   } catch (error) {
     return res.status(500).json({ message: error.message || "שיבוץ לשולחן נכשל" });

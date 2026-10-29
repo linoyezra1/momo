@@ -20,8 +20,14 @@ export default function IlSeatingTableDetail({
   const isOverCapacity = seats > capacity;
   const tableGuests = guests.filter((guest) => guest.seatingTableId === table.tableId);
   const label = formatTableDisplayLabel(table);
-  const arrivedCount = showArrivalStatus
-    ? tableGuests.filter((guest) => isGuestArrived(guest)).length
+  // People counts (attendees), not guest-record counts — e.g. 8 arrived of 11 seats.
+  const arrivedPeople = showArrivalStatus
+    ? tableGuests.reduce((sum, guest) => {
+        if (!isGuestArrived(guest)) return sum;
+        const actualRaw = Number(guest.actualArrivedCount);
+        if (Number.isFinite(actualRaw) && actualRaw >= 0) return sum + Math.round(actualRaw);
+        return sum + countGuestSeats(guest);
+      }, 0)
     : 0;
 
   return (
@@ -36,7 +42,7 @@ export default function IlSeatingTableDetail({
           <p className={`il-seat-table-detail__meta${isOverCapacity ? " is-overfill" : ""}`}>
             {seats}/{capacity} מושבים
             {table.name ? ` · ${table.name}` : ""}
-            {showArrivalStatus ? ` · הגיעו ${arrivedCount}/${tableGuests.length}` : ""}
+            {showArrivalStatus ? ` · הגיעו ${arrivedPeople}/${seats}` : ""}
           </p>
         </div>
         <div className="il-seat-table-detail__actions">
@@ -65,7 +71,10 @@ export default function IlSeatingTableDetail({
         <ul className="il-seat-table-detail__list">
           {tableGuests.map((guest) => {
             const arrived = showArrivalStatus ? isGuestArrived(guest) : null;
-            const seatCount = countGuestSeats(guest);
+            const expected = Math.max(1, Number(guest.attendeesCount) || countGuestSeats(guest) || 1);
+            const actualRaw = Number(guest.actualArrivedCount);
+            const actual =
+              Number.isFinite(actualRaw) && actualRaw >= 0 ? Math.round(actualRaw) : null;
             return (
               <li
                 key={guest._id}
@@ -76,7 +85,20 @@ export default function IlSeatingTableDetail({
                 <div>
                   <strong>{guest.fullName}</strong>
                   <span>
-                    {seatCount} מושבים
+                    {showArrivalStatus && arrived && actual != null ? (
+                      <>
+                        <strong className="il-seat-table-detail__actual">{actual}</strong>
+                        <span className="il-seat-table-detail__expected">/{expected}</span>
+                        {" מושבים"}
+                      </>
+                    ) : (
+                      <>
+                        <span className={showArrivalStatus ? "il-seat-table-detail__expected" : undefined}>
+                          {expected}
+                        </span>
+                        {" מושבים"}
+                      </>
+                    )}
                     {guest.phone ? ` · ${guest.phone}` : ""}
                     {showArrivalStatus ? (arrived ? " · הגיע" : " · טרם הגיע") : ""}
                   </span>

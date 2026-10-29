@@ -3,10 +3,11 @@ import { Pencil, RotateCcw, RotateCw, Trash2 } from "lucide-react";
 import IlVenueElementVisual from "./IlVenueElementVisual.jsx";
 import { formatTableDisplayLabel, getTableOccupancy } from "./ilSeatingUtils.js";
 
-function tableClass(shape, isOver, isDropTarget) {
+function tableClass(shape, isOver, isDropTarget, isSearchHit = false) {
   const parts = ["il-seat-table", `il-seat-table--${shape}`];
   if (isOver) parts.push("il-seat-table--over");
   if (isDropTarget) parts.push("il-seat-table--target");
+  if (isSearchHit) parts.push("il-seat-table--search-hit");
   return parts.join(" ");
 }
 
@@ -47,6 +48,8 @@ export default function IlSeatingCanvas({
   warnings,
   activeTableId,
   highlightTableId = "",
+  searchHighlightTableId = "",
+  searchHighlightTableIds = null,
   onLayoutChange,
   onSelectTable,
   onDragOverTable,
@@ -192,7 +195,11 @@ export default function IlSeatingCanvas({
           const isOverCapacity = seats > table.capacity;
           const isDropTarget =
             highlightTableId === table.tableId || touchOverTableId === table.tableId;
-          const isActive = activeTableId === table.tableId && !isDropTarget;
+          const isSearchHit =
+            searchHighlightTableId === table.tableId ||
+            (Array.isArray(searchHighlightTableIds) &&
+              searchHighlightTableIds.includes(table.tableId));
+          const isActive = activeTableId === table.tableId && !isDropTarget && !isSearchHit;
 
           return (
             <Rnd
@@ -214,7 +221,7 @@ export default function IlSeatingCanvas({
                   y: position.y
                 })
               }
-              className={`${tableClass(table.shape, isOverCapacity, isDropTarget)}${
+              className={`${tableClass(table.shape, isOverCapacity, isDropTarget, isSearchHit)}${
                 isActive ? " il-seat-table--active" : ""
               }${hasHallBackground ? " il-seat-table--hall-overlay" : ""}`}
               data-seating-drop-table-id={table.tableId}
