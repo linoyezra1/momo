@@ -28,7 +28,7 @@ export const CREDENTIALS_BUTTON_TEXT_PLAIN = "לקבלת פרטי הגישה";
 export const ACCESS_DETAILS_BUTTON_TEXT = "קבלת פרטי גישה";
 
 const SUPPORT_PHONE =
-  String(process.env.MOMOEVENT_SUPPORT_PHONE || "0585915109").trim() || "0585915109";
+  String(process.env.MOMOEVENT_SUPPORT_PHONE || "0553193433").trim() || "0553193433";
 
 const MSG_USER_NOT_FOUND = `שלום! המספר ממנו פנית אינו משויך לחשבון פעיל במערכת momoEVENT. ליצירת קשר עם התמיכה: ${SUPPORT_PHONE}.`;
 

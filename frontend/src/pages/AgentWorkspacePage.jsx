@@ -1,9 +1,18 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { CalendarDays, ChevronDown, Clock3, MapPin, Phone, Search, Users, X } from "lucide-react";
+import {
+  AlertTriangle,
+  CalendarDays,
+  ChevronDown,
+  Clock3,
+  MapPin,
+  Phone,
+  Search,
+  Users,
+  X
+} from "lucide-react";
 import api from "../api";
 import AgentPhoneRsvpForm from "../components/AgentPhoneRsvpForm.jsx";
-import AgentWhatsAppFailures from "../components/AgentWhatsAppFailures.jsx";
 import GuestAuditLogTable from "../components/GuestAuditLogTable.jsx";
 import SmsIcon from "../components/SmsIcon.jsx";
 import WhatsAppIcon from "../components/WhatsAppIcon.jsx";
@@ -146,6 +155,7 @@ export default function AgentWorkspacePage() {
   const [exporting, setExporting] = useState(false);
   const [attemptsFilter, setAttemptsFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [failureCount, setFailureCount] = useState(null);
 
   const loadGuests = async () => {
     setLoading(true);
@@ -166,6 +176,26 @@ export default function AgentWorkspacePage() {
 
   useEffect(() => {
     loadGuests();
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId) {
+      setFailureCount(null);
+      return undefined;
+    }
+    let cancelled = false;
+    api
+      .get(`/agent/${userId}/whatsapp-delivery-failures`)
+      .then((response) => {
+        if (cancelled) return;
+        setFailureCount((response.data?.logs || []).length);
+      })
+      .catch(() => {
+        if (!cancelled) setFailureCount(null);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [userId]);
 
   const attemptFilteredGuests = useMemo(() => {
@@ -263,12 +293,27 @@ export default function AgentWorkspacePage() {
   return (
     <div className="agent-container agent-container--wide">
         <header className="agent-header agent-header--workspace">
-          <div>
-            <Link className="agent-back-link" to="/agent/calls">
-              ← חזרה לרשימת אירועים
-            </Link>
-            <h1>{eventLabel || "מרחב נציג טלפוני"}</h1>
-            <p>{guests.length} מוזמנים ברשימה</p>
+          <div className="agent-header__row">
+            <div>
+              <Link className="agent-back-link" to="/agent/calls">
+                ← חזרה לרשימת אירועים
+              </Link>
+              <h1>{eventLabel || "מרחב נציג טלפוני"}</h1>
+              <p>{guests.length} מוזמנים ברשימה</p>
+            </div>
+            {userId ? (
+              <Link
+                className={`agent-failures-chip${failureCount > 0 ? " has-failures" : ""}`}
+                to={`/agent/calls/${userId}/failures`}
+                title="הודעות שלא נשלחו / לא נמסרו"
+              >
+                <AlertTriangle size={14} aria-hidden="true" />
+                <span>כשלים</span>
+                {failureCount != null ? (
+                  <span className="agent-failures-chip__count">{failureCount}</span>
+                ) : null}
+              </Link>
+            ) : null}
           </div>
         </header>
 
@@ -337,10 +382,6 @@ export default function AgentWorkspacePage() {
               ) : null}
             </div>
           </section>
-        ) : null}
-
-        {!loading && userId ? (
-          <AgentWhatsAppFailures userId={userId} event={eventInfo} />
         ) : null}
 
         {!loading ? (

@@ -13,6 +13,7 @@ const AgentDashboardPage = lazy(() => import("./pages/AgentDashboardPage.jsx"));
 const AgentEventsPage = lazy(() => import("./pages/AgentEventsPage.jsx"));
 const AgentLoginPage = lazy(() => import("./pages/AgentLoginPage.jsx"));
 const AgentWorkspacePage = lazy(() => import("./pages/AgentWorkspacePage.jsx"));
+const AgentWhatsAppFailuresPage = lazy(() => import("./pages/AgentWhatsAppFailuresPage.jsx"));
 const AdminPage = lazy(() => import("./pages/AdminPage.jsx"));
 const EventManagerLoginPage = lazy(() => import("./pages/EventManagerLoginPage.jsx"));
 const EventManagerPage = lazy(() => import("./pages/EventManagerPage.jsx"));
@@ -201,6 +202,14 @@ export default function App() {
           element={
             <LazyRoute>
               <AgentWorkspacePage />
+            </LazyRoute>
+          }
+        />
+        <Route
+          path="calls/:userId/failures"
+          element={
+            <LazyRoute>
+              <AgentWhatsAppFailuresPage />
             </LazyRoute>
           }
         />

@@ -2,7 +2,7 @@ import { toWhatsAppPhone } from "./vendors.js";
 import { getEventTypeNoun, isCoupleEventType, isConferenceEventType } from "./eventTypeWording.js";
 
 /** Official momoEVENT sales / support phone (coupons + table dispatch + help). */
-export const MOMOEVENT_SUPPORT_PHONE = "0585915109";
+export const MOMOEVENT_SUPPORT_PHONE = "0553193433";
 
 /** @deprecated use MOMOEVENT_SUPPORT_PHONE */
 export const TABLE_DISPATCH_SALES_PHONE = MOMOEVENT_SUPPORT_PHONE;

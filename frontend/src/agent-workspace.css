@@ -44,6 +44,58 @@
   margin-bottom: 1.25rem;
 }
 
+.agent-header__row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.agent-failures-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+  margin-top: 0.35rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid var(--agent-border);
+  background: var(--agent-card);
+  color: var(--agent-muted);
+  text-decoration: none;
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.agent-failures-chip:hover {
+  border-color: #d97706;
+  color: #92400e;
+  background: #fffbeb;
+}
+
+.agent-failures-chip.has-failures {
+  border-color: #f59e0b;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.agent-failures-chip__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: #b45309;
+  color: #fffbeb;
+  font-size: 0.7rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
 .agent-quick-info {
   margin-bottom: 1.25rem;
   padding: 1rem 1.1rem;
@@ -457,6 +509,55 @@
   color: var(--agent-ink);
   font-weight: 600;
   text-decoration: none;
+}
+
+.agent-events-search {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-top: 1rem;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--agent-border);
+  border-radius: 0.85rem;
+  background: var(--agent-card);
+  box-shadow: 0 8px 22px rgb(0 0 0 / 4%);
+}
+
+.agent-events-search svg {
+  flex-shrink: 0;
+  color: var(--agent-muted);
+}
+
+.agent-events-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font: inherit;
+  font-size: 0.95rem;
+  color: var(--agent-ink);
+}
+
+.agent-events-search input::placeholder {
+  color: var(--agent-muted);
+}
+
+.agent-events-search__clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.15rem;
+  border: 0;
+  border-radius: 0.4rem;
+  background: transparent;
+  color: var(--agent-muted);
+  cursor: pointer;
+}
+
+.agent-events-search__clear:hover {
+  color: var(--agent-coral);
+  background: rgb(213 126 126 / 10%);
 }
 
 .agent-client-grid {
@@ -1402,6 +1503,10 @@
 
   .agent-quick-info {
     padding: 0.9rem 0.8rem;
+  }
+
+  .agent-header__row {
+    flex-wrap: wrap;
   }
 
   .agent-quick-info__heading {
