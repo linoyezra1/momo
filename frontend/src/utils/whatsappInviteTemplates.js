@@ -67,6 +67,13 @@ export const WHATSAPP_INVITE_TEMPLATE_OPTIONS = [
       "תמונה + מלל, קישור Waze בגוף ההודעה (לא ככפתור URL), ו-2 כפתורי RSVP (אגיע / לא אגיע). דורשת תמונת כיסוי וכתובת/מתחם."
   },
   {
+    id: "2_card_no_yes_add_to_calendar",
+    label: "3 כפתורים כן לא והוספה ליומן",
+    badge: "כן / לא / יומן",
+    adminHint:
+      "תמונה + מלל + Waze בגוף, כן/לא RSVP + כפתור URL «הוספה ליומן» (Google Calendar). דורשת תמונת כיסוי."
+  },
+  {
     id: "thank_you_after_event",
     label: "תודה שהגעתם",
     badge: "הודעת תודה",
@@ -83,7 +90,8 @@ const CARD_TEMPLATE_IDS = new Set([
   "michl_card_buttons",
   "michl_quick_reply_waze",
   "remmber_day_and_waze",
-  "2_card_buttons"
+  "2_card_buttons",
+  "2_card_no_yes_add_to_calendar"
 ]);
 
 export function resolveWhatsAppInviteTemplateFromFlags({
@@ -198,6 +206,15 @@ const TEMPLATE_FIELD_KEYS = {
     closingSignOff: "5",
     mediaPath: "6"
   },
+  "2_card_no_yes_add_to_calendar": {
+    guestName: "1",
+    customOpeningText: "2",
+    eventDateTimeLocation: "3",
+    wazeInviteLine: "4",
+    closingSignOff: "5",
+    mediaPath: "6",
+    calendarEventPath: "7"
+  },
   thank_you_after_event: {
     closingSignOff: "1"
   }
@@ -214,6 +231,7 @@ const TEMPLATE_PREVIEW_BUTTONS = {
   michl_quick_reply_waze: ["כן, אני אגיע!", "לא אוכל להגיע", "ניווט לאירוע ב-Waze"],
   remmber_day_and_waze: ["ניווט לאירוע ב-Waze"],
   "2_card_buttons": ["כן, אני אגיע!", "לא אוכל להגיע"],
+  "2_card_no_yes_add_to_calendar": ["כן, אני אגיע!", "לא אוכל להגיע", "הוספה ליומן"],
   thank_you_after_event: []
 };
 

@@ -48,6 +48,7 @@ const eventSchema = new mongoose.Schema(
         "michl_quick_reply_waze",
         "remmber_day_and_waze",
         "2_card_buttons",
+        "2_card_no_yes_add_to_calendar",
         "thank_you_after_event"
       ],
       default: "standard"
@@ -110,6 +111,7 @@ const includedFeaturesSchema = new mongoose.Schema(
         "michl_quick_reply_waze",
         "remmber_day_and_waze",
         "2_card_buttons",
+        "2_card_no_yes_add_to_calendar",
         "thank_you_after_event"
       ],
       default: "standard"

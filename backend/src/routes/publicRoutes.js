@@ -11,9 +11,32 @@ import {
   statusHistoryPushEntry
 } from "../utils/guestStatusHistory.js";
 import { serializePublicEvent } from "../services/coverStorage.js";
+import { buildGoogleCalendarUrl } from "../utils/eventCalendar.js";
 import { logPerf, nowMs, setServerTiming } from "../utils/requestTiming.js";
 
 const router = express.Router();
+
+const CALENDAR_EVENT_SELECT =
+  "event.groomName event.brideName event.batMitzvahName event.eventNames event.venueName event.city event.streetAndNumber event.locationAddress event.eventDate event.eventTime event.receptionTime";
+
+/** WhatsApp URL button → Google Calendar (title/location/reception time). */
+router.get("/calendar/:eventId", async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const user = await User.findById(eventId).select(CALENDAR_EVENT_SELECT).lean();
+    if (!user?.event) {
+      return res.status(404).send("האירוע לא נמצא");
+    }
+    const calendarUrl = buildGoogleCalendarUrl(user.event);
+    if (!calendarUrl) {
+      return res.status(400).send("חסר תאריך אירוע להוספה ליומן");
+    }
+    return res.redirect(302, calendarUrl);
+  } catch (error) {
+    return res.status(500).send(error.message || "שגיאה בפתיחת היומן");
+  }
+});
+
 
 const PUBLIC_EVENT_SELECT =
   "event.eventType event.groomName event.brideName event.batMitzvahName event.parentName1 event.parentName2 event.eventNames event.organizerName event.conferenceBrandName event.socialHandle event.locationAddress event.parkingDetails event.websiteUrl event.venueName event.city event.streetAndNumber event.eventDate event.eventDateHebrew event.eventTime event.receptionTime event.welcomeText event.transportationEnabled event.transportationWhatsAppLink event.showWazeButton event.foodSensitivitiesEnabled event.cover event.imageDataUrl";

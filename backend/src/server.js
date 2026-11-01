@@ -61,6 +61,25 @@ app.use("/api/manager", eventManagerRoutes);
 app.use("/api/manager", vendorRoutes);
 app.use("/api/webhooks", webhooksRoutes);
 
+/** Short WhatsApp calendar deep-link: /cal/:eventId → Google Calendar */
+app.get("/cal/:eventId", async (req, res) => {
+  try {
+    const User = (await import("./models/User.js")).default;
+    const { buildGoogleCalendarUrl } = await import("./utils/eventCalendar.js");
+    const user = await User.findById(req.params.eventId)
+      .select(
+        "event.groomName event.brideName event.batMitzvahName event.eventNames event.venueName event.city event.streetAndNumber event.locationAddress event.eventDate event.eventTime event.receptionTime"
+      )
+      .lean();
+    if (!user?.event) return res.status(404).send("האירוע לא נמצא");
+    const calendarUrl = buildGoogleCalendarUrl(user.event);
+    if (!calendarUrl) return res.status(400).send("חסר תאריך אירוע להוספה ליומן");
+    return res.redirect(302, calendarUrl);
+  } catch (error) {
+    return res.status(500).send(error.message || "שגיאה בפתיחת היומן");
+  }
+});
+
 app.use((err, req, res, next) => {
   if (err?.type === "entity.too.large") {
     return res.status(413).json({

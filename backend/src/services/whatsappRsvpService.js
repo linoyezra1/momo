@@ -15,6 +15,7 @@ import {
   toTwilioWhatsAppAddress
 } from "../utils/twilioWhatsApp.js";
 import {
+  buildCalendarEventPathVariable,
   buildInviteUrlButtonVariable,
   buildWazeInviteBodyLine,
   buildWazeNavigationLink,
@@ -175,6 +176,9 @@ function buildPremiumInviteVariables({ guest, event, userId, origin, templateId 
   const inviteButtonPath = fieldKeyMap.inviteButtonPath
     ? buildInviteUrlButtonVariable(publicLink)
     : undefined;
+  const calendarEventPath = fieldKeyMap.calendarEventPath
+    ? buildCalendarEventPathVariable(userId)
+    : undefined;
 
   return buildTwilioContentVariables(
     {
@@ -195,7 +199,8 @@ function buildPremiumInviteVariables({ guest, event, userId, origin, templateId 
       wazeLink,
       wazeQuery,
       wazeInviteLine,
-      inviteButtonPath
+      inviteButtonPath,
+      calendarEventPath
     },
     templateKeys,
     fieldKeyMap

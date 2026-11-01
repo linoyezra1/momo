@@ -14,11 +14,12 @@ export const WHATSAPP_INVITE_TEMPLATE_IDS = [
   "michl_quick_reply_waze",
   "remmber_day_and_waze",
   "2_card_buttons",
+  "2_card_no_yes_add_to_calendar",
   "thank_you_after_event"
 ];
 
 /**
- * @typedef {"standard"|"buttons_qr"|"card_direct_rsvp_buttons"|"card_buttons"|"card_view_invite_button"|"card_buttons_special_requests"|"michl_card_buttons"|"michl_quick_reply_waze"|"remmber_day_and_waze"|"2_card_buttons"|"thank_you_after_event"} WhatsAppInviteTemplateId
+ * @typedef {"standard"|"buttons_qr"|"card_direct_rsvp_buttons"|"card_buttons"|"card_view_invite_button"|"card_buttons_special_requests"|"michl_card_buttons"|"michl_quick_reply_waze"|"remmber_day_and_waze"|"2_card_buttons"|"2_card_no_yes_add_to_calendar"|"thank_you_after_event"} WhatsAppInviteTemplateId
  */
 
 export const WHATSAPP_INVITE_TEMPLATE_OPTIONS = [
@@ -88,6 +89,13 @@ export const WHATSAPP_INVITE_TEMPLATE_OPTIONS = [
       "תמונה + מלל, קישור Waze בגוף ההודעה (לא ככפתור URL), ו-2 כפתורי RSVP (אגיע / לא אגיע). דורשת תמונת כיסוי וכתובת/מתחם."
   },
   {
+    id: "2_card_no_yes_add_to_calendar",
+    label: "3 כפתורים כן לא והוספה ליומן",
+    badge: "כן / לא / יומן",
+    adminHint:
+      "תמונה + מלל + Waze בגוף ההודעה, 2 כפתורי RSVP (כן/לא) וכפתור URL «הוספה ליומן» (Google Calendar עם כתובת האולם + שם האולם, שם החתונה, ושעת קבלת הפנים). דורשת תמונת כיסוי."
+  },
+  {
     id: "thank_you_after_event",
     label: "תודה שהגעתם",
     badge: "הודעת תודה",
@@ -118,6 +126,11 @@ export const MICHL_QUICK_REPLY_WAZE_CONTENT_SID_DEFAULT = "HX812785436da607224fe
 export const REMMBER_DAY_AND_WAZE_CONTENT_SID_DEFAULT = "HX32b5b53bf81d0fa8fef1c0f1bc1a8a0d";
 /** 2 QR + Waze URL in body (no URL button): Twilio copy_2_card_buttons */
 export const TWO_CARD_BUTTONS_CONTENT_SID_DEFAULT = "HXe6e42257c3fba04996d47e9bf0c77d91";
+/**
+ * 2 QR + calendar URL button: Twilio 2_card_no_yes_add_to_calendar
+ * Set TWILIO_2_CARD_NO_YES_ADD_TO_CALENDAR_CONTENT_SID after WhatsApp approval.
+ */
+export const TWO_CARD_NO_YES_ADD_TO_CALENDAR_CONTENT_SID_DEFAULT = "";
 /** After-event thank-you text (single {{1}}): thank_you_after_event */
 export const THANK_YOU_AFTER_EVENT_CONTENT_SID_DEFAULT = "HX711e9a970945f3123aca80e1bd73046f";
 
@@ -241,6 +254,20 @@ const TEMPLATE_FIELD_KEYS = {
     mediaPath: "6"
   },
   /**
+   * 2_card_no_yes_add_to_calendar — same body/media as 2_card_buttons + calendar URL button.
+   * Body {{1}}–{{5}} · Media {{6}} · Button URL https://momoevent.up.railway.app/cal/{{7}}
+   * QR: rsvp_yes / rsvp_no · URL: «הוספה ליומן»
+   */
+  "2_card_no_yes_add_to_calendar": {
+    guestName: "1",
+    customOpeningText: "2",
+    eventDateTimeLocation: "3",
+    wazeInviteLine: "4",
+    closingSignOff: "5",
+    mediaPath: "6",
+    calendarEventPath: "7"
+  },
+  /**
    * thank_you_after_event — Text body, single {{1}} (signature / names; may be blank in Twilio sample).
    */
   thank_you_after_event: {
@@ -318,7 +345,8 @@ export function isCardInviteTemplate(templateId) {
     templateId === "michl_card_buttons" ||
     templateId === "michl_quick_reply_waze" ||
     templateId === "remmber_day_and_waze" ||
-    templateId === "2_card_buttons"
+    templateId === "2_card_buttons" ||
+    templateId === "2_card_no_yes_add_to_calendar"
   );
 }
 
@@ -371,6 +399,16 @@ export function templateIncludesSpecialRequestsLink(templateId) {
 export function templateIncludesWazeLink(templateId) {
   const map = getTemplateFieldKeyMap(templateId);
   return Boolean(map.wazeLink || map.wazeQuery || map.wazeInviteLine);
+}
+
+export function templateIncludesCalendarLink(templateId) {
+  const map = getTemplateFieldKeyMap(templateId);
+  return Boolean(map.calendarEventPath);
+}
+
+/** Event id only — for Twilio URL button `…/cal/{{N}}` (full URL in the variable is rejected). */
+export function buildCalendarEventPathVariable(eventId) {
+  return String(eventId || "").trim();
 }
 
 /**
@@ -548,6 +586,23 @@ export function resolveInviteTemplateRouting(event = {}) {
       templateId,
       contentSid,
       sidSource: fromEnv?.sidSource || "default:TWO_CARD_BUTTONS_CONTENT_SID_DEFAULT",
+      templateKeys,
+      requiresCoverMedia,
+      includesRsvpLink,
+      premiumButtonsEnabled: true,
+      premiumCardEnabled: true
+    };
+  }
+
+  if (templateId === "2_card_no_yes_add_to_calendar") {
+    const fromEnv = readEnvSid("TWILIO_2_CARD_NO_YES_ADD_TO_CALENDAR_CONTENT_SID");
+    const contentSid =
+      fromEnv?.contentSid || TWO_CARD_NO_YES_ADD_TO_CALENDAR_CONTENT_SID_DEFAULT;
+    return {
+      templateId,
+      contentSid,
+      sidSource:
+        fromEnv?.sidSource || "default:TWO_CARD_NO_YES_ADD_TO_CALENDAR_CONTENT_SID_DEFAULT",
       templateKeys,
       requiresCoverMedia,
       includesRsvpLink,
