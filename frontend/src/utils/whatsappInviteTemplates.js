@@ -71,7 +71,7 @@ export const WHATSAPP_INVITE_TEMPLATE_OPTIONS = [
     label: "3 כפתורים כן לא והוספה ליומן",
     badge: "כן / לא / יומן",
     adminHint:
-      "תמונה + מלל + Waze בגוף, כן/לא RSVP + כפתור URL «הוספה ליומן» (Google Calendar). דורשת תמונת כיסוי."
+      "תמונה + מלל + כן/לא RSVP + כפתור URL «הוספה ליומן» (Google Calendar). בלי Waze בגוף. דורשת תמונת כיסוי."
   },
   {
     id: "thank_you_after_event",
@@ -210,9 +210,8 @@ const TEMPLATE_FIELD_KEYS = {
     guestName: "1",
     customOpeningText: "2",
     eventDateTimeLocation: "3",
-    wazeInviteLine: "4",
-    closingSignOff: "5",
-    mediaPath: "6",
+    closingSignOff: "4",
+    mediaPath: "5",
     calendarEventPath: "7"
   },
   thank_you_after_event: {
@@ -244,14 +243,20 @@ export function templateIncludesRsvpLink(templateId) {
   return Boolean(map.rsvpLink);
 }
 
+/** Body-line Waze preview — only templates that actually embed a Waze URL in copy. */
+const TEMPLATES_WITH_WAZE_BODY_LINE = new Set(["2_card_buttons"]);
+
 /**
  * Shape used by the WhatsApp bubble preview — mirrors what the recipient sees.
+ * Note: 2_card_no_yes_add_to_calendar has NO Waze (calendar URL button only).
  */
 export function getWhatsAppInvitePreviewShape(templateId) {
   const id = WHATSAPP_INVITE_TEMPLATE_OPTIONS.some((option) => option.id === templateId)
     ? templateId
     : "standard";
   const map = getTemplateFieldKeyMap(id);
+  const showWazeInviteLine =
+    TEMPLATES_WITH_WAZE_BODY_LINE.has(id) && Boolean(map.wazeInviteLine);
   return {
     templateId: id,
     showOpening: Boolean(map.customOpeningText),
@@ -259,10 +264,13 @@ export function getWhatsAppInvitePreviewShape(templateId) {
     showClosing: Boolean(map.closingSignOff),
     showRsvpLink: Boolean(map.rsvpLink),
     showInviteUrlButton: Boolean(map.inviteButtonPath),
-    showWazeInviteLine: Boolean(map.wazeInviteLine),
+    showWazeInviteLine,
+    showCalendarButton: Boolean(map.calendarEventPath),
     showMedia: Boolean(map.mediaPath),
     showGuestGreeting: Boolean(map.guestName),
     showThankYouBody: id === "thank_you_after_event",
+    /** Match approved WhatsApp Card bodies (🥂), not party emoji. */
+    bodyEmoji: id === "thank_you_after_event" ? "✨ ❤️️ ✨" : "✨ 🥂 ✨",
     buttons: TEMPLATE_PREVIEW_BUTTONS[id] || []
   };
 }

@@ -93,7 +93,7 @@ export const WHATSAPP_INVITE_TEMPLATE_OPTIONS = [
     label: "3 כפתורים כן לא והוספה ליומן",
     badge: "כן / לא / יומן",
     adminHint:
-      "תמונה + מלל + Waze בגוף ההודעה, 2 כפתורי RSVP (כן/לא) וכפתור URL «הוספה ליומן» (Google Calendar עם כתובת האולם + שם האולם, שם החתונה, ושעת קבלת הפנים). דורשת תמונת כיסוי."
+      "תמונה + מלל + 2 כפתורי RSVP (כן/לא) וכפתור URL «הוספה ליומן» (Google Calendar: שם החתונה, כתובת/אולם, שעת קבלת פנים). בלי Waze בגוף. דורשת תמונת כיסוי."
   },
   {
     id: "thank_you_after_event",
@@ -126,11 +126,9 @@ export const MICHL_QUICK_REPLY_WAZE_CONTENT_SID_DEFAULT = "HX812785436da607224fe
 export const REMMBER_DAY_AND_WAZE_CONTENT_SID_DEFAULT = "HX32b5b53bf81d0fa8fef1c0f1bc1a8a0d";
 /** 2 QR + Waze URL in body (no URL button): Twilio copy_2_card_buttons */
 export const TWO_CARD_BUTTONS_CONTENT_SID_DEFAULT = "HXe6e42257c3fba04996d47e9bf0c77d91";
-/**
- * 2 QR + calendar URL button: Twilio 2_card_no_yes_add_to_calendar
- * Set TWILIO_2_CARD_NO_YES_ADD_TO_CALENDAR_CONTENT_SID after WhatsApp approval.
- */
-export const TWO_CARD_NO_YES_ADD_TO_CALENDAR_CONTENT_SID_DEFAULT = "";
+/** 2 QR + calendar URL button: Twilio 2_card_no_yes_add_to_calendar (approved) */
+export const TWO_CARD_NO_YES_ADD_TO_CALENDAR_CONTENT_SID_DEFAULT =
+  "HX27f7aa755fb1d724af690fbe670d7a7e";
 /** After-event thank-you text (single {{1}}): thank_you_after_event */
 export const THANK_YOU_AFTER_EVENT_CONTENT_SID_DEFAULT = "HX711e9a970945f3123aca80e1bd73046f";
 
@@ -254,17 +252,17 @@ const TEMPLATE_FIELD_KEYS = {
     mediaPath: "6"
   },
   /**
-   * 2_card_no_yes_add_to_calendar — same body/media as 2_card_buttons + calendar URL button.
-   * Body {{1}}–{{5}} · Media {{6}} · Button URL https://momoevent.up.railway.app/cal/{{7}}
+   * 2_card_no_yes_add_to_calendar (approved HX27f7aa755fb1d724af690fbe670d7a7e)
+   * Body: {{1}} name · {{2}} opening · {{3}} details · {{4}} closing
+   * Media {{5}} · NO {{6}} · Calendar URL button …/cal/{{7}}
    * QR: rsvp_yes / rsvp_no · URL: «הוספה ליומן»
    */
   "2_card_no_yes_add_to_calendar": {
     guestName: "1",
     customOpeningText: "2",
     eventDateTimeLocation: "3",
-    wazeInviteLine: "4",
-    closingSignOff: "5",
-    mediaPath: "6",
+    closingSignOff: "4",
+    mediaPath: "5",
     calendarEventPath: "7"
   },
   /**

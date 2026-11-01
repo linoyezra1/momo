@@ -3004,6 +3004,7 @@ export default function ClientDashboardPage() {
                     value={inviteCopy}
                     onChange={onInviteCopyChange}
                     event={eventInfo || {}}
+                    templateId={eventInfo?.whatsappInviteTemplate || ""}
                     conferenceMode={isConferenceEventType(eventInfo?.eventType)}
                   />
                 </div>

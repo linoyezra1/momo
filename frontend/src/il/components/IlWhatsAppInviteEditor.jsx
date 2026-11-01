@@ -130,7 +130,7 @@ export default function IlWhatsAppInviteEditor({
 
           {shape.showThankYouBody ? (
             <>
-              <p className="il-wa-locked il-wa-emoji-row">✨ ❤️️ ✨</p>
+              <p className="il-wa-locked il-wa-emoji-row">{shape.bodyEmoji}</p>
               <p className="il-wa-locked">
                 תודה שבאתם לחגוג איתנו והייתם חלק מהיום המאושר בחיינו
               </p>
@@ -141,11 +141,11 @@ export default function IlWhatsAppInviteEditor({
                 placeholder={DEFAULT_CLOSING_PLACEHOLDER}
                 aria-label="חתימה / שמות"
               />
-              <p className="il-wa-locked il-wa-emoji-row">✨ ❤️️ ✨</p>
+              <p className="il-wa-locked il-wa-emoji-row">{shape.bodyEmoji}</p>
             </>
           ) : (
             <>
-              <p className="il-wa-locked il-wa-emoji-row">✨ 🥂 ✨</p>
+              <p className="il-wa-locked il-wa-emoji-row">{shape.bodyEmoji}</p>
               {shape.showGuestGreeting ? (
                 <p className="il-wa-locked">
                   שלום <span className="il-wa-token">[שם האורח]</span>,
@@ -182,6 +182,7 @@ export default function IlWhatsAppInviteEditor({
                 </>
               ) : null}
 
+              {/* Waze body line ONLY for 2_card_buttons — never for calendar template */}
               {shape.showWazeInviteLine ? (
                 <>
                   <p className="il-wa-locked">לנוחיותכם, מצורף קישור ניווט ישיר ב-Waze לאולם:</p>
@@ -199,7 +200,7 @@ export default function IlWhatsAppInviteEditor({
                 />
               ) : null}
 
-              <p className="il-wa-locked il-wa-emoji-row">✨ 🎉 ✨</p>
+              <p className="il-wa-locked il-wa-emoji-row">{shape.bodyEmoji}</p>
             </>
           )}
 
