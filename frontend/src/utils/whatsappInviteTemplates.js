@@ -71,7 +71,7 @@ export const WHATSAPP_INVITE_TEMPLATE_OPTIONS = [
     label: "3 כפתורים כן לא והוספה ליומן",
     badge: "כן / לא / יומן",
     adminHint:
-      "תמונה + מלל + כן/לא RSVP + כפתור URL «הוספה ליומן» (Google Calendar). בלי Waze בגוף. דורשת תמונת כיסוי."
+      "תמונה + מלל + 3 כפתורי מענה (כן/לא/הוספה ליומן). הבוט שולח קישור ליומן. בלי URL ובלי Waze. דורשת תמונת כיסוי."
   },
   {
     id: "thank_you_after_event",
@@ -211,8 +211,7 @@ const TEMPLATE_FIELD_KEYS = {
     customOpeningText: "2",
     eventDateTimeLocation: "3",
     closingSignOff: "4",
-    mediaPath: "5",
-    calendarEventPath: "7"
+    mediaPath: "5"
   },
   thank_you_after_event: {
     closingSignOff: "1"
@@ -265,7 +264,6 @@ export function getWhatsAppInvitePreviewShape(templateId) {
     showRsvpLink: Boolean(map.rsvpLink),
     showInviteUrlButton: Boolean(map.inviteButtonPath),
     showWazeInviteLine,
-    showCalendarButton: Boolean(map.calendarEventPath),
     showMedia: Boolean(map.mediaPath),
     showGuestGreeting: Boolean(map.guestName),
     showThankYouBody: id === "thank_you_after_event",

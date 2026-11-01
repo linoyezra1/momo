@@ -17,7 +17,6 @@ import {
   toTwilioWhatsAppAddress
 } from "../utils/twilioWhatsApp.js";
 import {
-  buildCalendarEventPathVariable,
   buildInviteUrlButtonVariable,
   buildWazeInviteBodyLine,
   buildWazeNavigationLink,
@@ -290,16 +289,12 @@ async function sendToInvitee({
     const needsWazeQuery = Boolean(fieldKeyMap?.wazeQuery);
     const needsWazeInviteLine = Boolean(fieldKeyMap?.wazeInviteLine);
     const needsInviteButtonPath = Boolean(fieldKeyMap?.inviteButtonPath);
-    const needsCalendarEventPath = Boolean(fieldKeyMap?.calendarEventPath);
     const specialRequestsLink = needsSpecialRequests ? fields.rsvpLink : undefined;
     const wazeLink = needsWazeLink ? buildWazeNavigationLink(event) : undefined;
     const wazeQuery = needsWazeQuery ? buildWazeQueryVariable(event) : undefined;
     const wazeInviteLine = needsWazeInviteLine ? buildWazeInviteBodyLine(event) : undefined;
     const inviteButtonPath = needsInviteButtonPath
       ? buildInviteUrlButtonVariable(fields.rsvpLink)
-      : undefined;
-    const calendarEventPath = needsCalendarEventPath
-      ? buildCalendarEventPathVariable(eventId)
       : undefined;
 
     if (needsSpecialRequests && !specialRequestsLink) {
@@ -317,9 +312,6 @@ async function sendToInvitee({
     if (needsInviteButtonPath && !inviteButtonPath) {
       throw new Error("לא ניתן לבנות כפתור ההפניה — חסר קישור לעמוד ההזמנה");
     }
-    if (needsCalendarEventPath && !calendarEventPath) {
-      throw new Error("לא ניתן לבנות כפתור הוספה ליומן — חסר מזהה אירוע");
-    }
 
     const contentVariables = buildTwilioContentVariables(
       {
@@ -335,8 +327,7 @@ async function sendToInvitee({
         wazeLink,
         wazeQuery,
         wazeInviteLine,
-        inviteButtonPath,
-        calendarEventPath
+        inviteButtonPath
       },
       templateKeys,
       fieldKeyMap

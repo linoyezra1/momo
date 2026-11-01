@@ -15,7 +15,6 @@ import {
   toTwilioWhatsAppAddress
 } from "../utils/twilioWhatsApp.js";
 import {
-  buildCalendarEventPathVariable,
   buildInviteUrlButtonVariable,
   buildWazeInviteBodyLine,
   buildWazeNavigationLink,
@@ -24,10 +23,12 @@ import {
   resolveInviteTemplateRouting,
   resolveWhatsAppInviteTemplateId
 } from "../utils/whatsappInviteTemplates.js";
+import { buildGoogleCalendarUrl } from "../utils/eventCalendar.js";
 import {
   buildPublicEventLink,
   buildWhatsAppTemplateDefaults
 } from "../utils/whatsappMessage.js";
+import { getClientBaseUrl } from "../utils/clientUrl.js";
 import {
   resolveWhatsAppInviteParagraphs,
   toTemplateEventDetailsVariable
@@ -124,12 +125,34 @@ function isWazeRequest({ payload, text }) {
   });
 }
 
+function isCalendarRequest({ payload, text }) {
+  return interactionMatches({
+    payload,
+    text,
+    expectedPayload: "CALENDAR_REQUEST",
+    expectedTexts: ["הוספה ליומן", "הוסף ליומן", "הוספה ליומן 📅"]
+  });
+}
+
 function buildWazeReplyBody(event) {
   const link = buildWazeNavigationLink(event);
   if (!link) {
     return "לא הצלחנו לבנות קישור ניווט כרגע — חסרה כתובת לאולם בפרטי האירוע.";
   }
   return `לנוחיותכם, מצורף קישור ניווט ישיר ב-Waze לאולם:\n${link}`;
+}
+
+function buildCalendarReplyBody(event, eventId, origin) {
+  const googleUrl = buildGoogleCalendarUrl(event);
+  if (!googleUrl) {
+    return "לא הצלחנו לבנות קישור ליומן כרגע — חסר תאריך אירוע בפרטי האירוע.";
+  }
+  const base = String(origin || getClientBaseUrl() || "https://momoevent.up.railway.app").replace(
+    /\/+$/,
+    ""
+  );
+  const shortLink = eventId ? `${base}/cal/${eventId}` : googleUrl;
+  return `לנוחיותכם, לחצו להוספת האירוע ליומן:\n${shortLink}`;
 }
 
 async function findConversationGuest(from) {
@@ -176,9 +199,6 @@ function buildPremiumInviteVariables({ guest, event, userId, origin, templateId 
   const inviteButtonPath = fieldKeyMap.inviteButtonPath
     ? buildInviteUrlButtonVariable(publicLink)
     : undefined;
-  const calendarEventPath = fieldKeyMap.calendarEventPath
-    ? buildCalendarEventPathVariable(userId)
-    : undefined;
 
   return buildTwilioContentVariables(
     {
@@ -199,8 +219,7 @@ function buildPremiumInviteVariables({ guest, event, userId, origin, templateId 
       wazeLink,
       wazeQuery,
       wazeInviteLine,
-      inviteButtonPath,
-      calendarEventPath
+      inviteButtonPath
     },
     templateKeys,
     fieldKeyMap
@@ -331,6 +350,18 @@ export async function handleIncomingWhatsAppRsvp({
       `[Twilio RSVP] WAZE_REQUEST for guest=${guest._id} user=${guest.userId} (status unchanged)`
     );
     return { handled: true, action: "waze_link_sent" };
+  }
+
+  // Calendar QR — send add-to-calendar link, never change RSVP status.
+  if (isCalendarRequest({ payload, text })) {
+    await sendSessionText({
+      guest,
+      body: buildCalendarReplyBody(context.event, guest.userId, origin)
+    });
+    console.log(
+      `[Twilio RSVP] CALENDAR_REQUEST for guest=${guest._id} user=${guest.userId} (status unchanged)`
+    );
+    return { handled: true, action: "calendar_link_sent" };
   }
 
   const resetRequested =
