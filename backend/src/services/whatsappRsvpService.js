@@ -295,7 +295,7 @@ async function publishRsvpUpdate(guest) {
   });
 }
 
-async function saveRsvp(guest, { status, attendeesCount }) {
+async function saveRsvp(guest, { status, attendeesCount, conversationState = "idle" }) {
   const before = {
     status: guest.status,
     attendeesCount: guest.attendeesCount
@@ -318,10 +318,16 @@ async function saveRsvp(guest, { status, attendeesCount }) {
   }
   guest.confirmationMethod = "whatsapp";
   guest.source = resolveSourceAfterSelfRsvp(guest);
-  guest.whatsappConversationState = "idle";
+  guest.whatsappConversationState = conversationState;
   await guest.save();
   await recordGuestSelfUpdate({ guest, before, channel: "whatsapp" });
   await publishRsvpUpdate(guest);
+}
+
+/** Prefer the couple's pre-set headcount when present; otherwise assume solo (1). */
+function resolveOptimisticYesAttendeesCount(guest) {
+  const existing = Number(guest?.attendeesCount);
+  return Number.isFinite(existing) && existing >= 1 ? existing : 1;
 }
 
 export async function handleIncomingWhatsAppRsvp({
@@ -378,10 +384,14 @@ export async function handleIncomingWhatsAppRsvp({
   }
 
   if (isYesRsvp({ payload, text })) {
-    // Same multi-step flow for כנס and wedding: ask count first, then confirm.
-    guest.whatsappConversationState = "awaiting_guest_count";
+    // Optimistic two-step: mark מגיע immediately so couples see confirmation even if
+    // the guest never replies with a headcount. Count reply only refines attendeesCount.
     guest.lastWhatsAppSentAt = new Date();
-    await guest.save();
+    await saveRsvp(guest, {
+      status: "מגיע",
+      attendeesCount: resolveOptimisticYesAttendeesCount(guest),
+      conversationState: "awaiting_guest_count"
+    });
     await sendSessionText({ guest, body: ASK_GUEST_COUNT_TEXT });
     return { handled: true, action: "awaiting_guest_count" };
   }
@@ -417,7 +427,12 @@ export async function handleIncomingWhatsAppRsvp({
       return { handled: true, action: "invalid_guest_count" };
     }
 
-    await saveRsvp(guest, { status: "מגיע", attendeesCount: Number(text) });
+    // Status already מגיע from the yes step — refine headcount only, then close the flow.
+    await saveRsvp(guest, {
+      status: "מגיע",
+      attendeesCount: Number(text),
+      conversationState: "idle"
+    });
     await sendContentTemplate({
       guest,
       contentSid: requireContentSid("TWILIO_RSVP_YES_FOLLOWUP_CONTENT_SID")
