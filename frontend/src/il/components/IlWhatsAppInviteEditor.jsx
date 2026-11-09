@@ -192,8 +192,8 @@ export default function IlWhatsAppInviteEditor({
 
               {shape.showTableNumber ? (
                 <p className="il-wa-locked">
+                  מס&apos; השולחן שלכם הוא:{" "}
                   <span className="il-wa-token">[מס׳ שולחן]</span>
-                  :מס&apos; השולחן שלכם הוא
                 </p>
               ) : null}
 

@@ -249,7 +249,8 @@ const TEMPLATE_FIELD_KEYS = {
   },
   /**
    * remmber_day_waze_bit_bride_number_table (approved HX1d35775a8cafc8bb77e9a30b1dbad8f8)
-   * Body: {{1}} name · {{2}} opening · {{3}} venue · {{6}} table number · {{4}} closing
+   * Body: {{1}} name · {{2}} opening · {{3}} venue ·
+   * static «מס' השולחן שלכם הוא:» + {{6}} table number · {{4}} closing
    * Media {{5}} · QR: WAZE_REQUEST · BIT_BRIDE
    */
   remmber_day_waze_bit_bride_number_table: {
