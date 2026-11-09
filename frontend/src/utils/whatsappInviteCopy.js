@@ -31,6 +31,7 @@ export function isWhatsAppButtonsMode(event = {}) {
     template === "michl_card_buttons" ||
     template === "michl_quick_reply_waze" ||
     template === "remmber_day_and_waze" ||
+    template === "remmber_day_waze_bit_bride_number_table" ||
     template === "2_card_buttons" ||
     template === "2_card_no_yes_add_to_calendar"
   ) {
@@ -56,6 +57,7 @@ export function isWhatsAppCardMode(event = {}) {
     template === "michl_card_buttons" ||
     template === "michl_quick_reply_waze" ||
     template === "remmber_day_and_waze" ||
+    template === "remmber_day_waze_bit_bride_number_table" ||
     template === "2_card_buttons" ||
     template === "2_card_no_yes_add_to_calendar"
   ) {

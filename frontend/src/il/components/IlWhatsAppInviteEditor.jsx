@@ -190,6 +190,13 @@ export default function IlWhatsAppInviteEditor({
                 </>
               ) : null}
 
+              {shape.showTableNumber ? (
+                <p className="il-wa-locked">
+                  <span className="il-wa-token">[מס׳ שולחן]</span>
+                  :מס&apos; השולחן שלכם הוא
+                </p>
+              ) : null}
+
               {shape.showClosing ? (
                 <AutoGrowField
                   id="wa-closing-paragraph"

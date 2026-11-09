@@ -27,6 +27,7 @@ import IconActionButton from "../components/IconActionButton.jsx";
 import BottomSheet from "../components/ui/BottomSheet.jsx";
 import { buildWhatsAppSendUrl } from "../utils/whatsapp";
 import { resolveInviteCopyDefaults } from "../utils/whatsappInviteCopy";
+import { getMissingBitLinkMessage } from "../utils/whatsappInviteTemplates.js";
 import { normalizeIsraeliPhone } from "../utils/phoneNormalize";
 import {
   formatFailedRowLabel,
@@ -940,6 +941,13 @@ export default function ClientDashboardPage() {
   const executeBulkWhatsAppSend = async () => {
     const scheduleMode = isAdminImpersonating && broadcastSendMode === "schedule";
 
+    const missingBitLink = getMissingBitLinkMessage(eventInfo || {});
+    if (missingBitLink) {
+      setBulkWhatsAppError(missingBitLink);
+      setShowImmediateSendConfirm(false);
+      return;
+    }
+
     if (inviteCopySaveTimerRef.current) {
       clearTimeout(inviteCopySaveTimerRef.current);
       inviteCopySaveTimerRef.current = null;
@@ -1035,6 +1043,12 @@ export default function ClientDashboardPage() {
           ? "חובה לבחור קופון לפני אישור התזמון — בחרו תאריך, שעה וקופון"
           : "יש להזין קוד רכישה / לבחור קופון"
       );
+      return;
+    }
+
+    const missingBitLink = getMissingBitLinkMessage(eventInfo || {});
+    if (missingBitLink) {
+      setBulkWhatsAppError(missingBitLink);
       return;
     }
 
@@ -3160,12 +3174,20 @@ export default function ClientDashboardPage() {
                   </div>
                 ) : null}
 
+                {!bulkWhatsAppError && getMissingBitLinkMessage(eventInfo || {}) ? (
+                  <div className="il-bulk-whatsapp-alert" role="alert">
+                    <strong>לא נשמר קישור לביט</strong>
+                    <p>{getMissingBitLinkMessage(eventInfo || {})}</p>
+                  </div>
+                ) : null}
                 {bulkWhatsAppError ? (
                   <div className="il-bulk-whatsapp-alert" role="alert">
                     <strong>
                       {isAdminImpersonating && broadcastSendMode === "schedule"
                         ? "תזמון נכשל"
-                        : "שליחה נכשלה"}
+                        : getMissingBitLinkMessage(eventInfo || {})
+                          ? "לא נשמר קישור לביט"
+                          : "שליחה נכשלה"}
                     </strong>
                     <p>{bulkWhatsAppError}</p>
                   </div>

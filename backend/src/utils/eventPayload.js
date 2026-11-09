@@ -51,6 +51,8 @@ export function normalizeEventPayload(rawEvent) {
         ? String(rawEvent?.transportationWhatsAppLink || "").trim()
         : "",
     showWazeButton: rawEvent?.showWazeButton === true,
+    bitLinkBride: String(rawEvent?.bitLinkBride || "").trim(),
+    bitLinkGroom: String(rawEvent?.bitLinkGroom || "").trim(),
     foodSensitivitiesEnabled: rawEvent?.foodSensitivitiesEnabled === true,
     guestFirstNameOnly: rawEvent?.guestFirstNameOnly === true,
     imageDataUrl: String(rawEvent?.imageDataUrl || "").trim(),

@@ -149,6 +149,8 @@ const initialForm = {
   transportationEnabled: false,
   transportationWhatsAppLink: "",
   showWazeButton: false,
+  bitLinkBride: "",
+  bitLinkGroom: "",
   foodSensitivitiesEnabled: false,
   guestFirstNameOnly: false,
   cover: null,
@@ -1068,6 +1070,8 @@ ${publicEventUrl}`
           transportationEnabled: Boolean(form.transportationEnabled),
           transportationWhatsAppLink: form.transportationEnabled ? form.transportationWhatsAppLink.trim() : "",
           showWazeButton: Boolean(form.showWazeButton),
+          bitLinkBride: String(form.bitLinkBride || "").trim(),
+          bitLinkGroom: String(form.bitLinkGroom || "").trim(),
           foodSensitivitiesEnabled: Boolean(form.foodSensitivitiesEnabled),
           guestFirstNameOnly: Boolean(form.guestFirstNameOnly),
           clearCover: form.clearCover === true && !form.pendingCoverFile
@@ -1227,6 +1231,8 @@ ${publicEventUrl}`
       transportationEnabled: Boolean(client.event?.transportationEnabled),
       transportationWhatsAppLink: client.event?.transportationWhatsAppLink || "",
       showWazeButton: Boolean(client.event?.showWazeButton),
+      bitLinkBride: client.event?.bitLinkBride || "",
+      bitLinkGroom: client.event?.bitLinkGroom || "",
       foodSensitivitiesEnabled: Boolean(client.event?.foodSensitivitiesEnabled),
       guestFirstNameOnly: Boolean(client.event?.guestFirstNameOnly),
       cover: client.event?.cover || null,
@@ -2948,6 +2954,40 @@ ${publicEventUrl}`
                   />
                   <span>הצג כפתור ניווט ב-Waze בהזמנה</span>
                 </label>
+              </div>
+              <div className="us-admin-field us-admin-field--full">
+                <label className="us-admin-field-label" htmlFor="bitLinkBride">
+                  קישור ביט לכלה
+                </label>
+                <input
+                  id="bitLinkBride"
+                  className="us-admin-field-input"
+                  name="bitLinkBride"
+                  value={form.bitLinkBride}
+                  onChange={onChange}
+                  dir="ltr"
+                  placeholder="https://www.bitpay.co.il/..."
+                />
+                <p className="us-admin-field-hint">
+                  נשלח כשלוחצים על כפתור Quick Reply עם מזהה BIT_BRIDE בתבנית הוואטסאפ.
+                </p>
+              </div>
+              <div className="us-admin-field us-admin-field--full">
+                <label className="us-admin-field-label" htmlFor="bitLinkGroom">
+                  קישור ביט לחתן
+                </label>
+                <input
+                  id="bitLinkGroom"
+                  className="us-admin-field-input"
+                  name="bitLinkGroom"
+                  value={form.bitLinkGroom}
+                  onChange={onChange}
+                  dir="ltr"
+                  placeholder="https://www.bitpay.co.il/..."
+                />
+                <p className="us-admin-field-hint">
+                  נשלח כשלוחצים על כפתור Quick Reply עם מזהה BIT_GROOM בתבנית הוואטסאפ.
+                </p>
               </div>
               <div className="us-admin-field us-admin-field--full">
                 <label className="us-admin-checkbox">

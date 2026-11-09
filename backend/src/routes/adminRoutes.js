@@ -469,7 +469,13 @@ router.patch("/clients/:userId", async (req, res) => {
         ...normalizedEvent,
         welcomeParagraph: previousEvent.welcomeParagraph || "",
         eventDetailsParagraph: previousEvent.eventDetailsParagraph || "",
-        closingParagraph: previousEvent.closingParagraph || ""
+        closingParagraph: previousEvent.closingParagraph || "",
+        bitLinkBride: String(
+          normalizedEvent.bitLinkBride ?? previousEvent.bitLinkBride ?? ""
+        ).trim(),
+        bitLinkGroom: String(
+          normalizedEvent.bitLinkGroom ?? previousEvent.bitLinkGroom ?? ""
+        ).trim()
       };
       const synchronizedDeal = normalizeDealPayload({}, user.deal || {});
       synchronizedDeal.includedFeatures.whatsappInviteTemplate =

@@ -1,5 +1,6 @@
 import ActivationCode from "../models/ActivationCode.js";
 import Guest from "../models/Guest.js";
+import SeatingLayout from "../models/SeatingLayout.js";
 import {
   buildConferenceContentVariables,
   buildTwilioContentVariables,
@@ -21,6 +22,7 @@ import {
   buildWazeInviteBodyLine,
   buildWazeNavigationLink,
   buildWazeQueryVariable,
+  getMissingBitLinkMessage,
   getTemplateFieldKeyMap,
   resolveInviteTemplateRouting
 } from "../utils/whatsappInviteTemplates.js";
@@ -229,7 +231,8 @@ async function sendToInvitee({
   paragraphs,
   event,
   conferenceMode = false,
-  mediaVariableMode = "path"
+  mediaVariableMode = "path",
+  tableNumber
 }) {
   const to = toTwilioWhatsAppAddress(invitee.phone);
   if (!to) {
@@ -327,7 +330,8 @@ async function sendToInvitee({
         wazeLink,
         wazeQuery,
         wazeInviteLine,
-        inviteButtonPath
+        inviteButtonPath,
+        tableNumber: fieldKeyMap?.tableNumber ? tableNumber : undefined
       },
       templateKeys,
       fieldKeyMap
@@ -416,7 +420,8 @@ export async function sendBulkWhatsApp({
       .map((guest) => ({
         guestId: guest._id,
         name: String(guest.fullName || "").trim(),
-        phone: String(guest.phone || "").trim()
+        phone: String(guest.phone || "").trim(),
+        seatingTableId: String(guest.seatingTableId || "").trim()
       }))
       .filter((guest) => guest.name);
 
@@ -455,6 +460,17 @@ export async function sendBulkWhatsApp({
           success: false,
           message:
             "לתבנית וואטסאפ עם תמונה חובה להעלות תמונת כיסוי לאירוע לפני השליחה. העלו תמונה בהגדרות האירוע ונסו שוב."
+        }
+      };
+    }
+
+    const missingBitLinkMessage = getMissingBitLinkMessage(event, routing.templateId);
+    if (missingBitLinkMessage) {
+      return {
+        status: 400,
+        body: {
+          success: false,
+          message: missingBitLinkMessage
         }
       };
     }
@@ -533,6 +549,25 @@ export async function sendBulkWhatsApp({
       }
     }
 
+    const needsTableNumber = Boolean(fieldKeyMap?.tableNumber);
+    let tableLabelById = new Map();
+    if (needsTableNumber && userId) {
+      try {
+        const layout = await SeatingLayout.findOne({ userId }).select("tables").lean();
+        for (const table of layout?.tables || []) {
+          const tableId = String(table?.tableId || "").trim();
+          if (!tableId) continue;
+          const label = String(table?.label || "").trim() || "?";
+          tableLabelById.set(tableId, label);
+        }
+      } catch (layoutError) {
+        console.warn(
+          "[Twilio] Could not load seating layout for table numbers:",
+          layoutError?.message || layoutError
+        );
+      }
+    }
+
     const results = await Promise.all(
       invitees.map((invitee) =>
         sendToInvitee({
@@ -548,7 +583,11 @@ export async function sendBulkWhatsApp({
           paragraphs,
           event,
           conferenceMode,
-          mediaVariableMode
+          mediaVariableMode,
+          tableNumber: needsTableNumber
+            ? tableLabelById.get(invitee.seatingTableId) ||
+              (invitee.seatingTableId ? "?" : "-")
+            : undefined
         })
       )
     );

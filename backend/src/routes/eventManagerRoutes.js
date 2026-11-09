@@ -325,7 +325,14 @@ router.patch("/clients/:userId", async (req, res) => {
         closingParagraph: previousEvent.closingParagraph || "",
         guestFirstNameOnly: Object.prototype.hasOwnProperty.call(event, "guestFirstNameOnly")
           ? event.guestFirstNameOnly === true
-          : previousEvent.guestFirstNameOnly === true
+          : previousEvent.guestFirstNameOnly === true,
+        // Bit gift links are admin-managed — keep unless explicitly sent.
+        bitLinkBride: Object.prototype.hasOwnProperty.call(event, "bitLinkBride")
+          ? String(normalizedEvent.bitLinkBride || "").trim()
+          : String(previousEvent.bitLinkBride || "").trim(),
+        bitLinkGroom: Object.prototype.hasOwnProperty.call(event, "bitLinkGroom")
+          ? String(normalizedEvent.bitLinkGroom || "").trim()
+          : String(previousEvent.bitLinkGroom || "").trim()
       };
     }
 

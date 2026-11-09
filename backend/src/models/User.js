@@ -47,6 +47,7 @@ const eventSchema = new mongoose.Schema(
         "michl_card_buttons",
         "michl_quick_reply_waze",
         "remmber_day_and_waze",
+        "remmber_day_waze_bit_bride_number_table",
         "2_card_buttons",
         "2_card_no_yes_add_to_calendar",
         "thank_you_after_event"
@@ -76,6 +77,9 @@ const eventSchema = new mongoose.Schema(
     transportationWhatsAppLink: { type: String, trim: true, default: "" },
     /** Digital invite: show Waze navigation button under RSVP actions */
     showWazeButton: { type: Boolean, default: false },
+    /** Bit payment deep links for wedding gift Quick Reply buttons (BIT_BRIDE / BIT_GROOM) */
+    bitLinkBride: { type: String, trim: true, default: "" },
+    bitLinkGroom: { type: String, trim: true, default: "" },
     /** RSVP: ask guests about food allergies / sensitivities */
     foodSensitivitiesEnabled: { type: Boolean, default: false },
     /** Outgoing messages greet the guest by the first word of their name only. */
@@ -110,6 +114,7 @@ const includedFeaturesSchema = new mongoose.Schema(
         "michl_card_buttons",
         "michl_quick_reply_waze",
         "remmber_day_and_waze",
+        "remmber_day_waze_bit_bride_number_table",
         "2_card_buttons",
         "2_card_no_yes_add_to_calendar",
         "thank_you_after_event"

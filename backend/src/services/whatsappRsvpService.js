@@ -1,4 +1,5 @@
 import Guest from "../models/Guest.js";
+import SeatingLayout from "../models/SeatingLayout.js";
 import User from "../models/User.js";
 import { publishDashboardEvent } from "./dashboardEvents.js";
 import { recordGuestSelfUpdate } from "./guestAuditService.js";
@@ -134,6 +135,34 @@ function isCalendarRequest({ payload, text }) {
   });
 }
 
+function isBitBrideRequest({ payload, text }) {
+  return interactionMatches({
+    payload,
+    text,
+    expectedPayload: "BIT_BRIDE",
+    expectedTexts: [
+      "מתנה בביט לכלה",
+      "ביט לכלה",
+      "מתנה לכלה בביט",
+      "Bit לכלה"
+    ]
+  });
+}
+
+function isBitGroomRequest({ payload, text }) {
+  return interactionMatches({
+    payload,
+    text,
+    expectedPayload: "BIT_GROOM",
+    expectedTexts: [
+      "מתנה בביט לחתן",
+      "ביט לחתן",
+      "מתנה לחתן בביט",
+      "Bit לחתן"
+    ]
+  });
+}
+
 function buildWazeReplyBody(event) {
   const link = buildWazeNavigationLink(event);
   if (!link) {
@@ -155,6 +184,18 @@ function buildCalendarReplyBody(event, eventId, origin) {
   return `לנוחיותכם, לחצו להוספת האירוע ליומן:\n${shortLink}`;
 }
 
+function buildBitReplyBody(event, role) {
+  const isBride = role === "bride";
+  const link = String(
+    isBride ? event?.bitLinkBride || "" : event?.bitLinkGroom || ""
+  ).trim();
+  const who = isBride ? "הכלה" : "החתן";
+  if (!link) {
+    return `עדיין לא הוגדר קישור ביט עבור ${who}. נסו שוב מאוחר יותר או פנו לזוג.`;
+  }
+  return `לנוחיותכם, קישור לתשלום בביט עבור ${who}:\n${link}`;
+}
+
 async function findConversationGuest(from) {
   const phone = normalizePhone(String(from || "").replace(/^whatsapp:/i, ""));
   if (!phone) return null;
@@ -171,7 +212,22 @@ async function loadGuestEvent(guest) {
   return { event: user.event, user };
 }
 
-function buildPremiumInviteVariables({ guest, event, userId, origin, templateId }) {
+async function resolveGuestTableNumberLabel(guest) {
+  const seatingTableId = String(guest?.seatingTableId || "").trim();
+  if (!seatingTableId) return "-";
+  try {
+    const layout = await SeatingLayout.findOne({ userId: guest.userId }).select("tables").lean();
+    const table = (layout?.tables || []).find(
+      (entry) => String(entry?.tableId || "").trim() === seatingTableId
+    );
+    const label = String(table?.label || "").trim();
+    return label || "?";
+  } catch {
+    return "?";
+  }
+}
+
+function buildPremiumInviteVariables({ guest, event, userId, origin, templateId, tableNumber }) {
   if (isConferenceEventType(event?.eventType)) {
     return buildConferenceContentVariables(
       guestMessageName(guest.fullName || guest.name, {
@@ -199,7 +255,6 @@ function buildPremiumInviteVariables({ guest, event, userId, origin, templateId 
   const inviteButtonPath = fieldKeyMap.inviteButtonPath
     ? buildInviteUrlButtonVariable(publicLink)
     : undefined;
-
   return buildTwilioContentVariables(
     {
       guestName: guestMessageName(guest.fullName, {
@@ -219,7 +274,8 @@ function buildPremiumInviteVariables({ guest, event, userId, origin, templateId 
       wazeLink,
       wazeQuery,
       wazeInviteLine,
-      inviteButtonPath
+      inviteButtonPath,
+      tableNumber: fieldKeyMap.tableNumber ? tableNumber : undefined
     },
     templateKeys,
     fieldKeyMap
@@ -271,6 +327,11 @@ async function sendPremiumMainTemplate({ guest, event, origin }) {
     `[Twilio][rsvp-reinvite] templateId=${routing.templateId} contentSid=${routing.contentSid}`
   );
 
+  const fieldKeyMap = getTemplateFieldKeyMap(routing.templateId);
+  const tableNumber = fieldKeyMap.tableNumber
+    ? await resolveGuestTableNumberLabel(guest)
+    : undefined;
+
   return sendTwilioWhatsAppMessage({
     to: toTwilioWhatsAppAddress(guest.phone),
     contentSid: routing.contentSid,
@@ -279,7 +340,8 @@ async function sendPremiumMainTemplate({ guest, event, origin }) {
       event,
       userId: guest.userId,
       origin,
-      templateId: routing.templateId
+      templateId: routing.templateId,
+      tableNumber
     }),
     userId: guest.userId,
     recipientPhone: guest.phone,
@@ -368,6 +430,23 @@ export async function handleIncomingWhatsAppRsvp({
       `[Twilio RSVP] CALENDAR_REQUEST for guest=${guest._id} user=${guest.userId} (status unchanged)`
     );
     return { handled: true, action: "calendar_link_sent" };
+  }
+
+  // Bit gift QR — send stored Bit link for bride / groom, never change RSVP status.
+  if (isBitBrideRequest({ payload, text })) {
+    await sendSessionText({ guest, body: buildBitReplyBody(context.event, "bride") });
+    console.log(
+      `[Twilio RSVP] BIT_BRIDE for guest=${guest._id} user=${guest.userId} (status unchanged)`
+    );
+    return { handled: true, action: "bit_bride_link_sent" };
+  }
+
+  if (isBitGroomRequest({ payload, text })) {
+    await sendSessionText({ guest, body: buildBitReplyBody(context.event, "groom") });
+    console.log(
+      `[Twilio RSVP] BIT_GROOM for guest=${guest._id} user=${guest.userId} (status unchanged)`
+    );
+    return { handled: true, action: "bit_groom_link_sent" };
   }
 
   const resetRequested =

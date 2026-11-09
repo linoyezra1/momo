@@ -13,13 +13,14 @@ export const WHATSAPP_INVITE_TEMPLATE_IDS = [
   "michl_card_buttons",
   "michl_quick_reply_waze",
   "remmber_day_and_waze",
+  "remmber_day_waze_bit_bride_number_table",
   "2_card_buttons",
   "2_card_no_yes_add_to_calendar",
   "thank_you_after_event"
 ];
 
 /**
- * @typedef {"standard"|"buttons_qr"|"card_direct_rsvp_buttons"|"card_buttons"|"card_view_invite_button"|"card_buttons_special_requests"|"michl_card_buttons"|"michl_quick_reply_waze"|"remmber_day_and_waze"|"2_card_buttons"|"2_card_no_yes_add_to_calendar"|"thank_you_after_event"} WhatsAppInviteTemplateId
+ * @typedef {"standard"|"buttons_qr"|"card_direct_rsvp_buttons"|"card_buttons"|"card_view_invite_button"|"card_buttons_special_requests"|"michl_card_buttons"|"michl_quick_reply_waze"|"remmber_day_and_waze"|"remmber_day_waze_bit_bride_number_table"|"2_card_buttons"|"2_card_no_yes_add_to_calendar"|"thank_you_after_event"} WhatsAppInviteTemplateId
  */
 
 export const WHATSAPP_INVITE_TEMPLATE_OPTIONS = [
@@ -82,6 +83,13 @@ export const WHATSAPP_INVITE_TEMPLATE_OPTIONS = [
       "תמונה + מלל + כפתור מענה יחיד «ניווט לאירוע ב-Waze» (WAZE_REQUEST). בלי כפתורי RSVP ובלי קישור להזמנה. דורשת תמונת כיסוי."
   },
   {
+    id: "remmber_day_waze_bit_bride_number_table",
+    label: "תזכורת ביום האירוע+ביט לכלה+וויז+מספר שולחן",
+    badge: "Waze + ביט כלה + שולחן",
+    adminHint:
+      "תמונה + מלל + מספר שולחן ({{6}}) + 2 כפתורי מענה: ניווט Waze (WAZE_REQUEST) ומתנה בביט לכלה (BIT_BRIDE). דורשת תמונת כיסוי וקישור ביט לכלה באדמין."
+  },
+  {
     id: "2_card_buttons",
     label: "תמונה + מלל + 2 כפתורים + כפתור WAZE הודעה לבוט",
     badge: "2 כפתורים + WAZE לבוט",
@@ -124,6 +132,9 @@ export const MICHL_CARD_BUTTONS_CONTENT_SID_DEFAULT = "HX045cca6026c633c1127a8cd
 export const MICHL_QUICK_REPLY_WAZE_CONTENT_SID_DEFAULT = "HX812785436da607224fe90185f7bcf144";
 /** Reminder card + single WAZE_REQUEST QR — Twilio remmber_day_and_waze */
 export const REMMBER_DAY_AND_WAZE_CONTENT_SID_DEFAULT = "HX32b5b53bf81d0fa8fef1c0f1bc1a8a0d";
+/** Reminder card + WAZE_REQUEST + BIT_BRIDE + table number {{6}} */
+export const REMMBER_DAY_WAZE_BIT_BRIDE_NUMBER_TABLE_CONTENT_SID_DEFAULT =
+  "HX1d35775a8cafc8bb77e9a30b1dbad8f8";
 /** 2 QR + Waze URL in body (no URL button): Twilio copy_2_card_buttons */
 export const TWO_CARD_BUTTONS_CONTENT_SID_DEFAULT = "HXe6e42257c3fba04996d47e9bf0c77d91";
 /** 3 QR (yes/no/calendar): Twilio 2_card_no_yes_add_to_calendar (approved) */
@@ -237,6 +248,19 @@ const TEMPLATE_FIELD_KEYS = {
     mediaPath: "5"
   },
   /**
+   * remmber_day_waze_bit_bride_number_table (approved HX1d35775a8cafc8bb77e9a30b1dbad8f8)
+   * Body: {{1}} name · {{2}} opening · {{3}} venue · {{6}} table number · {{4}} closing
+   * Media {{5}} · QR: WAZE_REQUEST · BIT_BRIDE
+   */
+  remmber_day_waze_bit_bride_number_table: {
+    guestName: "1",
+    customOpeningText: "2",
+    eventDateTimeLocation: "3",
+    closingSignOff: "4",
+    mediaPath: "5",
+    tableNumber: "6"
+  },
+  /**
    * 2_card_buttons → Twilio Content "copy_2_card_buttons"
    * (SID HXe6e42257c3fba04996d47e9bf0c77d91). 2 QR only; Waze URL in body text.
    * Body: {{1}} name · {{2}} opening · {{3}} details ·
@@ -342,6 +366,7 @@ export function isCardInviteTemplate(templateId) {
     templateId === "michl_card_buttons" ||
     templateId === "michl_quick_reply_waze" ||
     templateId === "remmber_day_and_waze" ||
+    templateId === "remmber_day_waze_bit_bride_number_table" ||
     templateId === "2_card_buttons" ||
     templateId === "2_card_no_yes_add_to_calendar"
   );
@@ -362,6 +387,47 @@ export function getTemplateVariableKeys(templateId) {
 
 export function templateRequiresCoverMedia(templateId) {
   return isCardInviteTemplate(templateId);
+}
+
+/** Templates with BIT_BRIDE Quick Reply — require event.bitLinkBride before send. */
+const TEMPLATES_REQUIRING_BIT_BRIDE = new Set([
+  "remmber_day_waze_bit_bride_number_table"
+]);
+
+/** Templates with BIT_GROOM Quick Reply — require event.bitLinkGroom before send. */
+const TEMPLATES_REQUIRING_BIT_GROOM = new Set([]);
+
+export function templateRequiresBitBrideLink(templateId) {
+  return TEMPLATES_REQUIRING_BIT_BRIDE.has(String(templateId || "").trim());
+}
+
+export function templateRequiresBitGroomLink(templateId) {
+  return TEMPLATES_REQUIRING_BIT_GROOM.has(String(templateId || "").trim());
+}
+
+/**
+ * Hebrew block message when a Bit Quick Reply template is selected but links are missing.
+ * Empty string = OK to send.
+ */
+export function getMissingBitLinkMessage(event = {}, templateId = "") {
+  const id = String(templateId || resolveWhatsAppInviteTemplateId(event) || "").trim();
+  const needsBride = templateRequiresBitBrideLink(id);
+  const needsGroom = templateRequiresBitGroomLink(id);
+  if (!needsBride && !needsGroom) return "";
+
+  const hasBride = Boolean(String(event?.bitLinkBride || "").trim());
+  const hasGroom = Boolean(String(event?.bitLinkGroom || "").trim());
+  const missingBride = needsBride && !hasBride;
+  const missingGroom = needsGroom && !hasGroom;
+  if (!missingBride && !missingGroom) return "";
+
+  if (missingBride && missingGroom) {
+    return "לא נשמר קישור לביט (כלה וחתן). יש לשמור את הקישורים בממשק האדמין לפני השליחה.";
+  }
+  if (missingBride) {
+    return "לא נשמר קישור לביט לכלה. יש לשמור את הקישור בממשק האדמין לפני השליחה.";
+  }
+  return "לא נשמר קישור לביט לחתן. יש לשמור את הקישור בממשק האדמין לפני השליחה.";
 }
 
 export function templateIncludesRsvpLink(templateId) {
@@ -555,6 +621,23 @@ export function resolveInviteTemplateRouting(event = {}) {
       templateId,
       contentSid,
       sidSource: fromEnv?.sidSource || "default:REMMBER_DAY_AND_WAZE_CONTENT_SID_DEFAULT",
+      templateKeys,
+      requiresCoverMedia,
+      includesRsvpLink,
+      premiumButtonsEnabled: true,
+      premiumCardEnabled: true
+    };
+  }
+
+  if (templateId === "remmber_day_waze_bit_bride_number_table") {
+    const fromEnv = readEnvSid("TWILIO_REMMBER_DAY_WAZE_BIT_BRIDE_NUMBER_TABLE_CONTENT_SID");
+    const contentSid =
+      fromEnv?.contentSid || REMMBER_DAY_WAZE_BIT_BRIDE_NUMBER_TABLE_CONTENT_SID_DEFAULT;
+    return {
+      templateId,
+      contentSid,
+      sidSource:
+        fromEnv?.sidSource || "default:REMMBER_DAY_WAZE_BIT_BRIDE_NUMBER_TABLE_CONTENT_SID_DEFAULT",
       templateKeys,
       requiresCoverMedia,
       includesRsvpLink,

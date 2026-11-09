@@ -60,6 +60,13 @@ export const WHATSAPP_INVITE_TEMPLATE_OPTIONS = [
       "תמונה + מלל + כפתור מענה יחיד «ניווט לאירוע ב-Waze» (WAZE_REQUEST). בלי כפתורי RSVP ובלי קישור להזמנה. דורשת תמונת כיסוי."
   },
   {
+    id: "remmber_day_waze_bit_bride_number_table",
+    label: "תזכורת ביום האירוע+ביט לכלה+וויז+מספר שולחן",
+    badge: "Waze + ביט כלה + שולחן",
+    adminHint:
+      "תמונה + מלל + מספר שולחן + כפתורי מענה: ניווט Waze ומתנה בביט לכלה. דורשת תמונת כיסוי וקישור ביט לכלה באדמין."
+  },
+  {
     id: "2_card_buttons",
     label: "תמונה + מלל + 2 כפתורים + כפתור WAZE הודעה לבוט",
     badge: "2 כפתורים + WAZE לבוט",
@@ -90,6 +97,7 @@ const CARD_TEMPLATE_IDS = new Set([
   "michl_card_buttons",
   "michl_quick_reply_waze",
   "remmber_day_and_waze",
+  "remmber_day_waze_bit_bride_number_table",
   "2_card_buttons",
   "2_card_no_yes_add_to_calendar"
 ]);
@@ -198,6 +206,14 @@ const TEMPLATE_FIELD_KEYS = {
     closingSignOff: "4",
     mediaPath: "5"
   },
+  remmber_day_waze_bit_bride_number_table: {
+    guestName: "1",
+    customOpeningText: "2",
+    eventDateTimeLocation: "3",
+    closingSignOff: "4",
+    mediaPath: "5",
+    tableNumber: "6"
+  },
   "2_card_buttons": {
     guestName: "1",
     customOpeningText: "2",
@@ -228,6 +244,7 @@ const TEMPLATE_PREVIEW_BUTTONS = {
   michl_card_buttons: ["כן, אני אגיע!", "לא אוכל להגיע", "ניווט ב-Waze"],
   michl_quick_reply_waze: ["כן, אני אגיע!", "לא אוכל להגיע", "ניווט לאירוע ב-Waze"],
   remmber_day_and_waze: ["ניווט לאירוע ב-Waze"],
+  remmber_day_waze_bit_bride_number_table: ["ניווט לאירוע ב-Waze", "מתנה בביט לכלה"],
   "2_card_buttons": ["כן, אני אגיע!", "לא אוכל להגיע"],
   "2_card_no_yes_add_to_calendar": ["כן, אני אגיע!", "לא אוכל להגיע", "הוספה ליומן"],
   thank_you_after_event: []
@@ -264,6 +281,7 @@ export function getWhatsAppInvitePreviewShape(templateId) {
     showRsvpLink: Boolean(map.rsvpLink),
     showInviteUrlButton: Boolean(map.inviteButtonPath),
     showWazeInviteLine,
+    showTableNumber: Boolean(map.tableNumber),
     showMedia: Boolean(map.mediaPath),
     showGuestGreeting: Boolean(map.guestName),
     showThankYouBody: id === "thank_you_after_event",
@@ -284,4 +302,36 @@ export function resolveEventWhatsAppInviteTemplateId(event = {}) {
       event?.isPremiumWhatsappButtonsEnabled === true ||
       event?.includedFeatures?.isPremiumWhatsappButtonsEnabled === true
   });
+}
+
+/** Templates with BIT_BRIDE Quick Reply — need event.bitLinkBride. */
+const TEMPLATES_REQUIRING_BIT_BRIDE = new Set([
+  "remmber_day_waze_bit_bride_number_table"
+]);
+
+/** Templates with BIT_GROOM Quick Reply — need event.bitLinkGroom. */
+const TEMPLATES_REQUIRING_BIT_GROOM = new Set([]);
+
+/**
+ * Empty string when Bit links are OK; otherwise a Hebrew warning for the send modal.
+ */
+export function getMissingBitLinkMessage(event = {}, templateId = "") {
+  const id = String(templateId || resolveEventWhatsAppInviteTemplateId(event) || "").trim();
+  const needsBride = TEMPLATES_REQUIRING_BIT_BRIDE.has(id);
+  const needsGroom = TEMPLATES_REQUIRING_BIT_GROOM.has(id);
+  if (!needsBride && !needsGroom) return "";
+
+  const hasBride = Boolean(String(event?.bitLinkBride || "").trim());
+  const hasGroom = Boolean(String(event?.bitLinkGroom || "").trim());
+  const missingBride = needsBride && !hasBride;
+  const missingGroom = needsGroom && !hasGroom;
+  if (!missingBride && !missingGroom) return "";
+
+  if (missingBride && missingGroom) {
+    return "לא נשמר קישור לביט (כלה וחתן). יש לשמור את הקישורים בממשק האדמין לפני השליחה.";
+  }
+  if (missingBride) {
+    return "לא נשמר קישור לביט לכלה. יש לשמור את הקישור בממשק האדמין לפני השליחה.";
+  }
+  return "לא נשמר קישור לביט לחתן. יש לשמור את הקישור בממשק האדמין לפני השליחה.";
 }

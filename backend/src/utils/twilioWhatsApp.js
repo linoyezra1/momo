@@ -562,7 +562,8 @@ export function buildTwilioContentVariables(
     wazeLink,
     wazeQuery,
     wazeInviteLine,
-    inviteButtonPath
+    inviteButtonPath,
+    tableNumber
   },
   templateKeys = ["1", "2", "3", "4", "5"],
   fieldKeyMap = null
@@ -580,7 +581,8 @@ export function buildTwilioContentVariables(
     wazeLink,
     wazeQuery,
     wazeInviteLine,
-    inviteButtonPath
+    inviteButtonPath,
+    tableNumber
   };
 
   /** Default full mapping (legacy 1–6). */

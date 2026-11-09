@@ -5,6 +5,7 @@ import { getClientBaseUrl } from "../utils/clientUrl.js";
 import { resolveWhatsAppInviteParagraphs } from "../utils/whatsappInviteCopy.js";
 import {
   deriveLegacyWhatsAppFlags,
+  getMissingBitLinkMessage,
   isWhatsAppInviteTemplateId,
   mergeEventWhatsAppInviteSettings
 } from "../utils/whatsappInviteTemplates.js";
@@ -237,6 +238,13 @@ export async function createScheduledBroadcast({
   if (!user) {
     const err = new Error("הלקוח / האירוע לא נמצא");
     err.status = 404;
+    throw err;
+  }
+
+  const missingBitLinkMessage = getMissingBitLinkMessage(user.event || {});
+  if (missingBitLinkMessage) {
+    const err = new Error(missingBitLinkMessage);
+    err.status = 400;
     throw err;
   }
 

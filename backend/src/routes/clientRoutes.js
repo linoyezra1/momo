@@ -1277,7 +1277,10 @@ router.put("/:userId/event", async (req, res) => {
         : "",
       showWazeButton: Boolean(withCover.showWazeButton),
       foodSensitivitiesEnabled: Boolean(withCover.foodSensitivitiesEnabled),
-      guestFirstNameOnly: previous.guestFirstNameOnly === true
+      guestFirstNameOnly: previous.guestFirstNameOnly === true,
+      // Bit gift links are admin-managed — preserve across couple invite edits.
+      bitLinkBride: String(previous.bitLinkBride || "").trim(),
+      bitLinkGroom: String(previous.bitLinkGroom || "").trim()
     };
     await user.save();
 
