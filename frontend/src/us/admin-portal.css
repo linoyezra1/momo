@@ -364,6 +364,54 @@
   color: var(--us-muted);
 }
 
+.us-admin-client-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+  max-width: 18rem;
+  padding: 0.28rem 0.45rem;
+  border-radius: 0.45rem;
+  background: rgb(234 179 8 / 12%);
+  color: #8a6a00;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.us-admin-client-note svg {
+  flex: 0 0 auto;
+  margin-top: 0.1rem;
+}
+
+.us-admin-client-note span {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  word-break: break-word;
+}
+
+.us-admin-btn--note-active {
+  color: #8a6a00;
+  border-color: rgb(234 179 8 / 45%);
+  background: rgb(234 179 8 / 14%);
+}
+
+.us-admin-note-modal {
+  max-width: 28rem;
+}
+
+.us-admin-note-modal .us-admin-modal-body {
+  padding: 0 1.1rem 0.5rem;
+}
+
+.us-admin-note-modal .us-admin-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.75rem 1.1rem 1.1rem;
+}
+
 .us-admin-table-actions {
   display: flex;
   flex-wrap: wrap;

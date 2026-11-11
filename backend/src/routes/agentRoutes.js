@@ -19,6 +19,7 @@ import {
   resolveMaxPhoneRounds
 } from "../utils/phoneRounds.js";
 import {
+  STATUS_HISTORY_LABELS,
   STATUS_HISTORY_SOURCES,
   statusHistoryPushEntry
 } from "../utils/guestStatusHistory.js";
@@ -446,7 +447,6 @@ router.patch("/:userId/guests/:guestId/phone-rsvp", async (req, res) => {
     }
 
     const nextAttempt = Number(existingGuest.phoneAttemptsCount || 0) + 1;
-    const agentLabel = req.agent.displayName || req.agent.username || "נציג טלפוני";
     const update = {
       currentCallRound: Math.min(nextAttempt, 4),
       callStatus,
@@ -496,7 +496,7 @@ router.patch("/:userId/guests/:guestId/phone-rsvp", async (req, res) => {
       const statusEntry = statusHistoryPushEntry({
         previousStatus: existingGuest.status,
         nextStatus: update.status,
-        updatedBy: `${agentLabel} — סבב ${Math.min(nextAttempt, 4)}`,
+        updatedBy: `${STATUS_HISTORY_LABELS[STATUS_HISTORY_SOURCES.REP]} — סבב ${Math.min(nextAttempt, 4)}`,
         source: STATUS_HISTORY_SOURCES.REP,
         note: update.agentNotes
       });

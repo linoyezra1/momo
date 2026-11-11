@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Check, Copy, LogIn, Pencil, Trash2, X } from "lucide-react";
+import { Check, Copy, LogIn, Pencil, StickyNote, Trash2, X } from "lucide-react";
 import api from "../api";
 import AdminWhatsAppFailures from "../components/AdminWhatsAppFailures.jsx";
 import AdminWhatsAppBilling from "../components/AdminWhatsAppBilling.jsx";
@@ -224,12 +224,17 @@ function clientMatchesSearch(client, rawQuery) {
     client?.event?.eventDate,
     client?.event?.eventDate ? formatIsraeliDate(client.event.eventDate) : "",
     client?.createdByAgentName,
-    client?.createdByAgentId
+    client?.createdByAgentId,
+    client?.deal?.adminNotes
   ]
     .filter(Boolean)
     .join(" ")
     .toLowerCase();
   return haystack.includes(query);
+}
+
+function getClientAdminNote(client) {
+  return String(client?.deal?.adminNotes || "").trim();
 }
 
 function todayIsoLocal() {
@@ -293,6 +298,9 @@ export default function AdminPage() {
   const [clientEventDateFrom, setClientEventDateFrom] = useState("");
   const [clientEventDateTo, setClientEventDateTo] = useState("");
   const [selectedClientId, setSelectedClientId] = useState("");
+  const [noteEditorClient, setNoteEditorClient] = useState(null);
+  const [noteDraft, setNoteDraft] = useState("");
+  const [noteSaving, setNoteSaving] = useState(false);
   const [showCreateWizard, setShowCreateWizard] = useState(false);
   const [wizardMode, setWizardMode] = useState("create");
   const [editingClientId, setEditingClientId] = useState("");
@@ -851,6 +859,59 @@ ${publicEventUrl}`
       return { ...prev, includedFeatures };
     });
     setDealSaved(false);
+  };
+
+  const openClientNoteEditor = (client) => {
+    setNoteEditorClient(client);
+    setNoteDraft(getClientAdminNote(client));
+    setError("");
+  };
+
+  const closeClientNoteEditor = () => {
+    if (noteSaving) return;
+    setNoteEditorClient(null);
+    setNoteDraft("");
+  };
+
+  const saveClientAdminNote = async () => {
+    if (!noteEditorClient?.userId) return;
+    setNoteSaving(true);
+    setError("");
+    try {
+      // Preserve current WhatsApp template when patching notes only.
+      const templateFlags = deriveWhatsAppFlagsFromTemplate(
+        noteEditorClient?.deal?.includedFeatures?.whatsappInviteTemplate ||
+          noteEditorClient?.event?.whatsappInviteTemplate ||
+          "standard"
+      );
+      const response = await api.patch(`/admin/clients/${noteEditorClient.userId}/deal`, {
+        adminNotes: String(noteDraft || "").trim(),
+        includedFeatures: {
+          ...(noteEditorClient?.deal?.includedFeatures || {}),
+          ...templateFlags
+        }
+      });
+      const savedDeal = response.data?.deal;
+      setClients((prev) =>
+        prev.map((client) =>
+          String(client.userId) === String(noteEditorClient.userId)
+            ? { ...client, deal: savedDeal || { ...(client.deal || {}), adminNotes: String(noteDraft || "").trim() } }
+            : client
+        )
+      );
+      if (String(selectedClientId) === String(noteEditorClient.userId) && savedDeal) {
+        setDealDraft((prev) => ({
+          ...prev,
+          adminNotes: String(savedDeal.adminNotes || "").trim()
+        }));
+      }
+      setNoteEditorClient(null);
+      setNoteDraft("");
+    } catch (saveError) {
+      setError(saveError.response?.data?.message || "שמירת ההערה נכשלה");
+    } finally {
+      setNoteSaving(false);
+    }
   };
 
   const saveDeal = async () => {
@@ -1558,6 +1619,12 @@ ${publicEventUrl}`
                           <td>
                             <strong>{buildClientLabel(client)}</strong>
                             <span className="us-admin-table-sub">{client.username}</span>
+                            {getClientAdminNote(client) ? (
+                              <span className="us-admin-client-note" title={getClientAdminNote(client)}>
+                                <StickyNote size={13} aria-hidden="true" />
+                                <span>{getClientAdminNote(client)}</span>
+                              </span>
+                            ) : null}
                           </td>
                           <td>{buildClientSubline(client)}</td>
                           <td dir="ltr">{client.contactPhone || "—"}</td>
@@ -1593,6 +1660,21 @@ ${publicEventUrl}`
                                 }}
                               >
                                 צפייה
+                              </button>
+                              <button
+                                className={`us-admin-btn us-admin-btn--xs${
+                                  getClientAdminNote(client) ? " us-admin-btn--note-active" : ""
+                                }`}
+                                type="button"
+                                onClick={() => openClientNoteEditor(client)}
+                                aria-label={
+                                  getClientAdminNote(client)
+                                    ? `עריכת הערה ל${buildClientLabel(client)}`
+                                    : `הוספת הערה ל${buildClientLabel(client)}`
+                                }
+                                title={getClientAdminNote(client) || "הוספת הערה"}
+                              >
+                                <StickyNote size={14} />
                               </button>
                               {!isUsClient(client) ? (
                                 <button
@@ -2556,6 +2638,65 @@ ${publicEventUrl}`
         {adminSection === "failures" ? <AdminGlobalFailuresReport clients={clients} /> : null}
 
         {adminSection === "profit" ? <AdminProfitReport /> : null}
+
+        {noteEditorClient ? (
+          <div className="us-admin-modal-backdrop" role="presentation" onClick={closeClientNoteEditor}>
+            <div
+              className="us-admin-modal us-admin-note-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="admin-client-note-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="us-admin-modal-header">
+                <h2 id="admin-client-note-title">
+                  הערה — {buildClientLabel(noteEditorClient)}
+                </h2>
+                <button
+                  className="us-admin-modal-close"
+                  type="button"
+                  onClick={closeClientNoteEditor}
+                  aria-label="סגירה"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="us-admin-modal-body">
+                <label className="us-admin-field-label" htmlFor="admin-client-note-input">
+                  הערה שתוצג ברשימת הלקוחות
+                </label>
+                <textarea
+                  id="admin-client-note-input"
+                  className="us-admin-field-input us-admin-deal-notes"
+                  rows={4}
+                  value={noteDraft}
+                  onChange={(event) => setNoteDraft(event.target.value)}
+                  placeholder="לדוגמה: לשלוח תזכורת מחר, ממתין לתשלום…"
+                  autoFocus
+                />
+                {error ? <p className="us-admin-message us-admin-message--error">{error}</p> : null}
+              </div>
+              <div className="us-admin-modal-footer">
+                <button
+                  className="us-admin-btn"
+                  type="button"
+                  disabled={noteSaving}
+                  onClick={closeClientNoteEditor}
+                >
+                  ביטול
+                </button>
+                <button
+                  className="us-admin-btn us-admin-btn--primary"
+                  type="button"
+                  disabled={noteSaving}
+                  onClick={saveClientAdminNote}
+                >
+                  {noteSaving ? "שומר…" : "שמירת הערה"}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         {showCreateWizard ? (
           <div className="us-admin-modal-backdrop" role="presentation">
