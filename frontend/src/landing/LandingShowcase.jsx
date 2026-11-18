@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Bell, MapPin, Users } from "lucide-react";
+import { Bell, Users } from "lucide-react";
 
 function PhoneFrame({ children, label }) {
   return (
@@ -105,65 +105,6 @@ function UpdatesLog() {
   );
 }
 
-function DesktopDashboard() {
-  return (
-    <div className="mx-auto max-w-4xl">
-      <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
-        <div className="flex items-center gap-2 border-b border-border bg-secondary/60 px-4 py-3">
-          <span className="size-3 rounded-full bg-accent/60" />
-          <span className="size-3 rounded-full bg-muted-foreground/30" />
-          <span className="size-3 rounded-full bg-muted-foreground/30" />
-          <div className="mr-3 flex-1 rounded-full bg-card px-3 py-1 text-center text-xs text-muted-foreground">
-            momo.co.il/dashboard
-          </div>
-        </div>
-
-        <div className="p-5 md:p-8">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h3 className="font-serif text-xl font-bold text-primary">החתונה של דנה &amp; יואב</h3>
-              <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
-                <MapPin className="size-4" />
-                אולם הגן · 12 בספטמבר
-              </p>
-            </div>
-            <button type="button" className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground">
-              שליחת תזכורת
-            </button>
-          </div>
-
-          <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-            {[
-              { n: "312", t: "הוזמנו" },
-              { n: "148", t: "אישרו" },
-              { n: "36", t: "לא מגיעים" },
-              { n: "128", t: "טרם ענו" }
-            ].map((s) => (
-              <div key={s.t} className="rounded-xl border border-border bg-background p-4 text-center">
-                <p className="font-serif text-2xl font-bold text-primary">{s.n}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{s.t}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-4 rounded-xl border border-border bg-background p-4">
-            <div className="mb-2 flex items-center justify-between">
-              <p className="text-sm font-semibold text-primary">התקדמות אישורים</p>
-              <span className="text-sm text-muted-foreground">47%</span>
-            </div>
-            <div className="h-2.5 w-full overflow-hidden rounded-full bg-secondary">
-              <div className="h-full w-[47%] rounded-full bg-accent" />
-            </div>
-          </div>
-        </div>
-      </div>
-      <p className="mt-4 text-center text-sm text-muted-foreground">
-        לוח הבקרה שלכם במחשב — כל הנתונים במקום אחד, מתעדכן בזמן אמת.
-      </p>
-    </div>
-  );
-}
-
 export default function LandingShowcase() {
   return (
     <section id="showcase" className="scroll-mt-20">
@@ -212,10 +153,6 @@ export default function LandingShowcase() {
               כל אישור שנכנס מופיע כאן מיד. רואים כמה אישרו, כמה אורחים, ומי עוד לא ענה.
             </p>
           </div>
-        </div>
-
-        <div className="mt-16">
-          <DesktopDashboard />
         </div>
       </div>
     </section>

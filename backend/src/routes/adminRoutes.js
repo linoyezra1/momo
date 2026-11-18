@@ -272,7 +272,7 @@ router.get("/clients", async (req, res) => {
     const agentNames = getAgentDisplayMap();
     const users = await User.find(
       {},
-      "username event createdAt payment deal loginPassword contactPhone createdByAgentId managedBy"
+      "username event createdAt payment deal loginPassword contactPhone createdByAgentId managedBy notRelevant notRelevantAt"
     ).sort({
       createdAt: -1
     });
@@ -332,6 +332,8 @@ router.get("/clients", async (req, res) => {
         createdByAgentId: agentId,
         createdByAgentName: agentId ? agentNames[agentId] || agentId : "",
         createdAt: user.createdAt,
+        notRelevant: user.notRelevant === true,
+        notRelevantAt: user.notRelevantAt || null,
         successfulMessages: messageStats.successfulMessages,
         messageSupplierCost: messageStats.messageSupplierCost,
         messageSupplierCostUnit: "USD",
@@ -410,6 +412,32 @@ router.post("/create-client", async (req, res) => {
     return res.status(status).json({
       message: error.message || "Failed to create client",
       ...(status === 500 ? { error: error.message } : {})
+    });
+  }
+});
+
+router.patch("/clients/:userId/relevance", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "Client not found" });
+    }
+
+    const notRelevant = req.body?.notRelevant === true;
+    user.notRelevant = notRelevant;
+    user.notRelevantAt = notRelevant ? new Date() : null;
+    await user.save();
+
+    return res.json({
+      message: notRelevant ? "הלקוח סומן כלא רלוונטי" : "הלקוח הוחזר לרשימה הפעילה",
+      userId: user._id,
+      notRelevant: user.notRelevant === true,
+      notRelevantAt: user.notRelevantAt || null
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message || "Failed to update client relevance"
     });
   }
 });

@@ -397,6 +397,16 @@
   background: rgb(234 179 8 / 14%);
 }
 
+.us-admin-btn--ban {
+  color: #b42318;
+  border-color: rgb(180 35 24 / 35%);
+  background: rgb(180 35 24 / 8%);
+}
+
+.us-admin-btn--ban:hover:not(:disabled) {
+  background: rgb(180 35 24 / 14%);
+}
+
 .us-admin-note-modal {
   max-width: 28rem;
 }

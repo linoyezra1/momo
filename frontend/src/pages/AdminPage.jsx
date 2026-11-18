@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Check, Copy, LogIn, Pencil, StickyNote, Trash2, X } from "lucide-react";
+import { Ban, Check, Copy, LogIn, Pencil, StickyNote, Trash2, Undo2, X } from "lucide-react";
 import api from "../api";
 import AdminWhatsAppFailures from "../components/AdminWhatsAppFailures.jsx";
 import AdminWhatsAppBilling from "../components/AdminWhatsAppBilling.jsx";
@@ -23,11 +23,16 @@ import "../us/admin-portal.css";
 const ADMIN_NAV_ITEMS = [
   { id: "clients", label: "לקוחות" },
   { id: "archive", label: "ארכיון" },
+  { id: "notRelevant", label: "לא רלוונטים" },
   { id: "agents", label: "סוכנים" },
   { id: "managers", label: "מנהלי אירוע" },
   { id: "failures", label: "דוחות כשלים" },
   { id: "profit", label: "דוחות רווח" }
 ];
+
+function isClientNotRelevant(client) {
+  return client?.notRelevant === true;
+}
 
 const PACKAGE_TYPE_OPTIONS = [
   { value: "custom", label: "התאמה אישית" },
@@ -301,6 +306,7 @@ export default function AdminPage() {
   const [noteEditorClient, setNoteEditorClient] = useState(null);
   const [noteDraft, setNoteDraft] = useState("");
   const [noteSaving, setNoteSaving] = useState(false);
+  const [relevanceUpdatingUserId, setRelevanceUpdatingUserId] = useState("");
   const [showCreateWizard, setShowCreateWizard] = useState(false);
   const [wizardMode, setWizardMode] = useState("create");
   const [editingClientId, setEditingClientId] = useState("");
@@ -373,15 +379,37 @@ export default function AdminPage() {
   );
   const todayIso = useMemo(() => todayIsoLocal(), []);
 
+  const notRelevantClients = useMemo(
+    () => clients.filter((client) => isClientNotRelevant(client)),
+    [clients]
+  );
+
+  const closedDealClients = useMemo(
+    () => clients.filter((client) => !isClientNotRelevant(client)),
+    [clients]
+  );
+
   const activeClients = useMemo(
-    () => clients.filter((client) => !isClientArchived(client, todayIso)),
+    () =>
+      clients.filter(
+        (client) => !isClientNotRelevant(client) && !isClientArchived(client, todayIso)
+      ),
     [clients, todayIso]
   );
 
   const archivedClients = useMemo(
-    () => clients.filter((client) => isClientArchived(client, todayIso)),
+    () =>
+      clients.filter(
+        (client) => !isClientNotRelevant(client) && isClientArchived(client, todayIso)
+      ),
     [clients, todayIso]
   );
+
+  const salesSuccessRate = useMemo(() => {
+    const total = clients.length;
+    if (!total) return null;
+    return Math.round((closedDealClients.length / total) * 1000) / 10;
+  }, [clients.length, closedDealClients.length]);
 
   const filteredClients = useMemo(
     () =>
@@ -398,9 +426,23 @@ export default function AdminPage() {
     [archivedClients, clientSearch]
   );
 
-  const clientsTableRows = adminSection === "archive" ? filteredArchiveClients : filteredClients;
+  const filteredNotRelevantClients = useMemo(
+    () => notRelevantClients.filter((client) => clientMatchesSearch(client, clientSearch)),
+    [notRelevantClients, clientSearch]
+  );
+
+  const clientsTableRows =
+    adminSection === "archive"
+      ? filteredArchiveClients
+      : adminSection === "notRelevant"
+        ? filteredNotRelevantClients
+        : filteredClients;
   const clientsTableSourceCount =
-    adminSection === "archive" ? archivedClients.length : activeClients.length;
+    adminSection === "archive"
+      ? archivedClients.length
+      : adminSection === "notRelevant"
+        ? notRelevantClients.length
+        : activeClients.length;
   const shareTimeLine = createdEvent
     ? isCoupleEventType(createdEvent.eventType)
       ? [
@@ -1250,6 +1292,42 @@ ${publicEventUrl}`
     }
   };
 
+  const setClientRelevance = async (client, notRelevant, clickEvent) => {
+    clickEvent?.stopPropagation?.();
+    if (!client?.userId) return;
+    const label = buildClientLabel(client);
+    const confirmed = window.confirm(
+      notRelevant
+        ? `להעביר את «${label}» לרשימת לא רלוונטים?`
+        : `להחזיר את «${label}» לרשימת הלקוחות?`
+    );
+    if (!confirmed) return;
+
+    setRelevanceUpdatingUserId(String(client.userId));
+    setError("");
+    try {
+      const response = await api.patch(`/admin/clients/${client.userId}/relevance`, {
+        notRelevant: Boolean(notRelevant)
+      });
+      const nextNotRelevant = response.data?.notRelevant === true;
+      const nextNotRelevantAt = response.data?.notRelevantAt || null;
+      setClients((prev) =>
+        prev.map((row) =>
+          String(row.userId) === String(client.userId)
+            ? { ...row, notRelevant: nextNotRelevant, notRelevantAt: nextNotRelevantAt }
+            : row
+        )
+      );
+      if (nextNotRelevant && String(selectedClientId) === String(client.userId)) {
+        setSelectedClientId("");
+      }
+    } catch (relevanceError) {
+      setError(relevanceError.response?.data?.message || "עדכון סטטוס הלקוח נכשל");
+    } finally {
+      setRelevanceUpdatingUserId("");
+    }
+  };
+
   const openEditWizard = (client) => {
     setWizardMode("edit");
     setEditingClientId(client.userId);
@@ -1369,14 +1447,20 @@ ${publicEventUrl}`
                 aria-current={adminSection === item.id ? "page" : undefined}
                 onClick={() => {
                   setAdminSection(item.id);
-                  if (item.id === "archive" || item.id === "clients") {
+                  if (item.id === "archive" || item.id === "clients" || item.id === "notRelevant") {
                     setSelectedClientId("");
+                    setClientSearch("");
+                    setClientEventDateFrom("");
+                    setClientEventDateTo("");
                   }
                 }}
               >
                 {item.label}
                 {item.id === "archive" && archivedClients.length
                   ? ` (${archivedClients.length})`
+                  : ""}
+                {item.id === "notRelevant" && notRelevantClients.length
+                  ? ` (${notRelevantClients.length})`
                   : ""}
               </button>
             ))}
@@ -1397,13 +1481,15 @@ ${publicEventUrl}`
               ? "דשבורד ראשי · ניהול לקוחות פעילים, הזמנות וקישורים"
               : adminSection === "archive"
                 ? "לקוחות שתאריך האירוע שלהם כבר עבר"
-                : adminSection === "agents"
-                  ? "סיכום לקוחות לפי סוכן וחשבונות סוכנים"
-                  : adminSection === "managers"
-                    ? "פתיחה וניהול חשבונות מנהלי אירוע (/manager)"
-                    : adminSection === "failures"
-                      ? "כל כשלי הוואטסאפ במערכת, עם סינון לפי לקוח"
-                      : "רווח מול הפסד ומקורות שיווק"}
+                : adminSection === "notRelevant"
+                  ? "לקוחות שסומנו כלא רלוונטיים — לא נסגרו מולנו"
+                  : adminSection === "agents"
+                    ? "סיכום לקוחות לפי סוכן וחשבונות סוכנים"
+                    : adminSection === "managers"
+                      ? "פתיחה וניהול חשבונות מנהלי אירוע (/manager)"
+                      : adminSection === "failures"
+                        ? "כל כשלי הוואטסאפ במערכת, עם סינון לפי לקוח"
+                        : "רווח מול הפסד ומקורות שיווק"}
           </p>
         </header>
 
@@ -1446,6 +1532,14 @@ ${publicEventUrl}`
             {archivedClients.length ? (
               <span className="us-admin-stat-note">{archivedClients.length} בארכיון</span>
             ) : null}
+          </div>
+          <div className="us-admin-stat-card">
+            <h3>אחוז הצלחה</h3>
+            <p>{salesSuccessRate == null ? "—" : `${salesSuccessRate}%`}</p>
+            <span className="us-admin-stat-note">
+              {closedDealClients.length} סגרו · {notRelevantClients.length} לא רלוונטים ·{" "}
+              {clients.length} סה״כ אירועים
+            </span>
           </div>
           <div className="us-admin-stat-card">
             <h3>פניות חדשות</h3>
@@ -1529,12 +1623,18 @@ ${publicEventUrl}`
           </>
         ) : null}
 
-        {adminSection === "clients" || adminSection === "archive" ? (
+        {adminSection === "clients" ||
+        adminSection === "archive" ||
+        adminSection === "notRelevant" ? (
           <>
         <section className="us-admin-clients-stack">
           <div className="us-admin-card">
             <h2 className="us-admin-card-title">
-              {adminSection === "archive" ? "ארכיון לקוחות" : "לקוחות"}
+              {adminSection === "archive"
+                ? "ארכיון לקוחות"
+                : adminSection === "notRelevant"
+                  ? "לא רלוונטים"
+                  : "לקוחות"}
             </h2>
             <div className="us-admin-card-body">
               <div className="us-admin-client-filters">
@@ -1588,7 +1688,11 @@ ${publicEventUrl}`
               {clientsError ? <p className="us-admin-message us-admin-message--error">{clientsError}</p> : null}
               {!loadingClients && !clientsTableSourceCount ? (
                 <p className="us-admin-empty">
-                  {adminSection === "archive" ? "אין לקוחות בארכיון" : "אין לקוחות להצגה"}
+                  {adminSection === "archive"
+                    ? "אין לקוחות בארכיון"
+                    : adminSection === "notRelevant"
+                      ? "אין לקוחות לא רלוונטיים"
+                      : "אין לקוחות להצגה"}
                 </p>
               ) : null}
               {!loadingClients && clientsTableSourceCount && !clientsTableRows.length ? (
@@ -1686,6 +1790,29 @@ ${publicEventUrl}`
                                   <Pencil size={14} />
                                 </button>
                               ) : null}
+                              {adminSection === "notRelevant" ? (
+                                <button
+                                  className="us-admin-btn us-admin-btn--xs"
+                                  type="button"
+                                  disabled={String(relevanceUpdatingUserId) === String(client.userId)}
+                                  onClick={(event) => setClientRelevance(client, false, event)}
+                                  aria-label={`החזרת ${buildClientLabel(client)} לרשימת הלקוחות`}
+                                  title="החזרה לרשימת לקוחות"
+                                >
+                                  <Undo2 size={14} />
+                                </button>
+                              ) : (
+                                <button
+                                  className="us-admin-btn us-admin-btn--xs us-admin-btn--ban"
+                                  type="button"
+                                  disabled={String(relevanceUpdatingUserId) === String(client.userId)}
+                                  onClick={(event) => setClientRelevance(client, true, event)}
+                                  aria-label={`סימון ${buildClientLabel(client)} כלא רלוונטי`}
+                                  title="העברה ללא רלוונטים"
+                                >
+                                  <Ban size={14} />
+                                </button>
+                              )}
                               <button
                                 className="us-admin-btn us-admin-btn--xs us-admin-btn--danger"
                                 type="button"

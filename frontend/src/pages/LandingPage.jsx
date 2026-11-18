@@ -131,7 +131,7 @@ const FEATURE_SECTIONS = [
       "יוצאת מהמספר שלכם — לא ממספר חברה אנונימי",
       "ללא הגבלה בשירות החינמי"
     ],
-    image: "/images/Please.png",
+    video: "/images/Please.mp4",
     imageAlt: "שליחת הזמנה בוואטסאפ",
     imageFirst: false
   },
@@ -278,7 +278,7 @@ function FeatureVideo({ src, label }) {
           </span>
           <p className="font-serif text-2xl font-bold text-primary">סרטון הסבר</p>
           <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
-            כאן יופיע סרטון קצר שמראה איך שולחים אנשי קשר לבוט של מומו.
+            {label || "טוען סרטון…"}
           </p>
         </div>
       )}
@@ -331,11 +331,14 @@ export default function LandingPage() {
     <div className="landing-page min-h-screen bg-background" dir="rtl" lang="he">
       <header className="sticky top-0 z-50 border-b border-border/70 bg-background/85 backdrop-blur">
         <div className="relative mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4">
-          <a href="#" className="flex items-center gap-2" onClick={() => setMenuOpen(false)}>
-            <span className="flex size-9 items-center justify-center rounded-full bg-accent text-accent-foreground">
-              <Heart className="size-5" fill="currentColor" />
-            </span>
-            <span className="font-serif text-2xl font-bold text-primary">מומו</span>
+          <a href="#" className="flex items-center" onClick={() => setMenuOpen(false)}>
+            <img
+              src="/logo-momo.png"
+              alt="מומו"
+              className="h-9 w-auto"
+              width={180}
+              height={71}
+            />
           </a>
 
           <nav className="hidden items-center gap-7 md:flex">
@@ -622,13 +625,9 @@ export default function LandingPage() {
             <div className="relative">
               <div className="absolute -inset-4 -z-10 rounded-[2.5rem] bg-accent/10" />
               <div className="overflow-hidden rounded-[2rem] border border-border bg-card shadow-sm">
-                <img
-                  src="/images/hostess.png"
-                  alt="ממשק הדיילת הדיגיטלית על טאבלט"
-                  className="h-full w-full object-cover"
-                  width={720}
-                  height={560}
-                  loading="lazy"
+                <FeatureVideo
+                  src="/images/hostess.mp4"
+                  label="ממשק הדיילת הדיגיטלית"
                 />
               </div>
             </div>
@@ -769,11 +768,14 @@ export default function LandingPage() {
 
       <footer className="border-t border-border">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-4 py-8 md:flex-row">
-          <div className="flex items-center gap-2">
-            <span className="flex size-8 items-center justify-center rounded-full bg-accent text-accent-foreground">
-              <Heart className="size-4" fill="currentColor" />
-            </span>
-            <span className="font-serif text-xl font-bold text-primary">מומו</span>
+          <div className="flex items-center">
+            <img
+              src="/logo-momo.png"
+              alt="מומו"
+              className="h-8 w-auto"
+              width={160}
+              height={63}
+            />
           </div>
           <p className="text-sm text-muted-foreground">אישורי הגעה והזמנות דיגיטליות, נגיש לכל כיס.</p>
           <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-muted-foreground">

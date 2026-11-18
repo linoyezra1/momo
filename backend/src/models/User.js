@@ -229,7 +229,13 @@ const userSchema = new mongoose.Schema(
     /** When managedBy=eventManager: owning EventManager account id (empty = legacy/env manager). */
     managedByEventManagerId: { type: String, default: "", index: true, trim: true },
     /** Env agent id from AGENTS_JSON (or "default" for legacy AGENT_USERNAME) */
-    createdByAgentId: { type: String, trim: true, default: "", index: true }
+    createdByAgentId: { type: String, trim: true, default: "", index: true },
+    /**
+     * Admin sales funnel: marked as not relevant (לא רלוונטי).
+     * Remaining clients are treated as closed deals for success-rate stats.
+     */
+    notRelevant: { type: Boolean, default: false, index: true },
+    notRelevantAt: { type: Date, default: null }
   },
   { timestamps: true }
 );
