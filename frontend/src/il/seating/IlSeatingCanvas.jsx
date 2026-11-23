@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef, useState } from "react";
 import { Rnd } from "react-rnd";
 import { Pencil, RotateCcw, RotateCw, Trash2 } from "lucide-react";
 import IlVenueElementVisual from "./IlVenueElementVisual.jsx";
@@ -63,18 +64,61 @@ export default function IlSeatingCanvas({
   canvasHeight = 0,
   hallPresetId = ""
 }) {
+  const wrapRef = useRef(null);
+  const [fitScale, setFitScale] = useState(1);
   const warningByTable = new Map(warnings.map((warning) => [warning.tableId, warning]));
   const hasHallBackground = Boolean(String(backgroundImageUrl || "").trim());
+  const baseWidth = Number(canvasWidth) || 0;
+  const baseHeight = Number(canvasHeight) || 0;
+  const scale = hasHallBackground && baseWidth > 0 ? fitScale : 1;
+
+  useLayoutEffect(() => {
+    if (!hasHallBackground || baseWidth <= 0) {
+      setFitScale(1);
+      return undefined;
+    }
+    const el = wrapRef.current;
+    if (!el) return undefined;
+
+    const update = () => {
+      const styles = window.getComputedStyle(el);
+      const padX =
+        (Number.parseFloat(styles.paddingLeft) || 0) + (Number.parseFloat(styles.paddingRight) || 0);
+      const available = Math.max(0, el.clientWidth - padX);
+      const next = available > 0 ? available / baseWidth : 1;
+      setFitScale(Number.isFinite(next) && next > 0 ? next : 1);
+    };
+
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [baseWidth, baseHeight, hasHallBackground]);
+
+  function toView(value) {
+    return Number(value || 0) * scale;
+  }
+
+  function fromView(value) {
+    if (!scale) return Number(value || 0);
+    return Number(value || 0) / scale;
+  }
+
   const canvasStyle = {
     ...(hasHallBackground
       ? {
-          ["--il-hall-bg-image"]: `url("${String(backgroundImageUrl).replace(/"/g, "%22")}")`
+          ["--il-hall-bg-image"]: `url("${String(backgroundImageUrl).replace(/"/g, "%22")}")`,
+          width: "100%",
+          maxWidth: "100%",
+          minWidth: 0,
+          // Keep the full hall image visible at container width (no horizontal scroll).
+          aspectRatio: baseWidth > 0 && baseHeight > 0 ? `${baseWidth} / ${baseHeight}` : undefined,
+          height: baseHeight > 0 ? Math.round(baseHeight * scale) : undefined
         }
-      : {}),
-    ...(Number(canvasWidth) > 0 ? { width: Number(canvasWidth), minWidth: Number(canvasWidth) } : {}),
-    ...(Number(canvasHeight) > 0
-      ? { height: Number(canvasHeight), minHeight: Number(canvasHeight) }
-      : {})
+      : {
+          ...(baseWidth > 0 ? { width: baseWidth, minWidth: baseWidth } : {}),
+          ...(baseHeight > 0 ? { height: baseHeight, minHeight: baseHeight } : {})
+        })
   };
 
   function updateTable(tableId, patch) {
@@ -107,12 +151,23 @@ export default function IlSeatingCanvas({
     updateElement(elementId, { rotation: normalizeRotation((current.rotation || 0) + delta) });
   }
 
+  function setCanvasNode(node) {
+    if (typeof canvasRef === "function") {
+      canvasRef(node);
+    } else if (canvasRef && typeof canvasRef === "object") {
+      canvasRef.current = node;
+    }
+  }
+
   return (
-    <div className={`il-seat-canvas-wrap${readOnly ? " is-readonly" : ""}${hasHallBackground ? " is-hall-sim" : ""}`}>
+    <div
+      ref={wrapRef}
+      className={`il-seat-canvas-wrap${readOnly ? " is-readonly" : ""}${hasHallBackground ? " is-hall-sim" : ""}`}
+    >
       <div
         className={`il-seat-canvas${hasHallBackground ? " il-seat-canvas--hall" : ""}`}
         dir="ltr"
-        ref={canvasRef}
+        ref={setCanvasNode}
         id="il-seating-canvas-export"
         data-hall-preset={hallPresetId || undefined}
         style={canvasStyle}
@@ -122,8 +177,8 @@ export default function IlSeatingCanvas({
           return (
             <Rnd
               key={element.elementId}
-              size={{ width: element.width, height: element.height }}
-              position={{ x: element.x, y: element.y }}
+              size={{ width: toView(element.width), height: toView(element.height) }}
+              position={{ x: toView(element.x), y: toView(element.y) }}
               bounds="parent"
               disableDragging={readOnly}
               enableResizing={
@@ -140,13 +195,15 @@ export default function IlSeatingCanvas({
                       topLeft: true
                     }
               }
-              onDragStop={(_e, data) => updateElement(element.elementId, { x: data.x, y: data.y })}
+              onDragStop={(_e, data) =>
+                updateElement(element.elementId, { x: fromView(data.x), y: fromView(data.y) })
+              }
               onResizeStop={(_e, _dir, ref, _delta, position) =>
                 updateElement(element.elementId, {
-                  width: ref.offsetWidth,
-                  height: ref.offsetHeight,
-                  x: position.x,
-                  y: position.y
+                  width: fromView(ref.offsetWidth),
+                  height: fromView(ref.offsetHeight),
+                  x: fromView(position.x),
+                  y: fromView(position.y)
                 })
               }
               className={`il-seat-venue il-seat-venue--${element.type}${readOnly ? " is-readonly" : ""}`}
@@ -200,25 +257,29 @@ export default function IlSeatingCanvas({
             (Array.isArray(searchHighlightTableIds) &&
               searchHighlightTableIds.includes(table.tableId));
           const isActive = activeTableId === table.tableId && !isDropTarget && !isSearchHit;
+          const minW = hasHallBackground ? 72 : 110;
+          const minH = hasHallBackground ? 56 : 110;
 
           return (
             <Rnd
               key={table.tableId}
               size={{
-                width: hasHallBackground ? Math.max(table.width, 72) : Math.max(table.width, 110),
-                height: hasHallBackground ? Math.max(table.height, 56) : Math.max(table.height, 110)
+                width: Math.max(toView(table.width), toView(minW)),
+                height: Math.max(toView(table.height), toView(minH))
               }}
-              position={{ x: table.x, y: table.y }}
+              position={{ x: toView(table.x), y: toView(table.y) }}
               bounds="parent"
               disableDragging={readOnly}
               enableResizing={!readOnly}
-              onDragStop={(_e, data) => updateTable(table.tableId, { x: data.x, y: data.y })}
+              onDragStop={(_e, data) =>
+                updateTable(table.tableId, { x: fromView(data.x), y: fromView(data.y) })
+              }
               onResizeStop={(_e, _dir, ref, _delta, position) =>
                 updateTable(table.tableId, {
-                  width: ref.offsetWidth,
-                  height: ref.offsetHeight,
-                  x: position.x,
-                  y: position.y
+                  width: fromView(ref.offsetWidth),
+                  height: fromView(ref.offsetHeight),
+                  x: fromView(position.x),
+                  y: fromView(position.y)
                 })
               }
               className={`${tableClass(table.shape, isOverCapacity, isDropTarget, isSearchHit)}${

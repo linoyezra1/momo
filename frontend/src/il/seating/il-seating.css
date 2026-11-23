@@ -886,6 +886,15 @@
 
 .il-seat-canvas-wrap.is-hall-sim {
   background: #111827;
+  overflow-x: hidden;
+  overflow-y: auto;
+  max-width: 100%;
+}
+
+.il-seat-canvas-wrap.is-hall-sim .il-seat-canvas--hall {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0 !important;
 }
 
 .il-seat-table--hall-overlay {
@@ -1437,8 +1446,16 @@
     -webkit-overflow-scrolling: touch;
   }
 
+  .il-seat-canvas-wrap.is-hall-sim {
+    overflow-x: hidden;
+  }
+
   .il-seat-canvas {
     min-width: 680px;
+  }
+
+  .il-seat-canvas-wrap.is-hall-sim .il-seat-canvas--hall {
+    min-width: 0 !important;
   }
 
   .il-seat-guest-item {

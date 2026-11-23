@@ -1,17 +1,17 @@
 /**
  * Interactive Gaia ("גאיה") hall simulation.
- * Background: /venue-halls/gaia.jpg (1544×1919).
+ * Background: /venue-halls/gaia.jpg (1142×888) — from אולם גאיה.png.
  * Drop zones sit over the drawn tables so guests can be dragged onto them.
  */
 
 const hallAssetBase = String(import.meta.env.BASE_URL || "/").replace(/\/?$/, "/");
 
 export const GAIA_HALL = {
-  id: "gaia",
+  id: "gaia-v2",
   name: "גאיה",
   backgroundImageUrl: `${hallAssetBase}venue-halls/gaia.jpg`,
-  canvasWidth: 1544,
-  canvasHeight: 1919
+  canvasWidth: 1142,
+  canvasHeight: 888
 };
 
 function table({ label, shape, capacity, x, y, width, height }) {
@@ -28,8 +28,9 @@ function table({ label, shape, capacity, x, y, width, height }) {
   };
 }
 
-/** Pixel positions calibrated to gaia.jpg */
+/** Pixel positions calibrated to landscape אולם גאיה.png (1142×888). */
 export function buildGaiaLayout() {
+  const sq = 96;
   return {
     backgroundImageUrl: GAIA_HALL.backgroundImageUrl,
     canvasWidth: GAIA_HALL.canvasWidth,
@@ -37,30 +38,34 @@ export function buildGaiaLayout() {
     hallPresetId: GAIA_HALL.id,
     venueElements: [],
     tables: [
-      // Top cluster (near stairs / upper end of hall)
-      table({ label: 6, shape: "rect", capacity: 12, x: 110, y: 150, width: 140, height: 140 }),
-      table({ label: 4, shape: "rect", capacity: 12, x: 290, y: 90, width: 140, height: 140 }),
-      table({ label: 5, shape: "rect", capacity: 12, x: 290, y: 270, width: 140, height: 140 }),
-      table({ label: 7, shape: "rect", capacity: 12, x: 490, y: 90, width: 140, height: 140 }),
-      table({ label: 8, shape: "rect", capacity: 12, x: 490, y: 270, width: 140, height: 140 }),
-      table({ label: 9, shape: "rect", capacity: 12, x: 490, y: 450, width: 140, height: 140 }),
-      table({ label: 10, shape: "rect", capacity: 12, x: 700, y: 90, width: 140, height: 140 }),
-      table({ label: 11, shape: "rect", capacity: 12, x: 700, y: 270, width: 140, height: 140 }),
-      table({ label: 13, shape: "head", capacity: 22, x: 920, y: 140, width: 420, height: 150 }),
+      // Near dance floor / DJ
+      table({ label: 13, shape: "head", capacity: 22, x: 70, y: 250, width: 280, height: 88 }),
+      table({ label: 27, shape: "head", capacity: 12, x: 760, y: 250, width: 250, height: 88 }),
 
-      // Mid cluster (around dance floor / DJ side)
-      table({ label: 25, shape: "rect", capacity: 12, x: 700, y: 620, width: 140, height: 140 }),
-      table({ label: 26, shape: "rect", capacity: 12, x: 880, y: 620, width: 140, height: 140 }),
-      table({ label: 27, shape: "head", capacity: 12, x: 1080, y: 780, width: 320, height: 140 }),
-      table({ label: 21, shape: "rect", capacity: 12, x: 160, y: 720, width: 140, height: 140 }),
-      table({ label: 22, shape: "rect", capacity: 12, x: 340, y: 720, width: 140, height: 140 }),
-      table({ label: 23, shape: "rect", capacity: 12, x: 520, y: 720, width: 140, height: 140 }),
+      // Second row
+      table({ label: 10, shape: "rect", capacity: 12, x: 90, y: 370, width: sq, height: sq }),
+      table({ label: 11, shape: "rect", capacity: 12, x: 230, y: 370, width: sq, height: sq }),
+      table({ label: 25, shape: "rect", capacity: 12, x: 760, y: 370, width: sq, height: sq }),
+      table({ label: 26, shape: "rect", capacity: 12, x: 900, y: 370, width: sq, height: sq }),
 
-      // Lower cluster (toward bar / lower stairs)
-      table({ label: 18, shape: "rect", capacity: 12, x: 160, y: 980, width: 140, height: 140 }),
-      table({ label: 19, shape: "rect", capacity: 12, x: 340, y: 980, width: 140, height: 140 }),
-      table({ label: 20, shape: "rect", capacity: 12, x: 520, y: 980, width: 140, height: 140 }),
-      table({ label: 24, shape: "rect", capacity: 12, x: 250, y: 1220, width: 140, height: 140 })
+      // Third row
+      table({ label: 7, shape: "rect", capacity: 12, x: 60, y: 500, width: sq, height: sq }),
+      table({ label: 8, shape: "rect", capacity: 12, x: 180, y: 500, width: sq, height: sq }),
+      table({ label: 9, shape: "rect", capacity: 12, x: 300, y: 500, width: sq, height: sq }),
+      table({ label: 21, shape: "rect", capacity: 12, x: 700, y: 500, width: sq, height: sq }),
+      table({ label: 22, shape: "rect", capacity: 12, x: 820, y: 500, width: sq, height: sq }),
+      table({ label: 23, shape: "rect", capacity: 12, x: 940, y: 500, width: sq, height: sq }),
+
+      // Fourth row
+      table({ label: 4, shape: "rect", capacity: 12, x: 90, y: 630, width: sq, height: sq }),
+      table({ label: 5, shape: "rect", capacity: 12, x: 230, y: 630, width: sq, height: sq }),
+      table({ label: 19, shape: "rect", capacity: 12, x: 760, y: 630, width: sq, height: sq }),
+      table({ label: 20, shape: "rect", capacity: 12, x: 900, y: 630, width: sq, height: sq }),
+
+      // Bottom row
+      table({ label: 6, shape: "rect", capacity: 12, x: 160, y: 750, width: sq, height: sq }),
+      table({ label: 18, shape: "rect", capacity: 12, x: 760, y: 750, width: sq, height: sq }),
+      table({ label: 24, shape: "rect", capacity: 12, x: 900, y: 750, width: sq, height: sq })
     ]
   };
 }
