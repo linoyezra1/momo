@@ -1,3 +1,5 @@
+import { buildBasicoLayout, BASICO_HALL } from "./basico.js";
+import { buildGaiaLayout, GAIA_HALL } from "./gaia.js";
 import { buildShaloshLayout, SHALOSH_HALL } from "./shalosh.js";
 
 /**
@@ -10,6 +12,16 @@ const HALL_PRESETS = [
     /** Accepted venueName values after normalizeVenueName */
     matchNames: ["שלוש", "אולם שלוש"],
     buildLayout: buildShaloshLayout
+  },
+  {
+    ...GAIA_HALL,
+    matchNames: ["גאיה", "אולם גאיה", "gaia", "hall gaia"],
+    buildLayout: buildGaiaLayout
+  },
+  {
+    ...BASICO_HALL,
+    matchNames: ["באסיקו", "אולם באסיקו", "basico", "hall basico"],
+    buildLayout: buildBasicoLayout
   }
 ];
 
@@ -45,4 +57,11 @@ export function resolveHallPresetByVenueName(venueName) {
   );
 }
 
-export { SHALOSH_HALL, buildShaloshLayout };
+export {
+  BASICO_HALL,
+  buildBasicoLayout,
+  GAIA_HALL,
+  buildGaiaLayout,
+  SHALOSH_HALL,
+  buildShaloshLayout
+};
